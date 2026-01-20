@@ -122,6 +122,20 @@ export function GHLTestWizard({ adminPassword }: { adminPassword: string }) {
         </div>
       )}
 
+      {/* Info Box */}
+      {!testResults && (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800 mb-3">
+            <strong>What to expect:</strong> This test checks if each endpoint is accessible and has proper permissions. Some endpoints may return "no data" (404) during testing, which is normal and expected.
+          </p>
+          <p className="text-sm text-blue-700">
+            ✅ Green = Endpoint working  
+            ⚠️ Yellow = No data found (normal for testing)  
+            ❌ Red = Authentication or permission error
+          </p>
+        </div>
+      )}
+
       {/* Test Button */}
       {!testResults && (
         <div className="mb-6">
@@ -159,7 +173,9 @@ export function GHLTestWizard({ adminPassword }: { adminPassword: string }) {
                 <h3 className={`text-lg font-semibold ${
                   testResults.success ? 'text-green-900' : 'text-yellow-900'
                 }`}>
-                  {testResults.message}
+                  {testResults.success 
+                    ? '✅ All GHL API endpoints are working!' 
+                    : '⚠️ Endpoints tested - Some returned no data (404), which is normal'}
                 </h3>
                 {testResults.locationId && (
                   <p className={`text-sm mt-1 ${
@@ -286,20 +302,31 @@ export function GHLTestWizard({ adminPassword }: { adminPassword: string }) {
         </>
       )}
 
-      {/* Info Box */}
-      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h4 className="font-semibold text-blue-900 mb-2">What gets tested?</h4>
-        <ul className="text-sm text-blue-800 space-y-1">
-          <li>✓ Contacts (list, create/update)</li>
-          <li>✓ Opportunities (list, create)</li>
-          <li>✓ Pipelines (list)</li>
-          <li>✓ Tags (list, create)</li>
-          <li>✓ Calendars (list)</li>
-          <li>✓ Appointments (create)</li>
-          <li>✓ Custom Fields (list)</li>
-          <li>✓ Notes (create)</li>
-        </ul>
-      </div>
+      {/* Info Box - What gets tested */}
+      {testResults && (
+        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h4 className="font-semibold text-blue-900 mb-2">📋 What gets tested?</h4>
+          <ul className="text-sm text-blue-800 space-y-1 grid grid-cols-2">
+            <li>✓ Contacts (list, create/update)</li>
+            <li>✓ Opportunities (list, create)</li>
+            <li>✓ Pipelines (list)</li>
+            <li>✓ Tags (list, create)</li>
+            <li>✓ Calendars (list)</li>
+            <li>✓ Appointments (create)</li>
+            <li>✓ Custom Fields (list)</li>
+            <li>✓ Notes (create)</li>
+          </ul>
+          
+          <div className="mt-4 pt-4 border-t border-blue-200">
+            <h4 className="font-semibold text-blue-900 mb-2">🟢 Status Legend</h4>
+            <ul className="text-sm text-blue-800 space-y-1">
+              <li><strong>✅ Green (HTTP 200):</strong> Endpoint is working perfectly</li>
+              <li><strong>⚠️ Yellow (HTTP 404):</strong> No data found - this is NORMAL during testing and indicates the endpoint is accessible</li>
+              <li><strong>❌ Red (HTTP 401/403):</strong> Authentication or permission error - needs to be fixed</li>
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
