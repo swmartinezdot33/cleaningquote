@@ -1,30 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { storeServiceAreaPolygon } from '@/lib/kv';
-import { parseKML, isValidKML } from '@/lib/service-area/parseKML';
+import { parseKML } from '@/lib/service-area/parseKML';
+import { storeServiceAreaPolygon, storeServiceAreaNetworkLink, deleteServiceAreaNetworkLink } from '@/lib/kv';
+import { fetchAndParseNetworkKML, clearKMLCacheForURL } from '@/lib/service-area/fetchNetworkKML';
 
 /**
  * POST /api/admin/service-area/upload
- * Upload and parse KML file for service area polygon
+ * Upload a service area KML file or NetworkLink reference
  * 
  * Request body:
  * {
- *   kmlContent: string (KML file content)
+ *   kmlContent: string,
+ *   password?: string
  * }
  * 
  * Response:
  * {
  *   success: boolean,
- *   polygons: number (number of polygons parsed),
- *   coordinates: number (total coordinates),
- *   message?: string,
- *   error?: string
+ *   message: string,
+ *   type?: 'direct' | 'network',
+ *   polygonCount?: number,
+ *   networkLink?: string
  * }
  */
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication
+    // Check admin password
     const password = request.headers.get('x-admin-password');
-    if (!password || password !== process.env.ADMIN_PASSWORD) {
+    const adminPassword = process.env.ADMIN_PASSWORD;
+
+    if (!adminPassword || password !== adminPassword) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -36,62 +40,102 @@ export async function POST(request: NextRequest) {
 
     if (!kmlContent || typeof kmlContent !== 'string') {
       return NextResponse.json(
-        { error: 'KML content is required' },
+        { error: 'Missing or invalid KML content' },
         { status: 400 }
       );
     }
 
-    // Validate KML format
-    if (!isValidKML(kmlContent)) {
+    // Parse the KML
+    const parsed = parseKML(kmlContent);
+
+    // Handle error during parsing
+    if (parsed.error) {
       return NextResponse.json(
-        { error: 'Invalid KML file. Must contain valid KML polygon elements.' },
+        { error: parsed.error },
         { status: 400 }
       );
     }
 
-    // Parse KML to extract polygon coordinates
-    const result = parseKML(kmlContent);
+    // Case 1: NetworkLink found - store the URL reference
+    if (parsed.networkLink) {
+      try {
+        // Validate the URL is reachable and contains valid KML
+        const validation = await fetchAndParseNetworkKML(parsed.networkLink);
+        
+        if (validation.error) {
+          return NextResponse.json(
+            { error: `Failed to validate NetworkLink: ${validation.error}` },
+            { status: 400 }
+          );
+        }
 
-    if (result.error || result.polygons.length === 0) {
+        if (!validation.polygons || validation.polygons.length === 0) {
+          return NextResponse.json(
+            { error: 'No polygon data found at the NetworkLink URL' },
+            { status: 400 }
+          );
+        }
+
+        // Store the network link URL
+        await storeServiceAreaNetworkLink(parsed.networkLink);
+
+        // Also store the current polygons as a fallback
+        if (validation.polygons.length > 0) {
+          await storeServiceAreaPolygon(validation.polygons[0]);
+        }
+
+        return NextResponse.json(
+          {
+            success: true,
+            message: `NetworkLink stored successfully! The system will automatically fetch and update the polygon data from the provided URL. Current polygon has ${validation.polygons[0]?.length || 0} coordinates.`,
+            type: 'network',
+            networkLink: parsed.networkLink,
+            polygonCount: validation.polygons[0]?.length || 0,
+          },
+          { status: 200 }
+        );
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        return NextResponse.json(
+          { error: `Failed to process NetworkLink: ${errorMsg}` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Case 2: Direct polygon data found
+    if (parsed.polygons && parsed.polygons.length > 0) {
+      // Store the first polygon (can extend to support multiple polygons if needed)
+      const polygon = parsed.polygons[0];
+      
+      await storeServiceAreaPolygon(polygon);
+      
+      // Clear any existing network link
+      try {
+        await deleteServiceAreaNetworkLink();
+      } catch {
+        // Ignore if there was no network link stored
+      }
+
       return NextResponse.json(
         {
-          error: result.error || 'No valid polygons found in KML file',
+          success: true,
+          message: `Service area polygon uploaded successfully with ${polygon.length} coordinates!`,
+          type: 'direct',
+          polygonCount: polygon.length,
         },
-        { status: 400 }
+        { status: 200 }
       );
     }
-
-    // Use the first polygon for service area
-    const polygon = result.polygons[0];
-
-    if (polygon.length < 3) {
-      return NextResponse.json(
-        { error: 'Polygon must have at least 3 coordinates' },
-        { status: 400 }
-      );
-    }
-
-    // Store polygon in KV
-    await storeServiceAreaPolygon(polygon);
 
     return NextResponse.json(
-      {
-        success: true,
-        polygons: result.polygons.length,
-        coordinates: polygon.length,
-        message: `Service area polygon uploaded successfully! Polygon has ${polygon.length} coordinates.`,
-      },
-      { status: 200 }
+      { error: 'No polygon data or NetworkLink found in KML file' },
+      { status: 400 }
     );
   } catch (error) {
     console.error('Error uploading service area:', error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to upload service area',
-      },
+      { error: `Failed to upload service area: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     );
   }

@@ -5,13 +5,14 @@
 
 export interface ParsedKMLResult {
   polygons: Array<Array<[number, number]>>; // Each polygon is array of [lat, lng] pairs
+  networkLink?: string; // URL from NetworkLink element
   error?: string;
 }
 
 /**
- * Parse KML file content and extract polygon coordinates
+ * Parse KML file content and extract polygon coordinates or NetworkLink
  * @param kmlContent - String content of KML file
- * @returns Object with polygons array or error
+ * @returns Object with polygons array, networkLink URL, or error
  */
 export function parseKML(kmlContent: string): ParsedKMLResult {
   try {
@@ -19,9 +20,18 @@ export function parseKML(kmlContent: string): ParsedKMLResult {
 
     // Check if this is a NetworkLink reference (common for Google Maps KML exports)
     if (kmlContent.includes('<NetworkLink>') && !kmlContent.includes('<Polygon>')) {
+      // Extract the href from NetworkLink
+      const hrefMatch = kmlContent.match(/<href>\s*(.*?)\s*<\/href>/);
+      if (hrefMatch && hrefMatch[1]) {
+        const networkLink = hrefMatch[1].trim();
+        return {
+          polygons: [],
+          networkLink,
+        };
+      }
       return {
         polygons: [],
-        error: 'This KML file is a reference link (NetworkLink) to a Google Map. Please download the actual KML file with polygon data instead. In Google Maps: 1) Right-click your map layer, 2) Select "Export to KML", and 3) Choose to download the entire file.',
+        error: 'NetworkLink found but no href URL detected. Please ensure the KML contains a valid <href> element.',
       };
     }
 

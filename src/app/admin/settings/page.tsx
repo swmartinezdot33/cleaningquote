@@ -72,6 +72,9 @@ export default function SettingsPage() {
   const [serviceAreaFile, setServiceAreaFile] = useState<File | null>(null);
   const [serviceAreaMessage, setServiceAreaMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isUploadingServiceArea, setIsUploadingServiceArea] = useState(false);
+  const [serviceAreaType, setServiceAreaType] = useState<'none' | 'direct' | 'network'>('none');
+  const [networkLinkUrl, setNetworkLinkUrl] = useState<string | null>(null);
+  const [polygonCoordinateCount, setPolygonCoordinateCount] = useState<number>(0);
   const [calendars, setCalendars] = useState<any[]>([]);
   const [selectedCalendarId, setSelectedCalendarId] = useState<string>('');
   const [isLoadingCalendars, setIsLoadingCalendars] = useState(false);
@@ -439,8 +442,13 @@ export default function SettingsPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setServiceAreaMessage({ type: 'success', text: 'Service area polygon uploaded successfully!' });
+        setServiceAreaMessage({ type: 'success', text: data.message });
         setServiceAreaFile(null);
+        setServiceAreaType(data.type);
+        if (data.type === 'network') {
+          setNetworkLinkUrl(data.networkLink || null);
+        }
+        setPolygonCoordinateCount(data.polygonCount || 0);
       } else {
         setServiceAreaMessage({
           type: 'error',
@@ -504,6 +512,27 @@ export default function SettingsPage() {
       console.error('Error loading tags:', error);
     } finally {
       setIsLoadingTags(false);
+    }
+  };
+
+  const loadServiceAreaConfig = async () => {
+    try {
+      const response = await fetch('/api/admin/service-area/status', {
+        headers: {
+          'x-admin-password': password,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setServiceAreaType(data.type || 'none');
+        if (data.type === 'network') {
+          setNetworkLinkUrl(data.networkLink || null);
+        }
+        setPolygonCoordinateCount(data.polygonCount || 0);
+      }
+    } catch (error) {
+      console.error('Error loading service area config:', error);
     }
   };
 
@@ -642,6 +671,9 @@ export default function SettingsPage() {
       if (ghlTags.length === 0) {
         loadTags();
       }
+      if (serviceAreaType === 'none') {
+        loadServiceAreaConfig();
+      }
       if (!googleAnalyticsId) {
         loadTrackingCodes();
       }
@@ -672,7 +704,7 @@ export default function SettingsPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
-                    className="mt-2"
+                    className="mt-3"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         handleLogin();
@@ -989,17 +1021,17 @@ export default function SettingsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <Card className="shadow-xl border-2">
-            <CardHeader className="bg-gradient-to-r from-[#f61590]/5 via-transparent to-transparent border-b">
+          <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
+            <CardHeader className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6">
               <CardTitle className="flex items-center gap-2 text-2xl font-bold text-gray-900">
                 <Sparkles className="h-6 w-6 text-[#f61590]" />
                 GHL Integration Configuration
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-gray-600 mt-1">
                 Configure what happens when a customer gets a quote. Choose which GHL features to enable and set default values for opportunities.
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-6">
+            <CardContent className="pt-8 pb-8">
               {connectionStatus !== 'connected' ? (
                 <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-yellow-800">
                   <p className="font-semibold">⚠️ GHL not connected</p>
@@ -1234,9 +1266,9 @@ export default function SettingsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <Card className="shadow-xl border-2">
-            <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b">
-              <CardTitle className="flex items-center gap-2">
+          <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
+            <CardHeader className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-b border-gray-200 pb-6">
+              <CardTitle className="flex items-center gap-2 text-2xl font-bold">
                 <MapPin className="h-5 w-5 text-emerald-600" />
                 Service Area Configuration
               </CardTitle>
@@ -1268,6 +1300,38 @@ export default function SettingsPage() {
                 {/* KML Upload */}
                 <div>
                   <Label className="text-base font-semibold">Upload Service Area Polygon (KML)</Label>
+                  
+                  {/* Status Display */}
+                  {serviceAreaType !== 'none' && (
+                    <div className={`mt-3 p-4 rounded-lg border-2 ${
+                      serviceAreaType === 'network'
+                        ? 'bg-blue-50 border-blue-200'
+                        : 'bg-emerald-50 border-emerald-200'
+                    }`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <p className={`font-semibold ${
+                            serviceAreaType === 'network'
+                              ? 'text-blue-900'
+                              : 'text-emerald-900'
+                          }`}>
+                            {serviceAreaType === 'network' ? '🔗 NetworkLink Active' : '✓ Direct Polygon Active'}
+                          </p>
+                          <p className={`text-sm mt-1 ${
+                            serviceAreaType === 'network'
+                              ? 'text-blue-800'
+                              : 'text-emerald-800'
+                          }`}>
+                            {serviceAreaType === 'network' 
+                              ? `Automatically fetching from: ${networkLinkUrl}`
+                              : `${polygonCoordinateCount} coordinates loaded`
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="mt-3 p-4 border-2 border-dashed border-gray-300 rounded-lg text-center">
                     <input
                       type="file"
@@ -1286,13 +1350,17 @@ export default function SettingsPage() {
                     </label>
                   </div>
                   <p className="text-sm text-gray-600 mt-2">
-                    Export your service area as a KML file from Google Maps or other mapping software. The polygon coordinates will be extracted and used to check if customers are in your service area.
+                    Export your service area as a KML file from Google Maps or other mapping software. The system supports:
                   </p>
+                  <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 ml-2 mt-1">
+                    <li><strong>Direct KML files</strong> - Traditional KML with polygon coordinates. Uploads once and stores the data.</li>
+                    <li><strong>NetworkLink references</strong> - KML files that link to a remote server. The system will automatically fetch and update the polygon data periodically, so you don't need to re-upload when your map changes!</li>
+                  </ul>
                   {serviceAreaFile && (
                     <Button
                       onClick={handleUploadServiceArea}
                       disabled={isUploadingServiceArea}
-                      className="w-full mt-3 h-10 font-semibold flex items-center gap-2"
+                      className="w-full mt-4 h-10 font-semibold flex items-center gap-2"
                     >
                       {isUploadingServiceArea ? (
                         <>
@@ -1473,18 +1541,18 @@ export default function SettingsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35 }}
         >
-          <Card className="shadow-xl border-2">
-            <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b">
-              <CardTitle className="flex items-center gap-2">
+          <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
+            <CardHeader className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-b border-gray-200 pb-6">
+              <CardTitle className="flex items-center gap-2 text-2xl font-bold">
                 <Code className="h-5 w-5 text-purple-600" />
                 Tracking & Analytics
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-gray-600 mt-1">
                 Add Google Analytics, Google Tag Manager, Meta Pixel, and custom tracking codes
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-6">
-              <div className="space-y-4">
+            <CardContent className="pt-8 pb-8">
+              <div className="space-y-6">
                 {trackingMessage && (
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
@@ -1513,7 +1581,7 @@ export default function SettingsPage() {
                     value={googleAnalyticsId}
                     onChange={(e) => setGoogleAnalyticsId(e.target.value)}
                     placeholder="G-XXXXXXXXXX"
-                    className="mt-2"
+                    className="mt-3"
                   />
                   <p className="text-sm text-gray-600 mt-1">
                     Your Google Analytics 4 measurement ID (starts with G-)
@@ -1529,7 +1597,7 @@ export default function SettingsPage() {
                     value={googleTagManagerId}
                     onChange={(e) => setGoogleTagManagerId(e.target.value)}
                     placeholder="GTM-XXXXXXX"
-                    className="mt-2"
+                    className="mt-3"
                   />
                   <p className="text-sm text-gray-600 mt-1">
                     Your Google Tag Manager container ID (starts with GTM-)
@@ -1545,7 +1613,7 @@ export default function SettingsPage() {
                     value={metaPixelId}
                     onChange={(e) => setMetaPixelId(e.target.value)}
                     placeholder="123456789012345"
-                    className="mt-2"
+                    className="mt-3"
                   />
                   <p className="text-sm text-gray-600 mt-1">
                     Your Meta Pixel ID for Facebook/Instagram conversion tracking
@@ -1595,14 +1663,14 @@ export default function SettingsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
-          <Card className="shadow-xl border-2">
-            <CardHeader className="bg-gradient-to-r from-[#f61590]/5 via-transparent to-transparent border-b">
-              <CardTitle>Query Parameter Settings</CardTitle>
-              <CardDescription>
+          <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
+            <CardHeader className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6">
+              <CardTitle className="text-2xl font-bold">Query Parameter Settings</CardTitle>
+              <CardDescription className="text-gray-600 mt-1">
                 Configure which URL query parameters should pre-fill the form fields. Example: ?firstName=John&email=test@example.com
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-6">
+            <CardContent className="pt-8 pb-8">
               <div className="space-y-4">
                 {formSettingsMessage && (
                   <motion.div
@@ -1632,7 +1700,7 @@ export default function SettingsPage() {
                     value={firstNameParam}
                     onChange={(e) => setFirstNameParam(e.target.value)}
                     placeholder="e.g., firstName, first_name"
-                    className="mt-2"
+                    className="mt-3"
                   />
                   <p className="text-sm text-gray-600 mt-1">
                     The query parameter name to use for first name (e.g., ?firstName=John)
@@ -1648,7 +1716,7 @@ export default function SettingsPage() {
                     value={lastNameParam}
                     onChange={(e) => setLastNameParam(e.target.value)}
                     placeholder="e.g., lastName, last_name"
-                    className="mt-2"
+                    className="mt-3"
                   />
                   <p className="text-sm text-gray-600 mt-1">
                     The query parameter name to use for last name (e.g., ?lastName=Doe)
@@ -1664,7 +1732,7 @@ export default function SettingsPage() {
                     value={emailParam}
                     onChange={(e) => setEmailParam(e.target.value)}
                     placeholder="e.g., email, email_address"
-                    className="mt-2"
+                    className="mt-3"
                   />
                   <p className="text-sm text-gray-600 mt-1">
                     The query parameter name to use for email (e.g., ?email=test@example.com)
@@ -1680,7 +1748,7 @@ export default function SettingsPage() {
                     value={phoneParam}
                     onChange={(e) => setPhoneParam(e.target.value)}
                     placeholder="e.g., phone, phone_number"
-                    className="mt-2"
+                    className="mt-3"
                   />
                   <p className="text-sm text-gray-600 mt-1">
                     The query parameter name to use for phone (e.g., ?phone=555-1234)
@@ -1696,7 +1764,7 @@ export default function SettingsPage() {
                     value={addressParam}
                     onChange={(e) => setAddressParam(e.target.value)}
                     placeholder="e.g., address, location"
-                    className="mt-2"
+                    className="mt-3"
                   />
                   <p className="text-sm text-gray-600 mt-1">
                     The query parameter name to use for address (e.g., ?address=123+Main+St)
@@ -1730,15 +1798,15 @@ export default function SettingsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
-          <Card className="shadow-xl border-2">
-            <CardHeader className="bg-gradient-to-r from-[#f61590]/5 via-transparent to-transparent border-b">
-              <CardTitle>Site Customization</CardTitle>
-              <CardDescription>
+          <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
+            <CardHeader className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6">
+              <CardTitle className="text-2xl font-bold">Site Customization</CardTitle>
+              <CardDescription className="text-gray-600 mt-1">
                 Customize the title, subtitle, and primary color for your entire site
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-6">
-              <div className="space-y-4">
+            <CardContent className="pt-8 pb-8">
+              <div className="space-y-6">
                 {widgetMessage && (
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
@@ -1767,7 +1835,7 @@ export default function SettingsPage() {
                     value={widgetTitle}
                     onChange={(e) => setWidgetTitle(e.target.value)}
                     placeholder="e.g., Raleigh Cleaning Company"
-                    className="mt-2"
+                    className="mt-3"
                   />
                   <p className="text-sm text-gray-600 mt-1">
                     This title is displayed prominently at the top of the site and used as the page title.
@@ -1783,7 +1851,7 @@ export default function SettingsPage() {
                     value={widgetSubtitle}
                     onChange={(e) => setWidgetSubtitle(e.target.value)}
                     placeholder="e.g., Let's get your professional cleaning price!"
-                    className="mt-2"
+                    className="mt-3"
                   />
                   <p className="text-sm text-gray-600 mt-1">
                     This subtitle appears below the title throughout the site.
@@ -1849,17 +1917,17 @@ export default function SettingsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
-          <Card className="shadow-xl border-2">
-            <CardHeader className="bg-gradient-to-r from-[#f61590]/5 via-transparent to-transparent border-b">
-              <CardTitle className="flex items-center gap-2">
+          <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
+            <CardHeader className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6">
+              <CardTitle className="flex items-center gap-2 text-2xl font-bold">
                 <Code className="h-5 w-5 text-[#f61590]" />
                 Embed Quote Widget
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-gray-600 mt-1">
                 Copy this code and paste it anywhere on your website to embed the quote calculator
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-6">
+            <CardContent className="pt-8 pb-8">
               <div className="space-y-4">
                 <div className="p-4 bg-gray-900 rounded-lg border border-gray-700">
                   <code className="text-green-400 font-mono text-sm whitespace-pre-wrap break-words">

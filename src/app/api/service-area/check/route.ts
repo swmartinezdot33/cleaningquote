@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServiceAreaPolygon } from '@/lib/kv';
+import { getServiceAreaPolygon, getServiceAreaNetworkLink } from '@/lib/kv';
 import { pointInPolygon } from '@/lib/service-area/pointInPolygon';
+import { fetchAndParseNetworkKML } from '@/lib/service-area/fetchNetworkKML';
 
 /**
  * POST /api/service-area/check
  * Check if an address is within the service area
+ * 
+ * Automatically uses NetworkLink URL if available, otherwise falls back to stored polygon.
  * 
  * Request body:
  * {
@@ -38,8 +41,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get service area polygon from storage
-    const polygon = await getServiceAreaPolygon();
+    // Try to get polygon: first from NetworkLink if available, then from stored polygon
+    let polygon = null;
+    let polygonSource = 'none';
+
+    // Check if we have a NetworkLink configured
+    const networkLink = await getServiceAreaNetworkLink();
+    if (networkLink) {
+      try {
+        const result = await fetchAndParseNetworkKML(networkLink);
+        if (result.polygons && result.polygons.length > 0) {
+          polygon = result.polygons[0];
+          polygonSource = 'network';
+        }
+      } catch (error) {
+        console.error('Error fetching NetworkLink KML:', error);
+        // Fall back to stored polygon
+      }
+    }
+
+    // Fall back to stored polygon if NetworkLink didn't work
+    if (!polygon) {
+      polygon = await getServiceAreaPolygon();
+      if (polygon) {
+        polygonSource = 'stored';
+      }
+    }
 
     if (!polygon || polygon.length === 0) {
       return NextResponse.json(

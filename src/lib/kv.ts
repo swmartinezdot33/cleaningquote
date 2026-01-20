@@ -8,6 +8,7 @@ const GHL_CONFIG_KEY = 'ghl:config';
 const WIDGET_SETTINGS_KEY = 'widget:settings';
 const SURVEY_QUESTIONS_KEY = 'survey:questions';
 const SERVICE_AREA_POLYGON_KEY = 'service:area:polygon';
+const SERVICE_AREA_NETWORK_LINK_KEY = 'service:area:network:link';
 
 /**
  * Check if KV is configured
@@ -324,5 +325,44 @@ export async function serviceAreaPolygonExists(): Promise<boolean> {
     return exists === 1;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Store service area network link URL
+ */
+export async function storeServiceAreaNetworkLink(url: string): Promise<void> {
+  try {
+    const kv = getKV();
+    await kv.set(SERVICE_AREA_NETWORK_LINK_KEY, url);
+  } catch (error) {
+    console.error('Error storing service area network link:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get service area network link URL
+ */
+export async function getServiceAreaNetworkLink(): Promise<string | null> {
+  try {
+    const kv = getKV();
+    const url = await kv.get<string>(SERVICE_AREA_NETWORK_LINK_KEY);
+    return url || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Delete service area network link
+ */
+export async function deleteServiceAreaNetworkLink(): Promise<void> {
+  try {
+    const kv = getKV();
+    await kv.del(SERVICE_AREA_NETWORK_LINK_KEY);
+  } catch (error) {
+    console.error('Error deleting service area network link:', error);
+    throw error;
   }
 }
