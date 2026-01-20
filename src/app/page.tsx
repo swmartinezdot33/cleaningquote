@@ -1164,7 +1164,7 @@ export default function Home() {
                 )}
 
                 {/* Appointment Booking Section */}
-                {quoteResult?.ghlContactId && (
+                {quoteResult && (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -1317,7 +1317,7 @@ export default function Home() {
                 )}
 
                 {/* Call Booking Section */}
-                {quoteResult?.ghlContactId && (
+                {quoteResult && (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
