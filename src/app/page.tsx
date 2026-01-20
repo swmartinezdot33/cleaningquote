@@ -652,6 +652,12 @@ export default function Home() {
                         placeholder={currentQuestion.placeholder}
                         className="h-14 text-lg"
                         {...register(currentQuestion.id as keyof QuoteFormData)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            nextStep();
+                          }
+                        }}
                       />
                     )}
 
@@ -662,6 +668,12 @@ export default function Home() {
                         placeholder={currentQuestion.placeholder}
                         className="h-14 text-lg"
                         {...register(currentQuestion.id as keyof QuoteFormData)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            nextStep();
+                          }
+                        }}
                       />
                     )}
 
@@ -672,6 +684,12 @@ export default function Home() {
                         placeholder={currentQuestion.placeholder}
                         className="h-14 text-lg"
                         {...register(currentQuestion.id as keyof QuoteFormData)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            nextStep();
+                          }
+                        }}
                       />
                     )}
 
@@ -683,6 +701,12 @@ export default function Home() {
                         placeholder={currentQuestion.placeholder}
                         className="h-14 text-lg"
                         {...register(currentQuestion.id as keyof QuoteFormData, { valueAsNumber: true })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            nextStep();
+                          }
+                        }}
                       />
                     )}
 
@@ -691,8 +715,18 @@ export default function Home() {
                         name={currentQuestion.id as keyof QuoteFormData & 'serviceType' | 'frequency' | 'condition'}
                         control={control}
                         render={({ field }) => (
-                          <Select onValueChange={field.onChange} value={field.value || ''}>
-                            <SelectTrigger className="h-14 text-lg">
+                          <Select onValueChange={(value) => {
+                            field.onChange(value);
+                          }} value={field.value || ''}>
+                            <SelectTrigger 
+                              className="h-14 text-lg"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && field.value) {
+                                  e.preventDefault();
+                                  nextStep();
+                                }
+                              }}
+                            >
                               <SelectValue placeholder="Select an option" />
                             </SelectTrigger>
                             <SelectContent>
