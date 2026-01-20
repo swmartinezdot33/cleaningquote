@@ -17,6 +17,14 @@ export function parseKML(kmlContent: string): ParsedKMLResult {
   try {
     const polygons: Array<Array<[number, number]>> = [];
 
+    // Check if this is a NetworkLink reference (common for Google Maps KML exports)
+    if (kmlContent.includes('<NetworkLink>') && !kmlContent.includes('<Polygon>')) {
+      return {
+        polygons: [],
+        error: 'This KML file is a reference link (NetworkLink) to a Google Map. Please download the actual KML file with polygon data instead. In Google Maps: 1) Right-click your map layer, 2) Select "Export to KML", and 3) Choose to download the entire file.',
+      };
+    }
+
     // Use regex to find all coordinates within Polygon elements
     // KML format: <coordinates>lon,lat,0 lon,lat,0 ...</coordinates>
     const coordRegex = /<coordinates>\s*([\s\S]*?)\s*<\/coordinates>/g;
@@ -34,7 +42,7 @@ export function parseKML(kmlContent: string): ParsedKMLResult {
     if (polygons.length === 0) {
       return {
         polygons: [],
-        error: 'No valid polygon coordinates found in KML file. Please ensure the KML contains valid <Polygon> elements with <coordinates>.',
+        error: 'No valid polygon coordinates found in KML file. Please ensure the KML contains valid <Polygon> elements with <coordinates>. If you exported from Google Maps, make sure you downloaded the actual KML file (not a reference link).',
       };
     }
 
