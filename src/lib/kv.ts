@@ -257,9 +257,12 @@ export interface SurveyQuestion {
 }
 
 /**
+ * DEPRECATED: Use @/lib/survey/manager instead
+ * 
  * Store survey questions
  */
 export async function storeSurveyQuestions(questions: SurveyQuestion[]): Promise<void> {
+  console.warn('⚠️ storeSurveyQuestions is deprecated. Use survey/manager.saveSurveyQuestions instead');
   try {
     const kv = getKV();
     // Sort by order before storing
@@ -272,9 +275,12 @@ export async function storeSurveyQuestions(questions: SurveyQuestion[]): Promise
 }
 
 /**
+ * DEPRECATED: Use @/lib/survey/manager instead
+ * 
  * Get survey questions
  */
 export async function getSurveyQuestions(): Promise<SurveyQuestion[]> {
+  console.warn('⚠️ getSurveyQuestions is deprecated. Use survey/manager.getSurveyQuestions instead');
   try {
     const kv = getKV();
     const questions = await kv.get<SurveyQuestion[]>(SURVEY_QUESTIONS_KEY);
