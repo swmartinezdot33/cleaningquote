@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Upload, Save, Plus, Trash2, Download, Eye, EyeOff, Loader2, Table } from 'lucide-react';
+import { Upload, Save, Plus, Trash2, Download, Eye, EyeOff, Loader2, Table, GripVertical, Copy, ArrowUp, ArrowDown, Sparkles } from 'lucide-react';
 
 const priceRangeSchema = z.object({
   low: z.number().min(0),
@@ -70,7 +70,7 @@ export default function AdminPage() {
     },
   });
 
-  const { fields, append, remove, update } = useFieldArray({
+  const { fields, append, remove, update, insert } = useFieldArray({
     control,
     name: 'rows',
   });
@@ -288,6 +288,27 @@ export default function AdminPage() {
     });
   };
 
+  const duplicateRow = (index: number) => {
+    const rowToDuplicate = watchedRows[index];
+    if (rowToDuplicate) {
+      insert(index + 1, { ...rowToDuplicate });
+    }
+  };
+
+  const moveRow = (index: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && index > 0) {
+      const currentRow = watchedRows[index];
+      const prevRow = watchedRows[index - 1];
+      update(index - 1, currentRow);
+      update(index, prevRow);
+    } else if (direction === 'down' && index < watchedRows.length - 1) {
+      const currentRow = watchedRows[index];
+      const nextRow = watchedRows[index + 1];
+      update(index + 1, currentRow);
+      update(index, nextRow);
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -332,20 +353,15 @@ export default function AdminPage() {
     <main className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Pricing Management</h1>
-          <p className="text-gray-600">Upload Excel file or manually configure pricing structure</p>
+          <div className="flex items-center gap-3 mb-2">
+            <Sparkles className="h-8 w-8 text-[#f61590]" />
+            <h1 className="text-4xl font-bold text-gray-900">Pricing Builder</h1>
+          </div>
+          <p className="text-gray-600">Create and manage your quoting structure with an intuitive interface</p>
         </div>
 
         {/* Mode Toggle */}
         <div className="mb-6 flex gap-4 flex-wrap">
-          <Button
-            onClick={() => setUploadMode('upload')}
-            variant={uploadMode === 'upload' ? 'default' : 'outline'}
-            className="flex items-center gap-2"
-          >
-            <Upload className="h-4 w-4" />
-            Upload Excel File
-          </Button>
           <Button
             onClick={() => {
               setUploadMode('manual');
@@ -354,8 +370,8 @@ export default function AdminPage() {
             variant={uploadMode === 'manual' ? 'default' : 'outline'}
             className="flex items-center gap-2"
           >
-            <Eye className="h-4 w-4" />
-            Manual Configuration
+            <Sparkles className="h-4 w-4" />
+            Build Pricing Structure
           </Button>
           <Button
             onClick={() => {
@@ -366,7 +382,15 @@ export default function AdminPage() {
             className="flex items-center gap-2"
           >
             <Table className="h-4 w-4" />
-            View Pricing Structure
+            View Structure
+          </Button>
+          <Button
+            onClick={() => setUploadMode('upload')}
+            variant={uploadMode === 'upload' ? 'default' : 'outline'}
+            className="flex items-center gap-2"
+          >
+            <Upload className="h-4 w-4" />
+            Import from Excel
           </Button>
         </div>
 
@@ -563,149 +587,277 @@ export default function AdminPage() {
               exit={{ opacity: 0, x: -20 }}
             >
               <form onSubmit={handleSubmit(onSave)}>
-                <Card className="shadow-xl border-2 mb-6">
-                  <CardHeader>
+                <Card className="shadow-xl border-2 mb-6 bg-gradient-to-br from-white via-gray-50/50 to-white">
+                  <CardHeader className="bg-gradient-to-r from-[#f61590]/5 via-transparent to-transparent border-b">
                     <div className="flex justify-between items-center">
                       <div>
-                        <CardTitle>Manual Pricing Configuration</CardTitle>
-                        <CardDescription>
-                          Configure pricing structure manually. Add, edit, or remove pricing rows.
+                        <div className="flex items-center gap-2 mb-2">
+                          <Sparkles className="h-5 w-5 text-[#f61590]" />
+                          <CardTitle className="text-2xl">Build Your Pricing Structure</CardTitle>
+                        </div>
+                        <CardDescription className="text-base">
+                          Create pricing tiers by square footage range. Each tier covers different service types and frequencies.
                         </CardDescription>
                       </div>
                       <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          onClick={loadPricingData}
-                          variant="outline"
-                          size="sm"
-                        >
-                          Reload
-                        </Button>
+                        {fields.length > 0 && (
+                          <Button
+                            type="button"
+                            onClick={loadPricingData}
+                            variant="outline"
+                            size="sm"
+                          >
+                            Reload
+                          </Button>
+                        )}
                         <Button
                           type="button"
                           onClick={addNewRow}
-                          variant="outline"
                           size="sm"
-                          className="flex items-center gap-2"
+                          className="flex items-center gap-2 shadow-lg"
                         >
                           <Plus className="h-4 w-4" />
-                          Add Row
+                          Add Tier
                         </Button>
                       </div>
                     </div>
+                    {fields.length > 0 && (
+                      <div className="mt-4 p-3 bg-gradient-to-r from-[#f61590]/10 to-transparent rounded-lg border border-[#f61590]/20">
+                        <p className="text-sm text-gray-700">
+                          <strong>{fields.length}</strong> pricing {fields.length === 1 ? 'tier' : 'tiers'} configured • 
+                          Max Square Footage: <strong>{Math.max(...watchedRows.map((r: any) => r.sqFtRange?.max || 0), 0)}</strong>
+                        </p>
+                      </div>
+                    )}
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="pt-6">
                     <div className="space-y-6">
                       {fields.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500">
-                          <p>No pricing rows configured.</p>
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="text-center py-16 px-8 border-2 border-dashed border-gray-300 rounded-xl bg-gradient-to-br from-gray-50 to-white"
+                        >
+                          <Sparkles className="h-16 w-16 text-[#f61590] mx-auto mb-4 opacity-50" />
+                          <h3 className="text-2xl font-semibold text-gray-900 mb-2">Start Building Your Pricing Structure</h3>
+                          <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                            Create pricing tiers based on square footage ranges. Each tier will have pricing for all service types.
+                          </p>
                           <Button
                             type="button"
                             onClick={addNewRow}
-                            variant="outline"
-                            className="mt-4"
+                            size="lg"
+                            className="flex items-center gap-2 mx-auto shadow-lg"
                           >
-                            Add First Row
+                            <Plus className="h-5 w-5" />
+                            Create Your First Pricing Tier
                           </Button>
-                        </div>
+                        </motion.div>
                       ) : (
                         fields.map((field, index) => (
-                          <Card key={field.id} className="border-2">
-                            <CardContent className="pt-6">
-                              <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-semibold">Row {index + 1}</h3>
-                                <Button
-                                  type="button"
-                                  onClick={() => remove(index)}
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-red-600 hover:text-red-700"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                                <div>
-                                  <Label>Square Footage Range (Min)</Label>
-                                  <Input
-                                    type="number"
-                                    {...register(`rows.${index}.sqFtRange.min`, { valueAsNumber: true })}
-                                  />
-                                  {errors.rows?.[index]?.sqFtRange?.min && (
-                                    <p className="text-sm text-red-500 mt-1">
-                                      {errors.rows[index]?.sqFtRange?.min?.message}
-                                    </p>
-                                  )}
-                                </div>
-                                <div>
-                                  <Label>Square Footage Range (Max)</Label>
-                                  <Input
-                                    type="number"
-                                    {...register(`rows.${index}.sqFtRange.max`, { valueAsNumber: true })}
-                                  />
-                                  {errors.rows?.[index]?.sqFtRange?.max && (
-                                    <p className="text-sm text-red-500 mt-1">
-                                      {errors.rows[index]?.sqFtRange?.max?.message}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {[
-                                  { key: 'weekly', label: 'Weekly' },
-                                  { key: 'biWeekly', label: 'Bi-Weekly' },
-                                  { key: 'fourWeek', label: '4 Week' },
-                                  { key: 'general', label: 'General' },
-                                  { key: 'deep', label: 'Deep' },
-                                  { key: 'moveInOutBasic', label: 'Move In/Out Basic' },
-                                  { key: 'moveInOutFull', label: 'Move In/Out Full' },
-                                ].map((service) => (
-                                  <div key={service.key} className="space-y-2">
-                                    <Label className="text-sm font-medium">{service.label}</Label>
-                                    <div className="grid grid-cols-2 gap-2">
-                                      <Input
-                                        type="number"
-                                        placeholder="Low"
-                                        {...register(`rows.${index}.${service.key}.low` as any, { valueAsNumber: true })}
-                                      />
-                                      <Input
-                                        type="number"
-                                        placeholder="High"
-                                        {...register(`rows.${index}.${service.key}.high` as any, { valueAsNumber: true })}
-                                      />
+                          <motion.div
+                            key={field.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                          >
+                            <Card className="border-2 shadow-lg hover:shadow-xl transition-shadow bg-white">
+                              <CardContent className="pt-6">
+                                <div className="flex justify-between items-center mb-6 pb-4 border-b">
+                                  <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-2">
+                                      <GripVertical className="h-5 w-5 text-gray-400 cursor-move" />
+                                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#f61590] to-[#f61590]/80 flex items-center justify-center text-white font-bold shadow-lg">
+                                        {index + 1}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <h3 className="text-lg font-semibold text-gray-900">Pricing Tier {index + 1}</h3>
+                                      <p className="text-sm text-gray-500">Configure square footage range and service prices</p>
                                     </div>
                                   </div>
-                                ))}
-                              </div>
-                            </CardContent>
-                          </Card>
+                                  <div className="flex gap-2">
+                                    {index > 0 && (
+                                      <Button
+                                        type="button"
+                                        onClick={() => moveRow(index, 'up')}
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex items-center gap-1"
+                                      >
+                                        <ArrowUp className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                    {index < fields.length - 1 && (
+                                      <Button
+                                        type="button"
+                                        onClick={() => moveRow(index, 'down')}
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex items-center gap-1"
+                                      >
+                                        <ArrowDown className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                    <Button
+                                      type="button"
+                                      onClick={() => duplicateRow(index)}
+                                      variant="outline"
+                                      size="sm"
+                                      className="flex items-center gap-1"
+                                      title="Duplicate row"
+                                    >
+                                      <Copy className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      onClick={() => remove(index)}
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50 flex items-center gap-1"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+
+                                {/* Square Footage Range */}
+                                <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                                  <Label className="text-base font-semibold text-gray-900 mb-3 block">Square Footage Range</Label>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                      <Label className="text-sm text-gray-600 mb-1 block">Minimum Sq Ft</Label>
+                                      <Input
+                                        type="number"
+                                        placeholder="e.g., 0"
+                                        className="text-lg font-medium"
+                                        {...register(`rows.${index}.sqFtRange.min`, { valueAsNumber: true })}
+                                      />
+                                      {errors.rows?.[index]?.sqFtRange?.min && (
+                                        <p className="text-sm text-red-500 mt-1">
+                                          {errors.rows[index]?.sqFtRange?.min?.message}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div>
+                                      <Label className="text-sm text-gray-600 mb-1 block">Maximum Sq Ft</Label>
+                                      <Input
+                                        type="number"
+                                        placeholder="e.g., 1500"
+                                        className="text-lg font-medium"
+                                        {...register(`rows.${index}.sqFtRange.max`, { valueAsNumber: true })}
+                                      />
+                                      {errors.rows?.[index]?.sqFtRange?.max && (
+                                        <p className="text-sm text-red-500 mt-1">
+                                          {errors.rows[index]?.sqFtRange?.max?.message}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {watchedRows[index]?.sqFtRange?.min !== undefined && watchedRows[index]?.sqFtRange?.max !== undefined && (
+                                    <p className="text-sm text-gray-600 mt-2">
+                                      Range: <span className="font-semibold">{watchedRows[index].sqFtRange.min} - {watchedRows[index].sqFtRange.max} sq ft</span>
+                                    </p>
+                                  )}
+                                </div>
+
+                                {/* Service Pricing */}
+                                <div>
+                                  <Label className="text-base font-semibold text-gray-900 mb-4 block">Service Pricing ($)</Label>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                    {[
+                                      { key: 'weekly', label: 'Weekly Cleaning', icon: '📅' },
+                                      { key: 'biWeekly', label: 'Bi-Weekly Cleaning', icon: '📆' },
+                                      { key: 'fourWeek', label: '4 Week Cleaning', icon: '🗓️' },
+                                      { key: 'general', label: 'General Cleaning', icon: '✨' },
+                                      { key: 'deep', label: 'Deep Cleaning', icon: '🧹' },
+                                      { key: 'moveInOutBasic', label: 'Move In/Out Basic', icon: '📦' },
+                                      { key: 'moveInOutFull', label: 'Move In/Out Full', icon: '📦📦' },
+                                    ].map((service) => (
+                                      <div key={service.key} className="p-4 border-2 rounded-lg hover:border-[#f61590]/50 transition-colors bg-white">
+                                        <Label className="text-sm font-semibold text-gray-900 mb-2 block flex items-center gap-2">
+                                          <span>{service.icon}</span>
+                                          {service.label}
+                                        </Label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <div>
+                                            <Label className="text-xs text-gray-500 mb-1 block">Low</Label>
+                                            <Input
+                                              type="number"
+                                              placeholder="$0"
+                                              className="text-sm"
+                                              {...register(`rows.${index}.${service.key}.low` as any, { valueAsNumber: true })}
+                                            />
+                                          </div>
+                                          <div>
+                                            <Label className="text-xs text-gray-500 mb-1 block">High</Label>
+                                            <Input
+                                              type="number"
+                                              placeholder="$0"
+                                              className="text-sm"
+                                              {...register(`rows.${index}.${service.key}.high` as any, { valueAsNumber: true })}
+                                            />
+                                          </div>
+                                        </div>
+                                        {(watchedRows[index] as any)?.[service.key]?.low !== undefined && (watchedRows[index] as any)?.[service.key]?.high !== undefined && (
+                                          <p className="text-xs text-gray-600 mt-2 font-medium">
+                                            ${(watchedRows[index] as any)[service.key].low} - ${(watchedRows[index] as any)[service.key].high}
+                                          </p>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </motion.div>
                         ))
                       )}
                     </div>
 
                     {fields.length > 0 && (
-                      <div className="mt-6 flex justify-end">
-                        <Button
-                          type="submit"
-                          size="lg"
-                          disabled={isSaving}
-                          className="flex items-center gap-2"
-                        >
-                          {isSaving ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              Saving...
-                            </>
-                          ) : (
-                            <>
-                              <Save className="h-4 w-4" />
-                              Save Pricing Data
-                            </>
-                          )}
-                        </Button>
-                      </div>
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-8 p-6 bg-gradient-to-r from-[#f61590]/5 via-transparent to-transparent rounded-lg border-2 border-[#f61590]/20 flex justify-between items-center"
+                      >
+                        <div>
+                          <p className="font-semibold text-gray-900">Ready to save your pricing structure?</p>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Your pricing will be immediately available for quote calculations.
+                          </p>
+                        </div>
+                        <div className="flex gap-3">
+                          <Button
+                            type="button"
+                            onClick={addNewRow}
+                            variant="outline"
+                            size="lg"
+                            className="flex items-center gap-2"
+                          >
+                            <Plus className="h-4 w-4" />
+                            Add Another Tier
+                          </Button>
+                          <Button
+                            type="submit"
+                            size="lg"
+                            disabled={isSaving}
+                            className="flex items-center gap-2 shadow-lg"
+                          >
+                            {isSaving ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <Save className="h-4 w-4" />
+                                Save Pricing Structure
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </motion.div>
                     )}
                   </CardContent>
                 </Card>

@@ -3,9 +3,23 @@ import { kv } from '@vercel/kv';
 const PRICING_KEY = 'pricing:file:2026';
 
 /**
+ * Check if KV is configured
+ */
+function isKVConfigured(): boolean {
+  return !!(
+    process.env.KV_REST_API_URL &&
+    process.env.KV_REST_API_TOKEN
+  );
+}
+
+/**
  * Get the KV client (lazy initialization)
+ * Returns null if KV is not configured (for local dev)
  */
 export function getKV() {
+  if (!isKVConfigured()) {
+    throw new Error('KV_REST_API_URL and KV_REST_API_TOKEN environment variables are required. KV storage is not configured.');
+  }
   // KV client is auto-initialized from environment variables
   // Vercel automatically injects: KV_REST_API_URL, KV_REST_API_TOKEN, KV_REST_API_READ_ONLY_TOKEN
   return kv;

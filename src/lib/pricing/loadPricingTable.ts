@@ -81,19 +81,29 @@ export async function loadPricingTable(): Promise<PricingTable> {
 
   try {
     // First, try to get structured data from KV (if saved manually)
-    const { getKV } = await import('@/lib/kv');
-    const kv = getKV();
-    const structuredData = await kv.get<PricingTable>('pricing:data:table');
-    
-    if (structuredData && structuredData.rows && structuredData.rows.length > 0) {
-      cachedTable = structuredData;
-      cacheInvalidated = false;
-      return cachedTable;
+    try {
+      const { getKV } = await import('@/lib/kv');
+      const kv = getKV();
+      const structuredData = await kv.get<PricingTable>('pricing:data:table');
+      
+      if (structuredData && structuredData.rows && structuredData.rows.length > 0) {
+        cachedTable = structuredData;
+        cacheInvalidated = false;
+        return cachedTable;
+      }
+    } catch (kvError) {
+      // KV not configured - this is OK for local dev
+      if (kvError instanceof Error && kvError.message.includes('KV')) {
+        console.warn('KV not configured, skipping KV lookup');
+      } else {
+        throw kvError;
+      }
     }
 
     // Fall back to parsing Excel file
     // Get file from Vercel KV (Upstash Redis) storage
-    const buffer = await getPricingFile();
+    try {
+      const buffer = await getPricingFile();
 
     // Parse Excel file
     const workbook = XLSX.read(buffer, { type: 'buffer' });
@@ -236,11 +246,23 @@ export async function loadPricingTable(): Promise<PricingTable> {
       const kv = getKV();
       await kv.set('pricing:data:table', cachedTable);
     } catch (saveError) {
-      console.warn('Could not save structured pricing data to KV:', saveError);
+      // KV not configured - this is OK for local dev
+      if (saveError instanceof Error && saveError.message.includes('KV')) {
+        console.warn('KV not configured, skipping save to KV');
+      } else {
+        console.warn('Could not save structured pricing data to KV:', saveError);
+      }
       // Continue anyway, cache will work in memory
     }
     
     return cachedTable;
+    } catch (fileError) {
+      // If file read fails (KV not configured), throw a helpful error
+      if (fileError instanceof Error && fileError.message.includes('KV')) {
+        throw new Error('KV storage is not configured. Please configure KV_REST_API_URL and KV_REST_API_TOKEN environment variables, or upload pricing data using the admin interface.');
+      }
+      throw fileError;
+    }
   } catch (error) {
     console.error('Error loading pricing table:', error);
     throw error;
