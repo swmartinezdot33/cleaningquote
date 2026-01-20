@@ -22,29 +22,37 @@ function generateSchemaFromQuestions(questions: SurveyQuestion[]): z.ZodObject<a
   const schemaShape: Record<string, z.ZodTypeAny> = {};
 
   questions.forEach((question) => {
+    // Use question.id directly - field IDs with dots are handled by React Hook Form
+    const fieldId = question.id;
+    
     if (question.type === 'number') {
-      schemaShape[question.id] = question.required
+      schemaShape[fieldId] = question.required
         ? z.number({ required_error: `${question.label} is required` }).int().min(0, `${question.label} must be 0 or greater`)
         : z.number().int().min(0).optional();
     } else if (question.type === 'email') {
-      schemaShape[question.id] = question.required
+      schemaShape[fieldId] = question.required
         ? z.string().min(1, `${question.label} is required`).email('Valid email is required')
         : z.string().email().optional();
     } else if (question.type === 'tel') {
-      schemaShape[question.id] = question.required
+      schemaShape[fieldId] = question.required
         ? z.string().min(10, 'Valid phone number is required')
         : z.string().optional();
     } else if (question.type === 'select') {
-      schemaShape[question.id] = question.required
-        ? z.string().min(1, `Please select ${question.label.toLowerCase()}`)
-        : z.string().optional().nullable();
+      if (question.required) {
+        schemaShape[fieldId] = z.string()
+          .min(1, `Please select ${question.label.toLowerCase()}`)
+          .transform(val => val?.trim() || '')
+          .refine(val => val.length > 0, { message: `Please select ${question.label.toLowerCase()}` });
+      } else {
+        schemaShape[fieldId] = z.string().optional().nullable();
+      }
     } else if (question.type === 'address') {
-      schemaShape[question.id] = question.required
+      schemaShape[fieldId] = question.required
         ? z.string().min(1, `${question.label} is required`)
         : z.string().optional();
     } else {
       // text type
-      schemaShape[question.id] = question.required
+      schemaShape[fieldId] = question.required
         ? z.string().min(1, `${question.label} is required`)
         : z.string().optional();
     }
@@ -579,7 +587,12 @@ export default function Home() {
     const isValid = await trigger(currentQuestion.id as any);
     
     if (!isValid) {
-      console.warn('Validation failed for:', currentQuestion.id, 'Current value:', getValues(currentQuestion.id as any));
+      const currentValue = getValues(currentQuestion.id as any);
+      const fieldError = (errors[currentQuestion.id as any] as any)?.message;
+      const allErrors = errors;
+      console.warn('Validation failed for:', currentQuestion.id, 'Current value:', currentValue);
+      console.warn('Field error:', fieldError);
+      console.warn('All form errors:', allErrors);
       return;
     }
     
