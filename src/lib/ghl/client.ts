@@ -229,26 +229,15 @@ export async function testGHLConnection(token?: string): Promise<{ success: bool
       return { success: false, error: 'Token appears to be invalid (too short)' };
     }
 
-    // Try multiple endpoints - some PIT tokens might work better with different endpoints
-    // First try the locations endpoint (requires locations.read scope)
-    let response = await fetch(`${GHL_API_BASE}/locations`, {
+    // Test with an endpoint we actually use - GET /contacts with limit=1
+    // This uses contacts.write scope which we require for the integration
+    const response = await fetch(`${GHL_API_BASE}/contacts?limit=1`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${testToken.trim()}`,
         'Content-Type': 'application/json',
       },
     });
-
-    // If locations fails with 401, try users/profile as a fallback
-    if (response.status === 401) {
-      response = await fetch(`${GHL_API_BASE}/users/profile`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${testToken.trim()}`,
-          'Content-Type': 'application/json',
-        },
-      });
-    }
 
     if (!response.ok) {
       let errorMessage = `HTTP ${response.status}`;
