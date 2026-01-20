@@ -77,8 +77,39 @@ export function loadPricingTable(): PricingTable {
     return cachedTable;
   }
 
-  const filePath = join(process.cwd(), 'data', '2026 Pricing.xlsx');
-  const fileBuffer = readFileSync(filePath);
+  // Try multiple possible paths for Vercel serverless environment
+  const possiblePaths = [
+    // Vercel production path (file copied during build)
+    join(process.cwd(), '.next', 'server', 'data', '2026 Pricing.xlsx'),
+    // Development and standard paths
+    join(process.cwd(), 'data', '2026 Pricing.xlsx'),
+    join(process.cwd(), '..', 'data', '2026 Pricing.xlsx'),
+    // Alternative serverless paths
+    join(__dirname, '..', '..', '..', 'data', '2026 Pricing.xlsx'),
+    join(__dirname, '..', '..', '..', '.next', 'server', 'data', '2026 Pricing.xlsx'),
+  ];
+
+  let fileBuffer: Buffer | null = null;
+  let lastError: Error | null = null;
+
+  for (const filePath of possiblePaths) {
+    try {
+      fileBuffer = readFileSync(filePath);
+      console.log(`Successfully loaded pricing file from: ${filePath}`);
+      break;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.log(`Failed to load from ${filePath}:`, lastError.message);
+      continue;
+    }
+  }
+
+  if (!fileBuffer) {
+    console.error('All file paths failed. Last error:', lastError);
+    throw new Error(
+      `Excel file not found. Tried paths: ${possiblePaths.join(', ')}. Error: ${lastError?.message || 'Unknown'}`
+    );
+  }
   const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
   
   const sheetName = 'Sheet1';

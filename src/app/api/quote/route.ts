@@ -36,8 +36,14 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error calculating quote:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('Error details:', { errorMessage, errorStack });
     return NextResponse.json(
-      { error: 'Failed to calculate quote. Please check the pricing data file.' },
+      { 
+        error: 'Failed to calculate quote. Please check the pricing data file.',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      },
       { status: 500 }
     );
   }
