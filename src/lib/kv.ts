@@ -2,6 +2,7 @@ import { kv } from '@vercel/kv';
 
 const PRICING_KEY = 'pricing:file:2026';
 const GHL_TOKEN_KEY = 'ghl:api:token';
+const GHL_LOCATION_ID_KEY = 'ghl:location:id';
 const GHL_CONFIG_KEY = 'ghl:config';
 const WIDGET_SETTINGS_KEY = 'widget:settings';
 
@@ -115,6 +116,27 @@ export async function ghlTokenExists(): Promise<boolean> {
     return exists === 1;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Store GHL Location ID
+ */
+export async function storeGHLLocationId(locationId: string): Promise<void> {
+  const kv = getKV();
+  await kv.set(GHL_LOCATION_ID_KEY, locationId);
+}
+
+/**
+ * Get GHL Location ID
+ */
+export async function getGHLLocationId(): Promise<string | null> {
+  try {
+    const kv = getKV();
+    const locationId = await kv.get<string>(GHL_LOCATION_ID_KEY);
+    return locationId || null;
+  } catch {
+    return null;
   }
 }
 

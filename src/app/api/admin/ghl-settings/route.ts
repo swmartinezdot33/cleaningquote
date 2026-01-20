@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { storeGHLToken, ghlTokenExists, getGHLToken } from '@/lib/kv';
+import { storeGHLToken, storeGHLLocationId, ghlTokenExists, getGHLToken, getGHLLocationId } from '@/lib/kv';
 import { testGHLConnection } from '@/lib/ghl/client';
 
 /**
@@ -39,15 +39,17 @@ export async function GET(request: NextRequest) {
     const testResult = await testGHLConnection().catch(() => ({ success: false }));
     const isConnected = testResult.success;
 
-    // Return masked token (last 4 chars)
+    // Return masked token (last 4 chars) and locationId
     try {
       const token = await getGHLToken();
       const maskedToken = token ? `****${token.slice(-4)}` : 'Unknown';
+      const locationId = await getGHLLocationId().catch(() => null);
 
       return NextResponse.json({
         configured: true,
         connected: isConnected,
         maskedToken,
+        locationId,
         status: isConnected ? 'Connected' : 'Not Connected',
       });
     } catch {
@@ -78,7 +80,7 @@ export async function POST(request: NextRequest) {
     if (authResponse) return authResponse;
 
     const body = await request.json();
-    const { token } = body;
+    const { token, locationId } = body;
 
     if (!token || typeof token !== 'string') {
       return NextResponse.json(
@@ -92,6 +94,11 @@ export async function POST(request: NextRequest) {
         { error: 'Token appears to be invalid (too short)' },
         { status: 400 }
       );
+    }
+
+    // Save locationId if provided (optional for location-level tokens)
+    if (locationId && typeof locationId === 'string' && locationId.trim()) {
+      await storeGHLLocationId(locationId.trim());
     }
 
     // Test connection with the new token before saving

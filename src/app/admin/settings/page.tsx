@@ -15,6 +15,7 @@ export default function SettingsPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [ghlToken, setGhlToken] = useState('');
   const [ghlTokenDisplay, setGhlTokenDisplay] = useState('');
+  const [ghlLocationId, setGhlLocationId] = useState('');
   const [showToken, setShowToken] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -106,6 +107,7 @@ export default function SettingsPage() {
       if (response.ok) {
         const data = await response.json();
         setGhlTokenDisplay(data.maskedToken || '••••••••••••••••');
+        setGhlLocationId(data.locationId || '');
         setConnectionStatus(data.connected ? 'connected' : 'disconnected');
       }
     } catch (error) {
@@ -129,7 +131,7 @@ export default function SettingsPage() {
           'Content-Type': 'application/json',
           'x-admin-password': password,
         },
-        body: JSON.stringify({ token: ghlToken }),
+        body: JSON.stringify({ token: ghlToken, locationId: ghlLocationId }),
       });
 
       const data = await response.json();
@@ -529,6 +531,22 @@ export default function SettingsPage() {
                       )}
                     </button>
                   </div>
+                  <div className="mt-4">
+                    <Label htmlFor="locationId" className="text-base font-semibold">
+                      Location ID (Optional - Recommended for Location-level tokens)
+                    </Label>
+                    <p className="text-sm text-gray-600 mt-1 mb-3">
+                      Enter your GoHighLevel Location ID. This is required for Location-level PIT tokens to work properly. You can find this in your GHL dashboard URL after /location/
+                    </p>
+                    <Input
+                      id="locationId"
+                      type="text"
+                      value={ghlLocationId}
+                      onChange={(e) => setGhlLocationId(e.target.value)}
+                      placeholder="e.g., ve9EPM428h8vShlRW1KT (leave blank if using Agency-level token)"
+                      className="font-mono"
+                    />
+                  </div>
                   <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                     <p className="text-sm font-semibold text-amber-900 mb-2 flex items-center gap-2">
                       <AlertCircle className="h-4 w-4" />
@@ -542,7 +560,7 @@ export default function SettingsPage() {
                       <li><strong>locations.readonly</strong> - Only needed if using Agency-level PIT token (optional for Location-level tokens)</li>
                     </ul>
                     <p className="text-xs text-amber-700 mt-2 italic">
-                      <strong>Note:</strong> If using a <strong>Location-level PIT token</strong>, you don't need locations.readonly scope. Location-level tokens are scoped to a single location and cannot search for locations.
+                      <strong>Note:</strong> If using a <strong>Location-level PIT token</strong>, you don't need locations.readonly scope. Location-level tokens are scoped to a single location and cannot search for locations. <strong>You should enter your Location ID above.</strong>
                     </p>
                   </div>
                 </div>
