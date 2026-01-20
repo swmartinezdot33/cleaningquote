@@ -1567,7 +1567,7 @@ export default function Home() {
                       />
                     )}
 
-                    {currentQuestion.type === 'number' && (
+                    {currentQuestion.type === 'number' && currentQuestion.id !== 'squareFeet' && (
                       <Input
                         id={currentQuestion.id}
                         type="number"
@@ -1584,7 +1584,7 @@ export default function Home() {
                       />
                     )}
 
-                    {currentQuestion.type === 'select' && (
+                    {(currentQuestion.type === 'select' || currentQuestion.id === 'squareFeet') && (
                       <Controller
                         name={getFormFieldName(currentQuestion.id) as any}
                         control={control}
@@ -1612,11 +1612,25 @@ export default function Home() {
                               <SelectValue placeholder="Select an option" />
                             </SelectTrigger>
                             <SelectContent>
-                              {currentQuestion.options?.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
+                              {(currentQuestion.id === 'squareFeet' && (!currentQuestion.options || currentQuestion.options.length === 0)) ? (
+                                <>
+                                  <SelectItem value="500-1000">Under 1,000 sq ft</SelectItem>
+                                  <SelectItem value="1000-1500">1,000 - 1,500 sq ft</SelectItem>
+                                  <SelectItem value="1500-2000">1,500 - 2,000 sq ft</SelectItem>
+                                  <SelectItem value="2000-2500">2,000 - 2,500 sq ft</SelectItem>
+                                  <SelectItem value="2500-3000">2,500 - 3,000 sq ft</SelectItem>
+                                  <SelectItem value="3000-3500">3,000 - 3,500 sq ft</SelectItem>
+                                  <SelectItem value="3500-4000">3,500 - 4,000 sq ft</SelectItem>
+                                  <SelectItem value="4000-4500">4,000 - 4,500 sq ft</SelectItem>
+                                  <SelectItem value="4500+">Over 4,500 sq ft</SelectItem>
+                                </>
+                              ) : (
+                                currentQuestion.options?.map((option) => (
+                                  <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
+                                  </SelectItem>
+                                ))
+                              )}
                             </SelectContent>
                           </Select>
                         )}
