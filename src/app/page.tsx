@@ -397,7 +397,7 @@ export default function Home() {
             // Fix halfBaths - MUST have 0 option
             if (q.id === 'halfBaths' && q.type === 'select') {
               const options = q.options || [];
-              const hasZero = options.some(o => o.value === '0');
+              const hasZero = options.some((o: any) => o.value === '0');
               if (!hasZero) {
                 return {
                   ...q,
@@ -412,7 +412,7 @@ export default function Home() {
             // Fix sheddingPets - MUST have 0 option
             if (q.id === 'sheddingPets' && q.type === 'select') {
               const options = q.options || [];
-              const hasZero = options.some(o => o.value === '0');
+              const hasZero = options.some((o: any) => o.value === '0');
               if (!hasZero) {
                 return {
                   ...q,
