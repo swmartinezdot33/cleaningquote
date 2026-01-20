@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
     let locationName: string | null = null;
     
     try {
-      // Fetch locations list (first location in v2 API)
-      const locationsResponse = await fetch('https://services.leadconnectorhq.com/locations', {
+      // Fetch locations list using search endpoint (v2 API)
+      const locationsResponse = await fetch('https://services.leadconnectorhq.com/locations/search?limit=10', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
