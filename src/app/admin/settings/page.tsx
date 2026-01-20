@@ -1076,6 +1076,49 @@ export default function SettingsPage() {
                   </p>
                 </div>
                 <div>
+                  <h4 className="font-semibold text-gray-900 mb-2">Required API Scopes</h4>
+                  <p className="mb-2">
+                    When creating your Private Integration Token, make sure to enable these scopes:
+                  </p>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+                    <div className="flex items-start gap-2">
+                      <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                      <div>
+                        <p className="font-semibold text-blue-900">contacts.write</p>
+                        <p className="text-xs text-blue-800">Required to create and update customer contacts</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                      <div>
+                        <p className="font-semibold text-blue-900">opportunities.write</p>
+                        <p className="text-xs text-blue-800">Required to create quote opportunities in your pipeline</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                      <div>
+                        <p className="font-semibold text-blue-900">opportunities.readonly</p>
+                        <p className="text-xs text-blue-800">Required to fetch pipeline and stage information</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                      <div>
+                        <p className="font-semibold text-blue-900">calendars.write</p>
+                        <p className="text-xs text-blue-800">Required to book appointments to customer calendars</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                      <div>
+                        <p className="font-semibold text-blue-900">locations.readonly</p>
+                        <p className="text-xs text-blue-800">Required to fetch calendars, tags, and location settings</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div>
                   <h4 className="font-semibold text-gray-900 mb-2">Field Mapping</h4>
                   <p>
                     To map your survey questions to GHL fields (native fields like firstName, lastName, email, phone, or custom fields), 
