@@ -60,6 +60,17 @@ export default function Home() {
     formState: { errors },
   } = useForm<QuoteFormData>({
     resolver: zodResolver(quoteSchema),
+    defaultValues: {
+      squareFeet: undefined,
+      serviceType: '',
+      frequency: '',
+      fullBaths: 0,
+      halfBaths: 0,
+      bedrooms: 0,
+      people: 0,
+      sheddingPets: 0,
+      condition: '',
+    },
   });
 
   const onSubmit = async (data: QuoteFormData) => {
@@ -70,10 +81,10 @@ export default function Home() {
     try {
       // Convert form data to API format (API still uses the old format)
       const apiPayload = {
-        squareFeet: data.squareFeet,
-        people: data.people,
-        pets: data.sheddingPets, // API expects pets count, using shedding pets
-        sheddingPets: data.sheddingPets,
+        squareFeet: Number(data.squareFeet),
+        people: Number(data.people),
+        pets: Number(data.sheddingPets), // API expects pets count, using shedding pets
+        sheddingPets: Number(data.sheddingPets),
       };
 
       const response = await fetch('/api/quote', {
@@ -84,11 +95,17 @@ export default function Home() {
         body: JSON.stringify(apiPayload),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('API Error:', errorData);
+        throw new Error(errorData.error || errorData.message || 'Failed to calculate quote');
+      }
+
       const result = await response.json();
       setQuoteResult(result);
     } catch (error) {
       console.error('Error fetching quote:', error);
-      alert('Failed to calculate quote. Please try again.');
+      alert(error instanceof Error ? error.message : 'Failed to calculate quote. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -112,7 +129,7 @@ export default function Home() {
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Rosieigh Cleaning Pricing
+            Raleigh Cleaning Company
           </h1>
           <p className="text-lg text-gray-600">
             Let's get your professional cleaning price!
@@ -154,7 +171,7 @@ export default function Home() {
                       name="serviceType"
                       control={control}
                       render={({ field }) => (
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value || ''}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select service type" />
                           </SelectTrigger>
@@ -181,7 +198,7 @@ export default function Home() {
                       name="frequency"
                       control={control}
                       render={({ field }) => (
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value || ''}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select frequency" />
                           </SelectTrigger>
@@ -289,7 +306,7 @@ export default function Home() {
                       name="condition"
                       control={control}
                       render={({ field }) => (
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value || ''}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select condition" />
                           </SelectTrigger>
