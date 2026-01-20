@@ -13,7 +13,7 @@ Include your API key in the request:
 - **Header:** `x-api-key: your_api_key_here`
 - **Query Parameter:** `?apiKey=your_api_key_here`
 
-The API key should match the `SUPABASE_UPLOAD_API_KEY` environment variable set in Vercel (you can rename this to `UPLOAD_API_KEY` if you prefer).
+The API key should match the `ADMIN_API_KEY` environment variable set in Vercel.
 
 ## Request Format
 

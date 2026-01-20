@@ -80,6 +80,18 @@ export async function loadPricingTable(): Promise<PricingTable> {
   }
 
   try {
+    // First, try to get structured data from KV (if saved manually)
+    const { getKV } = await import('@/lib/kv');
+    const kv = getKV();
+    const structuredData = await kv.get<PricingTable>('pricing:data:table');
+    
+    if (structuredData && structuredData.rows && structuredData.rows.length > 0) {
+      cachedTable = structuredData;
+      cacheInvalidated = false;
+      return cachedTable;
+    }
+
+    // Fall back to parsing Excel file
     // Get file from Vercel KV (Upstash Redis) storage
     const buffer = await getPricingFile();
 
@@ -217,6 +229,17 @@ export async function loadPricingTable(): Promise<PricingTable> {
 
     cachedTable = { rows, maxSqFt };
     cacheInvalidated = false;
+    
+    // Save parsed structured data to KV for faster future access
+    try {
+      const { getKV } = await import('@/lib/kv');
+      const kv = getKV();
+      await kv.set('pricing:data:table', cachedTable);
+    } catch (saveError) {
+      console.warn('Could not save structured pricing data to KV:', saveError);
+      // Continue anyway, cache will work in memory
+    }
+    
     return cachedTable;
   } catch (error) {
     console.error('Error loading pricing table:', error);

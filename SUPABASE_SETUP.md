@@ -24,7 +24,7 @@ Vercel automatically injects these environment variables when you connect KV:
 1. Go to Vercel Dashboard → Your Project → Settings → Environment Variables
 2. Add:
 ```
-ADMIN_API_KEY=your_secure_api_key_here
+SUPABASE_UPLOAD_API_KEY=your_secure_api_key_here
 ```
 Generate a secure random string (e.g., `openssl rand -hex 32`)
 
@@ -106,9 +106,9 @@ The pricing table is cached in memory for performance. After uploading a new fil
 
 ## Security Notes
 
-1. **API Key**: Always use the `ADMIN_API_KEY` environment variable to protect the upload endpoint
-2. **Security**: Never expose the API key in client-side code - keep it server-side only
-3. **Vercel KV**: The pricing file is stored securely in Vercel KV (Upstash Redis) with restricted access
+1. **API Key**: Always use the `SUPABASE_UPLOAD_API_KEY` environment variable to protect the upload endpoint
+2. **Service Role Key**: Never expose this in client-side code - it has full access to your Supabase project
+3. **Bucket Permissions**: Consider making the bucket private and using RLS policies for better security
 
 ## Troubleshooting
 
@@ -121,5 +121,5 @@ The pricing table is cached in memory for performance. After uploading a new fil
 
 ### Error: "Unauthorized"
 
-- Verify your API key matches the `ADMIN_API_KEY` environment variable
+- Verify your API key matches the `SUPABASE_UPLOAD_API_KEY` environment variable
 - Check that the API key is being sent correctly in headers or query params
