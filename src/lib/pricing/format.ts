@@ -25,6 +25,7 @@ function getServiceName(frequency: string): string {
  */
 function getServiceTypeDisplayName(serviceType: string): string {
   const typeMap: { [key: string]: string } = {
+    'initial': 'Initial Cleaning',
     'general': 'General Clean',
     'deep': 'Deep Clean',
     'move-in': 'Move-In Clean',
@@ -45,6 +46,8 @@ function getSelectedQuoteRange(ranges: QuoteRanges, serviceType: string, frequen
     return ranges.biWeekly;
   } else if (frequency === 'monthly') {
     return ranges.fourWeek;
+  } else if (serviceType === 'initial' && frequency === 'one-time') {
+    return ranges.initial;
   } else if (serviceType === 'deep' && frequency === 'one-time') {
     return ranges.deep;
   } else if (serviceType === 'general' && frequency === 'one-time') {
@@ -56,6 +59,7 @@ function getSelectedQuoteRange(ranges: QuoteRanges, serviceType: string, frequen
   }
   
   // Default to the service type
+  if (serviceType === 'initial') return ranges.initial;
   if (serviceType === 'deep') return ranges.deep;
   if (serviceType === 'general') return ranges.general;
   if (serviceType === 'move-in') return ranges.moveInOutBasic;
@@ -68,7 +72,7 @@ function getSelectedQuoteRange(ranges: QuoteRanges, serviceType: string, frequen
  * Generate pricing summary text - focused on the selected service only
  */
 export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges }, serviceType?: string, frequency?: string): string {
-  const { inputs, ranges } = result;
+  const { inputs, ranges, initialCleaningRequired } = result;
   
   if (!inputs || !ranges) {
     return '';
@@ -87,6 +91,12 @@ export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges 
       summary += `• People in home: ${inputs.people}\n`;
       summary += `• Shedding pets: ${inputs.sheddingPets}\n`;
       summary += `• Home condition: ${inputs.condition || 'Not specified'}\n`;
+      
+      // Add Initial Cleaning messaging if applicable
+      if (initialCleaningRequired && serviceType !== 'initial') {
+        summary += `\nNote: An Initial Cleaning is required as the first service to meet our maintenance standards.\n`;
+      }
+      
       return summary;
     }
   }
@@ -96,9 +106,18 @@ export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges 
   summary += `People: ${inputs.people}\n`;
   summary += `Shedding Pets: ${inputs.sheddingPets}\n\n`;
   
+  // Show Initial Cleaning first if required
+  if (initialCleaningRequired) {
+    summary += `INITIAL CLEANING (Required First Visit): ${formatPriceRange(ranges.initial)}\n`;
+    summary += `This longer cleaning service brings your home to our maintenance standards.\n\n`;
+  }
+  
+  summary += `Recurring Maintenance Cleanings:\n`;
   summary += `Weekly Clean: ${formatPriceRange(ranges.weekly)}\n`;
   summary += `Bi Weekly Clean: ${formatPriceRange(ranges.biWeekly)}\n`;
-  summary += `Every 4 Weeks Clean: ${formatPriceRange(ranges.fourWeek)}\n`;
+  summary += `Every 4 Weeks Clean: ${formatPriceRange(ranges.fourWeek)}\n\n`;
+  
+  summary += `One-Time Services:\n`;
   summary += `General Clean: ${formatPriceRange(ranges.general)}\n`;
   summary += `Deep Clean: ${formatPriceRange(ranges.deep)}\n`;
   summary += `Move In Move Out Basic: ${formatPriceRange(ranges.moveInOutBasic)}\n`;
@@ -111,13 +130,19 @@ export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges 
  * Generate SMS text message (exact template)
  */
 export function generateSmsText(result: QuoteResult & { ranges: QuoteRanges }): string {
-  const { ranges } = result;
+  const { ranges, initialCleaningRequired } = result;
   
   if (!ranges) {
     return '';
   }
 
   let sms = 'For a home your size, pricing varies based on cleaning frequency and the overall condition of the home.\n\n';
+  
+  // Show Initial Cleaning first if required
+  if (initialCleaningRequired) {
+    sms += `INITIAL CLEANING (First Service): $${ranges.initial.low} to $${ranges.initial.high}\n`;
+    sms += `This thorough first cleaning gets your home to our maintenance standards.\n\n`;
+  }
   
   sms += `For bi weekly service, which is our most popular option and works best for maintaining a consistently clean home, pricing typically ranges from $${ranges.biWeekly.low} to $${ranges.biWeekly.high} per visit.\n\n`;
   

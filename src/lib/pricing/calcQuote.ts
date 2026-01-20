@@ -5,6 +5,71 @@ import { loadPricingTable } from './loadPricingTable';
 export { loadPricingTable } from './loadPricingTable';
 
 /**
+ * Configuration for Initial Cleaning
+ * Multiplier is applied to General Clean price
+ * Conditions that require Initial Cleaning
+ */
+const INITIAL_CLEANING_CONFIG = {
+  multiplier: 1.5, // 50% more than General Clean
+  requiredConditions: ['poor'], // Conditions that REQUIRE Initial Cleaning
+  recommendedConditions: ['fair'], // Conditions that RECOMMEND Initial Cleaning
+};
+
+/**
+ * Calculate Initial Cleaning price as a multiplier of General Clean
+ */
+export function calculateInitialCleaningPrice(
+  generalRange: { low: number; high: number },
+  multiplier: number = INITIAL_CLEANING_CONFIG.multiplier
+): { low: number; high: number } {
+  return {
+    low: Math.round(generalRange.low * multiplier),
+    high: Math.round(generalRange.high * multiplier),
+  };
+}
+
+/**
+ * Determine if Initial Cleaning is required based on home condition and cleaning history
+ */
+export function isInitialCleaningRequired(condition?: string, cleanedWithin3Months?: boolean): boolean {
+  // If cleaned within 3 months, Initial Cleaning not required unless condition is poor
+  if (cleanedWithin3Months && condition !== 'poor') {
+    return false;
+  }
+  
+  if (!condition) return false;
+  return INITIAL_CLEANING_CONFIG.requiredConditions.includes(condition.toLowerCase());
+}
+
+/**
+ * Determine if Initial Cleaning is recommended based on home condition and cleaning history
+ */
+export function isInitialCleaningRecommended(condition?: string, cleanedWithin3Months?: boolean): boolean {
+  // If cleaned within 3 months, not recommended
+  if (cleanedWithin3Months) {
+    return false;
+  }
+  
+  if (!condition) return false;
+  return INITIAL_CLEANING_CONFIG.recommendedConditions.includes(condition.toLowerCase());
+}
+
+/**
+ * Calculate General Clean price as average between maintenance and deep clean
+ */
+export function calculateGeneralCleanPrice(
+  maintenanceAvg: number,
+  deepClean: { low: number; high: number }
+): { low: number; high: number } {
+  const avgDeepLow = Math.round((maintenanceAvg + deepClean.low) / 2);
+  const avgDeepHigh = Math.round((maintenanceAvg + deepClean.high) / 2);
+  return {
+    low: avgDeepLow,
+    high: avgDeepHigh,
+  };
+}
+
+/**
  * Get people multiplier based on count
  */
 export function getPeopleMultiplier(people: number): number {
@@ -97,12 +162,30 @@ export async function calcQuote(inputs: QuoteInputs): Promise<QuoteResult> {
   const finalMultiplier = peopleMultiplier * sheddingPetMultiplier;
 
   // Apply multipliers to all price ranges
+  const weeklyRange = applyMultiplier(baseRow.weekly, finalMultiplier);
+  const biWeeklyRange = applyMultiplier(baseRow.biWeekly, finalMultiplier);
+  const fourWeekRange = applyMultiplier(baseRow.fourWeek, finalMultiplier);
+  const deepRange = applyMultiplier(baseRow.deep, finalMultiplier);
+  
+  // Calculate average maintenance price for General Clean calculation
+  const maintenanceAvg = Math.round((weeklyRange.low + biWeeklyRange.low + fourWeekRange.low) / 3);
+  
+  // Calculate General Clean as between maintenance average and deep clean
+  const generalRange = calculateGeneralCleanPrice(maintenanceAvg, deepRange);
+  
+  // Calculate Initial Cleaning as multiplier of General Clean
+  const initialRange = calculateInitialCleaningPrice(generalRange);
+
+  // Determine if Initial Cleaning is required (consider both condition and cleaning history)
+  const initialCleaningRequired = isInitialCleaningRequired(inputs.condition, inputs.cleanedWithin3Months);
+
   const ranges: QuoteRanges = {
-    weekly: applyMultiplier(baseRow.weekly, finalMultiplier),
-    biWeekly: applyMultiplier(baseRow.biWeekly, finalMultiplier),
-    fourWeek: applyMultiplier(baseRow.fourWeek, finalMultiplier),
-    general: applyMultiplier(baseRow.general, finalMultiplier),
-    deep: applyMultiplier(baseRow.deep, finalMultiplier),
+    initial: initialRange,
+    weekly: weeklyRange,
+    biWeekly: biWeeklyRange,
+    fourWeek: fourWeekRange,
+    general: generalRange,
+    deep: deepRange,
     moveInOutBasic: applyMultiplier(baseRow.moveInOutBasic, finalMultiplier),
     moveInOutFull: applyMultiplier(baseRow.moveInOutFull, finalMultiplier),
   };
@@ -112,5 +195,6 @@ export async function calcQuote(inputs: QuoteInputs): Promise<QuoteResult> {
     multiplier: finalMultiplier,
     inputs,
     ranges,
+    initialCleaningRequired,
   };
 }

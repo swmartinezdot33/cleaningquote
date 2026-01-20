@@ -15,6 +15,8 @@ function getSelectedQuotePrice(ranges: any, serviceType: string, frequency: stri
     return Math.round((ranges.biWeekly.low + ranges.biWeekly.high) / 2);
   } else if (frequency === 'monthly') {
     return Math.round((ranges.fourWeek.low + ranges.fourWeek.high) / 2);
+  } else if (serviceType === 'initial' && frequency === 'one-time') {
+    return Math.round((ranges.initial.low + ranges.initial.high) / 2);
   } else if (serviceType === 'deep' && frequency === 'one-time') {
     return Math.round((ranges.deep.low + ranges.deep.high) / 2);
   } else if (serviceType === 'general' && frequency === 'one-time') {
@@ -176,6 +178,7 @@ export async function POST(request: NextRequest) {
       multiplier: result.multiplier,
       inputs: result.inputs,
       ranges: result.ranges,
+      initialCleaningRequired: result.initialCleaningRequired,
       summaryText,
       smsText,
       ghlContactId,

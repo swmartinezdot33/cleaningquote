@@ -57,6 +57,7 @@ interface QuoteResponse {
   outOfLimits: boolean;
   message?: string;
   multiplier?: number;
+  initialCleaningRequired?: boolean;
   inputs?: {
     squareFeet: number;
     people: number;
@@ -64,6 +65,7 @@ interface QuoteResponse {
     sheddingPets: number;
   };
   ranges?: {
+    initial: { low: number; high: number };
     weekly: { low: number; high: number };
     biWeekly: { low: number; high: number };
     fourWeek: { low: number; high: number };
@@ -132,8 +134,9 @@ const defaultQuestions: SurveyQuestion[] = [
     label: 'Type of Cleaning Service Needed',
     type: 'select',
     options: [
-      { value: 'general', label: 'General Clean' },
-      { value: 'deep', label: 'Deep Clean' },
+      { value: 'initial', label: 'Initial Cleaning (First deep clean to reach maintenance standards)' },
+      { value: 'general', label: 'General Clean (For switching services - good condition homes)' },
+      { value: 'deep', label: 'Deep Clean (Very thorough - wet wipe everything)' },
       { value: 'move-in', label: 'Move In Clean' },
       { value: 'move-out', label: 'Move Out Clean' },
       { value: 'recurring', label: 'Recurring Clean' },
@@ -207,6 +210,30 @@ const defaultQuestions: SurveyQuestion[] = [
     ],
     required: true,
     order: 13,
+  },
+  {
+    id: 'hasPreviousService',
+    label: 'Have you had cleaning service before?',
+    type: 'select',
+    options: [
+      { value: 'true', label: 'Yes, I currently have or recently had service' },
+      { value: 'false', label: 'No, this is my first time' },
+      { value: 'switching', label: 'Yes, but I\'m switching providers (not happy with previous service)' },
+    ],
+    required: true,
+    order: 14,
+  },
+  {
+    id: 'cleanedWithin3Months',
+    label: 'Has your home been professionally cleaned within the last 3 months?',
+    type: 'select',
+    options: [
+      { value: 'yes', label: 'Yes, within the last 3 months' },
+      { value: 'no', label: 'No, not within the last 3 months' },
+      { value: 'unsure', label: 'Not sure / Cannot remember' },
+    ],
+    required: true,
+    order: 15,
   },
 ];
 
@@ -635,6 +662,8 @@ export default function Home() {
         pets: Number(data.sheddingPets),
         sheddingPets: Number(data.sheddingPets),
         condition: data.condition,
+        hasPreviousService: data.hasPreviousService === 'true' || data.hasPreviousService === 'switching',
+        cleanedWithin3Months: data.cleanedWithin3Months === 'yes',
       };
 
       const response = await fetch('/api/quote', {

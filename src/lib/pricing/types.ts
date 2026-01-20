@@ -28,9 +28,12 @@ export interface QuoteInputs {
   pets: number;
   sheddingPets: number;
   condition?: string;
+  hasPreviousService?: boolean;
+  cleanedWithin3Months?: boolean;
 }
 
 export interface QuoteRanges {
+  initial: PriceRange;
   weekly: PriceRange;
   biWeekly: PriceRange;
   fourWeek: PriceRange;
@@ -46,6 +49,7 @@ export interface QuoteResult {
   multiplier?: number;
   inputs?: QuoteInputs;
   ranges?: QuoteRanges;
+  initialCleaningRequired?: boolean;
   summaryText?: string;
   smsText?: string;
 }

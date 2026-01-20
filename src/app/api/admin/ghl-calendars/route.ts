@@ -46,10 +46,9 @@ export async function GET(request: NextRequest) {
     console.log(`Fetching calendars for location: ${locationId}`);
 
     // Fetch calendars from GHL API v2
-    // According to GHL docs: GET /calendars
-    // Location ID should be passed as query parameter for sub-account (location-level) API calls
+    // Correct endpoint: /locations/{locationId}/calendars
     const response = await fetch(
-      `https://services.leadconnectorhq.com/calendars?locationId=${locationId}`,
+      `https://services.leadconnectorhq.com/locations/${locationId}/calendars`,
       {
         method: 'GET',
         headers: {
