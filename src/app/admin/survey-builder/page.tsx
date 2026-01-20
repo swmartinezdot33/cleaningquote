@@ -431,9 +431,26 @@ export default function SurveyBuilderPage() {
       return;
     }
 
+    // Check for duplicate IDs (excluding the current question being edited)
+    const duplicateId = questions.some((q, index) => 
+      q.id === editingQuestion.id && index !== editingIndex
+    );
+    
+    if (duplicateId) {
+      setMessage({ type: 'error', text: `A question with ID "${editingQuestion.id}" already exists. Please use a unique ID.` });
+      return;
+    }
+
     if (editingQuestion.type === 'select' && (!editingQuestion.options || editingQuestion.options.length === 0)) {
       setMessage({ type: 'error', text: 'Select questions must have at least one option' });
       return;
+    }
+
+    // Warn if changing field type of a core field
+    const originalQuestion = questions[editingIndex];
+    const coreFields = ['firstName', 'lastName', 'email', 'phone', 'address'];
+    if (coreFields.includes(originalQuestion.id) && originalQuestion.type !== editingQuestion.type) {
+      console.warn(`⚠️ Warning: Changed field type for "${originalQuestion.id}" from "${originalQuestion.type}" to "${editingQuestion.type}". This may affect form validation.`);
     }
 
     const newQuestions = [...questions];
@@ -641,6 +658,14 @@ export default function SurveyBuilderPage() {
                             placeholder="e.g., firstName"
                             className="mt-1 font-mono"
                           />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Must be unique. Used as form field name.
+                          </p>
+                          {questions.some((q, i) => q.id === editingQuestion?.id && i !== editingIndex) && (
+                            <p className="text-xs text-red-500 mt-1 font-semibold">
+                              ⚠️ This ID already exists! Please use a unique ID.
+                            </p>
+                          )}
                         </div>
 
                         <div>
@@ -679,6 +704,12 @@ export default function SurveyBuilderPage() {
                               <SelectItem value="select">Select (Dropdown)</SelectItem>
                             </SelectContent>
                           </Select>
+                          {['firstName', 'lastName', 'email', 'phone', 'address'].includes(editingQuestion?.id || '') && 
+                           questions[editingIndex]?.type !== editingQuestion?.type && (
+                            <p className="text-xs text-orange-600 mt-1 font-semibold">
+                              ⚠️ Changing the type of this core field may affect form functionality.
+                            </p>
+                          )}
                         </div>
 
                         {editingQuestion?.type !== 'select' && (
