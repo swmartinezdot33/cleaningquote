@@ -695,7 +695,7 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div>
                   <Label htmlFor="password">Admin Password</Label>
                   <Input
@@ -724,34 +724,34 @@ export default function SettingsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl mx-auto">
+    <main className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-12"
         >
           <Button
             onClick={() => router.push('/admin')}
             variant="outline"
-            className="mb-4 flex items-center gap-2"
+            className="mb-6 flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Admin
           </Button>
 
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center gap-3 mb-3">
             <Sparkles className="h-8 w-8 text-[#f61590]" />
             <h1 className="text-4xl font-bold text-gray-900">Settings</h1>
           </div>
-          <p className="text-gray-600">Configure GoHighLevel API integration</p>
+          <p className="text-gray-600 text-lg">Configure your quote form and integrations</p>
         </motion.div>
 
         {message && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${
+            className={`mb-8 p-4 rounded-lg flex items-center gap-3 ${
               message.type === 'success'
                 ? 'bg-green-50 text-green-800 border border-green-200'
                 : 'bg-red-50 text-red-800 border border-red-200'
@@ -766,17 +766,18 @@ export default function SettingsPage() {
           </motion.div>
         )}
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <Card className="shadow-xl border-2 mb-6">
-            <CardHeader className="bg-gradient-to-r from-[#f61590]/5 via-transparent to-transparent border-b">
+        <div className="space-y-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
+            <CardHeader className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>GoHighLevel API Token</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-2xl font-bold">GoHighLevel API Token</CardTitle>
+                  <CardDescription className="text-gray-600 mt-1">
                     Configure your GHL PIT token to enable CRM integration
                   </CardDescription>
                 </div>
@@ -810,8 +811,8 @@ export default function SettingsPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="pt-6">
-              <div className="space-y-4">
+            <CardContent className="pt-8 pb-8">
+              <div className="space-y-6">
                 <div>
                   <Label htmlFor="token" className="text-base font-semibold">
                     GHL Private Integration Token (PIT)
@@ -963,12 +964,12 @@ export default function SettingsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <Card className="shadow-xl border-2">
-            <CardHeader>
-              <CardTitle>About GHL Integration</CardTitle>
+          <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
+            <CardHeader className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6">
+              <CardTitle className="text-2xl font-bold">About GHL Integration</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4 text-sm text-gray-700">
+            <CardContent className="pt-8 pb-8">
+              <div className="space-y-6 text-sm text-gray-700">
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-2">What does this do?</h4>
                   <p>
@@ -1059,7 +1060,7 @@ export default function SettingsPage() {
                   )}
 
                   {/* Feature Toggles */}
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <h3 className="font-semibold text-gray-900">Select Features</h3>
                     
                     <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
@@ -1272,11 +1273,11 @@ export default function SettingsPage() {
                 <MapPin className="h-5 w-5 text-emerald-600" />
                 Service Area Configuration
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-gray-600 mt-1">
                 Upload a KML file with your service area polygon, and configure tags for in-service and out-of-service customers
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-6">
+            <CardContent className="pt-8 pb-8">
               <div className="space-y-6">
                 {serviceAreaMessage && (
                   <motion.div
@@ -1671,7 +1672,7 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-8 pb-8">
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {formSettingsMessage && (
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
@@ -1928,7 +1929,7 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-8 pb-8">
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div className="p-4 bg-gray-900 rounded-lg border border-gray-700">
                   <code className="text-green-400 font-mono text-sm whitespace-pre-wrap break-words">
                     {getEmbedCode()}
@@ -1967,6 +1968,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </motion.div>
+        </div>
       </div>
     </main>
   );
