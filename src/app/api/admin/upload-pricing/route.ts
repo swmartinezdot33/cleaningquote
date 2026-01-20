@@ -83,25 +83,40 @@ export async function POST(request: NextRequest) {
     // Upload raw file to Vercel KV (Upstash Redis)
     await storePricingFile(buffer);
 
-    // Try to parse and save structured data if possible
-    // The structured data will be generated on first quote calculation
+    // Try to parse and save structured data immediately
+    let parseSuccess = false;
+    let parseError = null;
     try {
       invalidatePricingCache();
       const parsedTable = await loadPricingTable();
       const kv = getKV();
       await kv.set(PRICING_DATA_KEY, parsedTable);
-    } catch (parseError) {
-      console.warn('Could not parse pricing table immediately:', parseError);
+      parseSuccess = true;
+    } catch (error) {
+      parseError = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Could not parse pricing table immediately:', error);
       // File is still stored, will be parsed on first use
     }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Pricing file uploaded successfully to Vercel KV storage',
-      size: buffer.length,
-      uploadedAt: new Date().toISOString(),
-      note: 'File will be parsed and structured data will be available shortly',
-    });
+    if (parseSuccess) {
+      return NextResponse.json({
+        success: true,
+        message: 'Pricing file uploaded and parsed successfully',
+        size: buffer.length,
+        uploadedAt: new Date().toISOString(),
+        parsed: true,
+      });
+    } else {
+      return NextResponse.json({
+        success: true,
+        message: 'File uploaded, but parsing failed. Please check the file format.',
+        size: buffer.length,
+        uploadedAt: new Date().toISOString(),
+        parsed: false,
+        error: parseError || 'Parsing failed',
+        note: 'File is stored but may need to be parsed manually or checked for format issues',
+      }, { status: 200 });
+    }
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json(

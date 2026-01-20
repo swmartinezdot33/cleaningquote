@@ -22,20 +22,41 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const kv = getKV();
-    const pricingData = await kv.get<PricingTable>(PRICING_DATA_KEY);
-
-    if (!pricingData) {
-      return NextResponse.json({
-        exists: false,
-        message: 'No pricing data found. Please upload a file or add pricing manually.',
-      });
+    // If no password is required, allow access (for local dev without password)
+    // But still check if password was provided and it's wrong
+    if (requiredPassword && !password) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Password required.' },
+        { status: 401 }
+      );
     }
 
-    return NextResponse.json({
-      exists: true,
-      data: pricingData,
-    });
+    try {
+      const kv = getKV();
+      const pricingData = await kv.get<PricingTable>(PRICING_DATA_KEY);
+
+      if (!pricingData) {
+        return NextResponse.json({
+          exists: false,
+          message: 'No pricing data found. Please upload a file or add pricing manually.',
+        });
+      }
+
+      return NextResponse.json({
+        exists: true,
+        data: pricingData,
+      });
+    } catch (kvError) {
+      // If KV is not configured (local dev), return empty state
+      if (kvError instanceof Error && kvError.message.includes('KV')) {
+        console.warn('KV not configured, returning empty state for local dev');
+        return NextResponse.json({
+          exists: false,
+          message: 'KV storage not configured. This is normal for local development. Upload a file to get started.',
+        });
+      }
+      throw kvError;
+    }
   } catch (error) {
     console.error('Get pricing error:', error);
     return NextResponse.json(

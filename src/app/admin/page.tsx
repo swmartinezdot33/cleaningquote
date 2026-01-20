@@ -94,7 +94,7 @@ export default function AdminPage() {
         },
       });
       if (response.ok || response.status === 404) {
-        // 404 means not authenticated or no data, but we can proceed
+        // 200 or 404 means authenticated (404 = no data, but auth worked)
         const data = await response.json();
         setIsAuthenticated(true);
         if (data.exists && data.data) {
@@ -104,9 +104,34 @@ export default function AdminPage() {
       } else if (response.status === 401) {
         setIsAuthenticated(false);
         sessionStorage.removeItem('admin_password');
+        setSaveMessage({ 
+          type: 'error', 
+          text: 'Invalid password. Please try again.' 
+        });
+      } else {
+        // Other errors (like 500) - might be KV not configured
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData.message && errorData.message.includes('KV storage not configured')) {
+          // KV not configured - allow login but show message
+          setIsAuthenticated(true);
+          setSaveMessage({ 
+            type: 'error', 
+            text: 'KV storage not configured for local dev. You can still use the interface, but pricing data won\'t persist.' 
+          });
+        } else {
+          setIsAuthenticated(false);
+          setSaveMessage({ 
+            type: 'error', 
+            text: 'Authentication failed. Please check your password and try again.' 
+          });
+        }
       }
     } catch (error) {
       console.error('Auth check failed:', error);
+      setSaveMessage({ 
+        type: 'error', 
+        text: 'Connection error. Please check your dev server is running.' 
+      });
     }
   };
 
@@ -142,12 +167,24 @@ export default function AdminPage() {
       }
 
       const result = await response.json();
-      setSaveMessage({ type: 'success', text: result.message || 'File uploaded successfully!' });
       
-      // Reload pricing data
-      setTimeout(() => {
-        loadPricingData();
-      }, 1000);
+      if (result.parsed === false) {
+        setSaveMessage({ 
+          type: 'error', 
+          text: result.message || 'File uploaded but parsing failed. ' + (result.error || 'Please check the file format.')
+        });
+      } else {
+        setSaveMessage({ type: 'success', text: result.message || 'File uploaded successfully!' });
+        
+        // Reload pricing data immediately to show the parsed structure
+        setTimeout(async () => {
+          const loaded = await loadPricingData();
+          // If data loaded successfully, switch to view mode
+          if (loaded && currentPricing) {
+            setUploadMode('view');
+          }
+        }, 1500);
+      }
     } catch (error) {
       setSaveMessage({
         type: 'error',
@@ -170,12 +207,30 @@ export default function AdminPage() {
         if (data.exists && data.data) {
           setCurrentPricing(data.data);
           reset(data.data);
-          setUploadMode('manual');
+          // Only switch to manual mode if we're not in view mode
+          if (uploadMode !== 'view') {
+            setUploadMode('manual');
+          }
+          return true;
+        } else {
+          // No structured data found - try to parse from uploaded file
+          console.log('No structured data found, file may need to be parsed');
+          setCurrentPricing(null);
+          return false;
         }
+      } else if (response.status === 401) {
+        setSaveMessage({ type: 'error', text: 'Unauthorized. Please log in again.' });
+        setIsAuthenticated(false);
+        sessionStorage.removeItem('admin_password');
       }
     } catch (error) {
       console.error('Failed to load pricing:', error);
+      setSaveMessage({ 
+        type: 'error', 
+        text: 'Failed to load pricing data. Please try again.' 
+      });
     }
+    return false;
   };
 
   const onSave = async (data: PricingTableFormData) => {
