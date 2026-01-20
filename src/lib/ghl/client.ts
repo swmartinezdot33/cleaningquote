@@ -347,14 +347,26 @@ export async function createTag(tagName: string): Promise<{ id: string; name: st
 
     console.log('Creating tag:', tagName);
 
-    const response = await makeGHLRequest<{ tag: { id: string; name: string } }>(
+    const response = await makeGHLRequest<any>(
       `/v2/locations/${finalLocationId}/tags`,
       'POST',
       { name: tagName }
     );
 
-    console.log('Tag created successfully:', response.tag?.id);
-    return response.tag;
+    console.log('Tag creation response:', response);
+
+    // Handle different response formats
+    const tag = response.tag || response.data || response;
+    
+    if (!tag || !tag.id) {
+      throw new Error('Invalid response from GHL API - no tag ID returned');
+    }
+
+    console.log('Tag created successfully:', tag.id);
+    return {
+      id: tag.id,
+      name: tag.name || tagName,
+    };
   } catch (error) {
     console.error('Failed to create tag:', error);
     throw error;

@@ -32,7 +32,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('[GHL Tags Create] Creating tag:', name.trim());
     const tag = await createTag(name.trim());
+    console.log('[GHL Tags Create] Tag created:', tag);
 
     return NextResponse.json({
       success: true,
@@ -40,24 +42,13 @@ export async function POST(request: NextRequest) {
       message: 'Tag created successfully',
     });
   } catch (error) {
-    console.error('Error creating tag:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-    // Check if it's a GHL API error
-    if (errorMessage.includes('GHL API Error')) {
-      return NextResponse.json(
-        {
-          error: 'Failed to create tag in GHL',
-          details: errorMessage,
-        },
-        { status: 500 }
-      );
-    }
+    console.error('[GHL Tags Create] Error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
 
     return NextResponse.json(
       {
-        error: 'Failed to create tag',
-        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        error: 'Failed to create tag in GHL',
+        details: errorMessage,
       },
       { status: 500 }
     );
