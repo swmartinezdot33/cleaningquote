@@ -76,9 +76,17 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      if (response.status === 404) {
+        console.log('Calendars endpoint returned 404 - location may not have calendars configured');
+        return NextResponse.json(
+          { calendars: [], message: 'No calendars found. This may be normal if calendars are not configured in your location.' },
+          { status: 200 }
+        );
+      }
+
       return NextResponse.json(
-        { error: `Failed to fetch calendars from GHL: ${response.status}` },
-        { status: response.status }
+        { error: `Failed to fetch calendars from GHL: ${response.status}`, calendars: [] },
+        { status: 200 }
       );
     }
 

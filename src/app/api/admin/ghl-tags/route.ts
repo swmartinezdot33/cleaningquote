@@ -77,9 +77,46 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      if (response.status === 404) {
+        console.log('Tags endpoint returned 404 - trying alternative endpoint');
+        // Try alternative endpoint
+        try {
+          const altResponse = await fetch(
+            `https://services.leadconnectorhq.com/locations/${locationId}/tags`,
+            {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Version': '2021-07-28',
+              },
+            }
+          );
+          
+          if (altResponse.ok) {
+            const data = await altResponse.json();
+            let tags: any[] = [];
+            if (data.tags && Array.isArray(data.tags)) {
+              tags = data.tags.map((tag: any) => ({
+                id: tag.id || tag.name,
+                name: tag.name,
+              }));
+            }
+            return NextResponse.json({ tags }, { status: 200 });
+          }
+        } catch (e) {
+          console.error('Alternative tags endpoint failed:', e);
+        }
+        
+        return NextResponse.json(
+          { tags: [], message: 'No tags found. This may be normal if tags are not configured in your location.' },
+          { status: 200 }
+        );
+      }
+
       return NextResponse.json(
-        { error: `Failed to fetch tags from GHL: ${response.status}` },
-        { status: response.status }
+        { error: `Failed to fetch tags from GHL: ${response.status}`, tags: [] },
+        { status: 200 }
       );
     }
 
