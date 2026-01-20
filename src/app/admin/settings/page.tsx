@@ -31,6 +31,15 @@ export default function SettingsPage() {
   const [widgetMessage, setWidgetMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
 
+  // Tracking Codes State
+  const [googleAnalyticsId, setGoogleAnalyticsId] = useState('');
+  const [googleTagManagerId, setGoogleTagManagerId] = useState('');
+  const [metaPixelId, setMetaPixelId] = useState('');
+  const [customHeadCode, setCustomHeadCode] = useState('');
+  const [isLoadingTracking, setIsLoadingTracking] = useState(false);
+  const [isSavingTracking, setIsSavingTracking] = useState(false);
+  const [trackingMessage, setTrackingMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   // GHL Configuration States
   const [ghlConfigLoaded, setGhlConfigLoaded] = useState(false);
   const [createContact, setCreateContact] = useState(true);
@@ -488,6 +497,68 @@ export default function SettingsPage() {
     }
   };
 
+  const loadTrackingCodes = async () => {
+    setIsLoadingTracking(true);
+    try {
+      const response = await fetch('/api/admin/tracking-codes', {
+        headers: {
+          'x-admin-password': password,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setGoogleAnalyticsId(data.trackingCodes.googleAnalyticsId || '');
+        setGoogleTagManagerId(data.trackingCodes.googleTagManagerId || '');
+        setMetaPixelId(data.trackingCodes.metaPixelId || '');
+        setCustomHeadCode(data.trackingCodes.customHeadCode || '');
+      }
+    } catch (error) {
+      console.error('Error loading tracking codes:', error);
+    } finally {
+      setIsLoadingTracking(false);
+    }
+  };
+
+  const handleSaveTrackingCodes = async () => {
+    setIsSavingTracking(true);
+    setTrackingMessage(null);
+
+    try {
+      const response = await fetch('/api/admin/tracking-codes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': password,
+        },
+        body: JSON.stringify({
+          googleAnalyticsId,
+          googleTagManagerId,
+          metaPixelId,
+          customHeadCode,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setTrackingMessage({ type: 'success', text: 'Tracking codes saved successfully!' });
+      } else {
+        setTrackingMessage({
+          type: 'error',
+          text: data.error || 'Failed to save tracking codes',
+        });
+      }
+    } catch (error) {
+      setTrackingMessage({
+        type: 'error',
+        text: 'Failed to save tracking codes. Please try again.',
+      });
+    } finally {
+      setIsSavingTracking(false);
+    }
+  };
+
   // Load calendars and tags when component mounts and authenticated
   useEffect(() => {
     if (isAuthenticated) {
@@ -496,6 +567,9 @@ export default function SettingsPage() {
       }
       if (ghlTags.length === 0) {
         loadTags();
+      }
+      if (!googleAnalyticsId) {
+        loadTrackingCodes();
       }
     }
   }, [isAuthenticated]);
@@ -1311,6 +1385,129 @@ export default function SettingsPage() {
                     Select which GHL calendar appointments should be booked to. Leave empty to use default calendar.
                   </p>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Tracking Codes Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+        >
+          <Card className="shadow-xl border-2">
+            <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b">
+              <CardTitle className="flex items-center gap-2">
+                <Code className="h-5 w-5 text-purple-600" />
+                Tracking & Analytics
+              </CardTitle>
+              <CardDescription>
+                Add Google Analytics, Google Tag Manager, Meta Pixel, and custom tracking codes
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                {trackingMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`p-4 rounded-lg flex items-center gap-3 ${
+                      trackingMessage.type === 'success'
+                        ? 'bg-green-50 text-green-800 border border-green-200'
+                        : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}
+                  >
+                    {trackingMessage.type === 'success' ? (
+                      <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                    )}
+                    <p>{trackingMessage.text}</p>
+                  </motion.div>
+                )}
+
+                <div>
+                  <Label htmlFor="ga-id" className="text-base font-semibold">
+                    Google Analytics ID
+                  </Label>
+                  <Input
+                    id="ga-id"
+                    value={googleAnalyticsId}
+                    onChange={(e) => setGoogleAnalyticsId(e.target.value)}
+                    placeholder="G-XXXXXXXXXX"
+                    className="mt-2"
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    Your Google Analytics 4 measurement ID (starts with G-)
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="gtm-id" className="text-base font-semibold">
+                    Google Tag Manager ID
+                  </Label>
+                  <Input
+                    id="gtm-id"
+                    value={googleTagManagerId}
+                    onChange={(e) => setGoogleTagManagerId(e.target.value)}
+                    placeholder="GTM-XXXXXXX"
+                    className="mt-2"
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    Your Google Tag Manager container ID (starts with GTM-)
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="meta-pixel-id" className="text-base font-semibold">
+                    Meta Pixel ID
+                  </Label>
+                  <Input
+                    id="meta-pixel-id"
+                    value={metaPixelId}
+                    onChange={(e) => setMetaPixelId(e.target.value)}
+                    placeholder="123456789012345"
+                    className="mt-2"
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    Your Meta Pixel ID for Facebook/Instagram conversion tracking
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="custom-code" className="text-base font-semibold">
+                    Custom Head Code
+                  </Label>
+                  <textarea
+                    id="custom-code"
+                    value={customHeadCode}
+                    onChange={(e) => setCustomHeadCode(e.target.value)}
+                    placeholder="&lt;script&gt;...&lt;/script&gt;"
+                    className="mt-2 w-full h-32 px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    Any additional tracking or custom scripts to add to the page head
+                  </p>
+                </div>
+
+                <Button
+                  onClick={handleSaveTrackingCodes}
+                  disabled={isSavingTracking}
+                  className="w-full h-11 font-semibold flex items-center gap-2"
+                >
+                  {isSavingTracking ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      Save Tracking Codes
+                    </>
+                  )}
+                </Button>
               </div>
             </CardContent>
           </Card>
