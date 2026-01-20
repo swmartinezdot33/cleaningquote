@@ -37,7 +37,7 @@ async function makeGHLRequest<T>(
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'Version': '2021-07-28', // Required for API v2
+        'Version': '2021-04-15', // Required for API v2
       },
     };
 
@@ -112,7 +112,7 @@ export async function createOrUpdateContact(
       headers: {
         'Authorization': `Bearer ${finalToken}`,
         'Content-Type': 'application/json',
-        'Version': '2021-07-28', // Required for API v2
+        'Version': '2021-04-15', // Required for API v2
       },
       body: JSON.stringify(payload),
     };
@@ -242,7 +242,7 @@ export async function createAppointment(
     };
 
     const response = await makeGHLRequest<{ appointment: GHLAppointmentResponse }>(
-      '/appointments',
+      '/calendars/events/appointments',
       'POST',
       payload
     );
@@ -271,7 +271,7 @@ export async function getLocationIdFromToken(token?: string): Promise<string | n
       headers: {
         'Authorization': `Bearer ${testToken.trim()}`,
         'Content-Type': 'application/json',
-        'Version': '2021-07-28',
+        'Version': '2021-04-15',
       },
     });
 
@@ -361,7 +361,7 @@ export async function testGHLConnection(token?: string): Promise<{ success: bool
       headers: {
         'Authorization': `Bearer ${testToken.trim()}`,
         'Content-Type': 'application/json',
-        'Version': '2021-07-28',
+        'Version': '2021-04-15',
       },
     });
 

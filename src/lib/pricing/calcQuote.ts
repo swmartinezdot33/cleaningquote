@@ -1,26 +1,40 @@
 import { PricingTable, QuoteInputs, QuoteRanges, QuoteResult } from './types';
 import { loadPricingTable } from './loadPricingTable';
+import { getKVClient } from '@/lib/kv';
 
 // Re-export for backward compatibility
 export { loadPricingTable } from './loadPricingTable';
 
 /**
- * Configuration for Initial Cleaning
- * Multiplier is applied to General Clean price
- * Conditions that require Initial Cleaning
+ * Default configuration for Initial Cleaning
+ * Can be overridden by admin settings in KV
  */
-const INITIAL_CLEANING_CONFIG = {
+const DEFAULT_INITIAL_CLEANING_CONFIG = {
   multiplier: 1.5, // 50% more than General Clean
   requiredConditions: ['poor'], // Conditions that REQUIRE Initial Cleaning
   recommendedConditions: ['fair'], // Conditions that RECOMMEND Initial Cleaning
 };
 
 /**
+ * Get Initial Cleaning configuration (from KV or defaults)
+ */
+export async function getInitialCleaningConfig(): Promise<typeof DEFAULT_INITIAL_CLEANING_CONFIG> {
+  try {
+    const kv = await getKVClient();
+    const config = await kv.get<typeof DEFAULT_INITIAL_CLEANING_CONFIG>('admin:initial-cleaning-config');
+    return config || DEFAULT_INITIAL_CLEANING_CONFIG;
+  } catch (error) {
+    console.warn('Failed to load Initial Cleaning config from KV, using defaults:', error);
+    return DEFAULT_INITIAL_CLEANING_CONFIG;
+  }
+}
+
+/**
  * Calculate Initial Cleaning price as a multiplier of General Clean
  */
 export function calculateInitialCleaningPrice(
   generalRange: { low: number; high: number },
-  multiplier: number = INITIAL_CLEANING_CONFIG.multiplier
+  multiplier: number = DEFAULT_INITIAL_CLEANING_CONFIG.multiplier
 ): { low: number; high: number } {
   return {
     low: Math.round(generalRange.low * multiplier),
@@ -31,27 +45,39 @@ export function calculateInitialCleaningPrice(
 /**
  * Determine if Initial Cleaning is required based on home condition and cleaning history
  */
-export function isInitialCleaningRequired(condition?: string, cleanedWithin3Months?: boolean): boolean {
-  // If cleaned within 3 months, Initial Cleaning not required unless condition is poor
-  if (cleanedWithin3Months && condition !== 'poor') {
+export function isInitialCleaningRequired(
+  condition?: string,
+  cleanedWithin3Months?: boolean,
+  config?: typeof DEFAULT_INITIAL_CLEANING_CONFIG
+): boolean {
+  const finalConfig = config || DEFAULT_INITIAL_CLEANING_CONFIG;
+  
+  // If cleaned within 3 months, Initial Cleaning not required unless condition is in required list
+  if (cleanedWithin3Months && !finalConfig.requiredConditions.includes(condition?.toLowerCase() || '')) {
     return false;
   }
   
   if (!condition) return false;
-  return INITIAL_CLEANING_CONFIG.requiredConditions.includes(condition.toLowerCase());
+  return finalConfig.requiredConditions.includes(condition.toLowerCase());
 }
 
 /**
  * Determine if Initial Cleaning is recommended based on home condition and cleaning history
  */
-export function isInitialCleaningRecommended(condition?: string, cleanedWithin3Months?: boolean): boolean {
+export function isInitialCleaningRecommended(
+  condition?: string,
+  cleanedWithin3Months?: boolean,
+  config?: typeof DEFAULT_INITIAL_CLEANING_CONFIG
+): boolean {
+  const finalConfig = config || DEFAULT_INITIAL_CLEANING_CONFIG;
+  
   // If cleaned within 3 months, not recommended
   if (cleanedWithin3Months) {
     return false;
   }
   
   if (!condition) return false;
-  return INITIAL_CLEANING_CONFIG.recommendedConditions.includes(condition.toLowerCase());
+  return finalConfig.recommendedConditions.includes(condition.toLowerCase());
 }
 
 /**
@@ -132,10 +158,11 @@ function applyMultiplier(range: { low: number; high: number }, multiplier: numbe
 
 /**
  * Calculate quote based on inputs
- * Note: Now requires async call to load pricing table from Supabase
+ * Note: Now requires async call to load pricing table from Supabase and config from KV
  */
 export async function calcQuote(inputs: QuoteInputs): Promise<QuoteResult> {
   const table = await loadPricingTable();
+  const config = await getInitialCleaningConfig();
 
   // Check if square footage exceeds limits
   if (inputs.squareFeet > table.maxSqFt) {
@@ -173,11 +200,11 @@ export async function calcQuote(inputs: QuoteInputs): Promise<QuoteResult> {
   // Calculate General Clean as between maintenance average and deep clean
   const generalRange = calculateGeneralCleanPrice(maintenanceAvg, deepRange);
   
-  // Calculate Initial Cleaning as multiplier of General Clean
-  const initialRange = calculateInitialCleaningPrice(generalRange);
+  // Calculate Initial Cleaning as multiplier of General Clean using config multiplier
+  const initialRange = calculateInitialCleaningPrice(generalRange, config.multiplier);
 
   // Determine if Initial Cleaning is required (consider both condition and cleaning history)
-  const initialCleaningRequired = isInitialCleaningRequired(inputs.condition, inputs.cleanedWithin3Months);
+  const initialCleaningRequired = isInitialCleaningRequired(inputs.condition, inputs.cleanedWithin3Months, config);
 
   const ranges: QuoteRanges = {
     initial: initialRange,
