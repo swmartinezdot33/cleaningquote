@@ -1,6 +1,9 @@
 import { PricingTable, QuoteInputs, QuoteRanges, QuoteResult } from './types';
 import { loadPricingTable } from './loadPricingTable';
 
+// Re-export for backward compatibility
+export { loadPricingTable } from './loadPricingTable';
+
 /**
  * Get people multiplier based on count
  */
@@ -64,10 +67,10 @@ function applyMultiplier(range: { low: number; high: number }, multiplier: numbe
 
 /**
  * Calculate quote based on inputs
- * Pure function - no I/O operations
+ * Note: Now requires async call to load pricing table from Supabase
  */
-export function calcQuote(inputs: QuoteInputs): QuoteResult {
-  const table = loadPricingTable();
+export async function calcQuote(inputs: QuoteInputs): Promise<QuoteResult> {
+  const table = await loadPricingTable();
 
   // Check if square footage exceeds limits
   if (inputs.squareFeet > table.maxSqFt) {

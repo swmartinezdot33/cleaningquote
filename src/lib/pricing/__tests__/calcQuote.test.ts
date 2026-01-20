@@ -4,7 +4,7 @@ import { QuoteInputs } from '../types';
 
 // Mock the loadPricingTable function
 vi.mock('../loadPricingTable', () => ({
-  loadPricingTable: vi.fn(() => ({
+  loadPricingTable: vi.fn(async () => ({
     rows: [
       {
         sqFtRange: { min: 0, max: 1500 },
@@ -70,40 +70,40 @@ describe('getSheddingPetMultiplier', () => {
 
 describe('calcQuote', () => {
   describe('range selection', () => {
-    it('should select Less Than1500 bucket for 1500 square feet', () => {
+    it('should select Less Than1500 bucket for 1500 square feet', async () => {
       const inputs: QuoteInputs = {
         squareFeet: 1500,
         people: 2,
         pets: 0,
         sheddingPets: 0,
       };
-      const result = calcQuote(inputs);
+      const result = await calcQuote(inputs);
       
       expect(result.outOfLimits).toBe(false);
       expect(result.ranges?.weekly).toEqual({ low: 135, high: 165 });
     });
 
-    it('should select 1501-2000 bucket for 1501 square feet', () => {
+    it('should select 1501-2000 bucket for 1501 square feet', async () => {
       const inputs: QuoteInputs = {
         squareFeet: 1501,
         people: 2,
         pets: 0,
         sheddingPets: 0,
       };
-      const result = calcQuote(inputs);
+      const result = await calcQuote(inputs);
       
       expect(result.outOfLimits).toBe(false);
       expect(result.ranges?.weekly).toEqual({ low: 144, high: 174 });
     });
 
-    it('should select correct range for boundary values', () => {
+    it('should select correct range for boundary values', async () => {
       const inputs1: QuoteInputs = {
         squareFeet: 0,
         people: 2,
         pets: 0,
         sheddingPets: 0,
       };
-      const result1 = calcQuote(inputs1);
+      const result1 = await calcQuote(inputs1);
       expect(result1.outOfLimits).toBe(false);
 
       const inputs2: QuoteInputs = {
@@ -112,21 +112,21 @@ describe('calcQuote', () => {
         pets: 0,
         sheddingPets: 0,
       };
-      const result2 = calcQuote(inputs2);
+      const result2 = await calcQuote(inputs2);
       expect(result2.outOfLimits).toBe(false);
       expect(result2.ranges?.weekly).toEqual({ low: 144, high: 174 });
     });
   });
 
   describe('out of limits', () => {
-    it('should return outOfLimits when square feet exceeds max', () => {
+    it('should return outOfLimits when square feet exceeds max', async () => {
       const inputs: QuoteInputs = {
         squareFeet: 2500,
         people: 2,
         pets: 0,
         sheddingPets: 0,
       };
-      const result = calcQuote(inputs);
+      const result = await calcQuote(inputs);
       
       expect(result.outOfLimits).toBe(true);
       expect(result.message).toBe('This home falls outside our standard data limits for square footage. Please see management for custom pricing.');
@@ -135,42 +135,42 @@ describe('calcQuote', () => {
   });
 
   describe('multipliers', () => {
-    it('should apply people multiplier correctly', () => {
+    it('should apply people multiplier correctly', async () => {
       const inputs: QuoteInputs = {
         squareFeet: 1500,
         people: 6, // 1.1 multiplier
         pets: 0,
         sheddingPets: 0,
       };
-      const result = calcQuote(inputs);
+      const result = await calcQuote(inputs);
       
       expect(result.multiplier).toBe(1.1);
       expect(result.ranges?.weekly.low).toBe(Math.round(135 * 1.1)); // 149
       expect(result.ranges?.weekly.high).toBe(Math.round(165 * 1.1)); // 182
     });
 
-    it('should apply shedding pet multiplier correctly', () => {
+    it('should apply shedding pet multiplier correctly', async () => {
       const inputs: QuoteInputs = {
         squareFeet: 1500,
         people: 2,
         pets: 4,
         sheddingPets: 4, // 1.35 multiplier
       };
-      const result = calcQuote(inputs);
+      const result = await calcQuote(inputs);
       
       expect(result.multiplier).toBe(1.35);
       expect(result.ranges?.weekly.low).toBe(Math.round(135 * 1.35)); // 182
       expect(result.ranges?.weekly.high).toBe(Math.round(165 * 1.35)); // 223
     });
 
-    it('should apply combined multipliers correctly', () => {
+    it('should apply combined multipliers correctly', async () => {
       const inputs: QuoteInputs = {
         squareFeet: 1500,
         people: 8, // 1.15 multiplier
         pets: 2,
         sheddingPets: 2, // 1.15 multiplier
       };
-      const result = calcQuote(inputs);
+      const result = await calcQuote(inputs);
       
       const expectedMultiplier = 1.15 * 1.15; // 1.3225
       expect(result.multiplier).toBeCloseTo(expectedMultiplier, 4);
@@ -178,14 +178,14 @@ describe('calcQuote', () => {
       expect(result.ranges?.weekly.high).toBe(Math.round(165 * expectedMultiplier));
     });
 
-    it('should round prices to whole dollars', () => {
+    it('should round prices to whole dollars', async () => {
       const inputs: QuoteInputs = {
         squareFeet: 1500,
         people: 6, // 1.1 multiplier
         pets: 0,
         sheddingPets: 0,
       };
-      const result = calcQuote(inputs);
+      const result = await calcQuote(inputs);
       
       // 135 * 1.1 = 148.5 => 149
       expect(result.ranges?.weekly.low).toBe(149);

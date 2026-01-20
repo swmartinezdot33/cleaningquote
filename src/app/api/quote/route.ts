@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       sheddingPets: Number(body.sheddingPets),
     };
 
-    const result = calcQuote(inputs);
+    const result = await calcQuote(inputs);
 
     if (result.outOfLimits || !result.ranges) {
       return NextResponse.json({
