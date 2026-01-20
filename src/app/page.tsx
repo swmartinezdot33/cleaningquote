@@ -180,10 +180,26 @@ export default function Home() {
   const [isBookingAppointment, setIsBookingAppointment] = useState(false);
   const [bookingMessage, setBookingMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
+  const [widgetTitle, setWidgetTitle] = useState('Raleigh Cleaning Company');
+  const [widgetSubtitle, setWidgetSubtitle] = useState("Let's get your professional cleaning price!");
 
   useEffect(() => {
     setMounted(true);
+    loadWidgetSettings();
   }, []);
+
+  const loadWidgetSettings = async () => {
+    try {
+      const response = await fetch('/api/admin/widget-settings');
+      if (response.ok) {
+        const data = await response.json();
+        setWidgetTitle(data.title || 'Raleigh Cleaning Company');
+        setWidgetSubtitle(data.subtitle || "Let's get your professional cleaning price!");
+      }
+    } catch (error) {
+      console.error('Failed to load widget settings:', error);
+    }
+  };
 
   const {
     register,
@@ -218,7 +234,7 @@ export default function Home() {
       <main className="min-h-screen bg-gradient-to-br from-[#f61590]/5 via-white to-[#f61590]/5 pt-12 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto text-center">
           <h1 className="text-5xl font-bold bg-gradient-to-r from-[#f61590] to-[#f61590]/70 bg-clip-text text-transparent mb-4">
-            Raleigh Cleaning Company
+            {widgetTitle}
           </h1>
           <p className="text-xl text-gray-600">Loading...</p>
         </div>
@@ -586,10 +602,10 @@ export default function Home() {
           className="text-center mb-12"
         >
           <h1 className="text-5xl font-bold bg-gradient-to-r from-[#f61590] to-[#f61590]/70 bg-clip-text text-transparent mb-4">
-            Raleigh Cleaning Company
+            {widgetTitle}
           </h1>
           <p className="text-xl text-gray-600 mb-6">
-            Let's get your professional cleaning price!
+            {widgetSubtitle}
           </p>
           <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
             <Sparkles className="h-4 w-4 text-[#f61590]" />

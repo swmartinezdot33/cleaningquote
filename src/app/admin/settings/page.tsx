@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, AlertCircle, Loader2, Save, RotateCw, Eye, EyeOff, Sparkles, ArrowLeft } from 'lucide-react';
+import { CheckCircle, AlertCircle, Loader2, Save, RotateCw, Eye, EyeOff, Sparkles, ArrowLeft, Copy, Code } from 'lucide-react';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -23,6 +23,11 @@ export default function SettingsPage() {
   const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'disconnected' | 'testing'>(
     'unknown'
   );
+  const [widgetTitle, setWidgetTitle] = useState('Raleigh Cleaning Company');
+  const [widgetSubtitle, setWidgetSubtitle] = useState("Let's get your professional cleaning price!");
+  const [isSavingWidget, setIsSavingWidget] = useState(false);
+  const [widgetMessage, setWidgetMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [copiedEmbed, setCopiedEmbed] = useState(false);
 
   // Check authentication
   useEffect(() => {
@@ -37,6 +42,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (isAuthenticated) {
       loadSettings();
+      loadWidgetSettings();
     }
   }, [isAuthenticated]);
 
@@ -156,6 +162,77 @@ export default function SettingsPage() {
       setConnectionStatus('disconnected');
     } finally {
       setIsTesting(false);
+    }
+  };
+
+  const loadWidgetSettings = async () => {
+    try {
+      const response = await fetch('/api/admin/widget-settings', {
+        headers: {
+          'x-admin-password': password,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setWidgetTitle(data.title || 'Raleigh Cleaning Company');
+        setWidgetSubtitle(data.subtitle || "Let's get your professional cleaning price!");
+      }
+    } catch (error) {
+      console.error('Failed to load widget settings:', error);
+    }
+  };
+
+  const handleSaveWidgetSettings = async () => {
+    setIsSavingWidget(true);
+    setWidgetMessage(null);
+    try {
+      const response = await fetch('/api/admin/widget-settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': password,
+        },
+        body: JSON.stringify({
+          title: widgetTitle,
+          subtitle: widgetSubtitle,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setWidgetMessage({ type: 'success', text: 'Widget settings saved successfully!' });
+      } else {
+        setWidgetMessage({
+          type: 'error',
+          text: data.error || 'Failed to save widget settings',
+        });
+      }
+    } catch (error) {
+      setWidgetMessage({
+        type: 'error',
+        text: 'Failed to save widget settings. Please try again.',
+      });
+    } finally {
+      setIsSavingWidget(false);
+    }
+  };
+
+  const getEmbedCode = () => {
+    const baseUrl = window.location.origin;
+    return `<!-- Raleigh Cleaning Company Quote Widget -->
+<div id="cleaning-quote-widget"></div>
+<script src="${baseUrl}/widget.js" data-base-url="${baseUrl}" data-container-id="cleaning-quote-widget"><\/script>`;
+  };
+
+  const handleCopyEmbed = async () => {
+    try {
+      await navigator.clipboard.writeText(getEmbedCode());
+      setCopiedEmbed(true);
+      setTimeout(() => setCopiedEmbed(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy embed code:', error);
     }
   };
 
@@ -404,6 +481,149 @@ export default function SettingsPage() {
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-2">Security</h4>
                   <p>Your GHL token is stored securely in encrypted storage and is never exposed to the client.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Card className="shadow-xl border-2">
+            <CardHeader className="bg-gradient-to-r from-[#f61590]/5 via-transparent to-transparent border-b">
+              <CardTitle>Widget Customization</CardTitle>
+              <CardDescription>
+                Customize the title and subtitle displayed on your cleaning quote widget
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                {widgetMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`p-4 rounded-lg flex items-center gap-3 ${
+                      widgetMessage.type === 'success'
+                        ? 'bg-green-50 text-green-800 border border-green-200'
+                        : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}
+                  >
+                    {widgetMessage.type === 'success' ? (
+                      <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                    )}
+                    <p>{widgetMessage.text}</p>
+                  </motion.div>
+                )}
+
+                <div>
+                  <Label htmlFor="widget-title" className="text-base font-semibold">
+                    Widget Title
+                  </Label>
+                  <Input
+                    id="widget-title"
+                    value={widgetTitle}
+                    onChange={(e) => setWidgetTitle(e.target.value)}
+                    placeholder="e.g., Raleigh Cleaning Company"
+                    className="mt-2"
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    This title is displayed prominently at the top of the quote widget.
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="widget-subtitle" className="text-base font-semibold">
+                    Widget Subtitle
+                  </Label>
+                  <Input
+                    id="widget-subtitle"
+                    value={widgetSubtitle}
+                    onChange={(e) => setWidgetSubtitle(e.target.value)}
+                    placeholder="e.g., Let's get your professional cleaning price!"
+                    className="mt-2"
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    This subtitle appears below the title to introduce the quote form.
+                  </p>
+                </div>
+
+                <Button
+                  onClick={handleSaveWidgetSettings}
+                  disabled={isSavingWidget}
+                  className="w-full h-11 font-semibold flex items-center gap-2"
+                >
+                  {isSavingWidget ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      Save Widget Settings
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <Card className="shadow-xl border-2">
+            <CardHeader className="bg-gradient-to-r from-[#f61590]/5 via-transparent to-transparent border-b">
+              <CardTitle className="flex items-center gap-2">
+                <Code className="h-5 w-5 text-[#f61590]" />
+                Embed Quote Widget
+              </CardTitle>
+              <CardDescription>
+                Copy this code and paste it anywhere on your website to embed the quote calculator
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                <div className="p-4 bg-gray-900 rounded-lg border border-gray-700">
+                  <code className="text-green-400 font-mono text-sm whitespace-pre-wrap break-words">
+                    {getEmbedCode()}
+                  </code>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleCopyEmbed}
+                    variant={copiedEmbed ? 'secondary' : 'default'}
+                    className="flex-1 h-11 font-semibold flex items-center gap-2"
+                  >
+                    <Copy className="h-4 w-4" />
+                    {copiedEmbed ? 'Copied!' : 'Copy Embed Code'}
+                  </Button>
+                </div>
+
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-semibold text-blue-900 mb-2">How to use:</h4>
+                  <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                    <li>Copy the embed code above</li>
+                    <li>Paste it into your website's HTML where you want the widget to appear</li>
+                    <li>The widget will automatically load and be responsive</li>
+                    <li>Customize the title and subtitle using the settings above</li>
+                  </ol>
+                </div>
+
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <h4 className="font-semibold text-amber-900 mb-2">⚠️ Important:</h4>
+                  <p className="text-sm text-amber-800">
+                    Make sure your website is accessible from the same domain as this admin panel, or update the
+                    data-base-url attribute in the embed code to point to your actual website URL.
+                  </p>
                 </div>
               </div>
             </CardContent>
