@@ -392,6 +392,49 @@ export default function AdminPage() {
             <Upload className="h-4 w-4" />
             Import from Excel
           </Button>
+          <Button
+            onClick={async () => {
+              try {
+                const response = await fetch('/api/admin/download-template', {
+                  headers: {
+                    'x-admin-password': password,
+                  },
+                });
+                
+                if (response.ok) {
+                  const blob = await response.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'Pricing_Template.xlsx';
+                  document.body.appendChild(a);
+                  a.click();
+                  window.URL.revokeObjectURL(url);
+                  document.body.removeChild(a);
+                  setSaveMessage({ 
+                    type: 'success', 
+                    text: 'Template downloaded successfully!' 
+                  });
+                } else {
+                  const errorData = await response.json();
+                  setSaveMessage({ 
+                    type: 'error', 
+                    text: errorData.error || 'Failed to download template' 
+                  });
+                }
+              } catch (error) {
+                setSaveMessage({ 
+                  type: 'error', 
+                  text: 'Failed to download template' 
+                });
+              }
+            }}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Download Template
+          </Button>
         </div>
 
         {/* Save Message */}
@@ -531,13 +574,62 @@ export default function AdminPage() {
             >
               <Card className="shadow-xl border-2">
                 <CardHeader>
-                  <CardTitle>Upload Pricing Excel File</CardTitle>
+                  <CardTitle>Import from Excel File</CardTitle>
                   <CardDescription>
                     Upload your Excel file with pricing data. The file will be parsed and stored automatically.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-4">
+                      <p className="text-sm text-blue-800 mb-2">
+                        <strong>New to Excel upload?</strong> Download our template file to get started with the correct format.
+                      </p>
+                      <Button
+                        onClick={async () => {
+                          try {
+                            const response = await fetch('/api/admin/download-template', {
+                              headers: {
+                                'x-admin-password': password,
+                              },
+                            });
+                            
+                            if (response.ok) {
+                              const blob = await response.blob();
+                              const url = window.URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = 'Pricing_Template.xlsx';
+                              document.body.appendChild(a);
+                              a.click();
+                              window.URL.revokeObjectURL(url);
+                              document.body.removeChild(a);
+                              setSaveMessage({ 
+                                type: 'success', 
+                                text: 'Template downloaded successfully!' 
+                              });
+                            } else {
+                              const errorData = await response.json();
+                              setSaveMessage({ 
+                                type: 'error', 
+                                text: errorData.error || 'Failed to download template' 
+                              });
+                            }
+                          } catch (error) {
+                            setSaveMessage({ 
+                              type: 'error', 
+                              text: 'Failed to download template' 
+                            });
+                          }
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2"
+                      >
+                        <Download className="h-4 w-4" />
+                        Download Excel Template
+                      </Button>
+                    </div>
                     <div>
                       <Label htmlFor="file-upload" className="text-lg">
                         Select Excel File (.xlsx or .xls)
