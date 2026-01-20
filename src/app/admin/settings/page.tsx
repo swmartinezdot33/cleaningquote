@@ -90,13 +90,21 @@ export default function SettingsPage() {
   const [isSavingApiKey, setIsSavingApiKey] = useState(false);
   const [apiKeyMessage, setApiKeyMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Initial Cleaning Config State
-  const [initialCleaningMultiplier, setInitialCleaningMultiplier] = useState(1.5);
-  const [requiredConditions, setRequiredConditions] = useState<string[]>(['poor']);
-  const [recommendedConditions, setRecommendedConditions] = useState<string[]>(['fair']);
-  const [isLoadingInitialCleaning, setIsLoadingInitialCleaning] = useState(false);
-  const [isSavingInitialCleaning, setIsSavingInitialCleaning] = useState(false);
-  const [initialCleaningMessage, setInitialCleaningMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  // Collapsible Cards State
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+  const toggleCard = (cardId: string) => {
+    const newExpanded = new Set(expandedCards);
+    if (newExpanded.has(cardId)) {
+      newExpanded.delete(cardId);
+    } else {
+      newExpanded.add(cardId);
+    }
+    setExpandedCards(newExpanded);
+  };
+
+  const isCardExpanded = (cardId: string) => expandedCards.has(cardId);
+
 
   // Check authentication
   useEffect(() => {
@@ -113,7 +121,6 @@ export default function SettingsPage() {
       loadSettings();
       loadWidgetSettings();
       loadGHLConfig();
-      loadInitialCleaningConfig();
     }
   }, [isAuthenticated]);
 
@@ -621,64 +628,6 @@ export default function SettingsPage() {
       });
     } finally {
       setIsSavingApiKey(false);
-    }
-  };
-
-  const loadInitialCleaningConfig = async () => {
-    setIsLoadingInitialCleaning(true);
-    try {
-      const response = await fetch('/api/admin/initial-cleaning-config', {
-        headers: {
-          'x-admin-password': password,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setInitialCleaningMultiplier(data.multiplier);
-        setRequiredConditions(data.requiredConditions);
-        setRecommendedConditions(data.recommendedConditions);
-      }
-    } catch (error) {
-      console.error('Error loading Initial Cleaning config:', error);
-    } finally {
-      setIsLoadingInitialCleaning(false);
-    }
-  };
-
-  const handleSaveInitialCleaningConfig = async () => {
-    setIsSavingInitialCleaning(true);
-    setInitialCleaningMessage(null);
-
-    try {
-      const response = await fetch('/api/admin/initial-cleaning-config', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-password': password,
-        },
-        body: JSON.stringify({
-          multiplier: initialCleaningMultiplier,
-          requiredConditions,
-          recommendedConditions,
-        }),
-      });
-
-      if (response.ok) {
-        setInitialCleaningMessage({ type: 'success', text: 'Initial Cleaning configuration saved successfully!' });
-      } else {
-        setInitialCleaningMessage({
-          type: 'error',
-          text: 'Failed to save Initial Cleaning configuration. Please try again.',
-        });
-      }
-    } catch (error) {
-      setInitialCleaningMessage({
-        type: 'error',
-        text: 'Failed to save Initial Cleaning configuration. Please try again.',
-      });
-    } finally {
-      setIsSavingInitialCleaning(false);
     }
   };
 
@@ -2286,132 +2235,6 @@ export default function SettingsPage() {
                     data-base-url attribute in the embed code to point to your actual website URL.
                   </p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Initial Cleaning Configuration Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
-            <CardHeader className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-b border-gray-200 pb-6">
-              <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                <Sparkles className="h-5 w-5 text-purple-600" />
-                Initial Cleaning Configuration
-              </CardTitle>
-              <CardDescription>
-                Configure pricing and conditions for Initial Cleaning (first deep clean to reach maintenance standards)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-8 pb-8">
-              <div className="space-y-6">
-                {initialCleaningMessage && (
-                  <div
-                    className={`p-4 rounded-lg ${
-                      initialCleaningMessage.type === 'success'
-                        ? 'bg-green-50 text-green-800 border border-green-200'
-                        : 'bg-red-50 text-red-800 border border-red-200'
-                    }`}
-                  >
-                    {initialCleaningMessage.text}
-                  </div>
-                )}
-
-                <div>
-                  <Label htmlFor="multiplier" className="text-base font-semibold">
-                    Initial Cleaning Multiplier
-                  </Label>
-                  <p className="text-sm text-gray-600 mt-1 mb-3">
-                    Price multiplier applied to General Clean price (1.0 = same as General, 1.5 = 50% more)
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="multiplier"
-                      type="number"
-                      min="1.0"
-                      max="3.0"
-                      step="0.1"
-                      value={initialCleaningMultiplier}
-                      onChange={(e) => setInitialCleaningMultiplier(parseFloat(e.target.value) || 1.5)}
-                      className="flex-1 h-10"
-                    />
-                    <span className="text-sm font-semibold text-gray-700">×</span>
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-base font-semibold">Home Conditions Requiring Initial Cleaning</Label>
-                  <p className="text-sm text-gray-600 mt-1 mb-3">
-                    Select which home conditions REQUIRE Initial Cleaning
-                  </p>
-                  <div className="space-y-2">
-                    {['excellent', 'good', 'average', 'fair', 'poor', 'very-poor'].map((condition) => (
-                      <label key={condition} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={requiredConditions.includes(condition)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setRequiredConditions([...requiredConditions, condition]);
-                            } else {
-                              setRequiredConditions(requiredConditions.filter((c) => c !== condition));
-                            }
-                          }}
-                          className="w-4 h-4 rounded"
-                        />
-                        <span className="text-sm capitalize">{condition}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-base font-semibold">Home Conditions Recommending Initial Cleaning</Label>
-                  <p className="text-sm text-gray-600 mt-1 mb-3">
-                    Select which home conditions RECOMMEND Initial Cleaning (not required, but suggested)
-                  </p>
-                  <div className="space-y-2">
-                    {['excellent', 'good', 'average', 'fair', 'poor', 'very-poor'].map((condition) => (
-                      <label key={condition} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={recommendedConditions.includes(condition)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setRecommendedConditions([...recommendedConditions, condition]);
-                            } else {
-                              setRecommendedConditions(recommendedConditions.filter((c) => c !== condition));
-                            }
-                          }}
-                          className="w-4 h-4 rounded"
-                        />
-                        <span className="text-sm capitalize">{condition}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <Button
-                  onClick={handleSaveInitialCleaningConfig}
-                  disabled={isSavingInitialCleaning}
-                  className="w-full h-11 font-semibold flex items-center gap-2"
-                >
-                  {isSavingInitialCleaning ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4" />
-                      Save Initial Cleaning Config
-                    </>
-                  )}
-                </Button>
               </div>
             </CardContent>
           </Card>
