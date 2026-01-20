@@ -350,6 +350,7 @@ export default function Home() {
     formState: { errors },
     trigger,
     getValues,
+    watch,
     setValue,
     reset,
   } = useForm({
@@ -1435,7 +1436,7 @@ export default function Home() {
                         placeholder={currentQuestion.placeholder}
                         required={currentQuestion.required}
                         primaryColor={primaryColor}
-                        value={getValues(getFormFieldName(currentQuestion.id) as any)}
+                        value={watch(getFormFieldName(currentQuestion.id) as any) || ''}
                         onChange={(value, placeDetails) => {
                           // Update form value using sanitized field name
                           const fieldName = getFormFieldName(currentQuestion.id);
