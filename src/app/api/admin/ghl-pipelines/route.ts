@@ -31,13 +31,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // For API v2, fetch locations first to get location ID
+    // For API v2, get location ID from token using /oauth/installedLocations
+    // This works for both agency-level and location-level PIT tokens
     let locationId: string | null = null;
     let locationName: string | null = null;
     
     try {
-      // Fetch locations list using search endpoint (v2 API)
-      const locationsResponse = await fetch('https://services.leadconnectorhq.com/locations/search?limit=10', {
+      // Use /oauth/installedLocations which works for both token types
+      const locationsResponse = await fetch('https://services.leadconnectorhq.com/oauth/installedLocations', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -55,12 +56,12 @@ export async function GET(request: NextRequest) {
         }
       }
     } catch (error) {
-      console.warn('Failed to fetch locations:', error);
+      console.warn('Failed to fetch installed locations:', error);
     }
 
     if (!locationId) {
       return NextResponse.json(
-        { error: 'Could not determine location ID. Please ensure your PIT token has locations.read scope.' },
+        { error: 'Could not determine location ID from token. Please ensure your PIT token is valid.' },
         { status: 400 }
       );
     }

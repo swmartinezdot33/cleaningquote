@@ -64,12 +64,20 @@ async function makeGHLRequest<T>(
 
 /**
  * Create or update a contact in GHL
+ * For location-level tokens, locationId is required in the body
  */
 export async function createOrUpdateContact(
-  contactData: GHLContact
+  contactData: GHLContact,
+  locationId?: string
 ): Promise<GHLContactResponse> {
   try {
-    const payload = {
+    // Get locationId if not provided (for location-level tokens)
+    let finalLocationId = locationId;
+    if (!finalLocationId) {
+      finalLocationId = await getLocationIdFromToken() || undefined;
+    }
+
+    const payload: Record<string, any> = {
       firstName: contactData.firstName,
       lastName: contactData.lastName,
       ...(contactData.email && { email: contactData.email }),
@@ -79,10 +87,11 @@ export async function createOrUpdateContact(
       ...(contactData.customFields && Object.keys(contactData.customFields).length > 0 && {
         customFields: contactData.customFields,
       }),
+      // Include locationId for API v2 (required for location-level tokens, optional for agency-level)
+      ...(finalLocationId && { locationId: finalLocationId }),
     };
 
     // GHL v2 uses /contacts/upsert for create or update
-    // Note: locationId should be in payload if needed - will be added by caller if required
     const response = await makeGHLRequest<{ contact: GHLContactResponse }>(
       '/contacts/upsert',
       'POST',
@@ -98,12 +107,20 @@ export async function createOrUpdateContact(
 
 /**
  * Create an opportunity in GHL
+ * For location-level tokens, locationId is required in the body
  */
 export async function createOpportunity(
-  opportunityData: GHLOpportunity
+  opportunityData: GHLOpportunity,
+  locationId?: string
 ): Promise<GHLOpportunityResponse> {
   try {
-    const payload = {
+    // Get locationId if not provided (for location-level tokens)
+    let finalLocationId = locationId;
+    if (!finalLocationId) {
+      finalLocationId = await getLocationIdFromToken() || undefined;
+    }
+
+    const payload: Record<string, any> = {
       contactId: opportunityData.contactId,
       name: opportunityData.name,
       ...(opportunityData.value && { monetaryValue: opportunityData.value }),
@@ -115,6 +132,8 @@ export async function createOpportunity(
       ...(opportunityData.customFields && Object.keys(opportunityData.customFields).length > 0 && {
         customFields: opportunityData.customFields,
       }),
+      // Include locationId for API v2 (required for location-level tokens, optional for agency-level)
+      ...(finalLocationId && { locationId: finalLocationId }),
     };
 
     const response = await makeGHLRequest<{ opportunity: GHLOpportunityResponse }>(
@@ -154,18 +173,28 @@ export async function createNote(noteData: GHLNote): Promise<GHLNoteResponse> {
 
 /**
  * Create an appointment in GHL
+ * For location-level tokens, locationId is required in the body
  */
 export async function createAppointment(
-  appointmentData: GHLAppointment
+  appointmentData: GHLAppointment,
+  locationId?: string
 ): Promise<GHLAppointmentResponse> {
   try {
-    const payload = {
+    // Get locationId if not provided (for location-level tokens)
+    let finalLocationId = locationId;
+    if (!finalLocationId) {
+      finalLocationId = await getLocationIdFromToken() || undefined;
+    }
+
+    const payload: Record<string, any> = {
       contactId: appointmentData.contactId,
       title: appointmentData.title,
       startTime: appointmentData.startTime,
       endTime: appointmentData.endTime,
       ...(appointmentData.notes && { notes: appointmentData.notes }),
       ...(appointmentData.calendarId && { calendarId: appointmentData.calendarId }),
+      // Include locationId for API v2 (required for location-level tokens, optional for agency-level)
+      ...(finalLocationId && { locationId: finalLocationId }),
     };
 
     const response = await makeGHLRequest<{ appointment: GHLAppointmentResponse }>(
@@ -178,6 +207,45 @@ export async function createAppointment(
   } catch (error) {
     console.error('Failed to create appointment:', error);
     throw error;
+  }
+}
+
+/**
+ * Get locationId from token (works for both agency and location-level tokens)
+ * Uses /oauth/installedLocations endpoint
+ */
+export async function getLocationIdFromToken(token?: string): Promise<string | null> {
+  try {
+    const testToken = token || await getGHLToken();
+    
+    if (!testToken) {
+      return null;
+    }
+
+    const response = await fetch(`${GHL_API_BASE}/oauth/installedLocations`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${testToken.trim()}`,
+        'Content-Type': 'application/json',
+        'Version': '2021-07-28',
+      },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    const locations = data.locations || data.data || [];
+    
+    if (locations.length > 0) {
+      return locations[0].id;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Failed to get locationId from token:', error);
+    return null;
   }
 }
 
@@ -231,11 +299,9 @@ export async function testGHLConnection(token?: string): Promise<{ success: bool
       return { success: false, error: 'Token appears to be invalid (too short)' };
     }
 
-    // Test connection - try multiple endpoints to handle both agency-level and location-level tokens
-    // Location-level tokens can't use /locations/search, so we test with contacts endpoint instead
-    
-    // First try: contacts endpoint (works for both agency and location-level tokens with contacts.write scope)
-    let response = await fetch(`${GHL_API_BASE}/contacts?limit=1`, {
+    // Test connection - use /oauth/installedLocations which works for both agency and location-level tokens
+    // This endpoint doesn't require any specific scopes and works with any valid PIT token
+    let response = await fetch(`${GHL_API_BASE}/oauth/installedLocations`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${testToken.trim()}`,
@@ -243,18 +309,6 @@ export async function testGHLConnection(token?: string): Promise<{ success: bool
         'Version': '2021-07-28', // Required for API v2
       },
     });
-
-    // If contacts fails with 401 (missing scope), try locations/search (for agency-level tokens)
-    if (response.status === 401) {
-      response = await fetch(`${GHL_API_BASE}/locations/search?limit=1`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${testToken.trim()}`,
-          'Content-Type': 'application/json',
-          'Version': '2021-07-28',
-        },
-      });
-    }
 
     if (!response.ok) {
       let errorMessage = `HTTP ${response.status}`;
