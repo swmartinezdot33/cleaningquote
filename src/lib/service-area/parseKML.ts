@@ -20,15 +20,29 @@ export function parseKML(kmlContent: string): ParsedKMLResult {
 
     // Check if this is a NetworkLink reference (common for Google Maps KML exports)
     if (kmlContent.includes('<NetworkLink>') && !kmlContent.includes('<Polygon>')) {
-      // Extract the href from NetworkLink
-      const hrefMatch = kmlContent.match(/<href>\s*(.*?)\s*<\/href>/);
+      // Extract the href from NetworkLink - handle both plain and CDATA-wrapped URLs
+      let networkLink: string | null = null;
+      
+      // First try: plain text within <href> tags
+      let hrefMatch = kmlContent.match(/<href>\s*(.*?)\s*<\/href>/);
       if (hrefMatch && hrefMatch[1]) {
-        const networkLink = hrefMatch[1].trim();
+        networkLink = hrefMatch[1].trim();
+      } else {
+        // Second try: URL within CDATA section
+        // Pattern: <href><![CDATA[URL]]></href>
+        hrefMatch = kmlContent.match(/<href>\s*<!\[CDATA\[(.*?)\]\]>\s*<\/href>/);
+        if (hrefMatch && hrefMatch[1]) {
+          networkLink = hrefMatch[1].trim();
+        }
+      }
+      
+      if (networkLink) {
         return {
           polygons: [],
           networkLink,
         };
       }
+      
       return {
         polygons: [],
         error: 'NetworkLink found but no href URL detected. Please ensure the KML contains a valid <href> element.',

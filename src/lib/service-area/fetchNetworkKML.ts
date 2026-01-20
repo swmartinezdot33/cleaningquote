@@ -26,6 +26,24 @@ export async function fetchAndParseNetworkKML(
   url: string
 ): Promise<{ polygons: Array<Array<[number, number]>>; error?: string }> {
   try {
+    // Validate the URL
+    if (!url || url.trim().length === 0) {
+      return {
+        polygons: [],
+        error: 'URL is empty or invalid',
+      };
+    }
+
+    // Try to parse the URL to ensure it's valid
+    try {
+      new URL(url);
+    } catch (e) {
+      return {
+        polygons: [],
+        error: `Invalid URL format: ${url}`,
+      };
+    }
+
     // Check if we have a cached result that's still valid
     const cached = kmlCache.get(url);
     if (cached && Date.now() - cached.fetchedAt < CACHE_DURATION_MS) {
