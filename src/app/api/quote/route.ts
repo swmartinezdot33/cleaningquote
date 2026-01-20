@@ -55,11 +55,39 @@ function getSelectedQuotePrice(ranges: any, serviceType: string, frequency: stri
   return ranges.general.high;
 }
 
+/**
+ * Convert square footage range to midpoint number
+ */
+function convertSquareFootageRange(range: string): number {
+  if (!range) return 1500; // Default fallback
+  
+  const rangeMap: { [key: string]: number } = {
+    '500-1000': 750,
+    '1000-1500': 1250,
+    '1500-2000': 1750,
+    '2000-2500': 2250,
+    '2500-3000': 2750,
+    '3000-3500': 3250,
+    '3500-4000': 3750,
+    '4000-4500': 4250,
+    '4500+': 5000,
+  };
+  
+  return rangeMap[range] || 1500;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    
+    // Convert square footage range to midpoint if it's a range string
+    let squareFootage = Number(body.squareFeet);
+    if (isNaN(squareFootage)) {
+      squareFootage = convertSquareFootageRange(body.squareFeet);
+    }
+    
     const inputs: QuoteInputs = {
-      squareFeet: Number(body.squareFeet),
+      squareFeet: squareFootage,
       people: Number(body.people),
       pets: Number(body.pets),
       sheddingPets: Number(body.sheddingPets),
