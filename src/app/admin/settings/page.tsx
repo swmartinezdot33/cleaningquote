@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, AlertCircle, Loader2, Save, RotateCw, Eye, EyeOff, Sparkles, ArrowLeft, Copy, Code, ChevronDown, FileText, Upload, MapPin, Plus } from 'lucide-react';
+import { GHLTestWizard } from '@/components/GHLTestWizard';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -1116,6 +1117,17 @@ export default function SettingsPage() {
                       </>
                     )}
                   </Button>
+                </div>
+
+                {/* GHL Test Wizard */}
+                <div className="mt-8 pt-8 border-t border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Comprehensive Endpoint Test</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Test all GHL API endpoints at once and get detailed feedback on each one. This helps diagnose issues with your GHL integration.
+                  </p>
+                  {isAuthenticated && password && (
+                    <GHLTestWizard adminPassword={password} />
+                  )}
                 </div>
               </div>
             </CardContent>
