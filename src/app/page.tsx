@@ -717,6 +717,8 @@ export default function Home() {
                         render={({ field }) => (
                           <Select onValueChange={(value) => {
                             field.onChange(value);
+                            // Move to next step automatically after selection
+                            setTimeout(() => nextStep(), 300);
                           }} value={field.value || ''}>
                             <SelectTrigger 
                               className="h-14 text-lg"
