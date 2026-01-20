@@ -6,6 +6,7 @@ const GHL_LOCATION_ID_KEY = 'ghl:location:id';
 const GHL_CONFIG_KEY = 'ghl:config';
 const WIDGET_SETTINGS_KEY = 'widget:settings';
 const SURVEY_QUESTIONS_KEY = 'survey:questions';
+const SERVICE_AREA_POLYGON_KEY = 'service:area:polygon';
 
 /**
  * Check if KV is configured
@@ -153,6 +154,9 @@ export async function storeGHLConfig(config: {
   opportunityStatus?: string;
   opportunityMonetaryValue?: number;
   useDynamicPricingForValue?: boolean;
+  inServiceTags?: string[];
+  outOfServiceTags?: string[];
+  calendarId?: string;
 }): Promise<void> {
   try {
     const kv = getKV();
@@ -175,6 +179,9 @@ export async function getGHLConfig(): Promise<{
   opportunityStatus?: string;
   opportunityMonetaryValue?: number;
   useDynamicPricingForValue?: boolean;
+  inServiceTags?: string[];
+  outOfServiceTags?: string[];
+  calendarId?: string;
 } | null> {
   try {
     const kv = getKV();
@@ -196,7 +203,7 @@ export interface SurveyQuestionOption {
 export interface SurveyQuestion {
   id: string;
   label: string;
-  type: 'text' | 'email' | 'tel' | 'number' | 'select';
+  type: 'text' | 'email' | 'tel' | 'number' | 'select' | 'address';
   placeholder?: string;
   required: boolean;
   options?: SurveyQuestionOption[];
@@ -233,5 +240,49 @@ export async function getSurveyQuestions(): Promise<SurveyQuestion[]> {
     return questions.sort((a, b) => a.order - b.order);
   } catch {
     return [];
+  }
+}
+
+/**
+ * Service Area Polygon type: array of [lat, lng] coordinate pairs
+ */
+export type ServiceAreaPolygon = Array<[number, number]>;
+
+/**
+ * Store service area polygon
+ */
+export async function storeServiceAreaPolygon(polygon: ServiceAreaPolygon): Promise<void> {
+  try {
+    const kv = getKV();
+    await kv.set(SERVICE_AREA_POLYGON_KEY, polygon);
+  } catch (error) {
+    console.error('Error storing service area polygon:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get service area polygon
+ */
+export async function getServiceAreaPolygon(): Promise<ServiceAreaPolygon | null> {
+  try {
+    const kv = getKV();
+    const polygon = await kv.get<ServiceAreaPolygon>(SERVICE_AREA_POLYGON_KEY);
+    return polygon || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if service area polygon exists
+ */
+export async function serviceAreaPolygonExists(): Promise<boolean> {
+  try {
+    const kv = getKV();
+    const exists = await kv.exists(SERVICE_AREA_POLYGON_KEY);
+    return exists === 1;
+  } catch {
+    return false;
   }
 }

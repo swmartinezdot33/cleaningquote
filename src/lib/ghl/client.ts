@@ -68,9 +68,14 @@ async function makeGHLRequest<T>(
  */
 export async function createOrUpdateContact(
   contactData: GHLContact,
-  locationId?: string
+  token?: string,
+  locationId?: string,
+  additionalTags?: string[]
 ): Promise<GHLContactResponse> {
   try {
+    // Use provided token or get from stored settings
+    const finalToken = token || (await getGHLToken());
+    
     // Always use locationId - required for sub-account (location-level) API calls
     // Use provided locationId, or get from stored settings (required)
     let finalLocationId = locationId || (await getGHLLocationId());
@@ -79,13 +84,20 @@ export async function createOrUpdateContact(
       throw new Error('Location ID is required. Please configure it in the admin settings.');
     }
 
+    // Combine contact tags with additional tags (e.g., service area tags)
+    const allTags = [
+      ...(contactData.tags || []),
+      ...(additionalTags || []),
+    ];
+
     const payload: Record<string, any> = {
       firstName: contactData.firstName,
       lastName: contactData.lastName,
       ...(contactData.email && { email: contactData.email }),
       ...(contactData.phone && { phone: contactData.phone }),
       ...(contactData.source && { source: contactData.source }),
-      ...(contactData.tags && contactData.tags.length > 0 && { tags: contactData.tags }),
+      ...(contactData.address1 && { address1: contactData.address1 }),
+      ...(allTags.length > 0 && { tags: allTags }),
       ...(contactData.customFields && Object.keys(contactData.customFields).length > 0 && {
         customFields: contactData.customFields,
       }),
@@ -93,14 +105,29 @@ export async function createOrUpdateContact(
       locationId: finalLocationId,
     };
 
-    // GHL v2 uses /contacts/upsert for create or update
-    const response = await makeGHLRequest<{ contact: GHLContactResponse }>(
-      '/contacts/upsert',
-      'POST',
-      payload
-    );
+    // Use provided token or the API client token
+    const url = `${GHL_API_BASE}/contacts/upsert`;
+    const options: RequestInit = {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${finalToken}`,
+        'Content-Type': 'application/json',
+        'Version': '2021-07-28', // Required for API v2
+      },
+      body: JSON.stringify(payload),
+    };
 
-    return response.contact;
+    const response = await fetch(url, options);
+
+    if (!response.ok) {
+      const errorData = (await response.json()) as any;
+      throw new Error(
+        `GHL API Error (${response.status}): ${errorData.message || JSON.stringify(errorData)}`
+      );
+    }
+
+    const data = await response.json();
+    return data.contact;
   } catch (error) {
     console.error('Failed to create/update contact:', error);
     throw error;

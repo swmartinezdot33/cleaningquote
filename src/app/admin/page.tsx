@@ -487,7 +487,7 @@ export default function AdminPage() {
             <>
               <Button
                 onClick={() => setUploadMode('upload')}
-                variant={uploadMode === 'upload' ? 'default' : 'outline'}
+                variant="outline"
                 className="flex items-center gap-2"
               >
                 <Upload className="h-4 w-4" />

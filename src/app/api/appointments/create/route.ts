@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAppointment } from '@/lib/ghl/client';
-import { ghlTokenExists } from '@/lib/kv';
+import { ghlTokenExists, getGHLConfig } from '@/lib/kv';
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,6 +28,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get GHL config to retrieve calendar ID
+    const ghlConfig = await getGHLConfig();
+
     // Parse date and time
     // date format: YYYY-MM-DD, time format: HH:MM
     const startDateTime = new Date(`${date}T${time}:00`);
@@ -39,13 +42,14 @@ export async function POST(request: NextRequest) {
     // End time is 1 hour after start time
     const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
 
-    // Create appointment in GHL
+    // Create appointment in GHL with optional calendar ID
     const appointment = await createAppointment({
       contactId,
       title: 'Cleaning Service Appointment',
       startTime: startDateTime.toISOString(),
       endTime: endDateTime.toISOString(),
       notes: notes || 'Appointment booked through website quote form',
+      calendarId: ghlConfig?.calendarId,
     });
 
     return NextResponse.json({

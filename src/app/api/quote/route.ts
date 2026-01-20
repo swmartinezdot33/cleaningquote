@@ -116,7 +116,13 @@ export async function POST(request: NextRequest) {
             delete contactData.customFields;
           }
 
-          const contact = await createOrUpdateContact(contactData);
+          // Pass additional tags (in-service tags)
+          const contact = await createOrUpdateContact(
+            contactData, 
+            undefined, // token - will use stored token
+            undefined, // locationId - will use stored locationId
+            ghlConfig?.inServiceTags // additional tags for in-service customers
+          );
           ghlContactId = contact.id;
         }
 

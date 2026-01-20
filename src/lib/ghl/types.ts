@@ -7,6 +7,7 @@ export interface GHLContact {
   lastName: string;
   email?: string;
   phone?: string;
+  address1?: string;
   source?: string;
   tags?: string[];
   customFields?: Record<string, string>;

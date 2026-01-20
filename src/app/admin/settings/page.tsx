@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, AlertCircle, Loader2, Save, RotateCw, Eye, EyeOff, Sparkles, ArrowLeft, Copy, Code, ChevronDown, FileText } from 'lucide-react';
+import { CheckCircle, AlertCircle, Loader2, Save, RotateCw, Eye, EyeOff, Sparkles, ArrowLeft, Copy, Code, ChevronDown, FileText, Upload, MapPin } from 'lucide-react';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -46,6 +46,16 @@ export default function SettingsPage() {
   const [pipelinesError, setPipelinesError] = useState<string | null>(null);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [configMessage, setConfigMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Service Area and Tags State
+  const [inServiceTags, setInServiceTags] = useState<string>('');
+  const [outOfServiceTags, setOutOfServiceTags] = useState<string>('');
+  const [serviceAreaFile, setServiceAreaFile] = useState<File | null>(null);
+  const [serviceAreaMessage, setServiceAreaMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isUploadingServiceArea, setIsUploadingServiceArea] = useState(false);
+  const [calendars, setCalendars] = useState<any[]>([]);
+  const [selectedCalendarId, setSelectedCalendarId] = useState<string>('');
+  const [isLoadingCalendars, setIsLoadingCalendars] = useState(false);
 
   // Check authentication
   useEffect(() => {
@@ -356,6 +366,9 @@ export default function SettingsPage() {
           opportunityStatus,
           opportunityMonetaryValue: opportunityValue || undefined,
           useDynamicPricingForValue,
+          inServiceTags: inServiceTags ? inServiceTags.split(',').map(tag => tag.trim()).filter(Boolean) : undefined,
+          outOfServiceTags: outOfServiceTags ? outOfServiceTags.split(',').map(tag => tag.trim()).filter(Boolean) : undefined,
+          calendarId: selectedCalendarId || undefined,
         }),
       });
 
@@ -378,6 +391,77 @@ export default function SettingsPage() {
       setIsSavingConfig(false);
     }
   };
+
+  const handleUploadServiceArea = async () => {
+    if (!serviceAreaFile) {
+      setServiceAreaMessage({ type: 'error', text: 'Please select a KML file' });
+      return;
+    }
+
+    setIsUploadingServiceArea(true);
+    setServiceAreaMessage(null);
+
+    try {
+      const content = await serviceAreaFile.text();
+      
+      const response = await fetch('/api/admin/service-area/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': password,
+        },
+        body: JSON.stringify({ kmlContent: content }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setServiceAreaMessage({ type: 'success', text: 'Service area polygon uploaded successfully!' });
+        setServiceAreaFile(null);
+      } else {
+        setServiceAreaMessage({
+          type: 'error',
+          text: data.error || 'Failed to upload service area',
+        });
+      }
+    } catch (error) {
+      setServiceAreaMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Failed to upload service area',
+      });
+    } finally {
+      setIsUploadingServiceArea(false);
+    }
+  };
+
+  const loadCalendars = async () => {
+    if (!isAuthenticated) return;
+    
+    setIsLoadingCalendars(true);
+    try {
+      const response = await fetch('/api/admin/ghl-calendars', {
+        headers: {
+          'Authorization': `Bearer ${password}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCalendars(data.calendars || []);
+      }
+    } catch (error) {
+      console.error('Error loading calendars:', error);
+    } finally {
+      setIsLoadingCalendars(false);
+    }
+  };
+
+  // Load calendars when component mounts
+  useEffect(() => {
+    if (isAuthenticated && calendars.length === 0) {
+      loadCalendars();
+    }
+  }, [isAuthenticated]);
 
   if (!isAuthenticated) {
     return (
@@ -568,7 +652,7 @@ export default function SettingsPage() {
                     </p>
                     <ul className="text-xs text-amber-800 space-y-1 ml-6 list-disc">
                       <li><strong>contacts.write</strong> - Create/update contacts and add notes <span className="font-bold text-amber-900">(REQUIRED)</span></li>
-                      <li><strong>opportunities.read</strong> - Read pipelines for configuration</li>
+                      <li><strong>opportunities.readonly</strong> - Read pipelines for configuration</li>
                       <li><strong>opportunities.write</strong> - Create opportunities from quotes</li>
                       <li><strong>calendars.write</strong> - Create appointments for bookings</li>
                       <li><strong>locations.readonly</strong> - Only needed if using Agency-level PIT token (optional for Location-level tokens)</li>
@@ -956,10 +1040,163 @@ export default function SettingsPage() {
           </Card>
         </motion.div>
 
+        {/* Service Area Management Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
+        >
+          <Card className="shadow-xl border-2">
+            <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b">
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-emerald-600" />
+                Service Area Configuration
+              </CardTitle>
+              <CardDescription>
+                Upload a KML file with your service area polygon, and configure tags for in-service and out-of-service customers
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="space-y-6">
+                {serviceAreaMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`p-4 rounded-lg flex items-center gap-3 ${
+                      serviceAreaMessage.type === 'success'
+                        ? 'bg-green-50 text-green-800 border border-green-200'
+                        : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}
+                  >
+                    {serviceAreaMessage.type === 'success' ? (
+                      <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                    )}
+                    <p>{serviceAreaMessage.text}</p>
+                  </motion.div>
+                )}
+
+                {/* KML Upload */}
+                <div>
+                  <Label className="text-base font-semibold">Upload Service Area Polygon (KML)</Label>
+                  <div className="mt-3 p-4 border-2 border-dashed border-gray-300 rounded-lg text-center">
+                    <input
+                      type="file"
+                      accept=".kml,.kmz"
+                      onChange={(e) => setServiceAreaFile(e.target.files?.[0] || null)}
+                      className="hidden"
+                      id="kml-file-input"
+                    />
+                    <label htmlFor="kml-file-input" className="cursor-pointer">
+                      <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                      <p className="font-semibold text-gray-700">Click to select KML file</p>
+                      <p className="text-sm text-gray-600">or drag and drop</p>
+                      {serviceAreaFile && (
+                        <p className="text-sm text-emerald-600 mt-2">📁 {serviceAreaFile.name}</p>
+                      )}
+                    </label>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-2">
+                    Export your service area as a KML file from Google Maps or other mapping software. The polygon coordinates will be extracted and used to check if customers are in your service area.
+                  </p>
+                  {serviceAreaFile && (
+                    <Button
+                      onClick={handleUploadServiceArea}
+                      disabled={isUploadingServiceArea}
+                      className="w-full mt-3 h-10 font-semibold flex items-center gap-2"
+                    >
+                      {isUploadingServiceArea ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4" />
+                          Upload Polygon
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+
+                {/* In-Service Tags */}
+                <div>
+                  <Label htmlFor="in-service-tags" className="text-base font-semibold">
+                    Tags for In-Service Customers
+                  </Label>
+                  <Input
+                    id="in-service-tags"
+                    value={inServiceTags}
+                    onChange={(e) => setInServiceTags(e.target.value)}
+                    placeholder="e.g., in-service, valid-address"
+                    className="mt-2"
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    Comma-separated tags to apply to customers within your service area. These tags will be added in GHL.
+                  </p>
+                </div>
+
+                {/* Out-of-Service Tags */}
+                <div>
+                  <Label htmlFor="out-of-service-tags" className="text-base font-semibold">
+                    Tags for Out-of-Service Customers
+                  </Label>
+                  <Input
+                    id="out-of-service-tags"
+                    value={outOfServiceTags}
+                    onChange={(e) => setOutOfServiceTags(e.target.value)}
+                    placeholder="e.g., out-of-service, no-service"
+                    className="mt-2"
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    Comma-separated tags to apply to customers outside your service area. These tags will be added in GHL.
+                  </p>
+                </div>
+
+                {/* Calendar Selection */}
+                <div>
+                  <Label htmlFor="calendar-select" className="text-base font-semibold">
+                    Default Calendar for Appointments
+                  </Label>
+                  <div className="mt-2 flex gap-2">
+                    <select
+                      id="calendar-select"
+                      value={selectedCalendarId}
+                      onChange={(e) => setSelectedCalendarId(e.target.value)}
+                      className="flex-1 h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
+                    >
+                      <option value="">-- Select a calendar --</option>
+                      {calendars.map((cal) => (
+                        <option key={cal.id} value={cal.id}>
+                          {cal.name}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={loadCalendars}
+                      disabled={isLoadingCalendars}
+                    >
+                      <RotateCw className={`h-4 w-4 ${isLoadingCalendars ? 'animate-spin' : ''}`} />
+                    </Button>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-2">
+                    Select which GHL calendar appointments should be booked to. Leave empty to use default calendar.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
         >
           <Card className="shadow-xl border-2">
             <CardHeader className="bg-gradient-to-r from-[#f61590]/5 via-transparent to-transparent border-b">

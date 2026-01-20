@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { Copy, ChevronLeft, ChevronRight, Sparkles, Calendar, Clock, Loader2, Check } from 'lucide-react';
 import { SurveyQuestion } from '@/lib/kv';
+import { GooglePlacesAutocomplete, PlaceDetails } from '@/components/GooglePlacesAutocomplete';
 
 /**
  * Generate dynamic zod schema from survey questions
@@ -36,6 +37,10 @@ function generateSchemaFromQuestions(questions: SurveyQuestion[]): z.ZodObject<a
     } else if (question.type === 'select') {
       schemaShape[question.id] = question.required
         ? z.string().min(1, `Please select ${question.label.toLowerCase()}`)
+        : z.string().optional();
+    } else if (question.type === 'address') {
+      schemaShape[question.id] = question.required
+        ? z.string().min(1, `${question.label} is required`)
         : z.string().optional();
     } else {
       // text type
@@ -107,12 +112,20 @@ const defaultQuestions: SurveyQuestion[] = [
     order: 3,
   },
   {
+    id: 'address',
+    label: "What's your service address?",
+    type: 'address',
+    placeholder: 'Enter your address',
+    required: true,
+    order: 4,
+  },
+  {
     id: 'squareFeet',
     label: "About how big is your home?",
     type: 'number',
     placeholder: '1500',
     required: true,
-    order: 4,
+    order: 5,
   },
   {
     id: 'serviceType',
@@ -126,7 +139,7 @@ const defaultQuestions: SurveyQuestion[] = [
       { value: 'recurring', label: 'Recurring Clean' },
     ],
     required: true,
-    order: 5,
+    order: 6,
   },
   {
     id: 'frequency',
@@ -139,7 +152,7 @@ const defaultQuestions: SurveyQuestion[] = [
       { value: 'one-time', label: 'One-Time' },
     ],
     required: true,
-    order: 6,
+    order: 7,
   },
   {
     id: 'fullBaths',
@@ -147,7 +160,7 @@ const defaultQuestions: SurveyQuestion[] = [
     type: 'number',
     placeholder: '2',
     required: true,
-    order: 7,
+    order: 8,
   },
   {
     id: 'halfBaths',
@@ -155,7 +168,7 @@ const defaultQuestions: SurveyQuestion[] = [
     type: 'number',
     placeholder: '1',
     required: true,
-    order: 8,
+    order: 9,
   },
   {
     id: 'bedrooms',
@@ -163,7 +176,7 @@ const defaultQuestions: SurveyQuestion[] = [
     type: 'number',
     placeholder: '3',
     required: true,
-    order: 9,
+    order: 10,
   },
   {
     id: 'people',
@@ -171,7 +184,7 @@ const defaultQuestions: SurveyQuestion[] = [
     type: 'number',
     placeholder: '2',
     required: true,
-    order: 10,
+    order: 11,
   },
   {
     id: 'sheddingPets',
@@ -179,7 +192,7 @@ const defaultQuestions: SurveyQuestion[] = [
     type: 'number',
     placeholder: '1',
     required: true,
-    order: 11,
+    order: 12,
   },
   {
     id: 'condition',
@@ -193,7 +206,7 @@ const defaultQuestions: SurveyQuestion[] = [
       { value: 'very-poor', label: 'Very Poor - Heavily soiled' },
     ],
     required: true,
-    order: 12,
+    order: 13,
   },
 ];
 
@@ -216,6 +229,8 @@ export default function Home() {
   const [primaryColor, setPrimaryColor] = useState('#f61590');
   const [questions, setQuestions] = useState<SurveyQuestion[]>(defaultQuestions);
   const [quoteSchema, setQuoteSchema] = useState<z.ZodObject<any>>(generateSchemaFromQuestions(defaultQuestions));
+  const [addressCoordinates, setAddressCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+  const [serviceAreaChecked, setServiceAreaChecked] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -275,97 +290,7 @@ export default function Home() {
     }
   }, [currentStep, mounted]);
 
-  // Detect browser autofill and auto-advance
-  useEffect(() => {
-    if (!mounted || !currentQuestion) return;
-    
-    // Only detect autofill for text, email, and tel input types
-    if (!['text', 'email', 'tel'].includes(currentQuestion.type)) return;
-
-    const inputElement = document.getElementById(currentQuestion.id) as HTMLInputElement;
-    if (!inputElement) return;
-
-    let lastValue = inputElement.value || '';
-    let autofillTimeout: NodeJS.Timeout | null = null;
-    let hasUserTyped = false;
-
-    // Track if user is typing (to avoid false positives)
-    const handleInput = () => {
-      hasUserTyped = true;
-    };
-
-    const handleChange = () => {
-      // If value changed and user didn't type, it's likely autofill
-      if (!hasUserTyped && inputElement.value && inputElement.value.trim() !== '' && inputElement.value !== lastValue) {
-        // Clear any existing timeout
-        if (autofillTimeout) {
-          clearTimeout(autofillTimeout);
-        }
-        
-        // Wait a moment to ensure autofill is complete, then advance
-        autofillTimeout = setTimeout(() => {
-          if (inputElement.value && inputElement.value.trim() !== '') {
-            // Validate and move to next step or submit if last question
-            trigger(currentQuestion.id as any).then((isValid) => {
-              if (isValid) {
-                if (currentStep < questions.length - 1) {
-                  setDirection(1);
-                  setCurrentStep(currentStep + 1);
-                } else {
-                  // Last question - submit the form
-                  handleFormSubmit();
-                }
-              }
-            });
-          }
-        }, 600);
-      }
-      lastValue = inputElement.value;
-      hasUserTyped = false;
-    };
-
-    // Also check periodically for autofill (some browsers don't fire change events)
-    const checkInterval = setInterval(() => {
-      if (inputElement.value && inputElement.value !== lastValue && inputElement.value.trim() !== '' && !hasUserTyped) {
-        // Input is focused and value appeared - likely autofill
-        if (document.activeElement === inputElement) {
-          if (autofillTimeout) {
-            clearTimeout(autofillTimeout);
-          }
-          autofillTimeout = setTimeout(() => {
-            if (inputElement.value && inputElement.value.trim() !== '') {
-              trigger(currentQuestion.id as any).then((isValid) => {
-                if (isValid) {
-                  if (currentStep < questions.length - 1) {
-                    setDirection(1);
-                    setCurrentStep(currentStep + 1);
-                  } else {
-                    // Last question - submit the form
-                    handleFormSubmit();
-                  }
-                }
-              });
-            }
-          }, 600);
-        }
-        lastValue = inputElement.value;
-      }
-    }, 300);
-
-    inputElement.addEventListener('input', handleInput);
-    inputElement.addEventListener('change', handleChange);
-
-    // Cleanup
-    return () => {
-      inputElement.removeEventListener('input', handleInput);
-      inputElement.removeEventListener('change', handleChange);
-      if (autofillTimeout) {
-        clearTimeout(autofillTimeout);
-      }
-      clearInterval(checkInterval);
-    };
-  }, [currentStep, mounted, currentQuestion, trigger, questions, setDirection, setCurrentStep, handleFormSubmit]);
-
+  // Auto-focus input when step changes
   const loadWidgetSettings = async () => {
     try {
       const response = await fetch('/api/admin/widget-settings');
@@ -446,6 +371,104 @@ export default function Home() {
     reset(getDefaultValues());
   }, [questions]);
 
+  // Detect browser autofill and auto-advance
+  useEffect(() => {
+    const currentQuestion = questions[currentStep];
+    if (!mounted || !currentQuestion) return;
+    
+    // Only detect autofill for text, email, and tel input types (not address since it has autocomplete)
+    if (!['text', 'email', 'tel'].includes(currentQuestion.type)) return;
+
+    const inputElement = document.getElementById(currentQuestion.id) as HTMLInputElement;
+    if (!inputElement) return;
+
+    let lastValue = inputElement.value || '';
+    let autofillTimeout: NodeJS.Timeout | null = null;
+    let hasUserTyped = false;
+
+    // Track if user is typing (to avoid false positives)
+    const handleInput = () => {
+      hasUserTyped = true;
+    };
+
+    const handleChange = () => {
+      // If value changed and user didn't type, it's likely autofill
+      if (!hasUserTyped && inputElement.value && inputElement.value.trim() !== '' && inputElement.value !== lastValue) {
+        // Clear any existing timeout
+        if (autofillTimeout) {
+          clearTimeout(autofillTimeout);
+        }
+        
+        // Wait a moment to ensure autofill is complete, then advance
+        autofillTimeout = setTimeout(() => {
+          if (inputElement.value && inputElement.value.trim() !== '') {
+            // Validate and move to next step or submit if last question
+            trigger(currentQuestion.id as any).then((isValid) => {
+              if (isValid) {
+                if (currentStep < questions.length - 1) {
+                  setDirection(1);
+                  setCurrentStep(currentStep + 1);
+                } else {
+                  // Last question - submit the form by pressing the "Get Quote" button
+                  const nextButton = document.querySelector('[class*="flex"][class*="justify-between"] button:last-child');
+                  if (nextButton instanceof HTMLButtonElement) {
+                    nextButton.click();
+                  }
+                }
+              }
+            });
+          }
+        }, 600);
+      }
+      lastValue = inputElement.value;
+      hasUserTyped = false;
+    };
+
+    // Also check periodically for autofill (some browsers don't fire change events)
+    const checkInterval = setInterval(() => {
+      if (inputElement.value && inputElement.value !== lastValue && inputElement.value.trim() !== '' && !hasUserTyped) {
+        // Input is focused and value appeared - likely autofill
+        if (document.activeElement === inputElement) {
+          if (autofillTimeout) {
+            clearTimeout(autofillTimeout);
+          }
+          autofillTimeout = setTimeout(() => {
+            if (inputElement.value && inputElement.value.trim() !== '') {
+              trigger(currentQuestion.id as any).then((isValid) => {
+                if (isValid) {
+                  if (currentStep < questions.length - 1) {
+                    setDirection(1);
+                    setCurrentStep(currentStep + 1);
+                  } else {
+                    // Last question - submit the form by pressing the "Get Quote" button
+                    const nextButton = document.querySelector('[class*="flex"][class*="justify-between"] button:last-child');
+                    if (nextButton instanceof HTMLButtonElement) {
+                      nextButton.click();
+                    }
+                  }
+                }
+              });
+            }
+          }, 600);
+        }
+        lastValue = inputElement.value;
+      }
+    }, 300);
+
+    inputElement.addEventListener('input', handleInput);
+    inputElement.addEventListener('change', handleChange);
+
+    // Cleanup
+    return () => {
+      inputElement.removeEventListener('input', handleInput);
+      inputElement.removeEventListener('change', handleChange);
+      if (autofillTimeout) {
+        clearTimeout(autofillTimeout);
+      }
+      clearInterval(checkInterval);
+    };
+  }, [currentStep, mounted, trigger, questions, setDirection, setCurrentStep]);
+
   const progress = ((currentStep + 1) / questions.length) * 100;
 
   if (!mounted) {
@@ -478,6 +501,64 @@ export default function Home() {
     const isValid = await trigger(currentQuestion.id as any);
     
     if (isValid) {
+      // Check if this is an address question - if so, check service area
+      if (currentQuestion.type === 'address' && addressCoordinates && !serviceAreaChecked) {
+        setIsLoading(true);
+        try {
+          const response = await fetch('/api/service-area/check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              lat: addressCoordinates.lat,
+              lng: addressCoordinates.lng,
+            }),
+          });
+
+          const result = await response.json();
+
+          if (!result.inServiceArea) {
+            // Out of service area - create contact and redirect
+            const data = getValues();
+            try {
+              await fetch('/api/service-area/out-of-service', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  firstName: data.firstName,
+                  lastName: data.lastName,
+                  email: data.email,
+                  phone: data.phone,
+                  address: data.address || data[currentQuestion.id],
+                }),
+              });
+            } catch (error) {
+              console.error('Error creating out-of-service contact:', error);
+            }
+
+            // Redirect to out-of-service page
+            const params = new URLSearchParams({
+              data: JSON.stringify({
+                firstName: data.firstName,
+                lastName: data.lastName,
+                email: data.email,
+                phone: data.phone,
+                address: data.address || data[currentQuestion.id],
+              }),
+            });
+            window.location.href = `/out-of-service?${params.toString()}`;
+            return;
+          }
+
+          setServiceAreaChecked(true);
+        } catch (error) {
+          console.error('Error checking service area:', error);
+          // Continue anyway if service area check fails
+          setServiceAreaChecked(true);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+
       setDirection(1);
       if (currentStep < questions.length - 1) {
         setCurrentStep(currentStep + 1);
@@ -995,6 +1076,34 @@ export default function Home() {
                         placeholder={currentQuestion.placeholder}
                         className="h-14 text-lg"
                         {...register(currentQuestion.id as any)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            nextStep();
+                          }
+                        }}
+                      />
+                    )}
+
+                    {currentQuestion.type === 'address' && (
+                      <GooglePlacesAutocomplete
+                        id={currentQuestion.id}
+                        label={currentQuestion.label}
+                        placeholder={currentQuestion.placeholder}
+                        required={currentQuestion.required}
+                        primaryColor={primaryColor}
+                        value={getValues(currentQuestion.id as any)}
+                        onChange={(value, placeDetails) => {
+                          // Update form value
+                          (register(currentQuestion.id as any) as any).onChange({ target: { value } });
+                          // Store coordinates for service area check
+                          if (placeDetails) {
+                            setAddressCoordinates({
+                              lat: placeDetails.lat,
+                              lng: placeDetails.lng,
+                            });
+                          }
+                        }}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
