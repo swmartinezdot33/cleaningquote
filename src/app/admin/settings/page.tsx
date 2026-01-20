@@ -25,6 +25,7 @@ export default function SettingsPage() {
   );
   const [widgetTitle, setWidgetTitle] = useState('Raleigh Cleaning Company');
   const [widgetSubtitle, setWidgetSubtitle] = useState("Let's get your professional cleaning price!");
+  const [widgetPrimaryColor, setWidgetPrimaryColor] = useState('#f61590');
   const [isSavingWidget, setIsSavingWidget] = useState(false);
   const [widgetMessage, setWidgetMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
@@ -177,6 +178,7 @@ export default function SettingsPage() {
         const data = await response.json();
         setWidgetTitle(data.title || 'Raleigh Cleaning Company');
         setWidgetSubtitle(data.subtitle || "Let's get your professional cleaning price!");
+        setWidgetPrimaryColor(data.primaryColor || '#f61590');
       }
     } catch (error) {
       console.error('Failed to load widget settings:', error);
@@ -196,6 +198,7 @@ export default function SettingsPage() {
         body: JSON.stringify({
           title: widgetTitle,
           subtitle: widgetSubtitle,
+          primaryColor: widgetPrimaryColor,
         }),
       });
 
@@ -549,6 +552,38 @@ export default function SettingsPage() {
                   />
                   <p className="text-sm text-gray-600 mt-1">
                     This subtitle appears below the title to introduce the quote form.
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="widget-primary-color" className="text-base font-semibold">
+                    Primary Brand Color
+                  </Label>
+                  <div className="mt-2 flex gap-3 items-center">
+                    <input
+                      id="widget-primary-color"
+                      type="color"
+                      value={widgetPrimaryColor}
+                      onChange={(e) => setWidgetPrimaryColor(e.target.value)}
+                      className="w-16 h-12 rounded-lg border-2 border-gray-300 cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <Input
+                        type="text"
+                        value={widgetPrimaryColor}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (/^#[0-9A-F]{6}$/i.test(val) || val.length <= 7) {
+                            setWidgetPrimaryColor(val);
+                          }
+                        }}
+                        placeholder="#f61590"
+                        className="font-mono"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-2">
+                    This color is used for buttons, headers, and accent elements throughout the quote widget.
                   </p>
                 </div>
 

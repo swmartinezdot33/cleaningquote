@@ -182,6 +182,7 @@ export default function Home() {
   const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
   const [widgetTitle, setWidgetTitle] = useState('Raleigh Cleaning Company');
   const [widgetSubtitle, setWidgetSubtitle] = useState("Let's get your professional cleaning price!");
+  const [primaryColor, setPrimaryColor] = useState('#f61590');
 
   useEffect(() => {
     setMounted(true);
@@ -195,10 +196,19 @@ export default function Home() {
         const data = await response.json();
         setWidgetTitle(data.title || 'Raleigh Cleaning Company');
         setWidgetSubtitle(data.subtitle || "Let's get your professional cleaning price!");
+        setPrimaryColor(data.primaryColor || '#f61590');
       }
     } catch (error) {
       console.error('Failed to load widget settings:', error);
     }
+  };
+
+  // Helper function to convert hex color to rgba
+  const hexToRgba = (hex: string, alpha: number = 1) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
 
   const {
@@ -386,13 +396,26 @@ export default function Home() {
 
   if (quoteResult) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 pt-12 pb-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
+      <div style={{ '--primary-color': primaryColor } as React.CSSProperties}>
+        <style>{`
+          :root {
+            --primary-color: ${primaryColor};
+          }
+          .primary-from { background: linear-gradient(to right, var(--primary-color), rgba(var(--primary-rgb), 0.6)); }
+          .primary-bg { background-color: var(--primary-color); }
+          .primary-text { color: var(--primary-color); }
+          .primary-border { border-color: var(--primary-color); }
+        `}</style>
+        <main className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 pt-12 pb-20 px-4 sm:px-6 lg:px-8"
+              style={{ 
+                backgroundImage: `linear-gradient(135deg, ${hexToRgba(primaryColor, 0.05)} 0%, transparent 50%, ${hexToRgba(primaryColor, 0.05)} 100%)`
+              }}>
+          <div className="max-w-4xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
             {quoteResult.outOfLimits ? (
               <Card className="shadow-2xl border-2">
                 <CardContent className="pt-6">
@@ -637,11 +660,21 @@ export default function Home() {
           </motion.div>
         </div>
       </main>
+      </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#f61590]/5 via-white to-[#f61590]/5 pt-12 pb-20 px-4 sm:px-6 lg:px-8">
+    <div style={{ '--primary-color': primaryColor } as React.CSSProperties}>
+      <style>{`
+        .primary-bg { background-color: var(--primary-color); }
+        .primary-text { color: var(--primary-color); }
+        .primary-border { border-color: var(--primary-color); }
+      `}</style>
+      <main className="min-h-screen bg-gradient-to-br via-white pt-12 pb-20 px-4 sm:px-6 lg:px-8"
+            style={{ 
+              backgroundImage: `linear-gradient(135deg, ${hexToRgba(primaryColor, 0.05)} 0%, transparent 50%, ${hexToRgba(primaryColor, 0.05)} 100%)`
+            }}>
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <motion.div
@@ -874,5 +907,6 @@ export default function Home() {
         </div>
       </div>
     </main>
+    </div>
   );
 }

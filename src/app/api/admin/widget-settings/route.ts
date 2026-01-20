@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
           title: 'Raleigh Cleaning Company',
           subtitle: "Let's get your professional cleaning price!",
+          primaryColor: '#f61590',
         });
       }
 
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         title: 'Raleigh Cleaning Company',
         subtitle: "Let's get your professional cleaning price!",
+        primaryColor: '#f61590',
       });
     }
   } catch (error) {
@@ -68,7 +70,7 @@ export async function POST(request: NextRequest) {
     if (authResponse) return authResponse;
 
     const body = await request.json();
-    const { title, subtitle } = body;
+    const { title, subtitle, primaryColor } = body;
 
     if (!title || typeof title !== 'string') {
       return NextResponse.json({ error: 'Title is required and must be a string' }, { status: 400 });
@@ -81,21 +83,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate color is a hex color
+    const colorToUse = primaryColor || '#f61590';
+    const hexColorRegex = /^#[0-9A-F]{6}$/i;
+    if (!hexColorRegex.test(colorToUse)) {
+      return NextResponse.json(
+        { error: 'Primary color must be a valid hex color (e.g., #f61590)' },
+        { status: 400 }
+      );
+    }
+
     try {
       const kv = getKV();
-      await kv.set(WIDGET_SETTINGS_KEY, { title, subtitle });
+      await kv.set(WIDGET_SETTINGS_KEY, { title, subtitle, primaryColor: colorToUse });
 
       return NextResponse.json({
         success: true,
         message: 'Widget settings saved successfully',
-        settings: { title, subtitle },
+        settings: { title, subtitle, primaryColor: colorToUse },
       });
     } catch (kvError) {
       console.warn('KV not configured, settings not persisted:', kvError);
       return NextResponse.json({
         success: true,
         message: 'Widget settings updated (not persisted - KV not configured)',
-        settings: { title, subtitle },
+        settings: { title, subtitle, primaryColor: colorToUse },
       });
     }
   } catch (error) {
