@@ -65,24 +65,43 @@ export async function fetchAndParseNetworkKML(
 
     console.log(`[fetchNetworkKML] Fetching KML from ${trimmedUrl}`);
 
-    // Fetch the KML file
+    // Fetch the KML file with better headers for Google Maps compatibility
     const response = await fetch(trimmedUrl, {
       method: 'GET',
       headers: {
-        'User-Agent': 'ServiceAreaPolygonFetcher/1.0',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/vnd.google-earth.kml+xml, application/xml, text/xml, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://www.google.com/maps/',
       },
-      // Add timeout
+      // Add timeout and follow redirects
       signal: AbortSignal.timeout(10000),
+      redirect: 'follow',
     });
 
     if (!response.ok) {
       return {
         polygons: [],
-        error: `Failed to fetch KML from URL: HTTP ${response.status} ${response.statusText}`,
+        error: `Failed to fetch KML from URL: HTTP ${response.status} ${response.statusText}. Make sure the URL is publicly accessible.`,
       };
     }
 
-    const kmlContent = await response.text();
+    let kmlContent: string;
+    try {
+      kmlContent = await response.text();
+    } catch (textError) {
+      return {
+        polygons: [],
+        error: `Failed to read response from URL: ${textError instanceof Error ? textError.message : 'Unknown error'}`,
+      };
+    }
+
+    if (!kmlContent || kmlContent.trim().length === 0) {
+      return {
+        polygons: [],
+        error: 'The URL returned empty content. Please ensure it points to a valid KML file.',
+      };
+    }
 
     // Parse the KML content
     const parsed = parseKML(kmlContent);
@@ -105,7 +124,7 @@ export async function fetchAndParseNetworkKML(
     if (!parsed.polygons || parsed.polygons.length === 0) {
       return {
         polygons: [],
-        error: 'No polygon coordinates found in the fetched KML file',
+        error: 'No polygon coordinates found in the fetched KML file. The URL may contain a NetworkLink reference instead of actual polygon data.',
       };
     }
 
