@@ -350,6 +350,7 @@ export default function Home() {
     formState: { errors },
     trigger,
     getValues,
+    setValue,
     reset,
   } = useForm({
     resolver: zodResolver(quoteSchema),
@@ -1438,7 +1439,7 @@ export default function Home() {
                         onChange={(value, placeDetails) => {
                           // Update form value using sanitized field name
                           const fieldName = getFormFieldName(currentQuestion.id);
-                          (register(fieldName as any) as any).onChange({ target: { value } });
+                          setValue(fieldName as any, value);
                           // Store coordinates for service area check
                           if (placeDetails) {
                             setAddressCoordinates({
