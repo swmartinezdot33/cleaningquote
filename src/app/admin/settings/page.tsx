@@ -865,13 +865,16 @@ export default function SettingsPage() {
         )}
 
         <div className="space-y-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
-            <CardHeader className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
+            <CardHeader 
+              className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6 cursor-pointer"
+              onClick={() => toggleCard('ghl-token')}
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-2xl font-bold">GoHighLevel API Token</CardTitle>
@@ -879,37 +882,43 @@ export default function SettingsPage() {
                     Configure your GHL PIT token to enable CRM integration
                   </CardDescription>
                 </div>
-                <div
-                  className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${
-                    connectionStatus === 'connected'
-                      ? 'bg-green-100 text-green-800'
-                      : connectionStatus === 'testing'
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}
-                >
-                  {connectionStatus === 'connected' && (
-                    <>
-                      <div className="w-2 h-2 rounded-full bg-green-600" />
-                      Connected
-                    </>
-                  )}
-                  {connectionStatus === 'testing' && (
-                    <>
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      Testing
-                    </>
-                  )}
-                  {(connectionStatus === 'disconnected' || connectionStatus === 'unknown') && (
-                    <>
-                      <div className="w-2 h-2 rounded-full bg-gray-400" />
-                      {connectionStatus === 'unknown' ? 'Unknown' : 'Disconnected'}
-                    </>
-                  )}
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${
+                      connectionStatus === 'connected'
+                        ? 'bg-green-100 text-green-800'
+                        : connectionStatus === 'testing'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}
+                  >
+                    {connectionStatus === 'connected' && (
+                      <>
+                        <div className="w-2 h-2 rounded-full bg-green-600" />
+                        Connected
+                      </>
+                    )}
+                    {connectionStatus === 'testing' && (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Testing
+                      </>
+                    )}
+                    {(connectionStatus === 'disconnected' || connectionStatus === 'unknown') && (
+                      <>
+                        <div className="w-2 h-2 rounded-full bg-gray-400" />
+                        {connectionStatus === 'unknown' ? 'Unknown' : 'Disconnected'}
+                      </>
+                    )}
+                  </div>
+                  <ChevronDown 
+                    className={`h-5 w-5 transition-transform ${isCardExpanded('ghl-token') ? 'rotate-180' : ''}`}
+                  />
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="pt-8 pb-8">
+            {isCardExpanded('ghl-token') && (
+              <CardContent className="pt-8 pb-8">
               <div className="space-y-6">
                 <div>
                   <Label htmlFor="token" className="text-base font-semibold">
@@ -1068,10 +1077,19 @@ export default function SettingsPage() {
           transition={{ delay: 0.2 }}
         >
           <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
-            <CardHeader className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6">
-              <CardTitle className="text-2xl font-bold">About GHL Integration</CardTitle>
+            <CardHeader 
+              className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6 cursor-pointer"
+              onClick={() => toggleCard('about-ghl')}
+            >
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-2xl font-bold">About GHL Integration</CardTitle>
+                <ChevronDown 
+                  className={`h-5 w-5 transition-transform ${isCardExpanded('about-ghl') ? 'rotate-180' : ''}`}
+                />
+              </div>
             </CardHeader>
-            <CardContent className="pt-8 pb-8">
+            {isCardExpanded('about-ghl') && (
+              <CardContent className="pt-8 pb-8">
               <div className="space-y-6 text-sm text-gray-700">
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-2">What does this do?</h4>
@@ -1204,16 +1222,27 @@ export default function SettingsPage() {
           transition={{ delay: 0.3 }}
         >
           <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
-            <CardHeader className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6">
-              <CardTitle className="flex items-center gap-2 text-2xl font-bold text-gray-900">
-                <Sparkles className="h-6 w-6 text-[#f61590]" />
-                GHL Integration Configuration
-              </CardTitle>
-              <CardDescription className="text-gray-600 mt-1">
-                Configure what happens when a customer gets a quote. Choose which GHL features to enable and set default values for opportunities.
-              </CardDescription>
+            <CardHeader 
+              className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6 cursor-pointer"
+              onClick={() => toggleCard('ghl-config')}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-2xl font-bold text-gray-900">
+                    <Sparkles className="h-6 w-6 text-[#f61590]" />
+                    GHL Integration Configuration
+                  </CardTitle>
+                  <CardDescription className="text-gray-600 mt-1">
+                    Configure what happens when a customer gets a quote. Choose which GHL features to enable and set default values for opportunities.
+                  </CardDescription>
+                </div>
+                <ChevronDown 
+                  className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('ghl-config') ? 'rotate-180' : ''}`}
+                />
+              </div>
             </CardHeader>
-            <CardContent className="pt-8 pb-8">
+            {isCardExpanded('ghl-config') && (
+              <CardContent className="pt-8 pb-8">
               {connectionStatus !== 'connected' ? (
                 <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-yellow-800">
                   <p className="font-semibold">⚠️ GHL not connected</p>
@@ -1449,16 +1478,27 @@ export default function SettingsPage() {
           transition={{ delay: 0.3 }}
         >
           <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
-            <CardHeader className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-b border-gray-200 pb-6">
-              <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                <MapPin className="h-5 w-5 text-emerald-600" />
-                Service Area Configuration
-              </CardTitle>
-              <CardDescription className="text-gray-600 mt-1">
-                Upload a KML file with your service area polygon, and configure tags for in-service and out-of-service customers
-              </CardDescription>
+            <CardHeader 
+              className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-b border-gray-200 pb-6 cursor-pointer"
+              onClick={() => toggleCard('service-area')}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                    <MapPin className="h-5 w-5 text-emerald-600" />
+                    Service Area Configuration
+                  </CardTitle>
+                  <CardDescription className="text-gray-600 mt-1">
+                    Upload a KML file with your service area polygon, and configure tags for in-service and out-of-service customers
+                  </CardDescription>
+                </div>
+                <ChevronDown 
+                  className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('service-area') ? 'rotate-180' : ''}`}
+                />
+              </div>
             </CardHeader>
-            <CardContent className="pt-8 pb-8">
+            {isCardExpanded('service-area') && (
+              <CardContent className="pt-8 pb-8">
               <div className="space-y-6">
                 {serviceAreaMessage && (
                   <motion.div
@@ -1724,16 +1764,27 @@ export default function SettingsPage() {
           transition={{ delay: 0.34 }}
         >
           <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
-            <CardHeader className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border-b border-gray-200 pb-6">
-              <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                <Code className="h-5 w-5 text-blue-600" />
-                Google Maps API Key
-              </CardTitle>
-              <CardDescription className="text-gray-600 mt-1">
-                Configure your Google Maps API key for address autocomplete and service area mapping
-              </CardDescription>
+            <CardHeader 
+              className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border-b border-gray-200 pb-6 cursor-pointer"
+              onClick={() => toggleCard('google-maps')}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                    <Code className="h-5 w-5 text-blue-600" />
+                    Google Maps API Key
+                  </CardTitle>
+                  <CardDescription className="text-gray-600 mt-1">
+                    Configure your Google Maps API key for address autocomplete and service area mapping
+                  </CardDescription>
+                </div>
+                <ChevronDown 
+                  className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('google-maps') ? 'rotate-180' : ''}`}
+                />
+              </div>
             </CardHeader>
-            <CardContent className="pt-8 pb-8">
+            {isCardExpanded('google-maps') && (
+              <CardContent className="pt-8 pb-8">
               <div className="space-y-6">
                 {apiKeyMessage && (
                   <motion.div
@@ -1814,16 +1865,27 @@ export default function SettingsPage() {
           transition={{ delay: 0.35 }}
         >
           <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
-            <CardHeader className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-b border-gray-200 pb-6">
-              <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                <Code className="h-5 w-5 text-purple-600" />
-                Tracking & Analytics
-              </CardTitle>
-              <CardDescription className="text-gray-600 mt-1">
-                Add Google Analytics, Google Tag Manager, Meta Pixel, and custom tracking codes
-              </CardDescription>
+            <CardHeader 
+              className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-b border-gray-200 pb-6 cursor-pointer"
+              onClick={() => toggleCard('tracking')}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                    <Code className="h-5 w-5 text-purple-600" />
+                    Tracking & Analytics
+                  </CardTitle>
+                  <CardDescription className="text-gray-600 mt-1">
+                    Add Google Analytics, Google Tag Manager, Meta Pixel, and custom tracking codes
+                  </CardDescription>
+                </div>
+                <ChevronDown 
+                  className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('tracking') ? 'rotate-180' : ''}`}
+                />
+              </div>
             </CardHeader>
-            <CardContent className="pt-8 pb-8">
+            {isCardExpanded('tracking') && (
+              <CardContent className="pt-8 pb-8">
               <div className="space-y-6">
                 {trackingMessage && (
                   <motion.div
@@ -1936,13 +1998,24 @@ export default function SettingsPage() {
           transition={{ delay: 0.4 }}
         >
           <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
-            <CardHeader className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6">
-              <CardTitle className="text-2xl font-bold">Query Parameter Settings</CardTitle>
-              <CardDescription className="text-gray-600 mt-1">
-                Configure which URL query parameters should pre-fill the form fields. Example: ?firstName=John&email=test@example.com
-              </CardDescription>
+            <CardHeader 
+              className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6 cursor-pointer"
+              onClick={() => toggleCard('form-settings')}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl font-bold">Query Parameter Settings</CardTitle>
+                  <CardDescription className="text-gray-600 mt-1">
+                    Configure which URL query parameters should pre-fill the form fields. Example: ?firstName=John&email=test@example.com
+                  </CardDescription>
+                </div>
+                <ChevronDown 
+                  className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('form-settings') ? 'rotate-180' : ''}`}
+                />
+              </div>
             </CardHeader>
-            <CardContent className="pt-8 pb-8">
+            {isCardExpanded('form-settings') && (
+              <CardContent className="pt-8 pb-8">
               <div className="space-y-6">
                 {formSettingsMessage && (
                   <motion.div
@@ -2071,13 +2144,24 @@ export default function SettingsPage() {
           transition={{ delay: 0.4 }}
         >
           <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
-            <CardHeader className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6">
-              <CardTitle className="text-2xl font-bold">Site Customization</CardTitle>
-              <CardDescription className="text-gray-600 mt-1">
-                Customize the title, subtitle, and primary color for your entire site
-              </CardDescription>
+            <CardHeader 
+              className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6 cursor-pointer"
+              onClick={() => toggleCard('customization')}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl font-bold">Site Customization</CardTitle>
+                  <CardDescription className="text-gray-600 mt-1">
+                    Customize the title, subtitle, and primary color for your entire site
+                  </CardDescription>
+                </div>
+                <ChevronDown 
+                  className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('customization') ? 'rotate-180' : ''}`}
+                />
+              </div>
             </CardHeader>
-            <CardContent className="pt-8 pb-8">
+            {isCardExpanded('customization') && (
+              <CardContent className="pt-8 pb-8">
               <div className="space-y-6">
                 {widgetMessage && (
                   <motion.div
@@ -2190,16 +2274,27 @@ export default function SettingsPage() {
           transition={{ delay: 0.4 }}
         >
           <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
-            <CardHeader className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6">
-              <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                <Code className="h-5 w-5 text-[#f61590]" />
-                Embed Quote Widget
-              </CardTitle>
-              <CardDescription className="text-gray-600 mt-1">
-                Copy this code and paste it anywhere on your website to embed the quote calculator
-              </CardDescription>
+            <CardHeader 
+              className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6 cursor-pointer"
+              onClick={() => toggleCard('embed')}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                    <Code className="h-5 w-5 text-[#f61590]" />
+                    Embed Quote Widget
+                  </CardTitle>
+                  <CardDescription className="text-gray-600 mt-1">
+                    Copy this code and paste it anywhere on your website to embed the quote calculator
+                  </CardDescription>
+                </div>
+                <ChevronDown 
+                  className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('embed') ? 'rotate-180' : ''}`}
+                />
+              </div>
             </CardHeader>
-            <CardContent className="pt-8 pb-8">
+            {isCardExpanded('embed') && (
+              <CardContent className="pt-8 pb-8">
               <div className="space-y-6">
                 <div className="p-4 bg-gray-900 rounded-lg border border-gray-700">
                   <code className="text-green-400 font-mono text-sm whitespace-pre-wrap break-words">
