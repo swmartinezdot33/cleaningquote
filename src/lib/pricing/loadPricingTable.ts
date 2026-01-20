@@ -108,9 +108,21 @@ export async function loadPricingTable(): Promise<PricingTable> {
     // Parse Excel file
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     
-    const sheetName = 'Sheet1';
+    // Try to find the sheet - check for common names: Sheet1, or any sheet with "pricing" in the name
+    let sheetName = 'Sheet1';
     if (!workbook.SheetNames.includes(sheetName)) {
-      throw new Error(`Sheet "${sheetName}" not found in Excel file`);
+      // Try to find a sheet with "pricing" in the name (case-insensitive)
+      const pricingSheet = workbook.SheetNames.find(name => 
+        name.toLowerCase().includes('pricing') || name.toLowerCase().includes('sheet')
+      );
+      if (pricingSheet) {
+        sheetName = pricingSheet;
+      } else if (workbook.SheetNames.length > 0) {
+        // Use the first sheet if no Sheet1 found
+        sheetName = workbook.SheetNames[0];
+      } else {
+        throw new Error(`No sheets found in Excel file. Expected a sheet named "Sheet1" or a sheet with "Pricing" in the name.`);
+      }
     }
 
     const worksheet = workbook.Sheets[sheetName];
@@ -136,29 +148,54 @@ export async function loadPricingTable(): Promise<PricingTable> {
     let moveInOutFullColIdx = -1;
 
     for (let i = 0; i < headerRow.length; i++) {
-      const header = String(headerRow[i] || '').trim();
-      if (header.includes('SqFt Range') || header.includes('Range Range')) {
+      const header = String(headerRow[i] || '').trim().toLowerCase();
+      // More flexible matching - handles headers like "Weekly $55 AH" or "Bi-Weekly $55 AH"
+      if ((header.includes('sqft') || header.includes('range')) && sqFtColIdx === -1) {
         sqFtColIdx = i;
-      } else if (header.includes('Weekly')) {
+      }
+      if (header.includes('weekly') && !header.includes('bi') && !header.includes('4 week') && weeklyColIdx === -1) {
         weeklyColIdx = i;
-      } else if (header.includes('Bi-Weekly')) {
+      }
+      if (((header.includes('bi') && header.includes('weekly')) || header.includes('bi-weekly') || header.includes('biweekly')) && biWeeklyColIdx === -1) {
         biWeeklyColIdx = i;
-      } else if (header.includes('4 Week')) {
+      }
+      if ((header.includes('4 week') || header.includes('four week') || header.includes('monthly')) && fourWeekColIdx === -1) {
         fourWeekColIdx = i;
-      } else if (header.includes('General')) {
+      }
+      if (header.includes('general') && !header.includes('deep') && generalColIdx === -1) {
         generalColIdx = i;
-      } else if (header.includes('Deep')) {
+      }
+      if (header.includes('deep') && deepColIdx === -1) {
         deepColIdx = i;
+      }
+      // Try to find move-in/move-out columns
+      if ((header.includes('move') || header.includes('basic')) && !header.includes('full') && moveInOutBasicColIdx === -1) {
+        moveInOutBasicColIdx = i;
+      }
+      if ((header.includes('move') || header.includes('full')) && moveInOutFullColIdx === -1 && i > moveInOutBasicColIdx) {
+        moveInOutFullColIdx = i;
       }
     }
 
-    // Move-in/move-out columns are "Unnamed: 7" and "Unnamed: 8" (indices 7 and 8)
-    // Try to find them more reliably by checking if header is empty and index is 7 or 8
-    // Also check for any columns that might contain move-in/move-out data after the main services
+    // Move-in/move-out columns - check for headers like "Move in/ Move out", "BASIC", "FULL", etc.
+    // Also check empty headers with pricing data
     for (let i = 0; i < headerRow.length; i++) {
       const header = String(headerRow[i] || '').trim().toLowerCase();
+      
+      // Check for move-in/move-out related headers
+      if (header.includes('move') || header.includes('basic')) {
+        if (moveInOutBasicColIdx === -1 && !header.includes('full')) {
+          moveInOutBasicColIdx = i;
+        }
+      }
+      if (header.includes('move') || header.includes('full')) {
+        if (moveInOutFullColIdx === -1 && i > moveInOutBasicColIdx) {
+          moveInOutFullColIdx = i;
+        }
+      }
+      
+      // Check empty headers that might contain pricing data
       if (header === '' && i >= 6) {
-        // Check the first data row to see if it contains pricing data
         if (data.length > 1) {
           const firstDataRow = data[1];
           const cellValue = String(firstDataRow[i] || '').trim();
@@ -167,7 +204,6 @@ export async function loadPricingTable(): Promise<PricingTable> {
               moveInOutBasicColIdx = i;
             } else if (moveInOutFullColIdx === -1 && i > moveInOutBasicColIdx) {
               moveInOutFullColIdx = i;
-              break;
             }
           }
         }
