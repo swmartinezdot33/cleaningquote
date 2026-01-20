@@ -46,6 +46,8 @@ export async function GET(request: NextRequest) {
     console.log(`Fetching calendars for location: ${locationId}`);
 
     // Fetch calendars from GHL API v2
+    // According to GHL docs: GET /calendars
+    // Location ID should be passed as query parameter for sub-account (location-level) API calls
     const response = await fetch(
       `https://services.leadconnectorhq.com/calendars?locationId=${locationId}`,
       {
@@ -92,25 +94,34 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
 
+    console.log('[ghl-calendars] Response data structure:', JSON.stringify(data, null, 2).substring(0, 500));
+
     // GHL API returns calendars in different structures, handle multiple
     let calendars: GHLCalendar[] = [];
 
     if (data.calendars && Array.isArray(data.calendars)) {
+      console.log(`[ghl-calendars] Found calendars in data.calendars: ${data.calendars.length} items`);
       calendars = data.calendars.map((cal: any) => ({
         id: cal.id,
         name: cal.name || `Calendar ${cal.id.substring(0, 8)}`,
       }));
     } else if (data.data && Array.isArray(data.data)) {
+      console.log(`[ghl-calendars] Found calendars in data.data: ${data.data.length} items`);
       calendars = data.data.map((cal: any) => ({
         id: cal.id,
         name: cal.name || `Calendar ${cal.id.substring(0, 8)}`,
       }));
     } else if (Array.isArray(data)) {
+      console.log(`[ghl-calendars] Found calendars as direct array: ${data.length} items`);
       calendars = data.map((cal: any) => ({
         id: cal.id,
         name: cal.name || `Calendar ${cal.id.substring(0, 8)}`,
       }));
+    } else {
+      console.log('[ghl-calendars] Warning: No calendar arrays found in response');
     }
+
+    console.log(`[ghl-calendars] Successfully fetched ${calendars.length} calendars`);
 
     return NextResponse.json(
       { calendars },
