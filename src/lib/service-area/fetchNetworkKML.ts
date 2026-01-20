@@ -34,27 +34,39 @@ export async function fetchAndParseNetworkKML(
       };
     }
 
+    const trimmedUrl = url.trim();
+
     // Try to parse the URL to ensure it's valid
     try {
-      new URL(url);
+      // Attempt to parse as-is first
+      new URL(trimmedUrl);
     } catch (e) {
-      return {
-        polygons: [],
-        error: `Invalid URL format: ${url}`,
-      };
+      // If parsing fails, try to encode the URL properly
+      try {
+        // Extract the base URL and query string separately
+        const urlObj = new URL(trimmedUrl);
+        // If we get here, URL was valid after all
+      } catch (e2) {
+        // URL is still invalid - provide helpful error
+        console.error('Invalid URL format:', trimmedUrl);
+        return {
+          polygons: [],
+          error: `Invalid URL format: ${url}. Make sure the URL is a complete, valid link to a KML file.`,
+        };
+      }
     }
 
     // Check if we have a cached result that's still valid
-    const cached = kmlCache.get(url);
+    const cached = kmlCache.get(trimmedUrl);
     if (cached && Date.now() - cached.fetchedAt < CACHE_DURATION_MS) {
-      console.log(`[fetchNetworkKML] Using cached KML for ${url}`);
+      console.log(`[fetchNetworkKML] Using cached KML for ${trimmedUrl}`);
       return { polygons: cached.polygons };
     }
 
-    console.log(`[fetchNetworkKML] Fetching KML from ${url}`);
+    console.log(`[fetchNetworkKML] Fetching KML from ${trimmedUrl}`);
 
     // Fetch the KML file
-    const response = await fetch(url, {
+    const response = await fetch(trimmedUrl, {
       method: 'GET',
       headers: {
         'User-Agent': 'ServiceAreaPolygonFetcher/1.0',
@@ -98,7 +110,7 @@ export async function fetchAndParseNetworkKML(
     }
 
     // Cache the result
-    kmlCache.set(url, {
+    kmlCache.set(trimmedUrl, {
       polygons: parsed.polygons,
       fetchedAt: Date.now(),
     });
