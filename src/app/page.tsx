@@ -171,7 +171,7 @@ export default function Home() {
 
   if (!mounted) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-[#f61590]/5 via-white to-[#f61590]/5 py-12 px-4 sm:px-6 lg:px-8">
+      <main className="min-h-screen bg-gradient-to-br from-[#f61590]/5 via-white to-[#f61590]/5 pt-12 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto text-center">
           <h1 className="text-5xl font-bold bg-gradient-to-r from-[#f61590] to-[#f61590]/70 bg-clip-text text-transparent mb-4">
             Raleigh Cleaning Company
@@ -257,7 +257,7 @@ export default function Home() {
 
   if (quoteResult) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <main className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 pt-12 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -326,7 +326,7 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#f61590]/5 via-white to-[#f61590]/5 py-12 px-4 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-gradient-to-br from-[#f61590]/5 via-white to-[#f61590]/5 pt-12 pb-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <motion.div

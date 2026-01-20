@@ -74,8 +74,7 @@ console.log(result);
 ```json
 {
   "success": true,
-  "message": "Pricing file uploaded successfully",
-  "file": "2026 Pricing.xlsx",
+  "message": "Pricing file uploaded successfully to Vercel KV storage",
   "size": 11264,
   "uploadedAt": "2024-01-19T12:00:00.000Z"
 }
@@ -129,8 +128,8 @@ Get information about the currently stored pricing file:
   "file": {
     "name": "2026 Pricing.xlsx",
     "size": 11264,
-    "updatedAt": "2024-01-19T12:00:00.000Z",
-    "publicUrl": "https://your-project.supabase.co/storage/v1/object/public/pricing-files/2026%20Pricing.xlsx"
+    "uploadedAt": "2024-01-19T12:00:00.000Z",
+    "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
   }
 }
 ```
