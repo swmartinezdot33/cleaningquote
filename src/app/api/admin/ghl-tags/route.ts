@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGHLToken, getGHLLocationId } from '@/lib/kv';
 
-interface GHLCalendar {
+interface GHLTag {
   id: string;
   name: string;
 }
 
 /**
- * GET /api/admin/ghl-calendars
- * Fetch available calendars from GHL for the current location
+ * GET /api/admin/ghl-tags
+ * Fetch available tags from GHL for the current location
  */
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication (basic admin check) - accept either Bearer token or password header
+    // Check authentication
     const authHeader = request.headers.get('authorization');
     const passwordHeader = request.headers.get('x-admin-password');
     
@@ -28,21 +28,22 @@ export async function GET(request: NextRequest) {
 
     if (!token) {
       return NextResponse.json(
-        { error: 'GHL token not configured. Please set up your GHL API token in settings.' },
+        { error: 'GHL token not configured' },
         { status: 400 }
       );
     }
 
     if (!locationId) {
       return NextResponse.json(
-        { error: 'Location ID not configured. Please set up your location ID in settings.' },
+        { error: 'Location ID not configured' },
         { status: 400 }
       );
     }
 
-    // Fetch calendars from GHL API v2
+    // Fetch tags from GHL API v2
+    // GHL uses /locations/{locationId}/tags endpoint
     const response = await fetch(
-      `https://services.leadconnectorhq.com/calendars?locationId=${locationId}`,
+      `https://services.leadconnectorhq.com/locations/${locationId}/tags`,
       {
         method: 'GET',
         headers: {
@@ -55,62 +56,62 @@ export async function GET(request: NextRequest) {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('GHL calendars error:', errorData);
+      console.error('GHL tags error:', errorData);
 
       if (response.status === 401) {
         return NextResponse.json(
-          { error: 'Invalid GHL token or missing calendars.readonly scope' },
+          { error: 'Invalid GHL token or missing locations.readonly scope' },
           { status: 401 }
         );
       }
 
       if (response.status === 403) {
         return NextResponse.json(
-          { error: 'Permission denied. Ensure you have calendars.write scope enabled.' },
+          { error: 'Permission denied. Ensure you have locations.readonly scope enabled.' },
           { status: 403 }
         );
       }
 
       return NextResponse.json(
-        { error: 'Failed to fetch calendars from GHL' },
+        { error: 'Failed to fetch tags from GHL' },
         { status: response.status }
       );
     }
 
     const data = await response.json();
 
-    // GHL API returns calendars in different structures, handle multiple
-    let calendars: GHLCalendar[] = [];
+    // GHL API returns tags in different structures, handle multiple
+    let tags: GHLTag[] = [];
 
-    if (data.calendars && Array.isArray(data.calendars)) {
-      calendars = data.calendars.map((cal: any) => ({
-        id: cal.id,
-        name: cal.name || `Calendar ${cal.id.substring(0, 8)}`,
+    if (data.tags && Array.isArray(data.tags)) {
+      tags = data.tags.map((tag: any) => ({
+        id: tag.id || tag.name,
+        name: tag.name,
       }));
     } else if (data.data && Array.isArray(data.data)) {
-      calendars = data.data.map((cal: any) => ({
-        id: cal.id,
-        name: cal.name || `Calendar ${cal.id.substring(0, 8)}`,
+      tags = data.data.map((tag: any) => ({
+        id: tag.id || tag.name,
+        name: tag.name,
       }));
     } else if (Array.isArray(data)) {
-      calendars = data.map((cal: any) => ({
-        id: cal.id,
-        name: cal.name || `Calendar ${cal.id.substring(0, 8)}`,
+      tags = data.map((tag: any) => ({
+        id: tag.id || tag.name,
+        name: tag.name,
       }));
     }
 
     return NextResponse.json(
-      { calendars },
+      { tags },
       { status: 200 }
     );
   } catch (error) {
-    console.error('Error fetching GHL calendars:', error);
+    console.error('Error fetching GHL tags:', error);
     return NextResponse.json(
       {
         error:
           error instanceof Error
             ? error.message
-            : 'Failed to fetch calendars',
+            : 'Failed to fetch tags',
       },
       { status: 500 }
     );
