@@ -129,6 +129,7 @@ export async function storeGHLConfig(config: {
   pipelineStageId?: string;
   opportunityStatus?: string;
   opportunityMonetaryValue?: number;
+  useDynamicPricingForValue?: boolean;
 }): Promise<void> {
   try {
     const kv = getKV();
@@ -150,6 +151,7 @@ export async function getGHLConfig(): Promise<{
   pipelineStageId?: string;
   opportunityStatus?: string;
   opportunityMonetaryValue?: number;
+  useDynamicPricingForValue?: boolean;
 } | null> {
   try {
     const kv = getKV();

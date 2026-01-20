@@ -3,7 +3,7 @@
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -188,6 +188,35 @@ export default function Home() {
     setMounted(true);
     loadWidgetSettings();
   }, []);
+
+  // Auto-focus input when step changes
+  useEffect(() => {
+    if (mounted && currentQuestion) {
+      // Small delay to ensure the animation has started and input is rendered
+      const timer = setTimeout(() => {
+        if (currentQuestion.type === 'select') {
+          // For select fields, try to focus the trigger button
+          // The SelectTrigger might not have the ID, so we look for the button inside the card
+          const selectTrigger = document.querySelector(`[role="combobox"]`) as HTMLButtonElement;
+          if (selectTrigger) {
+            selectTrigger.focus();
+          }
+        } else {
+          // For input fields, focus by ID
+          const inputElement = document.getElementById(currentQuestion.id) as HTMLInputElement;
+          if (inputElement) {
+            inputElement.focus();
+            // Also select the text if there's a value, so user can easily replace it
+            if (inputElement.value) {
+              inputElement.select();
+            }
+          }
+        }
+      }, 300); // Delay to allow animation to complete and DOM to update
+
+      return () => clearTimeout(timer);
+    }
+  }, [currentStep, mounted]);
 
   const loadWidgetSettings = async () => {
     try {

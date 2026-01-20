@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { createContact, createOpportunity, createNote, pipelineId, pipelineStageId, opportunityStatus, opportunityMonetaryValue } = body;
+    const { createContact, createOpportunity, createNote, pipelineId, pipelineStageId, opportunityStatus, opportunityMonetaryValue, useDynamicPricingForValue } = body;
 
     await storeGHLConfig({
       createContact: Boolean(createContact),
@@ -59,7 +59,8 @@ export async function POST(request: NextRequest) {
       pipelineId,
       pipelineStageId,
       opportunityStatus,
-      opportunityMonetaryValue,
+      opportunityMonetaryValue: useDynamicPricingForValue ? undefined : opportunityMonetaryValue,
+      useDynamicPricingForValue: Boolean(useDynamicPricingForValue),
     });
 
     return NextResponse.json({

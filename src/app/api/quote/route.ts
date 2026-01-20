@@ -3,7 +3,31 @@ import { calcQuote } from '@/lib/pricing/calcQuote';
 import { generateSummaryText, generateSmsText } from '@/lib/pricing/format';
 import { QuoteInputs } from '@/lib/pricing/types';
 import { createOrUpdateContact, createOpportunity, createNote } from '@/lib/ghl/client';
-import { ghlTokenExists } from '@/lib/kv';
+import { ghlTokenExists, getGHLConfig } from '@/lib/kv';
+
+/**
+ * Helper to get the selected quote price based on service type and frequency
+ */
+function getSelectedQuotePrice(ranges: any, serviceType: string, frequency: string): number {
+  if (frequency === 'weekly') {
+    return Math.round((ranges.weekly.low + ranges.weekly.high) / 2);
+  } else if (frequency === 'bi-weekly') {
+    return Math.round((ranges.biWeekly.low + ranges.biWeekly.high) / 2);
+  } else if (frequency === 'monthly') {
+    return Math.round((ranges.fourWeek.low + ranges.fourWeek.high) / 2);
+  } else if (serviceType === 'deep' && frequency === 'one-time') {
+    return Math.round((ranges.deep.low + ranges.deep.high) / 2);
+  } else if (serviceType === 'general' && frequency === 'one-time') {
+    return Math.round((ranges.general.low + ranges.general.high) / 2);
+  } else if (serviceType === 'move-in' && frequency === 'one-time') {
+    return Math.round((ranges.moveInOutBasic.low + ranges.moveInOutBasic.high) / 2);
+  } else if (serviceType === 'move-out' && frequency === 'one-time') {
+    return Math.round((ranges.moveInOutFull.low + ranges.moveInOutFull.high) / 2);
+  }
+
+  // Fallback to the high end of general
+  return ranges.general.high;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,54 +59,64 @@ export async function POST(request: NextRequest) {
     
     if (hasGHLToken) {
       try {
-        // Create/update contact in GHL
-        const contact = await createOrUpdateContact({
-          firstName: body.firstName || 'Unknown',
-          lastName: body.lastName || 'Customer',
-          email: body.email,
-          phone: body.phone,
-          source: 'Website Quote Form',
-          tags: [
-            'Quote Request',
-            body.serviceType || 'Unknown Service',
-            body.frequency || 'Unknown Frequency',
-          ].filter(Boolean),
-        });
+        // Get GHL configuration
+        const ghlConfig = await getGHLConfig();
 
-        ghlContactId = contact.id;
+        // Create/update contact if enabled
+        if (ghlConfig?.createContact !== false) {
+          const contact = await createOrUpdateContact({
+            firstName: body.firstName || 'Unknown',
+            lastName: body.lastName || 'Customer',
+            email: body.email,
+            phone: body.phone,
+            source: 'Website Quote Form',
+            tags: [
+              'Quote Request',
+              body.serviceType || 'Unknown Service',
+              body.frequency || 'Unknown Frequency',
+            ].filter(Boolean),
+          });
 
-        // Create opportunity with quote value
-        const opportunityValue = result.ranges
-          ? Math.round(
-              (result.ranges.weekly.high +
-                result.ranges.biWeekly.high +
-                result.ranges.fourWeek.high) /
-                3
-            )
-          : 0;
+          ghlContactId = contact.id;
+        }
 
-        const opportunityName = `Cleaning Quote - ${body.serviceType || 'General'} - ${body.frequency || 'TBD'}`;
+        // Create opportunity if enabled
+        if (ghlConfig?.createOpportunity && ghlContactId) {
+          // Calculate opportunity value
+          let opportunityValue = ghlConfig.opportunityMonetaryValue;
+          
+          // If using dynamic pricing, calculate from selected service
+          if (ghlConfig.useDynamicPricingForValue !== false) {
+            opportunityValue = getSelectedQuotePrice(result.ranges, body.serviceType, body.frequency);
+          }
 
-        await createOpportunity({
-          contactId: ghlContactId,
-          name: opportunityName,
-          value: opportunityValue,
-          status: 'open',
-          customFields: {
-            squareFeet: String(body.squareFeet),
-            beds: String(body.bedrooms || 0),
-            baths: String((body.fullBaths || 0) + (body.halfBaths || 0) * 0.5),
-            condition: body.condition || 'Unknown',
-          },
-        });
+          const opportunityName = `Cleaning Quote - ${body.serviceType || 'General'} - ${body.frequency || 'TBD'}`;
 
-        // Create note with detailed quote information
-        const noteBody = `Quote Generated from Website Form\n\n${summaryText}`;
+          await createOpportunity({
+            contactId: ghlContactId,
+            name: opportunityName,
+            value: opportunityValue,
+            pipelineId: ghlConfig.pipelineId,
+            pipelineStageId: ghlConfig.pipelineStageId,
+            status: (ghlConfig.opportunityStatus as 'open' | 'won' | 'lost' | 'abandoned') || 'open',
+            customFields: {
+              squareFeet: String(body.squareFeet),
+              beds: String(body.bedrooms || 0),
+              baths: String((body.fullBaths || 0) + (body.halfBaths || 0) * 0.5),
+              condition: body.condition || 'Unknown',
+            },
+          });
+        }
 
-        await createNote({
-          contactId: ghlContactId,
-          body: noteBody,
-        });
+        // Create note if enabled
+        if (ghlConfig?.createNote !== false && ghlContactId) {
+          const noteBody = `Quote Generated from Website Form\n\n${summaryText}`;
+
+          await createNote({
+            contactId: ghlContactId,
+            body: noteBody,
+          });
+        }
 
         console.log('Successfully synced quote to GHL for contact:', ghlContactId);
       } catch (ghlError) {

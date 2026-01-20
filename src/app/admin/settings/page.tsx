@@ -40,6 +40,7 @@ export default function SettingsPage() {
   const [selectedStageId, setSelectedStageId] = useState<string>('');
   const [opportunityStatus, setOpportunityStatus] = useState<string>('open');
   const [opportunityValue, setOpportunityValue] = useState<number>(0);
+  const [useDynamicPricingForValue, setUseDynamicPricingForValue] = useState<boolean>(true);
   const [isLoadingPipelines, setIsLoadingPipelines] = useState(false);
   const [pipelinesError, setPipelinesError] = useState<string | null>(null);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
@@ -281,6 +282,7 @@ export default function SettingsPage() {
         setSelectedStageId(config.pipelineStageId || '');
         setOpportunityStatus(config.opportunityStatus || 'open');
         setOpportunityValue(config.opportunityMonetaryValue || 0);
+        setUseDynamicPricingForValue(config.useDynamicPricingForValue !== false);
         setGhlConfigLoaded(true);
 
         // Load pipelines if token is connected
@@ -343,6 +345,7 @@ export default function SettingsPage() {
           pipelineStageId: selectedStageId || undefined,
           opportunityStatus,
           opportunityMonetaryValue: opportunityValue || undefined,
+          useDynamicPricingForValue,
         }),
       });
 
@@ -787,19 +790,51 @@ export default function SettingsPage() {
                             </select>
                           </div>
 
-                          {/* Monetary Value */}
-                          <div>
-                            <Label className="text-base font-semibold mb-2 block">Monetary Value (optional)</Label>
-                            <Input
-                              type="number"
-                              value={opportunityValue || ''}
-                              onChange={(e) => setOpportunityValue(Number(e.target.value) || 0)}
-                              placeholder="e.g., 150"
-                              className="h-10"
-                            />
-                            <p className="text-sm text-gray-600 mt-1">
-                              Leave blank to use the high end of the selected service pricing
-                            </p>
+                          {/* Monetary Value Options */}
+                          <div className="space-y-3">
+                            <Label className="text-base font-semibold">Opportunity Monetary Value</Label>
+                            
+                            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                              <input
+                                type="radio"
+                                id="use-dynamic-pricing"
+                                checked={useDynamicPricingForValue}
+                                onChange={() => setUseDynamicPricingForValue(true)}
+                                className="w-4 h-4 text-[#f61590] cursor-pointer"
+                              />
+                              <label htmlFor="use-dynamic-pricing" className="cursor-pointer flex-1">
+                                <div className="font-semibold text-gray-900">Use Dynamic Quote Price</div>
+                                <div className="text-sm text-gray-600">
+                                  Use the quote price calculated from the customer's selections
+                                </div>
+                              </label>
+                            </div>
+
+                            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                              <input
+                                type="radio"
+                                id="use-fixed-value"
+                                checked={!useDynamicPricingForValue}
+                                onChange={() => setUseDynamicPricingForValue(false)}
+                                className="w-4 h-4 text-[#f61590] cursor-pointer"
+                              />
+                              <label htmlFor="use-fixed-value" className="cursor-pointer flex-1">
+                                <div className="font-semibold text-gray-900">Use Fixed Value</div>
+                                <div className="text-sm text-gray-600">
+                                  Set a fixed monetary value for all opportunities
+                                </div>
+                              </label>
+                            </div>
+
+                            {!useDynamicPricingForValue && (
+                              <Input
+                                type="number"
+                                value={opportunityValue || ''}
+                                onChange={(e) => setOpportunityValue(Number(e.target.value) || 0)}
+                                placeholder="e.g., 150"
+                                className="h-10"
+                              />
+                            )}
                           </div>
                         </>
                       )}
