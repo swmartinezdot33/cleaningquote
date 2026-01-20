@@ -3,7 +3,7 @@ import { calcQuote } from '@/lib/pricing/calcQuote';
 import { generateSummaryText, generateSmsText } from '@/lib/pricing/format';
 import { QuoteInputs } from '@/lib/pricing/types';
 import { createOrUpdateContact, createOpportunity, createNote } from '@/lib/ghl/client';
-import { ghlTokenExists, getGHLConfig } from '@/lib/kv';
+import { ghlTokenExists, getGHLConfig, getSurveyQuestions, SurveyQuestion } from '@/lib/kv';
 
 /**
  * Helper to get the selected quote price based on service type and frequency
@@ -64,19 +64,59 @@ export async function POST(request: NextRequest) {
 
         // Create/update contact if enabled
         if (ghlConfig?.createContact !== false) {
-          const contact = await createOrUpdateContact({
-            firstName: body.firstName || 'Unknown',
-            lastName: body.lastName || 'Customer',
-            email: body.email,
-            phone: body.phone,
+          // Get survey questions to map fields
+          const surveyQuestions = await getSurveyQuestions();
+          
+          // Build contact data using field mappings
+          const contactData: any = {
+            firstName: 'Unknown',
+            lastName: 'Customer',
             source: 'Website Quote Form',
             tags: [
               'Quote Request',
               body.serviceType || 'Unknown Service',
               body.frequency || 'Unknown Frequency',
             ].filter(Boolean),
+            customFields: {},
+          };
+
+          // Map form data to GHL fields based on survey question mappings
+          surveyQuestions.forEach((question: SurveyQuestion) => {
+            const fieldValue = body[question.id as keyof typeof body];
+            if (fieldValue === undefined || fieldValue === null || fieldValue === '') return;
+
+            const mapping = question.ghlFieldMapping;
+            if (!mapping) return; // Skip if no mapping
+
+            // Handle native fields
+            if (mapping === 'firstName' || mapping === 'lastName' || mapping === 'email' || mapping === 'phone') {
+              contactData[mapping] = String(fieldValue);
+            } else {
+              // Custom field
+              contactData.customFields![mapping] = String(fieldValue);
+            }
           });
 
+          // Fallback to direct body fields if no mappings exist (backward compatibility)
+          if (!contactData.firstName || contactData.firstName === 'Unknown') {
+            contactData.firstName = body.firstName || 'Unknown';
+          }
+          if (!contactData.lastName || contactData.lastName === 'Customer') {
+            contactData.lastName = body.lastName || 'Customer';
+          }
+          if (!contactData.email) {
+            contactData.email = body.email;
+          }
+          if (!contactData.phone) {
+            contactData.phone = body.phone;
+          }
+
+          // Remove customFields if empty
+          if (Object.keys(contactData.customFields || {}).length === 0) {
+            delete contactData.customFields;
+          }
+
+          const contact = await createOrUpdateContact(contactData);
           ghlContactId = contact.id;
         }
 

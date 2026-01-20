@@ -201,6 +201,7 @@ export interface SurveyQuestion {
   required: boolean;
   options?: SurveyQuestionOption[];
   order: number;
+  ghlFieldMapping?: string; // Maps to GHL native field (firstName, lastName, email, phone) or custom field key
 }
 
 /**

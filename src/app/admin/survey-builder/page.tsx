@@ -35,6 +35,8 @@ export default function SurveyBuilderPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingQuestion, setEditingQuestion] = useState<Partial<SurveyQuestion> | null>(null);
+  const [ghlFields, setGhlFields] = useState<Array<{ key: string; name: string; type: string; fieldType?: string }>>([]);
+  const [isLoadingFields, setIsLoadingFields] = useState(false);
 
   useEffect(() => {
     const storedPassword = sessionStorage.getItem('admin_password');
@@ -47,8 +49,36 @@ export default function SurveyBuilderPage() {
   useEffect(() => {
     if (isAuthenticated) {
       loadQuestions();
+      loadGHLFields();
     }
   }, [isAuthenticated]);
+
+  const loadGHLFields = async () => {
+    setIsLoadingFields(true);
+    try {
+      const response = await fetch('/api/admin/ghl-custom-fields', {
+        headers: {
+          'x-admin-password': password,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setGhlFields(data.fields || []);
+      }
+    } catch (error) {
+      console.error('Failed to load GHL fields:', error);
+      // Set default native fields as fallback
+      setGhlFields([
+        { key: 'firstName', name: 'First Name', type: 'native' },
+        { key: 'lastName', name: 'Last Name', type: 'native' },
+        { key: 'email', name: 'Email', type: 'native' },
+        { key: 'phone', name: 'Phone', type: 'native' },
+      ]);
+    } finally {
+      setIsLoadingFields(false);
+    }
+  };
 
   const checkAuth = async (pass: string) => {
     try {
@@ -72,6 +102,136 @@ export default function SurveyBuilderPage() {
     }
   };
 
+  const getDefaultQuestions = (): SurveyQuestion[] => {
+    return [
+      {
+        id: 'firstName',
+        label: "What's your first name?",
+        type: 'text',
+        placeholder: 'John',
+        required: true,
+        order: 0,
+        ghlFieldMapping: 'firstName',
+      },
+      {
+        id: 'lastName',
+        label: "What's your last name?",
+        type: 'text',
+        placeholder: 'Doe',
+        required: true,
+        order: 1,
+        ghlFieldMapping: 'lastName',
+      },
+      {
+        id: 'email',
+        label: "What's your email address?",
+        type: 'email',
+        placeholder: 'john@example.com',
+        required: true,
+        order: 2,
+        ghlFieldMapping: 'email',
+      },
+      {
+        id: 'phone',
+        label: "What's your phone number?",
+        type: 'tel',
+        placeholder: '(555) 123-4567',
+        required: true,
+        order: 3,
+        ghlFieldMapping: 'phone',
+      },
+      {
+        id: 'squareFeet',
+        label: "About how big is your home?",
+        type: 'number',
+        placeholder: '1500',
+        required: true,
+        order: 4,
+      },
+      {
+        id: 'serviceType',
+        label: 'Type of Cleaning Service Needed',
+        type: 'select',
+        options: [
+          { value: 'general', label: 'General Clean' },
+          { value: 'deep', label: 'Deep Clean' },
+          { value: 'move-in', label: 'Move In Clean' },
+          { value: 'move-out', label: 'Move Out Clean' },
+          { value: 'recurring', label: 'Recurring Clean' },
+        ],
+        required: true,
+        order: 5,
+      },
+      {
+        id: 'frequency',
+        label: 'How often would you like your home cleaned?',
+        type: 'select',
+        options: [
+          { value: 'weekly', label: 'Weekly' },
+          { value: 'bi-weekly', label: 'Bi-Weekly (Every 2 Weeks)' },
+          { value: 'monthly', label: 'Monthly (Every 4 Weeks)' },
+          { value: 'one-time', label: 'One-Time' },
+        ],
+        required: true,
+        order: 6,
+      },
+      {
+        id: 'fullBaths',
+        label: 'How many full baths?',
+        type: 'number',
+        placeholder: '2',
+        required: true,
+        order: 7,
+      },
+      {
+        id: 'halfBaths',
+        label: 'How many half baths?',
+        type: 'number',
+        placeholder: '1',
+        required: true,
+        order: 8,
+      },
+      {
+        id: 'bedrooms',
+        label: 'How many bedrooms in the home?',
+        type: 'number',
+        placeholder: '3',
+        required: true,
+        order: 9,
+      },
+      {
+        id: 'people',
+        label: 'How many people live in the home?',
+        type: 'number',
+        placeholder: '2',
+        required: true,
+        order: 10,
+      },
+      {
+        id: 'sheddingPets',
+        label: 'How many shedding pets live in the home?',
+        type: 'number',
+        placeholder: '1',
+        required: true,
+        order: 11,
+      },
+      {
+        id: 'condition',
+        label: 'How would you describe the current condition of the home?',
+        type: 'select',
+        options: [
+          { value: 'excellent', label: 'Excellent - Well maintained' },
+          { value: 'good', label: 'Good - Generally clean' },
+          { value: 'average', label: 'Average - Needs regular cleaning' },
+          { value: 'poor', label: 'Poor - Needs deep cleaning' },
+          { value: 'very-poor', label: 'Very Poor - Heavily soiled' },
+        ],
+        required: true,
+        order: 12,
+      },
+    ];
+  };
+
   const loadQuestions = async () => {
     setIsLoading(true);
     try {
@@ -83,13 +243,51 @@ export default function SurveyBuilderPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setQuestions(data.questions || []);
+        const loadedQuestions = data.questions || [];
+        
+        // If no questions exist, initialize with defaults
+        if (loadedQuestions.length === 0) {
+          const defaults = getDefaultQuestions();
+          setQuestions(defaults);
+          // Auto-save the defaults
+          await saveQuestions(defaults);
+        } else {
+          setQuestions(loadedQuestions);
+        }
       }
     } catch (error) {
       console.error('Failed to load questions:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const saveQuestions = async (questionsToSave: SurveyQuestion[]) => {
+    try {
+      const response = await fetch('/api/admin/survey-questions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': password,
+        },
+        body: JSON.stringify({ questions: questionsToSave }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save questions');
+      }
+    } catch (error) {
+      console.error('Failed to save questions:', error);
+      throw error;
+    }
+  };
+
+  const initializeWithDefaults = async () => {
+    const defaults = getDefaultQuestions();
+    setQuestions(defaults);
+    await saveQuestions(defaults);
+    setMessage({ type: 'success', text: 'Initialized with default questions!' });
+    setTimeout(() => setMessage(null), 3000);
   };
 
   const handleSave = async () => {
@@ -356,11 +554,17 @@ export default function SurveyBuilderPage() {
             <CardContent className="pt-12 pb-12 text-center">
               <Sparkles className="h-12 w-12 mx-auto text-gray-400 mb-4" />
               <h3 className="text-xl font-semibold text-gray-900 mb-2">No questions yet</h3>
-              <p className="text-gray-600 mb-6">Get started by adding your first question</p>
-              <Button onClick={addQuestion} className="flex items-center gap-2 mx-auto">
-                <Plus className="h-4 w-4" />
-                Add First Question
-              </Button>
+              <p className="text-gray-600 mb-6">Initialize with default questions or start building your own</p>
+              <div className="flex gap-3 justify-center">
+                <Button onClick={initializeWithDefaults} className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  Load Default Questions
+                </Button>
+                <Button onClick={addQuestion} variant="outline" className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add First Question
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ) : (
@@ -504,6 +708,41 @@ export default function SurveyBuilderPage() {
                           </Label>
                         </div>
 
+                        <div>
+                          <Label htmlFor="ghl-field-mapping">Map to GHL Field (Optional)</Label>
+                          <p className="text-sm text-gray-500 mt-1 mb-2">
+                            Select where this question's answer should be saved in GoHighLevel
+                          </p>
+                          {isLoadingFields ? (
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Loading GHL fields...
+                            </div>
+                          ) : (
+                            <Select
+                              value={editingQuestion?.ghlFieldMapping || ''}
+                              onValueChange={(value) => {
+                                setEditingQuestion({ 
+                                  ...editingQuestion, 
+                                  ghlFieldMapping: value || undefined 
+                                });
+                              }}
+                            >
+                              <SelectTrigger className="mt-1">
+                                <SelectValue placeholder="No mapping (data won't be sent to GHL)" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="">No mapping</SelectItem>
+                                {ghlFields.map((field) => (
+                                  <SelectItem key={field.key} value={field.key}>
+                                    {field.name} {field.type === 'native' ? '(Native)' : '(Custom)'}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+
                         <div className="flex gap-2 pt-4">
                           <Button onClick={saveEdit} className="flex-1">
                             Save Changes
@@ -546,6 +785,13 @@ export default function SurveyBuilderPage() {
                               <p className="text-sm text-gray-500 mt-1">
                                 ID: <span className="font-mono">{question.id}</span> • Type: {question.type}
                                 {question.required && <span className="text-red-500 ml-2">• Required</span>}
+                                {question.ghlFieldMapping && (
+                                  <span className="text-blue-600 ml-2">
+                                    • Maps to: <span className="font-semibold">
+                                      {ghlFields.find(f => f.key === question.ghlFieldMapping)?.name || question.ghlFieldMapping}
+                                    </span>
+                                  </span>
+                                )}
                               </p>
                             </div>
                             <div className="flex gap-2">
