@@ -359,16 +359,24 @@ export default function Home() {
 
   const loadSurveyQuestions = async () => {
     try {
-      const response = await fetch('/api/survey-questions');
+      // Force fresh data with cache-busting parameter
+      const response = await fetch(`/api/survey-questions?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+      });
       if (response.ok) {
         const data = await response.json();
         if (data.questions && data.questions.length > 0) {
           // Always sort by order to ensure consistent display
           let sortedQuestions = [...data.questions].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
           
-          // Fix squareFeet if it's not a select or missing options
+          // MANDATORY: Ensure critical fields are ALWAYS correct
           sortedQuestions = sortedQuestions.map(q => {
-            if (q.id === 'squareFeet' && (q.type !== 'select' || !q.options || q.options.length === 0)) {
+            // Fix squareFeet - MUST be select
+            if (q.id === 'squareFeet') {
               return {
                 ...q,
                 type: 'select',
@@ -385,6 +393,37 @@ export default function Home() {
                 ],
               };
             }
+            
+            // Fix halfBaths - MUST have 0 option
+            if (q.id === 'halfBaths' && q.type === 'select') {
+              const options = q.options || [];
+              const hasZero = options.some(o => o.value === '0');
+              if (!hasZero) {
+                return {
+                  ...q,
+                  options: [
+                    { value: '0', label: '0' },
+                    ...options,
+                  ],
+                };
+              }
+            }
+            
+            // Fix sheddingPets - MUST have 0 option
+            if (q.id === 'sheddingPets' && q.type === 'select') {
+              const options = q.options || [];
+              const hasZero = options.some(o => o.value === '0');
+              if (!hasZero) {
+                return {
+                  ...q,
+                  options: [
+                    { value: '0', label: '0' },
+                    ...options,
+                  ],
+                };
+              }
+            }
+            
             return q;
           });
           
