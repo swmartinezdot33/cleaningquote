@@ -45,8 +45,9 @@ export async function getSurveyQuestions(): Promise<SurveyQuestion[]> {
     }
     return questions.sort((a, b) => a.order - b.order);
   } catch (error) {
-    console.error('Error getting survey questions:', error);
-    throw error;
+    // If KV fails (e.g., in local dev without KV configured), return defaults
+    console.warn('KV storage not available, returning default questions:', error instanceof Error ? error.message : 'unknown error');
+    return DEFAULT_SURVEY_QUESTIONS.sort((a, b) => a.order - b.order);
   }
 }
 
