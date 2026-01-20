@@ -76,7 +76,8 @@ export default function SettingsPage() {
   const [networkLinkUrl, setNetworkLinkUrl] = useState<string | null>(null);
   const [polygonCoordinateCount, setPolygonCoordinateCount] = useState<number>(0);
   const [calendars, setCalendars] = useState<any[]>([]);
-  const [selectedCalendarId, setSelectedCalendarId] = useState<string>('');
+  const [selectedAppointmentCalendarId, setSelectedAppointmentCalendarId] = useState<string>('');
+  const [selectedCallCalendarId, setSelectedCallCalendarId] = useState<string>('');
   const [isLoadingCalendars, setIsLoadingCalendars] = useState(false);
   const [ghlTags, setGhlTags] = useState<any[]>([]);
   const [selectedInServiceTags, setSelectedInServiceTags] = useState<Set<string>>(new Set());
@@ -352,6 +353,8 @@ export default function SettingsPage() {
         setOpportunityStatus(config.opportunityStatus || 'open');
         setOpportunityValue(config.opportunityMonetaryValue || 0);
         setUseDynamicPricingForValue(config.useDynamicPricingForValue !== false);
+        setSelectedAppointmentCalendarId(config.appointmentCalendarId || '');
+        setSelectedCallCalendarId(config.callCalendarId || '');
         setGhlConfigLoaded(true);
 
         // Load pipelines if token is connected
@@ -417,7 +420,8 @@ export default function SettingsPage() {
           useDynamicPricingForValue,
           inServiceTags: Array.from(selectedInServiceTags).length > 0 ? Array.from(selectedInServiceTags) : undefined,
           outOfServiceTags: Array.from(selectedOutOfServiceTags).length > 0 ? Array.from(selectedOutOfServiceTags) : undefined,
-          calendarId: selectedCalendarId || undefined,
+          appointmentCalendarId: selectedAppointmentCalendarId || undefined,
+          callCalendarId: selectedCallCalendarId || undefined,
         }),
       });
 
@@ -1723,37 +1727,72 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Calendar Selection */}
-                <div>
-                  <Label htmlFor="calendar-select" className="text-base font-semibold">
-                    Default Calendar for Appointments
-                  </Label>
-                  <div className="mt-2 flex gap-2">
-                    <select
-                      id="calendar-select"
-                      value={selectedCalendarId}
-                      onChange={(e) => setSelectedCalendarId(e.target.value)}
-                      className="flex-1 h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
-                    >
-                      <option value="">-- Select a calendar --</option>
-                      {calendars.map((cal) => (
-                        <option key={cal.id} value={cal.id}>
-                          {cal.name}
-                        </option>
-                      ))}
-                    </select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={loadCalendars}
-                      disabled={isLoadingCalendars}
-                    >
-                      <RotateCw className={`h-4 w-4 ${isLoadingCalendars ? 'animate-spin' : ''}`} />
-                    </Button>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="appointment-calendar-select" className="text-base font-semibold">
+                      Calendar for Appointments
+                    </Label>
+                    <div className="mt-2 flex gap-2">
+                      <select
+                        id="appointment-calendar-select"
+                        value={selectedAppointmentCalendarId}
+                        onChange={(e) => setSelectedAppointmentCalendarId(e.target.value)}
+                        className="flex-1 h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
+                      >
+                        <option value="">-- Select a calendar --</option>
+                        {calendars.map((cal) => (
+                          <option key={cal.id} value={cal.id}>
+                            {cal.name}
+                          </option>
+                        ))}
+                      </select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={loadCalendars}
+                        disabled={isLoadingCalendars}
+                      >
+                        <RotateCw className={`h-4 w-4 ${isLoadingCalendars ? 'animate-spin' : ''}`} />
+                      </Button>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-2">
+                      Calendar for users to book cleaning appointments
+                    </p>
                   </div>
-                  <p className="text-sm text-gray-600 mt-2">
-                    Select which GHL calendar appointments should be booked to. Leave empty to use default calendar.
-                  </p>
+
+                  <div>
+                    <Label htmlFor="call-calendar-select" className="text-base font-semibold">
+                      Calendar for Calls
+                    </Label>
+                    <div className="mt-2 flex gap-2">
+                      <select
+                        id="call-calendar-select"
+                        value={selectedCallCalendarId}
+                        onChange={(e) => setSelectedCallCalendarId(e.target.value)}
+                        className="flex-1 h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
+                      >
+                        <option value="">-- Select a calendar --</option>
+                        {calendars.map((cal) => (
+                          <option key={cal.id} value={cal.id}>
+                            {cal.name}
+                          </option>
+                        ))}
+                      </select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={loadCalendars}
+                        disabled={isLoadingCalendars}
+                      >
+                        <RotateCw className={`h-4 w-4 ${isLoadingCalendars ? 'animate-spin' : ''}`} />
+                      </Button>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-2">
+                      Calendar for users to schedule consultation calls
+                    </p>
+                  </div>
                 </div>
               </div>
             </CardContent>

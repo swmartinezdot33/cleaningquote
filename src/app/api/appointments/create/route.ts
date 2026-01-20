@@ -5,7 +5,7 @@ import { ghlTokenExists, getGHLConfig } from '@/lib/kv';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { contactId, date, time, notes } = body;
+    const { contactId, date, time, notes, type = 'appointment' } = body;
 
     // Validate required fields
     if (!contactId || !date || !time) {
@@ -28,8 +28,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get GHL config to retrieve calendar ID
+    // Get GHL config to retrieve calendar IDs
     const ghlConfig = await getGHLConfig();
+
+    // Determine which calendar to use based on booking type
+    let calendarId: string | undefined;
+    let title: string;
+    let defaultNotes: string;
+
+    if (type === 'call') {
+      calendarId = ghlConfig?.callCalendarId;
+      title = 'Consultation Call';
+      defaultNotes = 'Consultation call scheduled through website quote form';
+    } else {
+      // default to appointment
+      calendarId = ghlConfig?.appointmentCalendarId;
+      title = 'Cleaning Service Appointment';
+      defaultNotes = 'Appointment booked through website quote form';
+    }
 
     // Parse date and time
     // date format: YYYY-MM-DD, time format: HH:MM
@@ -42,20 +58,20 @@ export async function POST(request: NextRequest) {
     // End time is 1 hour after start time
     const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
 
-    // Create appointment in GHL with optional calendar ID
+    // Create appointment in GHL with appropriate calendar ID
     const appointment = await createAppointment({
       contactId,
-      title: 'Cleaning Service Appointment',
+      title,
       startTime: startDateTime.toISOString(),
       endTime: endDateTime.toISOString(),
-      notes: notes || 'Appointment booked through website quote form',
-      calendarId: ghlConfig?.calendarId,
+      notes: notes || defaultNotes,
+      calendarId,
     });
 
     return NextResponse.json({
       success: true,
       appointment,
-      message: 'Appointment created successfully',
+      message: `${type === 'call' ? 'Call' : 'Appointment'} created successfully`,
     });
   } catch (error) {
     console.error('Error creating appointment:', error);

@@ -197,7 +197,8 @@ export async function storeGHLConfig(config: {
   useDynamicPricingForValue?: boolean;
   inServiceTags?: string[];
   outOfServiceTags?: string[];
-  calendarId?: string;
+  appointmentCalendarId?: string;
+  callCalendarId?: string;
 }): Promise<void> {
   try {
     const kv = getKV();
@@ -222,7 +223,8 @@ export async function getGHLConfig(): Promise<{
   useDynamicPricingForValue?: boolean;
   inServiceTags?: string[];
   outOfServiceTags?: string[];
-  calendarId?: string;
+  appointmentCalendarId?: string;
+  callCalendarId?: string;
 } | null> {
   try {
     const kv = getKV();

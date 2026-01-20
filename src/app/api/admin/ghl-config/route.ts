@@ -61,7 +61,8 @@ export async function POST(request: NextRequest) {
       useDynamicPricingForValue,
       inServiceTags,
       outOfServiceTags,
-      calendarId,
+      appointmentCalendarId,
+      callCalendarId,
     } = body;
 
     await storeGHLConfig({
@@ -75,7 +76,8 @@ export async function POST(request: NextRequest) {
       useDynamicPricingForValue: Boolean(useDynamicPricingForValue),
       inServiceTags: inServiceTags || undefined,
       outOfServiceTags: outOfServiceTags || undefined,
-      calendarId: calendarId || undefined,
+      appointmentCalendarId: appointmentCalendarId || undefined,
+      callCalendarId: callCalendarId || undefined,
     });
 
     return NextResponse.json({

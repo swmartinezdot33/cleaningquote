@@ -36,8 +36,8 @@ function generateSchemaFromQuestions(questions: SurveyQuestion[]): z.ZodObject<a
         : z.string().optional();
     } else if (question.type === 'select') {
       schemaShape[question.id] = question.required
-        ? z.any().refine(val => val && val.toString().length > 0, { message: `Please select ${question.label.toLowerCase()}` })
-        : z.any().optional();
+        ? z.string().min(1, `Please select ${question.label.toLowerCase()}`)
+        : z.string().optional().nullable();
     } else if (question.type === 'address') {
       schemaShape[question.id] = question.required
         ? z.string().min(1, `${question.label} is required`)
@@ -244,13 +244,19 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const [direction, setDirection] = useState(1); // 1 for forward, -1 for backward
-  const [showBookingForm, setShowBookingForm] = useState(false);
+  const [showAppointmentForm, setShowAppointmentForm] = useState(false);
+  const [showCallForm, setShowCallForm] = useState(false);
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
   const [appointmentNotes, setAppointmentNotes] = useState('');
+  const [callDate, setCallDate] = useState('');
+  const [callTime, setCallTime] = useState('');
+  const [callNotes, setCallNotes] = useState('');
   const [isBookingAppointment, setIsBookingAppointment] = useState(false);
+  const [isBookingCall, setIsBookingCall] = useState(false);
   const [bookingMessage, setBookingMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
+  const [callConfirmed, setCallConfirmed] = useState(false);
   const [widgetTitle, setWidgetTitle] = useState('Raleigh Cleaning Company');
   const [widgetSubtitle, setWidgetSubtitle] = useState("Let's get your professional cleaning price!");
   const [primaryColor, setPrimaryColor] = useState('#f61590');
@@ -565,10 +571,16 @@ export default function Home() {
 
   const nextStep = async () => {
     const currentQuestion = questions[currentStep];
+    if (!currentQuestion) {
+      console.error('Current question not found at step', currentStep);
+      return;
+    }
+    
     const isValid = await trigger(currentQuestion.id as any);
     
     if (!isValid) {
-      console.log('Validation failed for:', currentQuestion.id, 'Current value:', getValues(currentQuestion.id as any));
+      console.warn('Validation failed for:', currentQuestion.id, 'Current value:', getValues(currentQuestion.id as any));
+      return;
     }
     
     if (isValid) {
@@ -736,6 +748,7 @@ export default function Home() {
           date: appointmentDate,
           time: appointmentTime,
           notes: appointmentNotes || 'Appointment booked through quote form',
+          type: 'appointment',
         }),
       });
 
@@ -744,7 +757,7 @@ export default function Home() {
       if (response.ok) {
         setBookingMessage({ type: 'success', text: 'Appointment booked successfully!' });
         setAppointmentConfirmed(true);
-        setShowBookingForm(false);
+        setShowAppointmentForm(false);
         setTimeout(() => {
           setAppointmentDate('');
           setAppointmentTime('');
@@ -764,6 +777,66 @@ export default function Home() {
       });
     } finally {
       setIsBookingAppointment(false);
+    }
+  };
+
+  const handleBookCall = async () => {
+    if (!callDate || !callTime) {
+      setBookingMessage({ type: 'error', text: 'Please select a date and time' });
+      return;
+    }
+
+    if (!quoteResult?.ghlContactId) {
+      setBookingMessage({
+        type: 'error',
+        text: 'Unable to book call - contact information not available',
+      });
+      return;
+    }
+
+    setIsBookingCall(true);
+    setBookingMessage(null);
+
+    try {
+      const response = await fetch('/api/appointments/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contactId: quoteResult.ghlContactId,
+          date: callDate,
+          time: callTime,
+          notes: callNotes || 'Call scheduled through quote form',
+          type: 'call',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setBookingMessage({ type: 'success', text: 'Call scheduled successfully!' });
+        setCallConfirmed(true);
+        setShowCallForm(false);
+        setTimeout(() => {
+          setCallDate('');
+          setCallTime('');
+          setCallNotes('');
+        }, 1000);
+      } else {
+        setBookingMessage({
+          type: 'error',
+          text: data.error || 'Failed to schedule call',
+        });
+      }
+    } catch (error) {
+      console.error('Error scheduling call:', error);
+      setBookingMessage({
+        type: 'error',
+        text: 'Failed to schedule call. Please try again.',
+      });
+    } finally {
+      setIsBookingCall(false);
     }
   };
 
@@ -843,31 +916,32 @@ export default function Home() {
                   </Card>
                 </motion.div>
 
-                {/* CTA Section */}
-                <motion.button
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  onClick={() => setShowBookingForm(true)}
-                  className="w-full rounded-lg p-8 text-center transition-all cursor-pointer"
-                  style={{
-                    background: `linear-gradient(to right, ${hexToRgba(primaryColor, 0.1)}, transparent, ${hexToRgba(primaryColor, 0.1)})`,
-                    border: `2px solid ${hexToRgba(primaryColor, 0.3)}`,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = hexToRgba(primaryColor, 0.6);
-                    e.currentTarget.style.background = `linear-gradient(to right, ${hexToRgba(primaryColor, 0.2)}, transparent, ${hexToRgba(primaryColor, 0.2)})`;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = hexToRgba(primaryColor, 0.3);
-                    e.currentTarget.style.background = `linear-gradient(to right, ${hexToRgba(primaryColor, 0.1)}, transparent, ${hexToRgba(primaryColor, 0.1)})`;
-                  }}
-                >
-                  <h3 className="text-2xl font-bold text-gray-900 mb-3">Ready to Get Started?</h3>
-                  <p className="text-lg text-gray-700 mb-0">
-                    Lock in your cleaning service by scheduling your appointment today!
-                  </p>
-                </motion.button>
+                {/* Two CTAs - Book Appointment and Book a Call */}
+                {quoteResult?.ghlContactId && !appointmentConfirmed && !callConfirmed && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.25 }}
+                    className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                  >
+                    {/* Book Appointment CTA */}
+                    <Button
+                      onClick={() => setShowAppointmentForm(!showAppointmentForm)}
+                      className="h-14 text-lg font-bold shadow-lg hover:shadow-xl transition-shadow"
+                    >
+                      📅 Book an Appointment
+                    </Button>
+
+                    {/* Book a Call CTA */}
+                    <Button
+                      onClick={() => setShowCallForm(!showCallForm)}
+                      variant="outline"
+                      className="h-14 text-lg font-bold shadow-lg hover:shadow-xl transition-shadow"
+                    >
+                      📞 Book a Call
+                    </Button>
+                  </motion.div>
+                )}
 
                 {/* Appointment Booking Section */}
                 {quoteResult?.ghlContactId && (
@@ -887,9 +961,9 @@ export default function Home() {
                             >
                               <Check className="h-16 w-16 mx-auto mb-4" />
                             </motion.div>
-                            <h2 className="text-3xl font-bold mb-2">You're All Set!</h2>
+                            <h2 className="text-3xl font-bold mb-2">Appointment Confirmed!</h2>
                             <p className="text-green-50 mb-4">
-                              Your appointment has been confirmed
+                              Your appointment has been scheduled
                             </p>
                           </div>
                         </div>
@@ -911,7 +985,7 @@ export default function Home() {
                           </div>
                         </CardContent>
                       </Card>
-                    ) : (
+                    ) : showAppointmentForm ? (
                       <Card className="shadow-2xl border-0 overflow-hidden">
                         <div 
                           className="p-6 border-b"
@@ -940,94 +1014,237 @@ export default function Home() {
                             </motion.div>
                           )}
 
-                          {!showBookingForm ? (
-                            <Button
-                              onClick={() => setShowBookingForm(true)}
-                              className="w-full h-14 text-lg font-bold shadow-lg hover:shadow-xl transition-shadow"
-                            >
-                              Book Your Appointment Now
-                            </Button>
-                          ) : (
-                            <motion.div
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className="space-y-5"
-                            >
-                              <div>
-                                <Label htmlFor="date" className="text-base font-semibold block mb-2">
-                                  📅 Select Date
-                                </Label>
-                                <Input
-                                  id="date"
-                                  type="date"
-                                  value={appointmentDate}
-                                  onChange={(e) => setAppointmentDate(e.target.value)}
-                                  className="h-12 text-base"
-                                  min={new Date().toISOString().split('T')[0]}
-                                />
-                              </div>
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="space-y-5"
+                          >
+                            <div>
+                              <Label htmlFor="appt-date" className="text-base font-semibold block mb-2">
+                                📅 Select Date
+                              </Label>
+                              <Input
+                                id="appt-date"
+                                type="date"
+                                value={appointmentDate}
+                                onChange={(e) => setAppointmentDate(e.target.value)}
+                                className="h-12 text-base"
+                                min={new Date().toISOString().split('T')[0]}
+                              />
+                            </div>
 
-                              <div>
-                                <Label htmlFor="time" className="text-base font-semibold block mb-2">
-                                  🕐 Select Time
-                                </Label>
-                                <Input
-                                  id="time"
-                                  type="time"
-                                  value={appointmentTime}
-                                  onChange={(e) => setAppointmentTime(e.target.value)}
-                                  className="h-12 text-base"
-                                />
-                              </div>
+                            <div>
+                              <Label htmlFor="appt-time" className="text-base font-semibold block mb-2">
+                                🕐 Select Time
+                              </Label>
+                              <Input
+                                id="appt-time"
+                                type="time"
+                                value={appointmentTime}
+                                onChange={(e) => setAppointmentTime(e.target.value)}
+                                className="h-12 text-base"
+                              />
+                            </div>
 
-                              <div>
-                                <Label htmlFor="notes" className="text-base font-semibold block mb-2">
-                                  💬 Notes (Optional)
-                                </Label>
-                                <Input
-                                  id="notes"
-                                  type="text"
-                                  placeholder="Any special requests or instructions..."
-                                  value={appointmentNotes}
-                                  onChange={(e) => setAppointmentNotes(e.target.value)}
-                                  className="h-12 text-base"
-                                />
-                              </div>
+                            <div>
+                              <Label htmlFor="appt-notes" className="text-base font-semibold block mb-2">
+                                💬 Notes (Optional)
+                              </Label>
+                              <Input
+                                id="appt-notes"
+                                type="text"
+                                placeholder="Any special requests or instructions..."
+                                value={appointmentNotes}
+                                onChange={(e) => setAppointmentNotes(e.target.value)}
+                                className="h-12 text-base"
+                              />
+                            </div>
 
-                              <div className="flex gap-3 pt-4">
-                                <Button
-                                  onClick={handleBookAppointment}
-                                  disabled={isBookingAppointment || !appointmentDate || !appointmentTime}
-                                  className="flex-1 h-12 font-bold text-base"
-                                >
-                                  {isBookingAppointment ? (
-                                    <>
-                                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                      Booking...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Check className="mr-2 h-5 w-5" />
-                                      Confirm Booking
-                                    </>
-                                  )}
-                                </Button>
-                                <Button
-                                  onClick={() => {
-                                    setShowBookingForm(false);
-                                    setBookingMessage(null);
-                                  }}
-                                  variant="outline"
-                                  className="h-12 font-bold text-base"
-                                >
-                                  Cancel
-                                </Button>
-                              </div>
-                            </motion.div>
-                          )}
+                            <div className="flex gap-3 pt-4">
+                              <Button
+                                onClick={handleBookAppointment}
+                                disabled={isBookingAppointment || !appointmentDate || !appointmentTime}
+                                className="flex-1 h-12 font-bold text-base"
+                              >
+                                {isBookingAppointment ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                    Booking...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Check className="mr-2 h-5 w-5" />
+                                    Confirm Appointment
+                                  </>
+                                )}
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  setShowAppointmentForm(false);
+                                  setBookingMessage(null);
+                                }}
+                                variant="outline"
+                                className="h-12 font-bold text-base"
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </motion.div>
                         </CardContent>
                       </Card>
-                    )}
+                    ) : null}
+                  </motion.div>
+                )}
+
+                {/* Call Booking Section */}
+                {quoteResult?.ghlContactId && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.35 }}
+                  >
+                    {callConfirmed ? (
+                      <Card className="shadow-2xl border-0 overflow-hidden">
+                        <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-8 text-white">
+                          <div className="text-center">
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              transition={{ type: 'spring', delay: 0.4 }}
+                            >
+                              <Check className="h-16 w-16 mx-auto mb-4" />
+                            </motion.div>
+                            <h2 className="text-3xl font-bold mb-2">Call Scheduled!</h2>
+                            <p className="text-blue-50 mb-4">
+                              Your consultation call has been scheduled
+                            </p>
+                          </div>
+                        </div>
+                        <CardContent className="pt-8 text-center pb-8">
+                          <div className="space-y-4">
+                            <div>
+                              <p className="text-sm text-gray-600 mb-1">Call Date</p>
+                              <p className="text-2xl font-bold text-gray-900">{callDate}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600 mb-1">Call Time</p>
+                              <p className="text-2xl font-bold text-gray-900">{callTime}</p>
+                            </div>
+                            <div className="pt-4 border-t">
+                              <p className="text-sm text-gray-600">
+                                A confirmation has been sent. We'll call you at the scheduled time!
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ) : showCallForm ? (
+                      <Card className="shadow-2xl border-0 overflow-hidden">
+                        <div 
+                          className="p-6 border-b"
+                          style={{
+                            background: `linear-gradient(to right, ${hexToRgba(primaryColor, 0.05)}, transparent)`
+                          }}
+                        >
+                          <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                            📞 Schedule a Consultation Call
+                          </h3>
+                          <p className="text-gray-600 mt-2">Let's discuss your cleaning needs</p>
+                        </div>
+                        <CardContent className="pt-8">
+                          {bookingMessage && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className={`mb-6 p-4 rounded-lg ${
+                                bookingMessage.type === 'success'
+                                  ? 'bg-green-50 text-green-800 border border-green-200'
+                                  : 'bg-red-50 text-red-800 border border-red-200'
+                              }`}
+                            >
+                              {bookingMessage.text}
+                            </motion.div>
+                          )}
+
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="space-y-5"
+                          >
+                            <div>
+                              <Label htmlFor="call-date" className="text-base font-semibold block mb-2">
+                                📅 Select Date
+                              </Label>
+                              <Input
+                                id="call-date"
+                                type="date"
+                                value={callDate}
+                                onChange={(e) => setCallDate(e.target.value)}
+                                className="h-12 text-base"
+                                min={new Date().toISOString().split('T')[0]}
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="call-time" className="text-base font-semibold block mb-2">
+                                🕐 Select Time
+                              </Label>
+                              <Input
+                                id="call-time"
+                                type="time"
+                                value={callTime}
+                                onChange={(e) => setCallTime(e.target.value)}
+                                className="h-12 text-base"
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="call-notes" className="text-base font-semibold block mb-2">
+                                💬 Notes (Optional)
+                              </Label>
+                              <Input
+                                id="call-notes"
+                                type="text"
+                                placeholder="Any questions or topics to discuss..."
+                                value={callNotes}
+                                onChange={(e) => setCallNotes(e.target.value)}
+                                className="h-12 text-base"
+                              />
+                            </div>
+
+                            <div className="flex gap-3 pt-4">
+                              <Button
+                                onClick={handleBookCall}
+                                disabled={isBookingCall || !callDate || !callTime}
+                                className="flex-1 h-12 font-bold text-base"
+                              >
+                                {isBookingCall ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                    Scheduling...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Check className="mr-2 h-5 w-5" />
+                                    Confirm Call
+                                  </>
+                                )}
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  setShowCallForm(false);
+                                  setBookingMessage(null);
+                                }}
+                                variant="outline"
+                                className="h-12 font-bold text-base"
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </motion.div>
+                        </CardContent>
+                      </Card>
+                    ) : null}
                   </motion.div>
                 )}
 
@@ -1043,10 +1260,15 @@ export default function Home() {
                       setQuoteResult(null);
                       setCurrentStep(0);
                       setAppointmentConfirmed(false);
-                      setShowBookingForm(false);
+                      setCallConfirmed(false);
+                      setShowAppointmentForm(false);
+                      setShowCallForm(false);
                       setAppointmentDate('');
                       setAppointmentTime('');
                       setAppointmentNotes('');
+                      setCallDate('');
+                      setCallTime('');
+                      setCallNotes('');
                     }}
                     variant="outline"
                     className="text-gray-600 hover:text-gray-900"
@@ -1243,8 +1465,11 @@ export default function Home() {
                           <Select 
                             onValueChange={(value) => {
                               field.onChange(value);
-                              // Move to next step automatically after selection
-                              setTimeout(() => nextStep(), 300);
+                              // Move to next step with a small delay to ensure state is updated
+                              // Don't validate here - just move forward, nextStep will validate
+                              setTimeout(() => {
+                                nextStep();
+                              }, 100);
                             }} 
                             value={field.value || ''}
                           >
