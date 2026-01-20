@@ -103,15 +103,16 @@ export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges 
   }
 
   // If no service type/frequency, show focused summary of key quote
-  // Default to bi-weekly as it's most popular
+  // Default to bi-weekly as it's most popular option for maintenance
   const defaultRange = ranges.biWeekly || ranges.general;
   let summary = `✨ YOUR QUOTE\n\n`;
   summary += `Home Size: ${inputs.squareFeet} sq ft\n`;
-  summary += `Most Popular: Bi-Weekly Service\n`;
+  summary += `Service: Bi-Weekly Cleaning\n`;
   summary += `💰 ${formatPriceRange(defaultRange)}\n\n`;
   
   if (initialCleaningRequired) {
-    summary += `📌 Initial Cleaning Required: ${formatPriceRange(ranges.initial)}\n`;
+    summary += `📌 Note: An initial cleaning is required as your first service.\n`;
+    summary += `This gets your home to our maintenance standards.\n`;
   }
 
   return summary;
