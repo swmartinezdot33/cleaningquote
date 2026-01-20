@@ -16,7 +16,7 @@ import { SurveyQuestion } from '@/lib/kv';
 import { GooglePlacesAutocomplete, PlaceDetails } from '@/components/GooglePlacesAutocomplete';
 
 /**
- * Convert square footage range string to numeric value (use midpoint)
+ * Convert square footage range string to numeric value (use upper bound - 1 for better matching)
  */
 function convertSquareFootageToNumber(rangeString: string): number {
   if (!rangeString) return 1500; // default
@@ -24,10 +24,11 @@ function convertSquareFootageToNumber(rangeString: string): number {
   // Handle ranges like '500-1000', '1000-1500', etc.
   if (rangeString.includes('-')) {
     const parts = rangeString.split('-');
-    if (rangeString.includes('4500+')) return 4750; // midpoint for 4500+
+    if (rangeString.includes('4500+')) return 4500; // upper bound for 4500+
     const min = parseInt(parts[0], 10) || 0;
     const max = parseInt(parts[1], 10) || min;
-    return Math.round((min + max) / 2); // return midpoint
+    // Use upper bound - 1 to ensure we stay within this range tier
+    return max - 1;
   }
   
   // Try to parse as direct number

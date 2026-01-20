@@ -56,21 +56,21 @@ function getSelectedQuotePrice(ranges: any, serviceType: string, frequency: stri
 }
 
 /**
- * Convert square footage range to midpoint number
+ * Convert square footage range to upper bound minus 1 (for accurate pricing tier matching)
  */
 function convertSquareFootageRange(range: string): number {
   if (!range) return 1500; // Default fallback
   
   const rangeMap: { [key: string]: number } = {
-    '500-1000': 750,
-    '1000-1500': 1250,
-    '1500-2000': 1750,
-    '2000-2500': 2250,
-    '2500-3000': 2750,
-    '3000-3500': 3250,
-    '3500-4000': 3750,
-    '4000-4500': 4250,
-    '4500+': 5000,
+    '500-1000': 999,
+    '1000-1500': 1499,
+    '1500-2000': 1999,
+    '2000-2500': 2499,
+    '2500-3000': 2999,
+    '3000-3500': 3499,
+    '3500-4000': 3999,
+    '4000-4500': 4499,
+    '4500+': 4500,
   };
   
   return rangeMap[range] || 1500;
@@ -147,17 +147,65 @@ export async function POST(request: NextRequest) {
             if (fieldValue === undefined || fieldValue === null || fieldValue === '') return;
 
             const mapping = question.ghlFieldMapping;
-            if (!mapping) return; // Skip if no mapping
-
-            // Handle native fields
+            
+            // Handle native fields (firstName, lastName, email, phone)
             if (mapping === 'firstName' || mapping === 'lastName' || mapping === 'email' || mapping === 'phone') {
               contactData[mapping] = String(fieldValue);
+            } else if (mapping) {
+              // Custom field with explicit mapping
+              contactData.customFields![mapping] = String(fieldValue);
             } else {
-              // Custom field - use original question ID as key if no mapping
-              const fieldKey = mapping || question.id;
+              // NO mapping - still send as custom field with question ID as key
+              // This ensures NO data is lost
+              const fieldKey = question.id;
               contactData.customFields![fieldKey] = String(fieldValue);
             }
           });
+
+          // Also add any fields from body that aren't in survey questions
+          // This captures service-specific data like serviceType, frequency, etc.
+          const standardFields = ['firstName', 'lastName', 'email', 'phone', 'squareFeet', 'people', 'bedrooms', 'fullBaths', 'halfBaths', 'sheddingPets', 'condition', 'serviceType', 'frequency', 'hasPreviousService', 'cleanedWithin3Months'];
+          Object.keys(body).forEach((key) => {
+            if (!standardFields.includes(key) && body[key] && !contactData.customFields![key]) {
+              // Add any extra fields as custom fields
+              contactData.customFields![key] = String(body[key]);
+            }
+          });
+          
+          // Also explicitly add standard fields that might not have mappings
+          if (body.squareFeet && !contactData.customFields!['squareFeet']) {
+            contactData.customFields!['squareFeet'] = String(body.squareFeet);
+          }
+          if (body.serviceType && !contactData.customFields!['serviceType']) {
+            contactData.customFields!['serviceType'] = String(body.serviceType);
+          }
+          if (body.frequency && !contactData.customFields!['frequency']) {
+            contactData.customFields!['frequency'] = String(body.frequency);
+          }
+          if (body.bedrooms && !contactData.customFields!['bedrooms']) {
+            contactData.customFields!['bedrooms'] = String(body.bedrooms);
+          }
+          if (body.fullBaths && !contactData.customFields!['fullBaths']) {
+            contactData.customFields!['fullBaths'] = String(body.fullBaths);
+          }
+          if (body.halfBaths && !contactData.customFields!['halfBaths']) {
+            contactData.customFields!['halfBaths'] = String(body.halfBaths);
+          }
+          if (body.people && !contactData.customFields!['people']) {
+            contactData.customFields!['people'] = String(body.people);
+          }
+          if (body.sheddingPets && !contactData.customFields!['sheddingPets']) {
+            contactData.customFields!['sheddingPets'] = String(body.sheddingPets);
+          }
+          if (body.condition && !contactData.customFields!['condition']) {
+            contactData.customFields!['condition'] = String(body.condition);
+          }
+          if (body.hasPreviousService && !contactData.customFields!['hasPreviousService']) {
+            contactData.customFields!['hasPreviousService'] = String(body.hasPreviousService);
+          }
+          if (body.cleanedWithin3Months && !contactData.customFields!['cleanedWithin3Months']) {
+            contactData.customFields!['cleanedWithin3Months'] = String(body.cleanedWithin3Months);
+          }
 
           // Fallback to direct body fields if no mappings exist (backward compatibility)
           if (!contactData.firstName || contactData.firstName === 'Unknown') {
@@ -177,6 +225,17 @@ export async function POST(request: NextRequest) {
           if (Object.keys(contactData.customFields || {}).length === 0) {
             delete contactData.customFields;
           }
+
+          console.log('📞 Sending contact data to GHL:', {
+            firstName: contactData.firstName,
+            lastName: contactData.lastName,
+            email: contactData.email,
+            phone: contactData.phone,
+            source: contactData.source,
+            tags: contactData.tags,
+            customFieldsCount: Object.keys(contactData.customFields || {}).length,
+            customFields: contactData.customFields,
+          });
 
           // Pass additional tags (in-service tags)
           const contact = await createOrUpdateContact(
