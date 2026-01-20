@@ -223,6 +223,13 @@ export default function Home() {
     loadSurveyQuestions();
   }, []);
 
+  // Update document title when widgetTitle changes
+  useEffect(() => {
+    if (widgetTitle) {
+      document.title = widgetTitle;
+    }
+  }, [widgetTitle]);
+
   const loadSurveyQuestions = async () => {
     try {
       const response = await fetch('/api/survey-questions');
@@ -290,6 +297,33 @@ export default function Home() {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
 
+  // Helper function to convert hex to HSL for Tailwind CSS variables
+  const hexToHsl = (hex: string): string => {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+        case g: h = ((b - r) / d + 2) / 6; break;
+        case b: h = ((r - g) / d + 4) / 6; break;
+      }
+    }
+
+    h = Math.round(h * 360);
+    s = Math.round(s * 100);
+    l = Math.round(l * 100);
+
+    return `${h} ${s}% ${l}%`;
+  };
+
   // Generate default values from questions
   const getDefaultValues = () => {
     const defaults: Record<string, any> = {};
@@ -325,9 +359,21 @@ export default function Home() {
 
   if (!mounted) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-[#f61590]/5 via-white to-[#f61590]/5 pt-12 pb-20 px-4 sm:px-6 lg:px-8">
+      <main 
+        className="min-h-screen bg-gradient-to-br via-white pt-12 pb-20 px-4 sm:px-6 lg:px-8"
+        style={{ 
+          backgroundImage: `linear-gradient(135deg, ${hexToRgba(primaryColor, 0.05)} 0%, transparent 50%, ${hexToRgba(primaryColor, 0.05)} 100%)`
+        }}
+      >
         <div className="max-w-3xl mx-auto text-center">
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-[#f61590] to-[#f61590]/70 bg-clip-text text-transparent mb-4">
+          <h1 
+            className="text-5xl font-bold bg-clip-text text-transparent mb-4"
+            style={{
+              backgroundImage: `linear-gradient(to right, ${primaryColor}, ${hexToRgba(primaryColor, 0.7)})`,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}
+          >
             {widgetTitle}
           </h1>
           <p className="text-xl text-gray-600">Loading...</p>
@@ -480,12 +526,14 @@ export default function Home() {
 
   if (quoteResult) {
     return (
-      <div style={{ '--primary-color': primaryColor } as React.CSSProperties}>
+      <div style={{ '--primary-color': primaryColor, '--primary': hexToHsl(primaryColor) } as React.CSSProperties}>
         <style>{`
           :root {
             --primary-color: ${primaryColor};
+            --primary: ${hexToHsl(primaryColor)};
+            --ring: ${hexToHsl(primaryColor)};
           }
-          .primary-from { background: linear-gradient(to right, var(--primary-color), rgba(var(--primary-rgb), 0.6)); }
+          .primary-from { background: linear-gradient(to right, var(--primary-color), ${hexToRgba(primaryColor, 0.6)}); }
           .primary-bg { background-color: var(--primary-color); }
           .primary-text { color: var(--primary-color); }
           .primary-border { border-color: var(--primary-color); }
@@ -531,7 +579,12 @@ export default function Home() {
                   transition={{ delay: 0.1 }}
                 >
                   <Card className="shadow-2xl border-0 overflow-hidden">
-                    <div className="bg-gradient-to-r from-[#f61590] to-[#f61590]/80 p-8 text-white">
+                    <div 
+                      className="p-8 text-white"
+                      style={{
+                        background: `linear-gradient(to right, ${primaryColor}, ${hexToRgba(primaryColor, 0.8)})`
+                      }}
+                    >
                       <div className="flex items-center justify-between mb-6">
                         <h3 className="text-2xl font-bold">Your Quote</h3>
                         <Sparkles className="h-8 w-8 opacity-80" />
@@ -551,7 +604,19 @@ export default function Home() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
                   onClick={() => setShowBookingForm(true)}
-                  className="w-full bg-gradient-to-r from-[#f61590]/10 via-transparent to-[#f61590]/10 border-2 border-[#f61590]/30 rounded-lg p-8 text-center hover:border-[#f61590]/60 hover:bg-gradient-to-r hover:from-[#f61590]/20 hover:via-transparent hover:to-[#f61590]/20 transition-all cursor-pointer"
+                  className="w-full rounded-lg p-8 text-center transition-all cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, ${hexToRgba(primaryColor, 0.1)}, transparent, ${hexToRgba(primaryColor, 0.1)})`,
+                    border: `2px solid ${hexToRgba(primaryColor, 0.3)}`,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = hexToRgba(primaryColor, 0.6);
+                    e.currentTarget.style.background = `linear-gradient(to right, ${hexToRgba(primaryColor, 0.2)}, transparent, ${hexToRgba(primaryColor, 0.2)})`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = hexToRgba(primaryColor, 0.3);
+                    e.currentTarget.style.background = `linear-gradient(to right, ${hexToRgba(primaryColor, 0.1)}, transparent, ${hexToRgba(primaryColor, 0.1)})`;
+                  }}
                 >
                   <h3 className="text-2xl font-bold text-gray-900 mb-3">Ready to Get Started?</h3>
                   <p className="text-lg text-gray-700 mb-0">
@@ -603,9 +668,14 @@ export default function Home() {
                       </Card>
                     ) : (
                       <Card className="shadow-2xl border-0 overflow-hidden">
-                        <div className="bg-gradient-to-r from-[#f61590]/5 to-transparent p-6 border-b">
+                        <div 
+                          className="p-6 border-b"
+                          style={{
+                            background: `linear-gradient(to right, ${hexToRgba(primaryColor, 0.05)}, transparent)`
+                          }}
+                        >
                           <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                            <Calendar className="h-6 w-6 text-[#f61590]" />
+                            <Calendar className="h-6 w-6" style={{ color: primaryColor }} />
                             Schedule Your Appointment
                           </h3>
                           <p className="text-gray-600 mt-2">Choose a date and time that works best for you</p>
@@ -751,9 +821,13 @@ export default function Home() {
   return (
     <div style={{ '--primary-color': primaryColor } as React.CSSProperties}>
       <style>{`
+        :root {
+          --primary-color: ${primaryColor};
+        }
         .primary-bg { background-color: var(--primary-color); }
         .primary-text { color: var(--primary-color); }
         .primary-border { border-color: var(--primary-color); }
+        .primary-gradient { background: linear-gradient(to right, var(--primary-color), ${hexToRgba(primaryColor, 0.7)}); }
       `}</style>
       <main className="min-h-screen bg-gradient-to-br via-white pt-12 pb-20 px-4 sm:px-6 lg:px-8"
             style={{ 
@@ -767,16 +841,19 @@ export default function Home() {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-[#f61590] to-[#f61590]/70 bg-clip-text text-transparent mb-4">
+          <h1 
+            className="text-5xl font-bold bg-clip-text text-transparent mb-4"
+            style={{
+              backgroundImage: `linear-gradient(to right, ${primaryColor}, ${hexToRgba(primaryColor, 0.7)})`,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}
+          >
             {widgetTitle}
           </h1>
           <p className="text-xl text-gray-600 mb-6">
             {widgetSubtitle}
           </p>
-          <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-            <Sparkles className="h-4 w-4 text-[#f61590]" />
-            <span>Question {currentStep + 1} of {questions.length}</span>
-          </div>
         </motion.div>
 
         {/* Progress Bar */}
@@ -785,7 +862,13 @@ export default function Home() {
           animate={{ opacity: 1, scale: 1 }}
           className="mb-8"
         >
-          <Progress value={progress} className="h-3 shadow-lg" />
+          <Progress 
+            value={progress} 
+            className="h-3 shadow-lg" 
+            style={{
+              ['--primary' as any]: hexToHsl(primaryColor)
+            }}
+          />
         </motion.div>
 
         {/* Question Card */}
@@ -798,7 +881,10 @@ export default function Home() {
             exit={{ opacity: 0, x: direction * -100 }}
             transition={{ duration: 0.4, ease: "easeInOut" }}
           >
-            <Card className="shadow-2xl border-2 border-[#f61590]/20 bg-white/90 backdrop-blur-sm">
+            <Card 
+              className="shadow-2xl border-2 bg-white/90 backdrop-blur-sm"
+              style={{ borderColor: `${primaryColor}33` }}
+            >
               <CardContent className="pt-8 pb-8 px-8">
                 <div className="space-y-6">
                   <motion.div
@@ -808,7 +894,7 @@ export default function Home() {
                   >
                     <Label htmlFor={currentQuestion.id} className="text-2xl font-semibold text-gray-900 block mb-4">
                       {currentQuestion.label}
-                      {currentQuestion.required && <span className="text-[#f61590] ml-1">*</span>}
+                      {currentQuestion.required && <span className="ml-1" style={{ color: primaryColor }}>*</span>}
                     </Label>
 
                     {currentQuestion.type === 'text' && (
@@ -979,11 +1065,18 @@ export default function Home() {
               }}
               className={`h-2 rounded-full transition-all ${
                 index === currentStep
-                  ? 'w-8 bg-[#f61590]'
+                  ? 'w-8'
                   : index < currentStep
-                  ? 'w-2 bg-[#f61590]/50'
+                  ? 'w-2'
                   : 'w-2 bg-gray-300'
               }`}
+              style={{
+                backgroundColor: index === currentStep 
+                  ? primaryColor 
+                  : index < currentStep 
+                  ? `${primaryColor}80` 
+                  : undefined
+              }}
               whileHover={{ scale: 1.2 }}
               whileTap={{ scale: 0.9 }}
             />

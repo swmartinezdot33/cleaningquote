@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Upload, Save, Plus, Trash2, Download, Eye, EyeOff, Loader2, Table, GripVertical, Copy, ArrowUp, ArrowDown, Sparkles, HelpCircle, CheckSquare, Square, Edit, Settings, FileText } from 'lucide-react';
+import { Upload, Save, Plus, Trash2, Download, Eye, EyeOff, Loader2, Table, GripVertical, Copy, ArrowUp, ArrowDown, Sparkles, HelpCircle, CheckSquare, Square, Edit, Settings, FileText, ExternalLink, Zap } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const priceRangeSchema = z.object({
@@ -420,29 +420,39 @@ export default function AdminPage() {
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <Sparkles className="h-8 w-8 text-[#f61590]" />
-              <h1 className="text-4xl font-bold text-gray-900">Pricing Builder</h1>
+              <div className="flex items-center gap-3">
+                <Sparkles className="h-8 w-8 text-[#f61590]" />
+                <h1 className="text-4xl font-bold text-gray-900">Pricing Builder</h1>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  onClick={() => window.location.href = '/'}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  title="Preview the quoter page"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  <span className="hidden sm:inline">View Quoter</span>
+                </Button>
+                <Button
+                  onClick={() => window.location.href = '/admin/survey-builder'}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  <span className="hidden sm:inline">Survey Builder</span>
+                </Button>
+                <Button
+                  onClick={() => window.location.href = '/admin/settings'}
+                  variant="outline"
+                  size="icon"
+                  className="px-2.5"
+                  title="GHL Integration Settings"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={() => window.location.href = '/admin/survey-builder'}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <FileText className="h-4 w-4" />
-                Survey Builder
-              </Button>
-              <Button
-                onClick={() => window.location.href = '/admin/settings'}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <Settings className="h-4 w-4" />
-                GHL Settings
-              </Button>
-            </div>
-          </div>
             <p className="text-gray-600">Create and manage your quoting structure with an intuitive interface</p>
           </div>
 

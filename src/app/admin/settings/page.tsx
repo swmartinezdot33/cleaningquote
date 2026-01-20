@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, AlertCircle, Loader2, Save, RotateCw, Eye, EyeOff, Sparkles, ArrowLeft, Copy, Code, ChevronDown } from 'lucide-react';
+import { CheckCircle, AlertCircle, Loader2, Save, RotateCw, Eye, EyeOff, Sparkles, ArrowLeft, Copy, Code, ChevronDown, FileText } from 'lucide-react';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -665,6 +665,21 @@ export default function SettingsPage() {
                   </p>
                 </div>
                 <div>
+                  <h4 className="font-semibold text-gray-900 mb-2">Field Mapping</h4>
+                  <p>
+                    To map your survey questions to GHL fields (native fields like firstName, lastName, email, phone, or custom fields), 
+                    go to the <strong>Survey Builder</strong> page. There you can edit each question and select which GHL field it should map to.
+                  </p>
+                  <Button
+                    onClick={() => router.push('/admin/survey-builder')}
+                    variant="outline"
+                    className="mt-3 flex items-center gap-2"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Go to Survey Builder
+                  </Button>
+                </div>
+                <div>
                   <h4 className="font-semibold text-gray-900 mb-2">Security</h4>
                   <p>Your GHL token is stored securely in encrypted storage and is never exposed to the client.</p>
                 </div>
@@ -924,9 +939,9 @@ export default function SettingsPage() {
         >
           <Card className="shadow-xl border-2">
             <CardHeader className="bg-gradient-to-r from-[#f61590]/5 via-transparent to-transparent border-b">
-              <CardTitle>Widget Customization</CardTitle>
+              <CardTitle>Site Customization</CardTitle>
               <CardDescription>
-                Customize the title and subtitle displayed on your cleaning quote widget
+                Customize the title, subtitle, and primary color for your entire site
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
@@ -952,7 +967,7 @@ export default function SettingsPage() {
 
                 <div>
                   <Label htmlFor="widget-title" className="text-base font-semibold">
-                    Widget Title
+                    Site Title
                   </Label>
                   <Input
                     id="widget-title"
@@ -962,13 +977,13 @@ export default function SettingsPage() {
                     className="mt-2"
                   />
                   <p className="text-sm text-gray-600 mt-1">
-                    This title is displayed prominently at the top of the quote widget.
+                    This title is displayed prominently at the top of the site and used as the page title.
                   </p>
                 </div>
 
                 <div>
                   <Label htmlFor="widget-subtitle" className="text-base font-semibold">
-                    Widget Subtitle
+                    Site Subtitle
                   </Label>
                   <Input
                     id="widget-subtitle"
@@ -978,7 +993,7 @@ export default function SettingsPage() {
                     className="mt-2"
                   />
                   <p className="text-sm text-gray-600 mt-1">
-                    This subtitle appears below the title to introduce the quote form.
+                    This subtitle appears below the title throughout the site.
                   </p>
                 </div>
 
@@ -1010,7 +1025,7 @@ export default function SettingsPage() {
                     </div>
                   </div>
                   <p className="text-sm text-gray-600 mt-2">
-                    This color is used for buttons, headers, and accent elements throughout the quote widget.
+                    This color is used for buttons, headers, accents, and branding elements throughout the entire site.
                   </p>
                 </div>
 

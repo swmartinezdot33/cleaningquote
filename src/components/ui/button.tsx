@@ -9,15 +9,15 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-[#f61590]/90 hover:shadow-lg hover:shadow-[#f61590]/50 transition-all duration-200 active:bg-[#f61590]/80 focus-visible:ring-[#f61590]/50",
+        default: "bg-primary text-primary-foreground hover:shadow-lg transition-all duration-200",
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline:
-          "border border-[#f61590] text-[#f61590] bg-background hover:bg-[#f61590]/10 hover:shadow-lg hover:shadow-[#f61590]/30 transition-all duration-200 focus-visible:ring-[#f61590]/50",
+          "border bg-background hover:shadow-lg transition-all duration-200",
         secondary:
-          "bg-[#f61590]/10 text-[#f61590] hover:bg-[#f61590]/20 hover:shadow-lg hover:shadow-[#f61590]/30 transition-all duration-200",
-        ghost: "hover:bg-[#f61590]/10 hover:text-[#f61590] transition-all duration-200",
-        link: "text-[#f61590] underline-offset-4 hover:underline hover:text-[#f61590]/80 transition-colors",
+          "hover:shadow-lg transition-all duration-200",
+        ghost: "transition-all duration-200",
+        link: "underline-offset-4 hover:underline transition-colors",
       },
       size: {
         default: "h-10 px-4 py-2",
@@ -40,11 +40,53 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, style, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
+    
+    // Get primary color from CSS variable
+    const getButtonStyle = (): React.CSSProperties => {
+      if (typeof window === 'undefined') return style || {};
+      
+      const primaryColor = getComputedStyle(document.documentElement)
+        .getPropertyValue('--primary-color')
+        .trim() || '#f61590';
+      
+      const baseStyle = style || {};
+      
+      if (variant === 'default') {
+        return {
+          ...baseStyle,
+          backgroundColor: primaryColor,
+          color: '#ffffff',
+        };
+      } else if (variant === 'outline') {
+        return {
+          ...baseStyle,
+          borderColor: primaryColor,
+          color: primaryColor,
+        };
+      } else if (variant === 'secondary') {
+        return {
+          ...baseStyle,
+          backgroundColor: `${primaryColor}1a`,
+          color: primaryColor,
+        };
+      } else if (variant === 'ghost') {
+        return baseStyle;
+      } else if (variant === 'link') {
+        return {
+          ...baseStyle,
+          color: primaryColor,
+        };
+      }
+      
+      return baseStyle;
+    };
+    
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
+        style={getButtonStyle()}
         ref={ref}
         {...props}
       />
