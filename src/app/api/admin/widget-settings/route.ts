@@ -20,12 +20,11 @@ function authenticate(request: NextRequest): NextResponse | null {
 }
 
 /**
- * GET - Retrieve widget settings
+ * GET - Retrieve widget settings (public endpoint, no auth required)
  */
 export async function GET(request: NextRequest) {
   try {
-    const authResponse = authenticate(request);
-    if (authResponse) return authResponse;
+    // GET endpoint is public - no authentication required for reading settings
 
     try {
       const kv = getKV();
