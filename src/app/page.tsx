@@ -364,7 +364,30 @@ export default function Home() {
         const data = await response.json();
         if (data.questions && data.questions.length > 0) {
           // Always sort by order to ensure consistent display
-          const sortedQuestions = [...data.questions].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+          let sortedQuestions = [...data.questions].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+          
+          // Fix squareFeet if it's not a select or missing options
+          sortedQuestions = sortedQuestions.map(q => {
+            if (q.id === 'squareFeet' && (q.type !== 'select' || !q.options || q.options.length === 0)) {
+              return {
+                ...q,
+                type: 'select',
+                options: [
+                  { value: '500-1000', label: 'Under 1,000 sq ft' },
+                  { value: '1000-1500', label: '1,000 - 1,500 sq ft' },
+                  { value: '1500-2000', label: '1,500 - 2,000 sq ft' },
+                  { value: '2000-2500', label: '2,000 - 2,500 sq ft' },
+                  { value: '2500-3000', label: '2,500 - 3,000 sq ft' },
+                  { value: '3000-3500', label: '3,000 - 3,500 sq ft' },
+                  { value: '3500-4000', label: '3,500 - 4,000 sq ft' },
+                  { value: '4000-4500', label: '4,000 - 4,500 sq ft' },
+                  { value: '4500+', label: 'Over 4,500 sq ft' },
+                ],
+              };
+            }
+            return q;
+          });
+          
           setQuestions(sortedQuestions);
           setQuoteSchema(generateSchemaFromQuestions(sortedQuestions));
         }
