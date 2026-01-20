@@ -15,16 +15,16 @@ export async function POST(request: NextRequest) {
 
     const result = calcQuote(inputs);
 
-    if (result.outOfLimits) {
+    if (result.outOfLimits || !result.ranges) {
       return NextResponse.json({
         outOfLimits: true,
-        message: result.message,
+        message: result.message || 'Unable to calculate quote.',
       });
     }
 
-    // Generate formatted text
-    const summaryText = generateSummaryText(result as typeof result & { ranges: typeof result.ranges });
-    const smsText = generateSmsText(result as typeof result & { ranges: typeof result.ranges });
+    // At this point, TypeScript knows ranges is defined
+    const summaryText = generateSummaryText({ ...result, ranges: result.ranges });
+    const smsText = generateSmsText({ ...result, ranges: result.ranges });
 
     return NextResponse.json({
       outOfLimits: false,
