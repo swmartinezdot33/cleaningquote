@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
       outOfServiceTags,
       appointmentCalendarId,
       callCalendarId,
+      quotedAmountField,
     } = body;
 
     await storeGHLConfig({
@@ -78,6 +79,7 @@ export async function POST(request: NextRequest) {
       outOfServiceTags: outOfServiceTags || undefined,
       appointmentCalendarId: appointmentCalendarId || undefined,
       callCalendarId: callCalendarId || undefined,
+      quotedAmountField: quotedAmountField || undefined,
     });
 
     return NextResponse.json({

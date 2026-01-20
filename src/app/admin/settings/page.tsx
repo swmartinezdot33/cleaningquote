@@ -78,6 +78,7 @@ export default function SettingsPage() {
   const [calendars, setCalendars] = useState<any[]>([]);
   const [selectedAppointmentCalendarId, setSelectedAppointmentCalendarId] = useState<string>('');
   const [selectedCallCalendarId, setSelectedCallCalendarId] = useState<string>('');
+  const [quotedAmountField, setQuotedAmountField] = useState<string>('');
   const [isLoadingCalendars, setIsLoadingCalendars] = useState(false);
   const [ghlTags, setGhlTags] = useState<any[]>([]);
   const [selectedInServiceTags, setSelectedInServiceTags] = useState<Set<string>>(new Set());
@@ -355,6 +356,7 @@ export default function SettingsPage() {
         setUseDynamicPricingForValue(config.useDynamicPricingForValue !== false);
         setSelectedAppointmentCalendarId(config.appointmentCalendarId || '');
         setSelectedCallCalendarId(config.callCalendarId || '');
+        setQuotedAmountField(config.quotedAmountField || '');
         setGhlConfigLoaded(true);
 
         // Load pipelines if token is connected
@@ -422,6 +424,7 @@ export default function SettingsPage() {
           outOfServiceTags: Array.from(selectedOutOfServiceTags).length > 0 ? Array.from(selectedOutOfServiceTags) : undefined,
           appointmentCalendarId: selectedAppointmentCalendarId || undefined,
           callCalendarId: selectedCallCalendarId || undefined,
+          quotedAmountField: quotedAmountField || undefined,
         }),
       });
 
@@ -1791,6 +1794,24 @@ export default function SettingsPage() {
                     </div>
                     <p className="text-sm text-gray-600 mt-2">
                       Calendar for users to schedule consultation calls
+                    </p>
+                  </div>
+
+                  {/* Quoted Amount Field Mapping */}
+                  <div>
+                    <Label htmlFor="quoted-amount-field" className="text-base font-semibold">
+                      GHL Field for Quoted Amount (Custom Field)
+                    </Label>
+                    <input
+                      id="quoted-amount-field"
+                      type="text"
+                      placeholder="e.g., quotedAmount, estimate_price, quote_value"
+                      value={quotedAmountField}
+                      onChange={(e) => setQuotedAmountField(e.target.value)}
+                      className="w-full mt-2 h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
+                    />
+                    <p className="text-sm text-gray-600 mt-2">
+                      Enter the GHL custom field key where the quoted amount should be stored. Leave empty to skip.
                     </p>
                   </div>
                 </div>

@@ -199,6 +199,7 @@ export async function storeGHLConfig(config: {
   outOfServiceTags?: string[];
   appointmentCalendarId?: string;
   callCalendarId?: string;
+  quotedAmountField?: string; // GHL custom field key for the quoted amount
 }): Promise<void> {
   try {
     const kv = getKV();
@@ -225,6 +226,7 @@ export async function getGHLConfig(): Promise<{
   outOfServiceTags?: string[];
   appointmentCalendarId?: string;
   callCalendarId?: string;
+  quotedAmountField?: string; // GHL custom field key for the quoted amount
 } | null> {
   try {
     const kv = getKV();

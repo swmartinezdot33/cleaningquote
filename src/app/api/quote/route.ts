@@ -286,6 +286,9 @@ export async function POST(request: NextRequest) {
               quoteMin: String(selectedRange?.low || 0),
               quoteMax: String(selectedRange?.high || 0),
               quotePriceMiddle: String(opportunityValue || 0),
+              ...(ghlConfig.quotedAmountField ? {
+                [ghlConfig.quotedAmountField]: String(opportunityValue || 0),
+              } : {}),
             },
           });
         }
