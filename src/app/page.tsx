@@ -405,47 +405,51 @@ export default function Home() {
               </Card>
             ) : (
               <div className="space-y-6">
-                <Card className="shadow-2xl border-2 border-[#f61590]/20">
-                  <CardContent className="pt-6">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <Sparkles className="h-6 w-6 text-[#f61590]" />
-                      Your Personalized Quote
-                    </h2>
-                    <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700 bg-gray-50 p-4 rounded-md border overflow-auto">
-                      {quoteResult.summaryText}
-                    </pre>
-                  </CardContent>
-                </Card>
+                {/* Quote Summary Header */}
+                <motion.div
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-center mb-8"
+                >
+                  <h2 className="text-4xl font-bold text-gray-900 mb-2">Your Perfect Quote</h2>
+                  <p className="text-xl text-gray-600">
+                    Professional cleaning, personalized pricing
+                  </p>
+                </motion.div>
 
-                <Card className="shadow-2xl border-2 border-[#f61590]/20">
-                  <CardContent className="pt-6">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-4">Copy/Paste Text Message</h2>
-                    <div className="relative">
-                      <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700 bg-gray-50 p-4 rounded-md border overflow-auto max-h-96">
-                        {quoteResult.smsText}
-                      </pre>
-                      <div className="flex gap-4 mt-4">
-                        <Button
-                          onClick={handleCopy}
-                          variant={copySuccess ? 'secondary' : 'default'}
-                          className="flex-1"
-                        >
-                          <Copy className="mr-2 h-4 w-4" />
-                          {copySuccess ? 'Copied!' : 'Copy to Clipboard'}
-                        </Button>
-                        <Button
-                          onClick={() => {
-                            setQuoteResult(null);
-                            setCurrentStep(0);
-                          }}
-                          variant="outline"
-                        >
-                          Calculate Another Quote
-                        </Button>
+                {/* Beautiful Quote Card */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <Card className="shadow-2xl border-0 overflow-hidden">
+                    <div className="bg-gradient-to-r from-[#f61590] to-[#f61590]/80 p-8 text-white">
+                      <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-2xl font-bold">Your Quote</h3>
+                        <Sparkles className="h-8 w-8 opacity-80" />
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                    <CardContent className="pt-8">
+                      <pre className="whitespace-pre-wrap font-sans text-base text-gray-700 leading-relaxed">
+                        {quoteResult.summaryText}
+                      </pre>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                {/* CTA Section */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-[#f61590]/10 border-2 border-[#f61590]/30 rounded-lg p-8 text-center"
+                >
+                  <h3 className="text-2xl font-bold text-gray-900 mb-3">Ready to Get Started?</h3>
+                  <p className="text-lg text-gray-700 mb-6">
+                    Lock in your cleaning service by scheduling your appointment today!
+                  </p>
+                </motion.div>
 
                 {/* Appointment Booking Section */}
                 {quoteResult?.ghlContactId && (
@@ -455,34 +459,55 @@ export default function Home() {
                     transition={{ delay: 0.3 }}
                   >
                     {appointmentConfirmed ? (
-                      <Card className="shadow-2xl border-2 border-green-200 bg-green-50">
-                        <CardContent className="pt-6">
-                          <div className="text-center py-6">
-                            <Check className="h-12 w-12 text-green-600 mx-auto mb-4" />
-                            <h2 className="text-2xl font-bold text-green-900 mb-2">Appointment Confirmed!</h2>
-                            <p className="text-green-800 mb-4">
-                              We'll see you on <strong>{appointmentDate}</strong> at <strong>{appointmentTime}</strong>
+                      <Card className="shadow-2xl border-0 overflow-hidden">
+                        <div className="bg-gradient-to-r from-green-500 to-green-600 p-8 text-white">
+                          <div className="text-center">
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              transition={{ type: 'spring', delay: 0.4 }}
+                            >
+                              <Check className="h-16 w-16 mx-auto mb-4" />
+                            </motion.div>
+                            <h2 className="text-3xl font-bold mb-2">You're All Set!</h2>
+                            <p className="text-green-50 mb-4">
+                              Your appointment has been confirmed
                             </p>
-                            <p className="text-sm text-green-700">
-                              A confirmation has been sent to your email. If you need to reschedule, please contact us.
-                            </p>
+                          </div>
+                        </div>
+                        <CardContent className="pt-8 text-center pb-8">
+                          <div className="space-y-4">
+                            <div>
+                              <p className="text-sm text-gray-600 mb-1">Appointment Date</p>
+                              <p className="text-2xl font-bold text-gray-900">{appointmentDate}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600 mb-1">Appointment Time</p>
+                              <p className="text-2xl font-bold text-gray-900">{appointmentTime}</p>
+                            </div>
+                            <div className="pt-4 border-t">
+                              <p className="text-sm text-gray-600">
+                                A confirmation email has been sent. We look forward to seeing you!
+                              </p>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
                     ) : (
-                      <Card className="shadow-2xl border-2 border-[#f61590]/20">
-                        <CardHeader className="bg-gradient-to-r from-[#f61590]/5 via-transparent to-transparent border-b">
-                          <CardTitle className="flex items-center gap-2">
-                            <Calendar className="h-5 w-5 text-[#f61590]" />
-                            Would You Like to Book an Appointment?
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-6">
+                      <Card className="shadow-2xl border-0 overflow-hidden">
+                        <div className="bg-gradient-to-r from-[#f61590]/5 to-transparent p-6 border-b">
+                          <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                            <Calendar className="h-6 w-6 text-[#f61590]" />
+                            Schedule Your Appointment
+                          </h3>
+                          <p className="text-gray-600 mt-2">Choose a date and time that works best for you</p>
+                        </div>
+                        <CardContent className="pt-8">
                           {bookingMessage && (
                             <motion.div
                               initial={{ opacity: 0, y: -10 }}
                               animate={{ opacity: 1, y: 0 }}
-                              className={`mb-4 p-3 rounded-lg text-sm ${
+                              className={`mb-6 p-4 rounded-lg ${
                                 bookingMessage.type === 'success'
                                   ? 'bg-green-50 text-green-800 border border-green-200'
                                   : 'bg-red-50 text-red-800 border border-red-200'
@@ -495,47 +520,46 @@ export default function Home() {
                           {!showBookingForm ? (
                             <Button
                               onClick={() => setShowBookingForm(true)}
-                              className="w-full h-12 text-lg font-semibold"
+                              className="w-full h-14 text-lg font-bold shadow-lg hover:shadow-xl transition-shadow"
                             >
-                              Yes, Let's Book It!
+                              Book Your Appointment Now
                             </Button>
                           ) : (
                             <motion.div
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
-                              className="space-y-4"
+                              className="space-y-5"
                             >
                               <div>
-                                <Label htmlFor="date" className="text-base font-semibold">
-                                  Preferred Date
+                                <Label htmlFor="date" className="text-base font-semibold block mb-2">
+                                  📅 Select Date
                                 </Label>
                                 <Input
                                   id="date"
                                   type="date"
                                   value={appointmentDate}
                                   onChange={(e) => setAppointmentDate(e.target.value)}
-                                  className="mt-2 h-10"
+                                  className="h-12 text-base"
                                   min={new Date().toISOString().split('T')[0]}
                                 />
                               </div>
 
                               <div>
-                                <Label htmlFor="time" className="text-base font-semibold flex items-center gap-2">
-                                  <Clock className="h-4 w-4" />
-                                  Preferred Time
+                                <Label htmlFor="time" className="text-base font-semibold block mb-2">
+                                  🕐 Select Time
                                 </Label>
                                 <Input
                                   id="time"
                                   type="time"
                                   value={appointmentTime}
                                   onChange={(e) => setAppointmentTime(e.target.value)}
-                                  className="mt-2 h-10"
+                                  className="h-12 text-base"
                                 />
                               </div>
 
                               <div>
-                                <Label htmlFor="notes" className="text-base font-semibold">
-                                  Additional Notes (Optional)
+                                <Label htmlFor="notes" className="text-base font-semibold block mb-2">
+                                  💬 Notes (Optional)
                                 </Label>
                                 <Input
                                   id="notes"
@@ -543,25 +567,25 @@ export default function Home() {
                                   placeholder="Any special requests or instructions..."
                                   value={appointmentNotes}
                                   onChange={(e) => setAppointmentNotes(e.target.value)}
-                                  className="mt-2 h-10"
+                                  className="h-12 text-base"
                                 />
                               </div>
 
-                              <div className="flex gap-3 pt-2">
+                              <div className="flex gap-3 pt-4">
                                 <Button
                                   onClick={handleBookAppointment}
                                   disabled={isBookingAppointment || !appointmentDate || !appointmentTime}
-                                  className="flex-1 h-11 font-semibold"
+                                  className="flex-1 h-12 font-bold text-base"
                                 >
                                   {isBookingAppointment ? (
                                     <>
-                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                                       Booking...
                                     </>
                                   ) : (
                                     <>
-                                      <Check className="mr-2 h-4 w-4" />
-                                      Confirm Appointment
+                                      <Check className="mr-2 h-5 w-5" />
+                                      Confirm Booking
                                     </>
                                   )}
                                 </Button>
@@ -571,7 +595,7 @@ export default function Home() {
                                     setBookingMessage(null);
                                   }}
                                   variant="outline"
-                                  className="h-11 font-semibold"
+                                  className="h-12 font-bold text-base"
                                 >
                                   Cancel
                                 </Button>
@@ -583,6 +607,30 @@ export default function Home() {
                     )}
                   </motion.div>
                 )}
+
+                {/* Footer CTA */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="text-center pt-4"
+                >
+                  <Button
+                    onClick={() => {
+                      setQuoteResult(null);
+                      setCurrentStep(0);
+                      setAppointmentConfirmed(false);
+                      setShowBookingForm(false);
+                      setAppointmentDate('');
+                      setAppointmentTime('');
+                      setAppointmentNotes('');
+                    }}
+                    variant="outline"
+                    className="text-gray-600 hover:text-gray-900"
+                  >
+                    Get Another Quote
+                  </Button>
+                </motion.div>
               </div>
             )}
           </motion.div>
