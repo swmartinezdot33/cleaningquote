@@ -39,66 +39,44 @@ export function GooglePlacesAutocomplete({
   onKeyDown,
 }: GooglePlacesAutocompleteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isLoadingGeo, setIsLoadingGeo] = useState(false);
 
-  // Simple address collection without complex Google Places APIs
-  // We'll just collect the address and provide basic geocoding on blur
-  useEffect(() => {
-    const checkApiLoaded = () => {
-      if (window.google?.maps?.Geocoder) {
-        setIsLoaded(true);
-      }
-    };
-
-    // Check immediately
-    checkApiLoaded();
-
-    // If not loaded, wait for it
-    if (!isLoaded && inputRef.current) {
-      const checkInterval = setInterval(() => {
-        checkApiLoaded();
-      }, 100);
-
-      return () => clearInterval(checkInterval);
+  const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (onChange) {
+      onChange(e.target.value);
     }
-  }, [isLoaded]);
+  };
 
-  const handleBlur = async () => {
+  const handleBlur = () => {
     if (!inputRef.current?.value) return;
 
-    try {
-      if (!window.google?.maps?.Geocoder) {
-        console.warn('Google Maps Geocoder not available');
-        return;
-      }
+    // Try to geocode the address if Google Maps is available
+    if (window.google?.maps?.Geocoder) {
+      setIsLoadingGeo(true);
+      try {
+        const geocoder = new window.google.maps.Geocoder();
+        geocoder.geocode(
+          { address: inputRef.current.value, componentRestrictions: { country: 'us' } },
+          (results: any[], status: string) => {
+            setIsLoadingGeo(false);
+            if (status === 'OK' && results?.[0]) {
+              const place = results[0];
+              const placeDetails: PlaceDetails = {
+                lat: place.geometry?.location?.lat?.() || 0,
+                lng: place.geometry?.location?.lng?.() || 0,
+                formattedAddress: place.formatted_address || inputRef.current?.value || '',
+              };
 
-      const geocoder = new window.google.maps.Geocoder();
-
-      // Try to geocode the address to get coordinates
-      geocoder.geocode(
-        { address: inputRef.current.value, componentRestrictions: { country: 'us' } },
-        (results: any[], status: string) => {
-          if (status === 'OK' && results?.[0]) {
-            const place = results[0];
-            const placeDetails: PlaceDetails = {
-              lat: place.geometry?.location?.lat?.() || 0,
-              lng: place.geometry?.location?.lng?.() || 0,
-              formattedAddress: place.formatted_address || inputRef.current?.value || '',
-            };
-
-            if (onChange) {
-              onChange(placeDetails.formattedAddress, placeDetails);
+              if (onChange) {
+                onChange(placeDetails.formattedAddress, placeDetails);
+              }
             }
-            setError(null);
-          } else if (status !== 'ZERO_RESULTS') {
-            console.warn('Geocoding error:', status);
           }
-        }
-      );
-    } catch (err) {
-      console.error('Error during geocoding:', err);
-      // Still allow the user to submit with just the text address
+        );
+      } catch (err) {
+        setIsLoadingGeo(false);
+        console.warn('Geocoding failed:', err);
+      }
     }
   };
 
@@ -118,34 +96,22 @@ export function GooglePlacesAutocomplete({
           placeholder={placeholder || 'Enter your address'}
           className="h-14 text-lg"
           value={value || ''}
-          onChange={(e) => {
-            if (onChange) {
-              onChange(e.target.value);
-            }
-          }}
+          onChange={handleAddressChange}
           onBlur={handleBlur}
           onKeyDown={onKeyDown}
           autoComplete="off"
+          disabled={isLoadingGeo}
         />
-        {!isLoaded && (
+        {isLoadingGeo && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="absolute right-3 top-4 text-xs text-gray-400"
           >
-            Loading maps...
+            Finding location...
           </motion.div>
         )}
       </div>
-      {error && (
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-sm text-amber-600"
-        >
-          ⚠️ {error}
-        </motion.p>
-      )}
     </div>
   );
 }
