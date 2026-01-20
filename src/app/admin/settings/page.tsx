@@ -322,8 +322,10 @@ export default function SettingsPage() {
   const getEmbedCode = () => {
     const baseUrl = window.location.origin;
     return `<!-- Raleigh Cleaning Company Quote Widget -->
+<!-- You can pass GHL contact variables as data attributes to pre-fill the form -->
+<!-- Example: data-first-name="{{contact.firstName}}" data-last-name="{{contact.lastName}}" -->
 <div id="cleaning-quote-widget"></div>
-<script src="${baseUrl}/widget.js" data-base-url="${baseUrl}" data-container-id="cleaning-quote-widget"><\/script>`;
+<script src="${baseUrl}/widget.js" data-base-url="${baseUrl}" data-container-id="cleaning-quote-widget" data-first-name="{{contact.firstName}}" data-last-name="{{contact.lastName}}" data-phone="{{contact.phone}}" data-email="{{contact.email}}" data-address="{{contact.address}}" data-city="{{contact.city}}" data-state="{{contact.state}}" data-postal-code="{{contact.postalCode}}"><\/script>`;
   };
 
   const handleCopyEmbed = async () => {

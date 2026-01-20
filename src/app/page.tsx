@@ -317,11 +317,11 @@ export default function Home() {
       }
     });
 
-    // Apply query parameters if they are configured
+    // Apply query parameters from either custom config or standard camelCase params
     if (typeof window !== 'undefined' && mounted) {
       const params = new URLSearchParams(window.location.search);
 
-      // Map query parameter values to form fields based on admin config
+      // First try custom mapping from admin config
       const paramMap: Record<string, string> = {
         firstName: formSettings.firstNameParam,
         lastName: formSettings.lastNameParam,
@@ -336,6 +336,26 @@ export default function Home() {
           if (value) {
             defaults[fieldId] = value;
           }
+        }
+      });
+
+      // Also support standard camelCase query parameters (from widget embed)
+      // These will override custom config if both are present
+      const standardParams: Record<string, string> = {
+        firstName: 'firstName',
+        lastName: 'lastName',
+        email: 'email',
+        phone: 'phone',
+        address: 'address',
+        city: 'city',
+        state: 'state',
+        postalCode: 'postalCode',
+      };
+
+      Object.entries(standardParams).forEach(([fieldId, paramName]) => {
+        const value = params.get(paramName);
+        if (value && value.trim()) {
+          defaults[fieldId] = value;
         }
       });
     }
@@ -1548,7 +1568,7 @@ export default function Home() {
                                   <SelectItem value="4500+">Over 4,500 sq ft</SelectItem>
                                 </>
                               ) : (
-                                currentQuestion.options?.map((option) => (
+                                currentQuestion.options?.filter(option => option.value && option.value.trim() !== '').map((option) => (
                                   <SelectItem key={option.value} value={option.value}>
                                     {option.label}
                                   </SelectItem>

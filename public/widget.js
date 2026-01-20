@@ -1,6 +1,16 @@
 /**
  * Raleigh Cleaning Company Quote Widget
  * Embed this script on your website to display the cleaning quote form
+ * 
+ * Supports GHL contact variable placeholders:
+ * data-first-name="{{contact.firstName}}"
+ * data-last-name="{{contact.lastName}}"
+ * data-phone="{{contact.phone}}"
+ * data-email="{{contact.email}}"
+ * data-address="{{contact.address}}"
+ * data-city="{{contact.city}}"
+ * data-state="{{contact.state}}"
+ * data-postal-code="{{contact.postalCode}}"
  */
 
 (function () {
@@ -9,6 +19,33 @@
   const baseUrl = scriptTag?.dataset.baseUrl || window.location.origin;
   const widgetId = scriptTag?.dataset.widgetId || 'cleaning-quote-widget';
   const containerId = scriptTag?.dataset.containerId || widgetId;
+
+  // Build query parameters from data attributes
+  function buildQueryString() {
+    const params = new URLSearchParams();
+    
+    // Map of data attributes to query parameter names
+    const attributeMap = {
+      'firstName': 'data-first-name',
+      'lastName': 'data-last-name',
+      'phone': 'data-phone',
+      'email': 'data-email',
+      'address': 'data-address',
+      'city': 'data-city',
+      'state': 'data-state',
+      'postalCode': 'data-postal-code',
+    };
+
+    for (const [paramName, attrName] of Object.entries(attributeMap)) {
+      const value = scriptTag?.dataset[attrName.replace('data-', '')] || scriptTag?.getAttribute(attrName);
+      if (value && value.trim() && !value.includes('{{')) {
+        // Only add if value exists and doesn't contain unreplaced template variables
+        params.append(paramName, value);
+      }
+    }
+
+    return params.toString();
+  }
 
   // Create iframe container
   function initializeWidget() {
@@ -20,9 +57,16 @@
       document.body.appendChild(container);
     }
 
+    // Build iframe URL with query parameters
+    let iframeUrl = `${baseUrl}/?embedded=true`;
+    const queryString = buildQueryString();
+    if (queryString) {
+      iframeUrl += `&${queryString}`;
+    }
+
     // Create iframe
     const iframe = document.createElement('iframe');
-    iframe.src = `${baseUrl}/?embedded=true`;
+    iframe.src = iframeUrl;
     iframe.style.cssText = `
       width: 100%;
       max-width: 800px;
