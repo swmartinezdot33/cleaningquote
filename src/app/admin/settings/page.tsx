@@ -1068,6 +1068,7 @@ export default function SettingsPage() {
                 </div>
               </div>
             </CardContent>
+            )}
           </Card>
         </motion.div>
 
@@ -1213,6 +1214,7 @@ export default function SettingsPage() {
                 </div>
               </div>
             </CardContent>
+            )}
           </Card>
         </motion.div>
 
@@ -1468,6 +1470,7 @@ export default function SettingsPage() {
                 </div>
               )}
             </CardContent>
+            )}
           </Card>
         </motion.div>
 
@@ -1754,6 +1757,7 @@ export default function SettingsPage() {
                 </div>
               </div>
             </CardContent>
+            )}
           </Card>
         </motion.div>
 
@@ -1855,6 +1859,7 @@ export default function SettingsPage() {
                 </Button>
               </div>
             </CardContent>
+            )}
           </Card>
         </motion.div>
 
@@ -1989,6 +1994,7 @@ export default function SettingsPage() {
                 </Button>
               </div>
             </CardContent>
+            )}
           </Card>
         </motion.div>
 
@@ -2135,6 +2141,7 @@ export default function SettingsPage() {
                 </Button>
               </div>
             </CardContent>
+            )}
           </Card>
         </motion.div>
 
@@ -2265,6 +2272,7 @@ export default function SettingsPage() {
                 </Button>
               </div>
             </CardContent>
+            )}
           </Card>
         </motion.div>
 
@@ -2332,6 +2340,7 @@ export default function SettingsPage() {
                 </div>
               </div>
             </CardContent>
+            )}
           </Card>
         </motion.div>
         </div>
