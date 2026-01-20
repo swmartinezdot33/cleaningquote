@@ -36,8 +36,8 @@ function generateSchemaFromQuestions(questions: SurveyQuestion[]): z.ZodObject<a
         : z.string().optional();
     } else if (question.type === 'select') {
       schemaShape[question.id] = question.required
-        ? z.string().min(1, `Please select ${question.label.toLowerCase()}`)
-        : z.string().optional();
+        ? z.any().refine(val => val && val.toString().length > 0, { message: `Please select ${question.label.toLowerCase()}` })
+        : z.any().optional();
     } else if (question.type === 'address') {
       schemaShape[question.id] = question.required
         ? z.string().min(1, `${question.label} is required`)
