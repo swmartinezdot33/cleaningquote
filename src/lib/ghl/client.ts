@@ -224,11 +224,13 @@ export async function testGHLConnection(token?: string): Promise<{ success: bool
       return { success: false, error: 'No token provided or found' };
     }
 
-    // Simple test: try to fetch account info or any basic endpoint
-    const response = await fetch(`${GHL_API_BASE}/users/profile`, {
+    // Test with locations endpoint since we require locations.read scope
+    // This tests that the token works and has at least one required scope
+    const response = await fetch(`${GHL_API_BASE}/locations`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${testToken}`,
+        'Version': '2021-07-28',
       },
     });
 

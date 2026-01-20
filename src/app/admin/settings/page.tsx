@@ -539,7 +539,7 @@ export default function SettingsPage() {
                       <li><strong>opportunities.read</strong> - Read pipelines for configuration</li>
                       <li><strong>opportunities.write</strong> - Create opportunities from quotes</li>
                       <li><strong>calendars.write</strong> - Create appointments for bookings</li>
-                      <li><strong>locations.read</strong> - Access location information</li>
+                      <li><strong>locations.read</strong> - Access location information (also used for connection testing)</li>
                     </ul>
                     <p className="text-xs text-amber-700 mt-2 italic">
                       Make sure your PIT token has these scopes enabled in your GHL account settings.
