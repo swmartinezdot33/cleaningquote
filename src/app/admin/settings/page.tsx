@@ -80,6 +80,10 @@ export default function SettingsPage() {
   const [selectedAppointmentCalendarId, setSelectedAppointmentCalendarId] = useState<string>('');
   const [selectedCallCalendarId, setSelectedCallCalendarId] = useState<string>('');
   const [quotedAmountField, setQuotedAmountField] = useState<string>('');
+  const [customFields, setCustomFields] = useState<any[]>([]);
+  const [isLoadingCustomFields, setIsLoadingCustomFields] = useState(false);
+  const [customFieldsError, setCustomFieldsError] = useState<string | null>(null);
+  const [quotedAmountSearch, setQuotedAmountSearch] = useState<string>('');
   const [isLoadingCalendars, setIsLoadingCalendars] = useState(false);
   const [ghlTags, setGhlTags] = useState<any[]>([]);
   const [selectedInServiceTags, setSelectedInServiceTags] = useState<Set<string>>(new Set());
@@ -135,6 +139,12 @@ export default function SettingsPage() {
       loadPipelines();
     }
   }, [connectionStatus, createOpportunity, isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadCustomFields();
+    }
+  }, [isAuthenticated]);
 
   const checkAuth = async (pass: string) => {
     try {
@@ -555,6 +565,36 @@ export default function SettingsPage() {
       console.error('Error loading tags:', error);
     } finally {
       setIsLoadingTags(false);
+    }
+  };
+
+  const loadCustomFields = async () => {
+    if (!isAuthenticated) return;
+    
+    setIsLoadingCustomFields(true);
+    setCustomFieldsError(null);
+    try {
+      const response = await fetch('/api/admin/ghl-custom-fields', {
+        headers: {
+          'x-admin-password': password,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Filter out native fields and keep only custom fields
+        const customFieldsOnly = data.fields?.filter((f: any) => f.type === 'custom' || f.fieldType === 'custom') || [];
+        setCustomFields(customFieldsOnly);
+      } else {
+        const error = await response.json();
+        console.error('Error loading custom fields:', error);
+        setCustomFieldsError(error.error || 'Failed to load custom fields');
+      }
+    } catch (error) {
+      console.error('Error loading custom fields:', error);
+      setCustomFieldsError(error instanceof Error ? error.message : 'Failed to load custom fields');
+    } finally {
+      setIsLoadingCustomFields(false);
     }
   };
 
@@ -1923,16 +1963,67 @@ export default function SettingsPage() {
                     <Label htmlFor="quoted-amount-field" className="text-base font-semibold">
                       GHL Field for Quoted Amount (Custom Field)
                     </Label>
-                    <input
-                      id="quoted-amount-field"
-                      type="text"
-                      placeholder="e.g., quotedAmount, estimate_price, quote_value"
-                      value={quotedAmountField}
-                      onChange={(e) => setQuotedAmountField(e.target.value)}
-                      className="w-full mt-2 h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
-                    />
+                    <div className="flex gap-2 mt-2">
+                      <div className="flex-1 relative">
+                        <input
+                          type="text"
+                          placeholder="Search custom fields..."
+                          value={quotedAmountSearch}
+                          onChange={(e) => setQuotedAmountSearch(e.target.value)}
+                          className="w-full h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
+                        />
+                        {quotedAmountSearch && customFields.length > 0 && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
+                            {customFields
+                              .filter(field => 
+                                field.name?.toLowerCase().includes(quotedAmountSearch.toLowerCase()) ||
+                                field.key?.toLowerCase().includes(quotedAmountSearch.toLowerCase())
+                              )
+                              .map((field) => (
+                                <button
+                                  key={field.key}
+                                  type="button"
+                                  className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
+                                  onClick={() => {
+                                    setQuotedAmountField(field.key);
+                                    setQuotedAmountSearch('');
+                                  }}
+                                >
+                                  <div className="font-semibold text-gray-900">{field.name}</div>
+                                  <div className="text-xs text-gray-500 font-mono">{field.key}</div>
+                                </button>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={loadCustomFields}
+                        disabled={isLoadingCustomFields}
+                        title="Refresh custom fields"
+                      >
+                        <RotateCw className={`h-4 w-4 ${isLoadingCustomFields ? 'animate-spin' : ''}`} />
+                      </Button>
+                    </div>
+                    
+                    {quotedAmountField && (
+                      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                          Selected: <span className="font-mono font-semibold">{quotedAmountField}</span>
+                        </p>
+                      </div>
+                    )}
+                    
+                    {customFieldsError && (
+                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-800">
+                        {customFieldsError}
+                      </div>
+                    )}
+                    
                     <p className="text-sm text-gray-600 mt-2">
-                      Enter the GHL custom field key where the quoted amount should be stored. Leave empty to skip.
+                      Select a GHL custom field where the quoted amount will be stored. Leave empty to skip.
                     </p>
                   </div>
                 </div>
