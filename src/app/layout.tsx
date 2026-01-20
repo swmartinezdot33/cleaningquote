@@ -111,7 +111,7 @@ export default async function RootLayout({
         {/* Google Maps API - required for address autocomplete */}
         {googleMapsApiKey && (
           <script
-            src={`https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places`}
+            src={`https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places&loading=async`}
             async
             defer
           />

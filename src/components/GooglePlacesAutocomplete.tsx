@@ -45,56 +45,73 @@ export function GooglePlacesAutocomplete({
 
   // Initialize Google Places Autocomplete
   useEffect(() => {
-    if (!window.google) {
-      console.warn('Google Maps API not loaded');
-      setError('Google Maps API is not available');
-      return;
-    }
-
-    if (inputRef.current && !autocompleteRef.current) {
-      try {
-        const autocomplete = new window.google.maps.places.Autocomplete(
-          inputRef.current,
-          {
-            types: ['geocode'],
-            componentRestrictions: { country: 'us' }, // Restrict to US
-            fields: ['formatted_address', 'geometry'],
-          }
-        );
-
-        // Handle place selection
-        autocomplete.addListener('place_changed', () => {
-          const place = autocomplete.getPlace();
-
-          if (!place.geometry) {
-            console.warn('No geometry data for place');
-            return;
-          }
-
-          const placeDetails: PlaceDetails = {
-            lat: place.geometry.location.lat(),
-            lng: place.geometry.location.lng(),
-            formattedAddress: place.formatted_address || inputRef.current?.value || '',
-          };
-
-          if (onChange) {
-            onChange(placeDetails.formattedAddress, placeDetails);
-          }
-
-          setError(null);
-        });
-
-        autocompleteRef.current = autocomplete;
-        setIsLoaded(true);
-      } catch (err) {
-        console.error('Error initializing Google Places Autocomplete:', err);
-        setError('Failed to initialize address suggestions');
+    const initAutocomplete = () => {
+      if (!window.google) {
+        console.warn('Google Maps API not loaded');
+        setError('Google Maps API is not available');
+        return;
       }
+
+      if (inputRef.current && !autocompleteRef.current) {
+        try {
+          const autocomplete = new window.google.maps.places.Autocomplete(
+            inputRef.current,
+            {
+              types: ['geocode'],
+              componentRestrictions: { country: 'us' }, // Restrict to US
+              fields: ['formatted_address', 'geometry'],
+            }
+          );
+
+          // Handle place selection
+          autocomplete.addListener('place_changed', () => {
+            const place = autocomplete.getPlace();
+
+            if (!place.geometry) {
+              console.warn('No geometry data for place');
+              return;
+            }
+
+            const placeDetails: PlaceDetails = {
+              lat: place.geometry.location.lat(),
+              lng: place.geometry.location.lng(),
+              formattedAddress: place.formatted_address || inputRef.current?.value || '',
+            };
+
+            if (onChange) {
+              onChange(placeDetails.formattedAddress, placeDetails);
+            }
+
+            setError(null);
+          });
+
+          autocompleteRef.current = autocomplete;
+          setIsLoaded(true);
+        } catch (err) {
+          console.error('Error initializing Google Places Autocomplete:', err);
+          setError('Failed to initialize address suggestions');
+        }
+      }
+    };
+
+    // Check if Google Maps API is loaded immediately
+    if (window.google) {
+      initAutocomplete();
+    } else {
+      // Wait for Google Maps API to load
+      const checkInterval = setInterval(() => {
+        if (window.google && inputRef.current) {
+          initAutocomplete();
+          clearInterval(checkInterval);
+        }
+      }, 100);
+
+      return () => clearInterval(checkInterval);
     }
 
     return () => {
       if (autocompleteRef.current) {
-        window.google.maps.event.clearInstanceListeners(autocompleteRef.current);
+        window.google?.maps.event.clearInstanceListeners(autocompleteRef.current);
       }
     };
   }, [onChange]);
