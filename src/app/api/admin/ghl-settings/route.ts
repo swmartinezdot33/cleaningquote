@@ -36,7 +36,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Test connection
-    const isConnected = await testGHLConnection().catch(() => false);
+    const testResult = await testGHLConnection().catch(() => ({ success: false }));
+    const isConnected = testResult.success;
 
     // Return masked token (last 4 chars)
     try {
@@ -93,12 +94,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Test connection before saving
-    const isValid = await testGHLConnection().catch(() => false);
+    // Test connection with the new token before saving
+    const testResult = await testGHLConnection(token).catch(() => ({ success: false, error: 'Connection test failed' }));
 
-    if (!isValid) {
+    if (!testResult.success) {
       return NextResponse.json(
-        { error: 'Invalid GHL API token - connection test failed' },
+        { 
+          error: 'Invalid GHL API token - connection test failed',
+          details: testResult.error || 'Please check your token and ensure it has the required scopes'
+        },
         { status: 400 }
       );
     }
@@ -141,12 +145,13 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const isConnected = await testGHLConnection();
+    const testResult = await testGHLConnection();
 
     return NextResponse.json({
-      success: isConnected,
-      connected: isConnected,
-      message: isConnected ? 'Connected to GHL successfully' : 'Failed to connect to GHL',
+      success: testResult.success,
+      connected: testResult.success,
+      message: testResult.success ? 'Connected to GHL successfully' : (testResult.error || 'Failed to connect to GHL'),
+      error: testResult.error,
     });
   } catch (error) {
     console.error('Error testing GHL connection:', error);

@@ -141,9 +141,11 @@ export default function SettingsPage() {
         setConnectionStatus('connected');
         setTimeout(() => loadSettings(), 500);
       } else {
+        const errorText = data.error || 'Failed to save GHL API token';
+        const detailsText = data.details ? ` Details: ${data.details}` : '';
         setMessage({
           type: 'error',
-          text: data.error || 'Failed to save GHL API token',
+          text: errorText + detailsText,
         });
       }
     } catch (error) {
@@ -173,9 +175,10 @@ export default function SettingsPage() {
         setMessage({ type: 'success', text: 'Connected to GHL successfully!' });
         setConnectionStatus('connected');
       } else {
+        const errorText = data.error || data.message || 'Failed to connect to GHL';
         setMessage({
           type: 'error',
-          text: data.message || 'Failed to connect to GHL',
+          text: errorText + (data.details ? ` (${data.details})` : ''),
         });
         setConnectionStatus('disconnected');
       }

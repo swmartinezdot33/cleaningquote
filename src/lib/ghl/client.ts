@@ -214,27 +214,50 @@ export async function getPipelines(locationId: string): Promise<GHLPipeline[]> {
 }
 
 /**
- * Test GHL API connection
+ * Test GHL API connection with a specific token (optional)
  */
-export async function testGHLConnection(): Promise<boolean> {
+export async function testGHLConnection(token?: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const token = await getGHLToken();
+    const testToken = token || await getGHLToken();
 
-    if (!token) {
-      return false;
+    if (!testToken) {
+      return { success: false, error: 'No token provided or found' };
     }
 
     // Simple test: try to fetch account info or any basic endpoint
     const response = await fetch(`${GHL_API_BASE}/users/profile`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${testToken}`,
       },
     });
 
-    return response.ok;
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } catch {
+        // If JSON parsing fails, use status text
+        errorMessage = response.statusText || `HTTP ${response.status}`;
+      }
+
+      // Provide helpful error messages based on status code
+      if (response.status === 401) {
+        return { success: false, error: 'Unauthorized - Invalid token or token does not have required scopes' };
+      } else if (response.status === 403) {
+        return { success: false, error: 'Forbidden - Token may not have sufficient permissions' };
+      } else {
+        return { success: false, error: `Connection failed: ${errorMessage}` };
+      }
+    }
+
+    return { success: true };
   } catch (error) {
     console.error('GHL connection test failed:', error);
-    return false;
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return { success: false, error: `Connection test failed: ${errorMessage}` };
   }
 }
