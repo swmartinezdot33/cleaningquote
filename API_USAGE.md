@@ -4,7 +4,7 @@
 
 **POST** `/api/admin/upload-pricing`
 
-Upload a new pricing Excel file to Supabase Storage.
+Upload a new pricing Excel file to Vercel KV (Upstash Redis) storage.
 
 ## Authentication
 
@@ -13,7 +13,7 @@ Include your API key in the request:
 - **Header:** `x-api-key: your_api_key_here`
 - **Query Parameter:** `?apiKey=your_api_key_here`
 
-The API key should match the `SUPABASE_UPLOAD_API_KEY` environment variable set in Vercel.
+The API key should match the `SUPABASE_UPLOAD_API_KEY` environment variable set in Vercel (you can rename this to `UPLOAD_API_KEY` if you prefer).
 
 ## Request Format
 

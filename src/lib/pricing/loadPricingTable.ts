@@ -1,13 +1,12 @@
 import * as XLSX from 'xlsx';
 import { PricingTable, PricingRow, PriceRange } from './types';
-import { getSupabaseAdmin } from '@/lib/supabase';
+import { getPricingFile } from '@/lib/kv';
 
 // Cache parsed pricing table in memory
 let cachedTable: PricingTable | null = null;
 let cacheInvalidated = false;
 
-const PRICING_BUCKET = 'pricing-files';
-const PRICING_FILE_NAME = '2026 Pricing.xlsx';
+// Pricing file is stored in Vercel KV (Upstash Redis) under key: 'pricing:file:2026'
 
 /**
  * Parse a price range string like "$135-$165", "$1,000-$1,200", or "$1150 - $1350"
@@ -72,7 +71,7 @@ function parseSqFtRange(rangeStr: string): { min: number; max: number } | null {
 }
 
 /**
- * Load and parse the Excel pricing file from Supabase Storage
+ * Load and parse the Excel pricing file from Vercel KV (Upstash Redis) storage
  * Caches results in memory after first load
  */
 export async function loadPricingTable(): Promise<PricingTable> {
@@ -81,23 +80,8 @@ export async function loadPricingTable(): Promise<PricingTable> {
   }
 
   try {
-    // Download file from Supabase Storage
-    const supabaseAdmin = getSupabaseAdmin();
-    const { data: fileData, error: downloadError } = await supabaseAdmin.storage
-      .from(PRICING_BUCKET)
-      .download(PRICING_FILE_NAME);
-
-    if (downloadError) {
-      console.error('Supabase download error:', downloadError);
-      throw new Error(
-        `Failed to load pricing file from Supabase: ${downloadError.message}. ` +
-        `Make sure the file "${PRICING_FILE_NAME}" exists in the "${PRICING_BUCKET}" bucket.`
-      );
-    }
-
-    // Convert Blob to Buffer
-    const arrayBuffer = await fileData.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    // Get file from Vercel KV (Upstash Redis) storage
+    const buffer = await getPricingFile();
 
     // Parse Excel file
     const workbook = XLSX.read(buffer, { type: 'buffer' });

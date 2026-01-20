@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase';
+import { storePricingFile } from '@/lib/kv';
 import { invalidatePricingCache } from '@/lib/pricing/loadPricingTable';
 import * as XLSX from 'xlsx';
-
-const PRICING_BUCKET = 'pricing-files';
-const PRICING_FILE_NAME = '2026 Pricing.xlsx';
 
 /**
  * POST /api/admin/upload-pricing
  * 
- * Upload a new pricing Excel file to Supabase storage
+ * Upload a new pricing Excel file to Vercel KV (Upstash Redis) storage
  * 
  * Body: FormData with a file field named 'file'
  * 
@@ -20,7 +17,7 @@ export async function POST(request: NextRequest) {
   try {
     // Check for API key authentication (optional but recommended)
     const apiKey = request.headers.get('x-api-key') || request.nextUrl.searchParams.get('apiKey');
-    const requiredApiKey = process.env.SUPABASE_UPLOAD_API_KEY;
+    const requiredApiKey = process.env.SUPABASE_UPLOAD_API_KEY; // Reusing same env var name for consistency
     
     if (requiredApiKey && apiKey !== requiredApiKey) {
       return NextResponse.json(
@@ -67,30 +64,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Upload to Supabase Storage
-    const supabaseAdmin = getSupabaseAdmin();
-    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
-      .from(PRICING_BUCKET)
-      .upload(PRICING_FILE_NAME, buffer, {
-        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        upsert: true, // Overwrite if exists
-      });
-
-    if (uploadError) {
-      console.error('Supabase upload error:', uploadError);
-      return NextResponse.json(
-        { error: `Failed to upload file: ${uploadError.message}` },
-        { status: 500 }
-      );
-    }
+    // Upload to Vercel KV (Upstash Redis)
+    await storePricingFile(buffer);
 
     // Clear cached pricing table to force reload on next request
     invalidatePricingCache();
 
     return NextResponse.json({
       success: true,
-      message: 'Pricing file uploaded successfully',
-      file: uploadData.path,
+      message: 'Pricing file uploaded successfully to Vercel KV storage',
       size: buffer.length,
       uploadedAt: new Date().toISOString(),
     });
@@ -113,41 +95,26 @@ export async function POST(request: NextRequest) {
  */
 export async function GET() {
   try {
-    const supabaseAdmin = getSupabaseAdmin();
-    const { data, error } = await supabaseAdmin.storage
-      .from(PRICING_BUCKET)
-      .list('', {
-        search: PRICING_FILE_NAME,
-      });
+    const { getPricingFileMetadata, pricingFileExists } = await import('@/lib/kv');
+    
+    const exists = await pricingFileExists();
 
-    if (error) {
-      return NextResponse.json(
-        { error: `Failed to check file: ${error.message}` },
-        { status: 500 }
-      );
-    }
-
-    const file = data?.find(f => f.name === PRICING_FILE_NAME);
-
-    if (!file) {
+    if (!exists) {
       return NextResponse.json({
         exists: false,
-        message: 'No pricing file found',
+        message: 'No pricing file found in KV storage',
       });
     }
 
-    // Get public URL
-    const { data: urlData } = supabaseAdmin.storage
-      .from(PRICING_BUCKET)
-      .getPublicUrl(PRICING_FILE_NAME);
+    const metadata = await getPricingFileMetadata() as { size?: number; uploadedAt?: string; contentType?: string } | null;
 
     return NextResponse.json({
       exists: true,
       file: {
-        name: file.name,
-        size: file.metadata?.size || 0,
-        updatedAt: file.updated_at,
-        publicUrl: urlData.publicUrl,
+        name: '2026 Pricing.xlsx',
+        size: metadata?.size || 0,
+        uploadedAt: metadata?.uploadedAt || null,
+        contentType: metadata?.contentType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       },
     });
   } catch (error) {
