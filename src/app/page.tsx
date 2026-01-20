@@ -8,12 +8,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Copy, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { Copy, ChevronLeft, ChevronRight, Sparkles, Calendar, Clock, Loader2, Check } from 'lucide-react';
 
 const quoteSchema = z.object({
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+  email: z.string().email('Valid email is required'),
+  phone: z.string().min(10, 'Valid phone number is required'),
   squareFeet: z.number().positive('Square footage must be a positive number'),
   serviceType: z.string().min(1, 'Please select a service type'),
   frequency: z.string().min(1, 'Please select a frequency'),
@@ -48,9 +52,38 @@ interface QuoteResponse {
   };
   summaryText?: string;
   smsText?: string;
+  ghlContactId?: string;
 }
 
 const questions = [
+  {
+    id: 'firstName',
+    label: "What's your first name?",
+    type: 'text',
+    placeholder: 'John',
+    required: true,
+  },
+  {
+    id: 'lastName',
+    label: "What's your last name?",
+    type: 'text',
+    placeholder: 'Doe',
+    required: true,
+  },
+  {
+    id: 'email',
+    label: "What's your email address?",
+    type: 'email',
+    placeholder: 'john@example.com',
+    required: true,
+  },
+  {
+    id: 'phone',
+    label: "What's your phone number?",
+    type: 'tel',
+    placeholder: '(555) 123-4567',
+    required: true,
+  },
   {
     id: 'squareFeet',
     label: "About how big is your home?",
@@ -140,6 +173,13 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const [direction, setDirection] = useState(1); // 1 for forward, -1 for backward
+  const [showBookingForm, setShowBookingForm] = useState(false);
+  const [appointmentDate, setAppointmentDate] = useState('');
+  const [appointmentTime, setAppointmentTime] = useState('');
+  const [appointmentNotes, setAppointmentNotes] = useState('');
+  const [isBookingAppointment, setIsBookingAppointment] = useState(false);
+  const [bookingMessage, setBookingMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -155,6 +195,10 @@ export default function Home() {
   } = useForm<QuoteFormData>({
     resolver: zodResolver(quoteSchema),
     defaultValues: {
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
       squareFeet: undefined,
       serviceType: '',
       frequency: '',
@@ -211,10 +255,20 @@ export default function Home() {
     try {
       const data = getValues();
       const apiPayload = {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        serviceType: data.serviceType,
+        frequency: data.frequency,
         squareFeet: Number(data.squareFeet),
+        fullBaths: Number(data.fullBaths),
+        halfBaths: Number(data.halfBaths),
+        bedrooms: Number(data.bedrooms),
         people: Number(data.people),
         pets: Number(data.sheddingPets),
         sheddingPets: Number(data.sheddingPets),
+        condition: data.condition,
       };
 
       const response = await fetch('/api/quote', {
@@ -250,6 +304,65 @@ export default function Home() {
         console.error('Failed to copy:', error);
         alert('Failed to copy text. Please select and copy manually.');
       }
+    }
+  };
+
+  const handleBookAppointment = async () => {
+    if (!appointmentDate || !appointmentTime) {
+      setBookingMessage({ type: 'error', text: 'Please select a date and time' });
+      return;
+    }
+
+    if (!quoteResult?.ghlContactId) {
+      setBookingMessage({
+        type: 'error',
+        text: 'Unable to book appointment - contact information not available',
+      });
+      return;
+    }
+
+    setIsBookingAppointment(true);
+    setBookingMessage(null);
+
+    try {
+      const response = await fetch('/api/appointments/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contactId: quoteResult.ghlContactId,
+          date: appointmentDate,
+          time: appointmentTime,
+          notes: appointmentNotes || 'Appointment booked through quote form',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setBookingMessage({ type: 'success', text: 'Appointment booked successfully!' });
+        setAppointmentConfirmed(true);
+        setShowBookingForm(false);
+        setTimeout(() => {
+          setAppointmentDate('');
+          setAppointmentTime('');
+          setAppointmentNotes('');
+        }, 1000);
+      } else {
+        setBookingMessage({
+          type: 'error',
+          text: data.error || 'Failed to book appointment',
+        });
+      }
+    } catch (error) {
+      console.error('Error booking appointment:', error);
+      setBookingMessage({
+        type: 'error',
+        text: 'Failed to book appointment. Please try again.',
+      });
+    } finally {
+      setIsBookingAppointment(false);
     }
   };
 
@@ -317,6 +430,143 @@ export default function Home() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Appointment Booking Section */}
+                {quoteResult?.ghlContactId && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                  >
+                    {appointmentConfirmed ? (
+                      <Card className="shadow-2xl border-2 border-green-200 bg-green-50">
+                        <CardContent className="pt-6">
+                          <div className="text-center py-6">
+                            <Check className="h-12 w-12 text-green-600 mx-auto mb-4" />
+                            <h2 className="text-2xl font-bold text-green-900 mb-2">Appointment Confirmed!</h2>
+                            <p className="text-green-800 mb-4">
+                              We'll see you on <strong>{appointmentDate}</strong> at <strong>{appointmentTime}</strong>
+                            </p>
+                            <p className="text-sm text-green-700">
+                              A confirmation has been sent to your email. If you need to reschedule, please contact us.
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <Card className="shadow-2xl border-2 border-[#f61590]/20">
+                        <CardHeader className="bg-gradient-to-r from-[#f61590]/5 via-transparent to-transparent border-b">
+                          <CardTitle className="flex items-center gap-2">
+                            <Calendar className="h-5 w-5 text-[#f61590]" />
+                            Would You Like to Book an Appointment?
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-6">
+                          {bookingMessage && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className={`mb-4 p-3 rounded-lg text-sm ${
+                                bookingMessage.type === 'success'
+                                  ? 'bg-green-50 text-green-800 border border-green-200'
+                                  : 'bg-red-50 text-red-800 border border-red-200'
+                              }`}
+                            >
+                              {bookingMessage.text}
+                            </motion.div>
+                          )}
+
+                          {!showBookingForm ? (
+                            <Button
+                              onClick={() => setShowBookingForm(true)}
+                              className="w-full h-12 text-lg font-semibold"
+                            >
+                              Yes, Let's Book It!
+                            </Button>
+                          ) : (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="space-y-4"
+                            >
+                              <div>
+                                <Label htmlFor="date" className="text-base font-semibold">
+                                  Preferred Date
+                                </Label>
+                                <Input
+                                  id="date"
+                                  type="date"
+                                  value={appointmentDate}
+                                  onChange={(e) => setAppointmentDate(e.target.value)}
+                                  className="mt-2 h-10"
+                                  min={new Date().toISOString().split('T')[0]}
+                                />
+                              </div>
+
+                              <div>
+                                <Label htmlFor="time" className="text-base font-semibold flex items-center gap-2">
+                                  <Clock className="h-4 w-4" />
+                                  Preferred Time
+                                </Label>
+                                <Input
+                                  id="time"
+                                  type="time"
+                                  value={appointmentTime}
+                                  onChange={(e) => setAppointmentTime(e.target.value)}
+                                  className="mt-2 h-10"
+                                />
+                              </div>
+
+                              <div>
+                                <Label htmlFor="notes" className="text-base font-semibold">
+                                  Additional Notes (Optional)
+                                </Label>
+                                <Input
+                                  id="notes"
+                                  type="text"
+                                  placeholder="Any special requests or instructions..."
+                                  value={appointmentNotes}
+                                  onChange={(e) => setAppointmentNotes(e.target.value)}
+                                  className="mt-2 h-10"
+                                />
+                              </div>
+
+                              <div className="flex gap-3 pt-2">
+                                <Button
+                                  onClick={handleBookAppointment}
+                                  disabled={isBookingAppointment || !appointmentDate || !appointmentTime}
+                                  className="flex-1 h-11 font-semibold"
+                                >
+                                  {isBookingAppointment ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      Booking...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Check className="mr-2 h-4 w-4" />
+                                      Confirm Appointment
+                                    </>
+                                  )}
+                                </Button>
+                                <Button
+                                  onClick={() => {
+                                    setShowBookingForm(false);
+                                    setBookingMessage(null);
+                                  }}
+                                  variant="outline"
+                                  className="h-11 font-semibold"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </motion.div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
+                  </motion.div>
+                )}
               </div>
             )}
           </motion.div>
@@ -378,6 +628,36 @@ export default function Home() {
                       {currentQuestion.label}
                       {currentQuestion.required && <span className="text-[#f61590] ml-1">*</span>}
                     </Label>
+
+                    {currentQuestion.type === 'text' && (
+                      <Input
+                        id={currentQuestion.id}
+                        type="text"
+                        placeholder={currentQuestion.placeholder}
+                        className="h-14 text-lg"
+                        {...register(currentQuestion.id as keyof QuoteFormData)}
+                      />
+                    )}
+
+                    {currentQuestion.type === 'email' && (
+                      <Input
+                        id={currentQuestion.id}
+                        type="email"
+                        placeholder={currentQuestion.placeholder}
+                        className="h-14 text-lg"
+                        {...register(currentQuestion.id as keyof QuoteFormData)}
+                      />
+                    )}
+
+                    {currentQuestion.type === 'tel' && (
+                      <Input
+                        id={currentQuestion.id}
+                        type="tel"
+                        placeholder={currentQuestion.placeholder}
+                        className="h-14 text-lg"
+                        {...register(currentQuestion.id as keyof QuoteFormData)}
+                      />
+                    )}
 
                     {currentQuestion.type === 'number' && (
                       <Input

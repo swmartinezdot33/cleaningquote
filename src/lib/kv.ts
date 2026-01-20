@@ -1,6 +1,7 @@
 import { kv } from '@vercel/kv';
 
 const PRICING_KEY = 'pricing:file:2026';
+const GHL_TOKEN_KEY = 'ghl:api:token';
 
 /**
  * Check if KV is configured
@@ -74,6 +75,41 @@ export async function pricingFileExists(): Promise<boolean> {
   try {
     const kv = getKV();
     const exists = await kv.exists(PRICING_KEY);
+    return exists === 1;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Store GHL API token
+ */
+export async function storeGHLToken(token: string): Promise<void> {
+  const kv = getKV();
+  await kv.set(GHL_TOKEN_KEY, token);
+}
+
+/**
+ * Get GHL API token
+ */
+export async function getGHLToken(): Promise<string> {
+  const kv = getKV();
+  const token = await kv.get<string>(GHL_TOKEN_KEY);
+  
+  if (!token) {
+    throw new Error('GHL API token not configured. Please set it in the admin settings.');
+  }
+  
+  return token;
+}
+
+/**
+ * Check if GHL token exists
+ */
+export async function ghlTokenExists(): Promise<boolean> {
+  try {
+    const kv = getKV();
+    const exists = await kv.exists(GHL_TOKEN_KEY);
     return exists === 1;
   } catch {
     return false;
