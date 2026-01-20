@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     // At this point, TypeScript knows ranges is defined
-    const summaryText = generateSummaryText({ ...result, ranges: result.ranges });
+    const summaryText = generateSummaryText({ ...result, ranges: result.ranges }, body.serviceType, body.frequency);
     const smsText = generateSmsText({ ...result, ranges: result.ranges });
 
     // Attempt GHL integration (non-blocking)

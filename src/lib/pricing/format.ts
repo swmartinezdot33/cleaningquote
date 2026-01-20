@@ -8,15 +8,90 @@ function formatPriceRange(range: { low: number; high: number }): string {
 }
 
 /**
- * Generate pricing summary text
+ * Get service name from frequency
  */
-export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges }): string {
+function getServiceName(frequency: string): string {
+  const frequencyMap: { [key: string]: string } = {
+    'weekly': 'Weekly Cleaning',
+    'bi-weekly': 'Bi-Weekly Cleaning',
+    'monthly': 'Monthly Cleaning (Every 4 Weeks)',
+    'one-time': 'One-Time Service',
+  };
+  return frequencyMap[frequency] || frequency;
+}
+
+/**
+ * Get service name from service type
+ */
+function getServiceTypeDisplayName(serviceType: string): string {
+  const typeMap: { [key: string]: string } = {
+    'general': 'General Clean',
+    'deep': 'Deep Clean',
+    'move-in': 'Move-In Clean',
+    'move-out': 'Move-Out Clean',
+    'recurring': 'Recurring Service',
+  };
+  return typeMap[serviceType] || serviceType;
+}
+
+/**
+ * Get the selected price range based on service type and frequency
+ */
+function getSelectedQuoteRange(ranges: QuoteRanges, serviceType: string, frequency: string): { low: number; high: number } | null {
+  // Map frequency to the appropriate range
+  if (frequency === 'weekly') {
+    return ranges.weekly;
+  } else if (frequency === 'bi-weekly') {
+    return ranges.biWeekly;
+  } else if (frequency === 'monthly') {
+    return ranges.fourWeek;
+  } else if (serviceType === 'deep' && frequency === 'one-time') {
+    return ranges.deep;
+  } else if (serviceType === 'general' && frequency === 'one-time') {
+    return ranges.general;
+  } else if (serviceType === 'move-in' && frequency === 'one-time') {
+    return ranges.moveInOutBasic;
+  } else if (serviceType === 'move-out' && frequency === 'one-time') {
+    return ranges.moveInOutFull;
+  }
+  
+  // Default to the service type
+  if (serviceType === 'deep') return ranges.deep;
+  if (serviceType === 'general') return ranges.general;
+  if (serviceType === 'move-in') return ranges.moveInOutBasic;
+  if (serviceType === 'move-out') return ranges.moveInOutFull;
+  
+  return null;
+}
+
+/**
+ * Generate pricing summary text - focused on the selected service only
+ */
+export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges }, serviceType?: string, frequency?: string): string {
   const { inputs, ranges } = result;
   
   if (!inputs || !ranges) {
     return '';
   }
 
+  // If serviceType and frequency provided, show only that specific quote
+  if (serviceType && frequency) {
+    const selectedRange = getSelectedQuoteRange(ranges, serviceType, frequency);
+    if (selectedRange) {
+      const serviceName = frequency === 'one-time' ? getServiceTypeDisplayName(serviceType) : getServiceName(frequency);
+      let summary = `Your Service: ${serviceName}\n`;
+      summary += `Home Size: ${inputs.squareFeet} sq ft\n\n`;
+      summary += `Price Range: ${formatPriceRange(selectedRange)}\n\n`;
+      summary += `This quote is based on:\n`;
+      summary += `• Square footage: ${inputs.squareFeet} sq ft\n`;
+      summary += `• People in home: ${inputs.people}\n`;
+      summary += `• Shedding pets: ${inputs.sheddingPets}\n`;
+      summary += `• Home condition: ${inputs.condition || 'Not specified'}\n`;
+      return summary;
+    }
+  }
+
+  // Fallback: show all services (if no specific selection provided)
   let summary = `Square Footage: ${inputs.squareFeet}\n`;
   summary += `People: ${inputs.people}\n`;
   summary += `Shedding Pets: ${inputs.sheddingPets}\n\n`;

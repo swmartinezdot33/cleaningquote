@@ -27,6 +27,7 @@ export interface QuoteInputs {
   people: number;
   pets: number;
   sheddingPets: number;
+  condition?: string;
 }
 
 export interface QuoteRanges {
