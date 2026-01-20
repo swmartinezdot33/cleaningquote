@@ -21,7 +21,8 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
-  ArrowLeft
+  ArrowLeft,
+  RotateCw
 } from 'lucide-react';
 import { SurveyQuestion, SurveyQuestionOption } from '@/lib/kv';
 
@@ -62,21 +63,43 @@ export default function SurveyBuilderPage() {
         },
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      const data = await response.json();
+      
+      // Even if response is not ok, check if fields are included in the response
+      // (the API returns fields even on some errors as fallback)
+      if (data.fields && Array.isArray(data.fields)) {
         // Filter out any fields with empty or invalid keys
-        const validFields = (data.fields || []).filter((field: any) => 
+        const validFields = data.fields.filter((field: any) => 
           field && field.key && typeof field.key === 'string' && field.key.trim() !== ''
         );
-        setGhlFields(validFields);
+        
+        if (validFields.length > 0) {
+          setGhlFields(validFields);
+          console.log(`Loaded ${validFields.length} GHL fields (${validFields.filter((f: any) => f.type === 'native').length} native, ${validFields.filter((f: any) => f.fieldType === 'custom').length} custom)`);
+        } else {
+          // No valid fields, use fallback
+          console.warn('No valid GHL fields found, using fallback native fields');
+          setGhlFields([
+            { key: 'firstName', name: 'First Name', type: 'native' },
+            { key: 'lastName', name: 'Last Name', type: 'native' },
+            { key: 'email', name: 'Email', type: 'native' },
+            { key: 'phone', name: 'Phone', type: 'native' },
+          ]);
+        }
       } else {
-        // If API fails, use fallback native fields
+        // No fields in response, use fallback
+        console.warn('GHL fields API did not return fields array, using fallback');
         setGhlFields([
           { key: 'firstName', name: 'First Name', type: 'native' },
           { key: 'lastName', name: 'Last Name', type: 'native' },
           { key: 'email', name: 'Email', type: 'native' },
           { key: 'phone', name: 'Phone', type: 'native' },
         ]);
+      }
+      
+      // Log errors but don't fail completely if fields were returned
+      if (!response.ok && data.error) {
+        console.error('GHL fields API error:', data.error, data.details);
       }
     } catch (error) {
       console.error('Failed to load GHL fields:', error);
@@ -737,31 +760,55 @@ export default function SurveyBuilderPage() {
                               Loading GHL fields...
                             </div>
                           ) : (
-                            <Select
-                              value={editingQuestion?.ghlFieldMapping && editingQuestion.ghlFieldMapping.trim() !== '' 
-                                ? editingQuestion.ghlFieldMapping 
-                                : 'none'}
-                              onValueChange={(value) => {
-                                setEditingQuestion({ 
-                                  ...editingQuestion, 
-                                  ghlFieldMapping: value === 'none' ? undefined : value
-                                });
-                              }}
-                            >
-                              <SelectTrigger className="mt-1">
-                                <SelectValue placeholder="No mapping (data won't be sent to GHL)" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">No mapping</SelectItem>
-                                {ghlFields
-                                  .filter(field => field.key && field.key.trim() !== '')
-                                  .map((field) => (
-                                    <SelectItem key={field.key} value={field.key}>
-                                      {field.name} {field.type === 'native' ? '(Native)' : '(Custom)'}
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
+                            <>
+                              <Select
+                                value={editingQuestion?.ghlFieldMapping && editingQuestion.ghlFieldMapping.trim() !== '' 
+                                  ? editingQuestion.ghlFieldMapping 
+                                  : 'none'}
+                                onValueChange={(value) => {
+                                  setEditingQuestion({ 
+                                    ...editingQuestion, 
+                                    ghlFieldMapping: value === 'none' ? undefined : value
+                                  });
+                                }}
+                              >
+                                <SelectTrigger className="mt-1">
+                                  <SelectValue placeholder="No mapping (data won't be sent to GHL)" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">No mapping</SelectItem>
+                                  {ghlFields
+                                    .filter(field => field.key && field.key.trim() !== '')
+                                    .map((field) => (
+                                      <SelectItem key={field.key} value={field.key}>
+                                        {field.name} {field.type === 'native' ? '(Native)' : field.fieldType === 'custom' ? '(Custom)' : ''}
+                                      </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                              <div className="mt-2 flex items-center justify-between">
+                                <p className="text-xs text-gray-500">
+                                  {ghlFields.length > 0 ? (
+                                    <>
+                                      {ghlFields.filter(f => f.type === 'native').length} native,{' '}
+                                      {ghlFields.filter(f => f.fieldType === 'custom').length} custom fields loaded
+                                    </>
+                                  ) : (
+                                    'No GHL fields available. Check your GHL connection in Settings.'
+                                  )}
+                                </p>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={loadGHLFields}
+                                  className="h-6 text-xs"
+                                >
+                                  <RotateCw className="h-3 w-3 mr-1" />
+                                  Refresh
+                                </Button>
+                              </div>
+                            </>
                           )}
                         </div>
 

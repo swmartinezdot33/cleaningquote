@@ -101,7 +101,30 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    const customFields = data.customFields || data.data || [];
+    
+    // Log the response structure for debugging
+    console.log('GHL Custom Fields API Response:', JSON.stringify(data, null, 2));
+    
+    // GHL API might return fields in different structures:
+    // - data.customFields
+    // - data.data
+    // - data (if it's an array)
+    // - data.customFields[] (array)
+    let customFields: any[] = [];
+    
+    if (Array.isArray(data)) {
+      customFields = data;
+    } else if (data.customFields && Array.isArray(data.customFields)) {
+      customFields = data.customFields;
+    } else if (data.data && Array.isArray(data.data)) {
+      customFields = data.data;
+    } else if (data.fields && Array.isArray(data.fields)) {
+      customFields = data.fields;
+    } else if (data.customField && Array.isArray(data.customField)) {
+      customFields = data.customField;
+    }
+
+    console.log(`Found ${customFields.length} custom fields from GHL API`);
 
     // Native GHL fields that can be mapped
     const nativeFields = [
@@ -114,19 +137,29 @@ export async function GET(request: NextRequest) {
     // Format custom fields and filter out invalid ones
     const formattedCustomFields = customFields
       .map((field: any) => {
-        const key = field.key || field.fieldKey || field.id;
+        // Try multiple possible key fields
+        const key = field.key || field.fieldKey || field.id || field._id || field.fieldId;
+        const name = field.name || field.label || field.title || 'Unnamed Field';
+        
         // Only include fields with valid keys
         if (!key || typeof key !== 'string' || key.trim() === '') {
+          console.warn('Skipping field with invalid key:', field);
           return null;
         }
-        return {
+        
+        const formatted = {
           key: key.trim(),
-          name: field.name || field.label || 'Unnamed Field',
-          type: field.dataType || 'text',
+          name: name.trim(),
+          type: field.dataType || field.type || 'text',
           fieldType: 'custom',
         };
+        
+        console.log('Formatted custom field:', formatted);
+        return formatted;
       })
       .filter((field: any) => field !== null);
+    
+    console.log(`Formatted ${formattedCustomFields.length} valid custom fields`);
 
     return NextResponse.json({
       success: true,

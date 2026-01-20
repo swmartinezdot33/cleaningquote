@@ -275,6 +275,97 @@ export default function Home() {
     }
   }, [currentStep, mounted]);
 
+  // Detect browser autofill and auto-advance
+  useEffect(() => {
+    if (!mounted || !currentQuestion) return;
+    
+    // Only detect autofill for text, email, and tel input types
+    if (!['text', 'email', 'tel'].includes(currentQuestion.type)) return;
+
+    const inputElement = document.getElementById(currentQuestion.id) as HTMLInputElement;
+    if (!inputElement) return;
+
+    let lastValue = inputElement.value || '';
+    let autofillTimeout: NodeJS.Timeout | null = null;
+    let hasUserTyped = false;
+
+    // Track if user is typing (to avoid false positives)
+    const handleInput = () => {
+      hasUserTyped = true;
+    };
+
+    const handleChange = () => {
+      // If value changed and user didn't type, it's likely autofill
+      if (!hasUserTyped && inputElement.value && inputElement.value.trim() !== '' && inputElement.value !== lastValue) {
+        // Clear any existing timeout
+        if (autofillTimeout) {
+          clearTimeout(autofillTimeout);
+        }
+        
+        // Wait a moment to ensure autofill is complete, then advance
+        autofillTimeout = setTimeout(() => {
+          if (inputElement.value && inputElement.value.trim() !== '') {
+            // Validate and move to next step or submit if last question
+            trigger(currentQuestion.id as any).then((isValid) => {
+              if (isValid) {
+                if (currentStep < questions.length - 1) {
+                  setDirection(1);
+                  setCurrentStep(currentStep + 1);
+                } else {
+                  // Last question - submit the form
+                  handleFormSubmit();
+                }
+              }
+            });
+          }
+        }, 600);
+      }
+      lastValue = inputElement.value;
+      hasUserTyped = false;
+    };
+
+    // Also check periodically for autofill (some browsers don't fire change events)
+    const checkInterval = setInterval(() => {
+      if (inputElement.value && inputElement.value !== lastValue && inputElement.value.trim() !== '' && !hasUserTyped) {
+        // Input is focused and value appeared - likely autofill
+        if (document.activeElement === inputElement) {
+          if (autofillTimeout) {
+            clearTimeout(autofillTimeout);
+          }
+          autofillTimeout = setTimeout(() => {
+            if (inputElement.value && inputElement.value.trim() !== '') {
+              trigger(currentQuestion.id as any).then((isValid) => {
+                if (isValid) {
+                  if (currentStep < questions.length - 1) {
+                    setDirection(1);
+                    setCurrentStep(currentStep + 1);
+                  } else {
+                    // Last question - submit the form
+                    handleFormSubmit();
+                  }
+                }
+              });
+            }
+          }, 600);
+        }
+        lastValue = inputElement.value;
+      }
+    }, 300);
+
+    inputElement.addEventListener('input', handleInput);
+    inputElement.addEventListener('change', handleChange);
+
+    // Cleanup
+    return () => {
+      inputElement.removeEventListener('input', handleInput);
+      inputElement.removeEventListener('change', handleChange);
+      if (autofillTimeout) {
+        clearTimeout(autofillTimeout);
+      }
+      clearInterval(checkInterval);
+    };
+  }, [currentStep, mounted, currentQuestion, trigger, questions, setDirection, setCurrentStep, handleFormSubmit]);
+
   const loadWidgetSettings = async () => {
     try {
       const response = await fetch('/api/admin/widget-settings');
