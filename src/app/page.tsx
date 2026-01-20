@@ -12,24 +12,41 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { Copy, ChevronLeft, ChevronRight, Sparkles, Calendar, Clock, Loader2, Check } from 'lucide-react';
+import { SurveyQuestion } from '@/lib/kv';
 
-const quoteSchema = z.object({
-  firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
-  email: z.string().email('Valid email is required'),
-  phone: z.string().min(10, 'Valid phone number is required'),
-  squareFeet: z.number().positive('Square footage must be a positive number'),
-  serviceType: z.string().min(1, 'Please select a service type'),
-  frequency: z.string().min(1, 'Please select a frequency'),
-  fullBaths: z.number().int().min(0, 'Number of full baths must be 0 or greater'),
-  halfBaths: z.number().int().min(0, 'Number of half baths must be 0 or greater'),
-  bedrooms: z.number().int().min(0, 'Number of bedrooms must be 0 or greater'),
-  people: z.number().int().min(0, 'Number of people must be 0 or greater'),
-  sheddingPets: z.number().int().min(0, 'Number of shedding pets must be 0 or greater'),
-  condition: z.string().min(1, 'Please describe the condition of your home'),
-});
+/**
+ * Generate dynamic zod schema from survey questions
+ */
+function generateSchemaFromQuestions(questions: SurveyQuestion[]): z.ZodObject<any> {
+  const schemaShape: Record<string, z.ZodTypeAny> = {};
 
-type QuoteFormData = z.infer<typeof quoteSchema>;
+  questions.forEach((question) => {
+    if (question.type === 'number') {
+      schemaShape[question.id] = question.required
+        ? z.number({ required_error: `${question.label} is required` }).int().min(0, `${question.label} must be 0 or greater`)
+        : z.number().int().min(0).optional();
+    } else if (question.type === 'email') {
+      schemaShape[question.id] = question.required
+        ? z.string().min(1, `${question.label} is required`).email('Valid email is required')
+        : z.string().email().optional();
+    } else if (question.type === 'tel') {
+      schemaShape[question.id] = question.required
+        ? z.string().min(10, 'Valid phone number is required')
+        : z.string().optional();
+    } else if (question.type === 'select') {
+      schemaShape[question.id] = question.required
+        ? z.string().min(1, `Please select ${question.label.toLowerCase()}`)
+        : z.string().optional();
+    } else {
+      // text type
+      schemaShape[question.id] = question.required
+        ? z.string().min(1, `${question.label} is required`)
+        : z.string().optional();
+    }
+  });
+
+  return z.object(schemaShape);
+}
 
 interface QuoteResponse {
   outOfLimits: boolean;
@@ -55,13 +72,15 @@ interface QuoteResponse {
   ghlContactId?: string;
 }
 
-const questions = [
+// Default questions (fallback if none are configured)
+const defaultQuestions: SurveyQuestion[] = [
   {
     id: 'firstName',
     label: "What's your first name?",
     type: 'text',
     placeholder: 'John',
     required: true,
+    order: 0,
   },
   {
     id: 'lastName',
@@ -69,6 +88,7 @@ const questions = [
     type: 'text',
     placeholder: 'Doe',
     required: true,
+    order: 1,
   },
   {
     id: 'email',
@@ -76,6 +96,7 @@ const questions = [
     type: 'email',
     placeholder: 'john@example.com',
     required: true,
+    order: 2,
   },
   {
     id: 'phone',
@@ -83,6 +104,7 @@ const questions = [
     type: 'tel',
     placeholder: '(555) 123-4567',
     required: true,
+    order: 3,
   },
   {
     id: 'squareFeet',
@@ -90,6 +112,7 @@ const questions = [
     type: 'number',
     placeholder: '1500',
     required: true,
+    order: 4,
   },
   {
     id: 'serviceType',
@@ -103,6 +126,7 @@ const questions = [
       { value: 'recurring', label: 'Recurring Clean' },
     ],
     required: true,
+    order: 5,
   },
   {
     id: 'frequency',
@@ -115,6 +139,7 @@ const questions = [
       { value: 'one-time', label: 'One-Time' },
     ],
     required: true,
+    order: 6,
   },
   {
     id: 'fullBaths',
@@ -122,6 +147,7 @@ const questions = [
     type: 'number',
     placeholder: '2',
     required: true,
+    order: 7,
   },
   {
     id: 'halfBaths',
@@ -129,6 +155,7 @@ const questions = [
     type: 'number',
     placeholder: '1',
     required: true,
+    order: 8,
   },
   {
     id: 'bedrooms',
@@ -136,6 +163,7 @@ const questions = [
     type: 'number',
     placeholder: '3',
     required: true,
+    order: 9,
   },
   {
     id: 'people',
@@ -143,6 +171,7 @@ const questions = [
     type: 'number',
     placeholder: '2',
     required: true,
+    order: 10,
   },
   {
     id: 'sheddingPets',
@@ -150,6 +179,7 @@ const questions = [
     type: 'number',
     placeholder: '1',
     required: true,
+    order: 11,
   },
   {
     id: 'condition',
@@ -163,6 +193,7 @@ const questions = [
       { value: 'very-poor', label: 'Very Poor - Heavily soiled' },
     ],
     required: true,
+    order: 12,
   },
 ];
 
@@ -183,11 +214,30 @@ export default function Home() {
   const [widgetTitle, setWidgetTitle] = useState('Raleigh Cleaning Company');
   const [widgetSubtitle, setWidgetSubtitle] = useState("Let's get your professional cleaning price!");
   const [primaryColor, setPrimaryColor] = useState('#f61590');
+  const [questions, setQuestions] = useState<SurveyQuestion[]>(defaultQuestions);
+  const [quoteSchema, setQuoteSchema] = useState<z.ZodObject<any>>(generateSchemaFromQuestions(defaultQuestions));
 
   useEffect(() => {
     setMounted(true);
     loadWidgetSettings();
+    loadSurveyQuestions();
   }, []);
+
+  const loadSurveyQuestions = async () => {
+    try {
+      const response = await fetch('/api/survey-questions');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.questions && data.questions.length > 0) {
+          setQuestions(data.questions);
+          setQuoteSchema(generateSchemaFromQuestions(data.questions));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load survey questions:', error);
+      // Use default questions on error
+    }
+  };
 
   // Auto-focus input when step changes
   useEffect(() => {
@@ -240,6 +290,19 @@ export default function Home() {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
 
+  // Generate default values from questions
+  const getDefaultValues = () => {
+    const defaults: Record<string, any> = {};
+    questions.forEach((q) => {
+      if (q.type === 'number') {
+        defaults[q.id] = 0;
+      } else {
+        defaults[q.id] = '';
+      }
+    });
+    return defaults;
+  };
+
   const {
     register,
     handleSubmit,
@@ -247,24 +310,16 @@ export default function Home() {
     formState: { errors },
     trigger,
     getValues,
-  } = useForm<QuoteFormData>({
+    reset,
+  } = useForm({
     resolver: zodResolver(quoteSchema),
-    defaultValues: {
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      squareFeet: undefined,
-      serviceType: '',
-      frequency: '',
-      fullBaths: 0,
-      halfBaths: 0,
-      bedrooms: 0,
-      people: 0,
-      sheddingPets: 0,
-      condition: '',
-    },
+    defaultValues: getDefaultValues(),
   });
+
+  // Reset form when questions change
+  useEffect(() => {
+    reset(getDefaultValues());
+  }, [questions]);
 
   const progress = ((currentStep + 1) / questions.length) * 100;
 
@@ -283,7 +338,7 @@ export default function Home() {
 
   const nextStep = async () => {
     const currentQuestion = questions[currentStep];
-    const isValid = await trigger(currentQuestion.id as keyof QuoteFormData);
+    const isValid = await trigger(currentQuestion.id as any);
     
     if (isValid) {
       setDirection(1);
@@ -762,7 +817,7 @@ export default function Home() {
                         type="text"
                         placeholder={currentQuestion.placeholder}
                         className="h-14 text-lg"
-                        {...register(currentQuestion.id as keyof QuoteFormData)}
+                        {...register(currentQuestion.id as any)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
@@ -778,7 +833,7 @@ export default function Home() {
                         type="email"
                         placeholder={currentQuestion.placeholder}
                         className="h-14 text-lg"
-                        {...register(currentQuestion.id as keyof QuoteFormData)}
+                        {...register(currentQuestion.id as any)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
@@ -794,7 +849,7 @@ export default function Home() {
                         type="tel"
                         placeholder={currentQuestion.placeholder}
                         className="h-14 text-lg"
-                        {...register(currentQuestion.id as keyof QuoteFormData)}
+                        {...register(currentQuestion.id as any)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
@@ -811,7 +866,7 @@ export default function Home() {
                         step="1"
                         placeholder={currentQuestion.placeholder}
                         className="h-14 text-lg"
-                        {...register(currentQuestion.id as keyof QuoteFormData, { valueAsNumber: true })}
+                        {...register(currentQuestion.id as any, { valueAsNumber: true })}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
@@ -823,7 +878,7 @@ export default function Home() {
 
                     {currentQuestion.type === 'select' && (
                       <Controller
-                        name={currentQuestion.id as keyof QuoteFormData & 'serviceType' | 'frequency' | 'condition'}
+                        name={currentQuestion.id as any}
                         control={control}
                         render={({ field }) => (
                           <Select onValueChange={(value) => {
@@ -854,13 +909,13 @@ export default function Home() {
                       />
                     )}
 
-                    {errors[currentQuestion.id as keyof QuoteFormData] && (
+                    {errors[currentQuestion.id as any] && (
                       <motion.p
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         className="text-sm text-red-500 mt-2"
                       >
-                        {errors[currentQuestion.id as keyof QuoteFormData]?.message}
+                        {(errors[currentQuestion.id as any] as any)?.message}
                       </motion.p>
                     )}
                   </motion.div>

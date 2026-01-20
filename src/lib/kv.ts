@@ -5,6 +5,7 @@ const GHL_TOKEN_KEY = 'ghl:api:token';
 const GHL_LOCATION_ID_KEY = 'ghl:location:id';
 const GHL_CONFIG_KEY = 'ghl:config';
 const WIDGET_SETTINGS_KEY = 'widget:settings';
+const SURVEY_QUESTIONS_KEY = 'survey:questions';
 
 /**
  * Check if KV is configured
@@ -181,5 +182,55 @@ export async function getGHLConfig(): Promise<{
     return config as any;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Survey Question Types
+ */
+export interface SurveyQuestionOption {
+  value: string;
+  label: string;
+}
+
+export interface SurveyQuestion {
+  id: string;
+  label: string;
+  type: 'text' | 'email' | 'tel' | 'number' | 'select';
+  placeholder?: string;
+  required: boolean;
+  options?: SurveyQuestionOption[];
+  order: number;
+}
+
+/**
+ * Store survey questions
+ */
+export async function storeSurveyQuestions(questions: SurveyQuestion[]): Promise<void> {
+  try {
+    const kv = getKV();
+    // Sort by order before storing
+    const sortedQuestions = [...questions].sort((a, b) => a.order - b.order);
+    await kv.set(SURVEY_QUESTIONS_KEY, sortedQuestions);
+  } catch (error) {
+    console.error('Error storing survey questions:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get survey questions
+ */
+export async function getSurveyQuestions(): Promise<SurveyQuestion[]> {
+  try {
+    const kv = getKV();
+    const questions = await kv.get<SurveyQuestion[]>(SURVEY_QUESTIONS_KEY);
+    if (!questions || !Array.isArray(questions)) {
+      return [];
+    }
+    // Ensure sorted by order
+    return questions.sort((a, b) => a.order - b.order);
+  } catch {
+    return [];
   }
 }
