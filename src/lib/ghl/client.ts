@@ -18,7 +18,7 @@ import {
   GHLAPIError,
 } from './types';
 
-const GHL_API_BASE = 'https://rest.gohighlevel.com/v1';
+const GHL_API_BASE = 'https://services.leadconnectorhq.com';
 
 /**
  * Make authenticated request to GHL API
@@ -37,6 +37,7 @@ async function makeGHLRequest<T>(
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
+        'Version': '2021-07-28', // Required for API v2
       },
     };
 
@@ -80,7 +81,8 @@ export async function createOrUpdateContact(
       }),
     };
 
-    // GHL uses /contacts/upsert for create or update
+    // GHL v2 uses /contacts/upsert for create or update
+    // Note: locationId should be in payload if needed - will be added by caller if required
     const response = await makeGHLRequest<{ contact: GHLContactResponse }>(
       '/contacts/upsert',
       'POST',
@@ -229,13 +231,14 @@ export async function testGHLConnection(token?: string): Promise<{ success: bool
       return { success: false, error: 'Token appears to be invalid (too short)' };
     }
 
-    // Test with an endpoint we actually use - GET /contacts with limit=1
-    // This uses contacts.write scope which we require for the integration
+    // Test with an endpoint we actually use - GET /contacts 
+    // For API v2, we need the Version header
     const response = await fetch(`${GHL_API_BASE}/contacts?limit=1`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${testToken.trim()}`,
         'Content-Type': 'application/json',
+        'Version': '2021-07-28', // Required for API v2
       },
     });
 

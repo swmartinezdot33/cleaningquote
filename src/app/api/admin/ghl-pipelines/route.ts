@@ -31,43 +31,49 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch user profile to get location ID
+    // For API v2, fetch locations first to get location ID
     let locationId: string | null = null;
     let locationName: string | null = null;
     
     try {
-      const profileResponse = await fetch('https://rest.gohighlevel.com/v1/users/profile', {
+      // Fetch locations list (first location in v2 API)
+      const locationsResponse = await fetch('https://services.leadconnectorhq.com/locations', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
+          'Version': '2021-07-28',
         },
       });
 
-      if (profileResponse.ok) {
-        const profileData = await profileResponse.json();
-        locationId = profileData.data?.locationId || profileData.locationId;
-        locationName = profileData.data?.companyName || 'My Location';
+      if (locationsResponse.ok) {
+        const locationsData = await locationsResponse.json();
+        const locations = locationsData.locations || locationsData.data || [];
+        if (locations.length > 0) {
+          locationId = locations[0].id;
+          locationName = locations[0].name || 'My Location';
+        }
       }
     } catch (error) {
-      console.warn('Failed to fetch user profile:', error);
+      console.warn('Failed to fetch locations:', error);
     }
 
     if (!locationId) {
       return NextResponse.json(
-        { error: 'Could not determine location ID from GHL profile' },
+        { error: 'Could not determine location ID. Please ensure your PIT token has locations.read scope.' },
         { status: 400 }
       );
     }
 
-    // Fetch pipelines for this location
+    // Fetch pipelines for this location (API v2)
     const pipelinesResponse = await fetch(
-      `https://rest.gohighlevel.com/v1/locations/${locationId}/pipelines`,
+      `https://services.leadconnectorhq.com/locations/${locationId}/pipelines`,
       {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
+          'Version': '2021-07-28',
         },
       }
     );
