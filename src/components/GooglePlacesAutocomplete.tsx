@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 
 interface GooglePlacesAutocompleteProps {
   id: string;
-  label: string;
+  label?: string;
   placeholder?: string;
   required?: boolean;
   primaryColor?: string;
@@ -118,10 +118,12 @@ export function GooglePlacesAutocomplete({
 
   return (
     <div className="space-y-2">
-      <Label htmlFor={id} className="text-2xl font-semibold text-gray-900 block">
-        {label}
-        {required && <span className="ml-1" style={{ color: primaryColor }}>*</span>}
-      </Label>
+      {label && (
+        <Label htmlFor={id} className="text-2xl font-semibold text-gray-900 block">
+          {label}
+          {required && <span className="ml-1" style={{ color: primaryColor }}>*</span>}
+        </Label>
+      )}
       <div className="relative">
         <Input
           ref={inputRef}

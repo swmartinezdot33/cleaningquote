@@ -1431,7 +1431,6 @@ export default function Home() {
                     {currentQuestion.type === 'address' && (
                       <GooglePlacesAutocomplete
                         id={currentQuestion.id}
-                        label={currentQuestion.label}
                         placeholder={currentQuestion.placeholder}
                         required={currentQuestion.required}
                         primaryColor={primaryColor}
