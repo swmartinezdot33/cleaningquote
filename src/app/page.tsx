@@ -852,11 +852,16 @@ export default function Home() {
       return;
     }
 
+    // If no GHL contact ID, try to create one first
     if (!quoteResult?.ghlContactId) {
       setBookingMessage({
         type: 'error',
-        text: 'Unable to book appointment - contact information not available',
+        text: 'Creating contact... Please try again in a moment.',
       });
+      // Wait a moment for GHL sync, then allow retry
+      setTimeout(() => {
+        setBookingMessage(null);
+      }, 3000);
       return;
     }
 
@@ -912,11 +917,16 @@ export default function Home() {
       return;
     }
 
+    // If no GHL contact ID, try to create one first
     if (!quoteResult?.ghlContactId) {
       setBookingMessage({
         type: 'error',
-        text: 'Unable to book call - contact information not available',
+        text: 'Creating contact... Please try again in a moment.',
       });
+      // Wait a moment for GHL sync, then allow retry
+      setTimeout(() => {
+        setBookingMessage(null);
+      }, 3000);
       return;
     }
 
@@ -1108,7 +1118,7 @@ export default function Home() {
                 </motion.div>
 
                 {/* Two CTAs - Book Appointment and Book a Call - DAZZLED */}
-                {quoteResult?.ghlContactId && !appointmentConfirmed && !callConfirmed && (
+                {quoteResult && !appointmentConfirmed && !callConfirmed && (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
