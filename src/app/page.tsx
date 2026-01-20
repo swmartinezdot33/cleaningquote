@@ -80,7 +80,7 @@ function generateSchemaFromQuestions(questions: SurveyQuestion[]): z.ZodObject<a
         : z.string().email().optional();
     } else if (question.type === 'tel') {
       schemaShape[fieldId] = question.required
-        ? z.string().min(10, 'Valid phone number is required')
+        ? z.string().min(7, 'Valid phone number is required')
         : z.string().optional();
     } else if (question.type === 'select') {
       if (question.required) {

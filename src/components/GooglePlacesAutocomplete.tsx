@@ -39,149 +39,68 @@ export function GooglePlacesAutocomplete({
   onKeyDown,
 }: GooglePlacesAutocompleteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const autocompleteRef = useRef<any>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize Google Places Autocomplete using the new PlacesService
+  // Simple address collection without complex Google Places APIs
+  // We'll just collect the address and provide basic geocoding on blur
   useEffect(() => {
-    const initAutocomplete = () => {
-      if (!window.google) {
-        console.warn('Google Maps API not loaded');
-        setError('Google Maps API is not available');
-        return;
-      }
-
-      if (inputRef.current && !autocompleteRef.current) {
-        try {
-          // Try to use the new PlaceAutocompleteElement if available (Maps JS v3.54+)
-          // Fall back to the older Autocomplete API if not available
-          if (window.google.maps.places?.PlacesService) {
-            // Use traditional Autocomplete with the places service
-            const autocomplete = new window.google.maps.places.AutocompleteService();
-            const placesService = new window.google.maps.places.PlacesService(document.createElement('div'));
-            
-            autocompleteRef.current = { autocomplete, placesService };
-            
-            // Setup input listener for autocomplete suggestions
-            let predictions: any[] = [];
-            inputRef.current.addEventListener('input', async (e: Event) => {
-              const input = e.target as HTMLInputElement;
-              if (input.value.length > 2) {
-                try {
-                  const result = await autocomplete.getPlacePredictions({
-                    input: input.value,
-                    componentRestrictions: { country: 'us' },
-                    types: ['geocode'],
-                  });
-                  predictions = result.predictions || [];
-                } catch (err) {
-                  console.warn('Autocomplete prediction error:', err);
-                }
-              }
-            });
-
-            inputRef.current.addEventListener('blur', () => {
-              // On blur, try to get place details if there's text
-              if (inputRef.current?.value) {
-                attemptGetPlaceDetails(inputRef.current.value, placesService);
-              }
-            });
-
-            setIsLoaded(true);
-          } else {
-            // Fallback to old Autocomplete API
-            const autocomplete = new window.google.maps.places.Autocomplete(
-              inputRef.current,
-              {
-                types: ['geocode'],
-                componentRestrictions: { country: 'us' },
-                fields: ['formatted_address', 'geometry'],
-              }
-            );
-
-            autocomplete.addListener('place_changed', () => {
-              const place = autocomplete.getPlace();
-              if (!place.geometry) {
-                console.warn('No geometry data for place');
-                return;
-              }
-
-              const placeDetails: PlaceDetails = {
-                lat: place.geometry.location.lat(),
-                lng: place.geometry.location.lng(),
-                formattedAddress: place.formatted_address || inputRef.current?.value || '',
-              };
-
-              if (onChange) {
-                onChange(placeDetails.formattedAddress, placeDetails);
-              }
-              setError(null);
-            });
-
-            autocompleteRef.current = autocomplete;
-            setIsLoaded(true);
-          }
-        } catch (err) {
-          console.error('Error initializing Google Places:', err);
-          setError('Failed to initialize address suggestions');
-        }
+    const checkApiLoaded = () => {
+      if (window.google?.maps?.Geocoder) {
+        setIsLoaded(true);
       }
     };
 
-    const attemptGetPlaceDetails = (address: string, placesService: any) => {
-      try {
-        placesService.findPlaceFromQuery(
-          { query: address, fields: ['formatted_address', 'geometry', 'name'] },
-          (results: any[], status: string) => {
-            if (status === window.google.maps.places.PlacesServiceStatus.OK && results?.[0]) {
-              const place = results[0];
-              const placeDetails: PlaceDetails = {
-                lat: place.geometry?.location?.lat?.() || 0,
-                lng: place.geometry?.location?.lng?.() || 0,
-                formattedAddress: place.formatted_address || address,
-              };
-              if (onChange) {
-                onChange(placeDetails.formattedAddress, placeDetails);
-              }
-              setError(null);
-            }
-          }
-        );
-      } catch (err) {
-        console.warn('Could not get place details:', err);
-      }
-    };
+    // Check immediately
+    checkApiLoaded();
 
-    // Check if Google Maps API is loaded immediately
-    if (window.google) {
-      initAutocomplete();
-    } else {
-      // Wait for Google Maps API to load
+    // If not loaded, wait for it
+    if (!isLoaded && inputRef.current) {
       const checkInterval = setInterval(() => {
-        if (window.google && inputRef.current) {
-          initAutocomplete();
-          clearInterval(checkInterval);
-        }
+        checkApiLoaded();
       }, 100);
 
       return () => clearInterval(checkInterval);
     }
+  }, [isLoaded]);
 
-    return () => {
-      if (autocompleteRef.current) {
-        if (autocompleteRef.current.autocomplete) {
-          // New API - cleanup
-          if (window.google?.maps?.event?.clearInstanceListeners) {
-            window.google.maps.event.clearInstanceListeners(autocompleteRef.current.autocomplete);
-          }
-        } else if (window.google?.maps?.event?.clearInstanceListeners) {
-          // Old API - cleanup
-          window.google.maps.event.clearInstanceListeners(autocompleteRef.current);
-        }
+  const handleBlur = async () => {
+    if (!inputRef.current?.value) return;
+
+    try {
+      if (!window.google?.maps?.Geocoder) {
+        console.warn('Google Maps Geocoder not available');
+        return;
       }
-    };
-  }, [onChange]);
+
+      const geocoder = new window.google.maps.Geocoder();
+
+      // Try to geocode the address to get coordinates
+      geocoder.geocode(
+        { address: inputRef.current.value, componentRestrictions: { country: 'us' } },
+        (results: any[], status: string) => {
+          if (status === 'OK' && results?.[0]) {
+            const place = results[0];
+            const placeDetails: PlaceDetails = {
+              lat: place.geometry?.location?.lat?.() || 0,
+              lng: place.geometry?.location?.lng?.() || 0,
+              formattedAddress: place.formatted_address || inputRef.current?.value || '',
+            };
+
+            if (onChange) {
+              onChange(placeDetails.formattedAddress, placeDetails);
+            }
+            setError(null);
+          } else if (status !== 'ZERO_RESULTS') {
+            console.warn('Geocoding error:', status);
+          }
+        }
+      );
+    } catch (err) {
+      console.error('Error during geocoding:', err);
+      // Still allow the user to submit with just the text address
+    }
+  };
 
   return (
     <div className="space-y-2">
@@ -196,7 +115,7 @@ export function GooglePlacesAutocomplete({
           ref={inputRef}
           id={id}
           type="text"
-          placeholder={placeholder || 'Start typing your address...'}
+          placeholder={placeholder || 'Enter your address'}
           className="h-14 text-lg"
           value={value || ''}
           onChange={(e) => {
@@ -204,6 +123,7 @@ export function GooglePlacesAutocomplete({
               onChange(e.target.value);
             }
           }}
+          onBlur={handleBlur}
           onKeyDown={onKeyDown}
           autoComplete="off"
         />
@@ -213,7 +133,7 @@ export function GooglePlacesAutocomplete({
             animate={{ opacity: 1 }}
             className="absolute right-3 top-4 text-xs text-gray-400"
           >
-            Loading suggestions...
+            Loading maps...
           </motion.div>
         )}
       </div>
