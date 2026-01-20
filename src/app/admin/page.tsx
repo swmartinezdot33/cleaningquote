@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Upload, Save, Plus, Trash2, Download, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Upload, Save, Plus, Trash2, Download, Eye, EyeOff, Loader2, Table } from 'lucide-react';
 
 const priceRangeSchema = z.object({
   low: z.number().min(0),
@@ -48,7 +48,7 @@ type PricingTableFormData = z.infer<typeof pricingTableSchema>;
 export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [uploadMode, setUploadMode] = useState<'upload' | 'manual'>('upload');
+  const [uploadMode, setUploadMode] = useState<'upload' | 'manual' | 'view'>('upload');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -282,7 +282,7 @@ export default function AdminPage() {
         </div>
 
         {/* Mode Toggle */}
-        <div className="mb-6 flex gap-4">
+        <div className="mb-6 flex gap-4 flex-wrap">
           <Button
             onClick={() => setUploadMode('upload')}
             variant={uploadMode === 'upload' ? 'default' : 'outline'}
@@ -302,6 +302,17 @@ export default function AdminPage() {
             <Eye className="h-4 w-4" />
             Manual Configuration
           </Button>
+          <Button
+            onClick={() => {
+              setUploadMode('view');
+              loadPricingData();
+            }}
+            variant={uploadMode === 'view' ? 'default' : 'outline'}
+            className="flex items-center gap-2"
+          >
+            <Table className="h-4 w-4" />
+            View Pricing Structure
+          </Button>
         </div>
 
         {/* Save Message */}
@@ -318,7 +329,121 @@ export default function AdminPage() {
         )}
 
         <AnimatePresence mode="wait">
-          {uploadMode === 'upload' ? (
+          {uploadMode === 'view' ? (
+            <motion.div
+              key="view"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <Card className="shadow-xl border-2">
+                <CardHeader>
+                  <CardTitle>Current Pricing Structure</CardTitle>
+                  <CardDescription>
+                    Visual overview of all configured pricing rows and ranges
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {currentPricing && currentPricing.rows && currentPricing.rows.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse border border-gray-300 text-sm">
+                        <thead>
+                          <tr className="bg-gray-100">
+                            <th className="border border-gray-300 px-4 py-2 text-left font-semibold">Sq Ft Range</th>
+                            <th className="border border-gray-300 px-4 py-2 text-center font-semibold">Weekly</th>
+                            <th className="border border-gray-300 px-4 py-2 text-center font-semibold">Bi-Weekly</th>
+                            <th className="border border-gray-300 px-4 py-2 text-center font-semibold">4 Week</th>
+                            <th className="border border-gray-300 px-4 py-2 text-center font-semibold">General</th>
+                            <th className="border border-gray-300 px-4 py-2 text-center font-semibold">Deep</th>
+                            <th className="border border-gray-300 px-4 py-2 text-center font-semibold">Move In/Out Basic</th>
+                            <th className="border border-gray-300 px-4 py-2 text-center font-semibold">Move In/Out Full</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {currentPricing.rows.map((row: any, index: number) => (
+                            <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                              <td className="border border-gray-300 px-4 py-2 font-medium">
+                                {row.sqFtRange?.min} - {row.sqFtRange?.max}
+                              </td>
+                              <td className="border border-gray-300 px-4 py-2 text-center">
+                                ${row.weekly?.low} - ${row.weekly?.high}
+                              </td>
+                              <td className="border border-gray-300 px-4 py-2 text-center">
+                                ${row.biWeekly?.low} - ${row.biWeekly?.high}
+                              </td>
+                              <td className="border border-gray-300 px-4 py-2 text-center">
+                                ${row.fourWeek?.low} - ${row.fourWeek?.high}
+                              </td>
+                              <td className="border border-gray-300 px-4 py-2 text-center">
+                                ${row.general?.low} - ${row.general?.high}
+                              </td>
+                              <td className="border border-gray-300 px-4 py-2 text-center">
+                                ${row.deep?.low} - ${row.deep?.high}
+                              </td>
+                              <td className="border border-gray-300 px-4 py-2 text-center">
+                                ${row.moveInOutBasic?.low} - ${row.moveInOutBasic?.high}
+                              </td>
+                              <td className="border border-gray-300 px-4 py-2 text-center">
+                                ${row.moveInOutFull?.low} - ${row.moveInOutFull?.high}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                        <p className="text-sm text-blue-800">
+                          <strong>Total Rows:</strong> {currentPricing.rows.length} | 
+                          <strong> Max Square Footage:</strong> {currentPricing.maxSqFt || 'N/A'}
+                        </p>
+                      </div>
+                      <div className="mt-4 flex gap-2">
+                        <Button
+                          onClick={() => {
+                            setUploadMode('manual');
+                            loadPricingData();
+                          }}
+                          variant="outline"
+                        >
+                          Edit Pricing
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            loadPricingData();
+                          }}
+                          variant="outline"
+                        >
+                          Refresh
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <p className="mb-4">No pricing data found.</p>
+                      <div className="flex gap-2 justify-center">
+                        <Button
+                          onClick={() => {
+                            setUploadMode('upload');
+                          }}
+                          variant="outline"
+                        >
+                          Upload Excel File
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setUploadMode('manual');
+                            loadPricingData();
+                          }}
+                          variant="outline"
+                        >
+                          Add Pricing Manually
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          ) : uploadMode === 'upload' ? (
             <motion.div
               key="upload"
               initial={{ opacity: 0, x: -20 }}
