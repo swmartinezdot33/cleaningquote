@@ -131,36 +131,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-/**
- * GET /api/surveys/questions/[id]
- * Get a single question by ID
- */
-export async function getQuestionById(id: string) {
-  try {
-    const question = await getQuestion(id);
-    if (!question) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Question not found',
-        },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      question,
-    });
-  } catch (error) {
-    console.error('Error getting question:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to get question',
-      },
-      { status: 500 }
-    );
-  }
-}
