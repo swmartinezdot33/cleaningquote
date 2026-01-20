@@ -64,7 +64,19 @@ export default function SurveyBuilderPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setGhlFields(data.fields || []);
+        // Filter out any fields with empty or invalid keys
+        const validFields = (data.fields || []).filter((field: any) => 
+          field && field.key && typeof field.key === 'string' && field.key.trim() !== ''
+        );
+        setGhlFields(validFields);
+      } else {
+        // If API fails, use fallback native fields
+        setGhlFields([
+          { key: 'firstName', name: 'First Name', type: 'native' },
+          { key: 'lastName', name: 'Last Name', type: 'native' },
+          { key: 'email', name: 'Email', type: 'native' },
+          { key: 'phone', name: 'Phone', type: 'native' },
+        ]);
       }
     } catch (error) {
       console.error('Failed to load GHL fields:', error);
@@ -402,8 +414,14 @@ export default function SurveyBuilderPage() {
     }
 
     const newQuestions = [...questions];
+    // Clean up ghlFieldMapping - remove if empty or undefined
+    const cleanedGhlFieldMapping = editingQuestion.ghlFieldMapping && editingQuestion.ghlFieldMapping.trim() !== ''
+      ? editingQuestion.ghlFieldMapping.trim()
+      : undefined;
+    
     newQuestions[editingIndex] = {
       ...editingQuestion,
+      ghlFieldMapping: cleanedGhlFieldMapping,
       order: editingIndex,
     } as SurveyQuestion;
     setQuestions(newQuestions);
@@ -720,11 +738,13 @@ export default function SurveyBuilderPage() {
                             </div>
                           ) : (
                             <Select
-                              value={editingQuestion?.ghlFieldMapping || ''}
+                              value={editingQuestion?.ghlFieldMapping && editingQuestion.ghlFieldMapping.trim() !== '' 
+                                ? editingQuestion.ghlFieldMapping 
+                                : 'none'}
                               onValueChange={(value) => {
                                 setEditingQuestion({ 
                                   ...editingQuestion, 
-                                  ghlFieldMapping: value || undefined 
+                                  ghlFieldMapping: value === 'none' ? undefined : value
                                 });
                               }}
                             >
@@ -732,12 +752,14 @@ export default function SurveyBuilderPage() {
                                 <SelectValue placeholder="No mapping (data won't be sent to GHL)" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="">No mapping</SelectItem>
-                                {ghlFields.map((field) => (
-                                  <SelectItem key={field.key} value={field.key}>
-                                    {field.name} {field.type === 'native' ? '(Native)' : '(Custom)'}
-                                  </SelectItem>
-                                ))}
+                                <SelectItem value="none">No mapping</SelectItem>
+                                {ghlFields
+                                  .filter(field => field.key && field.key.trim() !== '')
+                                  .map((field) => (
+                                    <SelectItem key={field.key} value={field.key}>
+                                      {field.name} {field.type === 'native' ? '(Native)' : '(Custom)'}
+                                    </SelectItem>
+                                  ))}
                               </SelectContent>
                             </Select>
                           )}

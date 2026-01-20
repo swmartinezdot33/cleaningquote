@@ -579,6 +579,30 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
+                {/* Field Mapping Section */}
+                <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-blue-600" />
+                        Field Mapping
+                      </h4>
+                      <p className="text-sm text-gray-700 mb-3">
+                        Map your survey questions to GHL fields (native fields like firstName, lastName, email, phone, or custom fields). 
+                        Edit each question in the Survey Builder and select which GHL field it should map to.
+                      </p>
+                      <Button
+                        onClick={() => router.push('/admin/survey-builder')}
+                        variant="default"
+                        className="flex items-center gap-2"
+                      >
+                        <FileText className="h-4 w-4" />
+                        Go to Survey Builder
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
                 {ghlTokenDisplay && ghlTokenDisplay !== '••••••••••••••••' && (
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <p className="text-sm text-blue-800">

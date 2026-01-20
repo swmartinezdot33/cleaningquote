@@ -56,7 +56,47 @@ export async function GET(request: NextRequest) {
     );
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorText = await response.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { message: response.statusText };
+      }
+      
+      // If it's a 401 or 403, provide more helpful error message
+      if (response.status === 401) {
+        return NextResponse.json(
+          { 
+            error: 'Unauthorized. Please check your GHL token and ensure it has the correct scopes.',
+            details: errorData.message || 'Invalid or expired token',
+            fields: [
+              { key: 'firstName', name: 'First Name', type: 'native' },
+              { key: 'lastName', name: 'Last Name', type: 'native' },
+              { key: 'email', name: 'Email', type: 'native' },
+              { key: 'phone', name: 'Phone', type: 'native' },
+            ],
+          },
+          { status: 401 }
+        );
+      }
+      
+      if (response.status === 403) {
+        return NextResponse.json(
+          { 
+            error: 'Forbidden. Your token may not have the required scopes.',
+            details: errorData.message || 'Insufficient permissions',
+            fields: [
+              { key: 'firstName', name: 'First Name', type: 'native' },
+              { key: 'lastName', name: 'Last Name', type: 'native' },
+              { key: 'email', name: 'Email', type: 'native' },
+              { key: 'phone', name: 'Phone', type: 'native' },
+            ],
+          },
+          { status: 403 }
+        );
+      }
+      
       throw new Error(`Failed to fetch custom fields: ${errorData.message || response.statusText}`);
     }
 
@@ -71,13 +111,22 @@ export async function GET(request: NextRequest) {
       { key: 'phone', name: 'Phone', type: 'native' },
     ];
 
-    // Format custom fields
-    const formattedCustomFields = customFields.map((field: any) => ({
-      key: field.key || field.fieldKey || field.id,
-      name: field.name || field.label || 'Unnamed Field',
-      type: field.dataType || 'text',
-      fieldType: 'custom',
-    }));
+    // Format custom fields and filter out invalid ones
+    const formattedCustomFields = customFields
+      .map((field: any) => {
+        const key = field.key || field.fieldKey || field.id;
+        // Only include fields with valid keys
+        if (!key || typeof key !== 'string' || key.trim() === '') {
+          return null;
+        }
+        return {
+          key: key.trim(),
+          name: field.name || field.label || 'Unnamed Field',
+          type: field.dataType || 'text',
+          fieldType: 'custom',
+        };
+      })
+      .filter((field: any) => field !== null);
 
     return NextResponse.json({
       success: true,
