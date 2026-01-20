@@ -280,8 +280,10 @@ export default function Home() {
       if (response.ok) {
         const data = await response.json();
         if (data.questions && data.questions.length > 0) {
-          setQuestions(data.questions);
-          setQuoteSchema(generateSchemaFromQuestions(data.questions));
+          // Always sort by order to ensure consistent display
+          const sortedQuestions = [...data.questions].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+          setQuestions(sortedQuestions);
+          setQuoteSchema(generateSchemaFromQuestions(sortedQuestions));
         }
       }
     } catch (error) {
