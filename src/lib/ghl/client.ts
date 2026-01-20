@@ -231,9 +231,9 @@ export async function testGHLConnection(token?: string): Promise<{ success: bool
       return { success: false, error: 'Token appears to be invalid (too short)' };
     }
 
-    // Test with an endpoint we actually use - GET /contacts 
-    // For API v2, we need the Version header
-    const response = await fetch(`${GHL_API_BASE}/contacts?limit=1`, {
+    // Test with locations endpoint since we require locations.read scope
+    // This is a simple GET request that validates the token works
+    const response = await fetch(`${GHL_API_BASE}/locations`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${testToken.trim()}`,
