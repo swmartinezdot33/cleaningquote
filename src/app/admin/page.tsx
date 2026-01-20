@@ -172,9 +172,17 @@ export default function AdminPage() {
       const result = await response.json();
       
       if (result.parsed === false) {
+        // Show detailed error message including the actual parsing error
+        let errorText = result.message || 'File uploaded but parsing failed.';
+        if (result.error) {
+          errorText += `\n\nError: ${result.error}`;
+        }
+        if (result.note) {
+          errorText += `\n\n${result.note}`;
+        }
         setSaveMessage({ 
           type: 'error', 
-          text: result.message || 'File uploaded but parsing failed. ' + (result.error || 'Please check the file format.')
+          text: errorText
         });
       } else {
         setSaveMessage({ type: 'success', text: result.message || 'File uploaded successfully!' });
@@ -500,7 +508,7 @@ export default function AdminPage() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`mb-4 p-4 rounded-md ${
+            className={`mb-4 p-4 rounded-md whitespace-pre-line ${
               saveMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
             }`}
           >

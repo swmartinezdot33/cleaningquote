@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
     // Try to parse and save structured data immediately
     let parseSuccess = false;
     let parseError = null;
+    let parseErrorDetails = null;
     try {
       invalidatePricingCache();
       const parsedTable = await loadPricingTable();
@@ -94,7 +95,18 @@ export async function POST(request: NextRequest) {
       parseSuccess = true;
     } catch (error) {
       parseError = error instanceof Error ? error.message : 'Unknown error';
+      parseErrorDetails = error instanceof Error && error.stack ? error.stack.split('\n').slice(0, 3).join('\n') : null;
       console.error('Could not parse pricing table immediately:', error);
+      
+      // Provide more helpful error messages for common issues
+      if (parseError.includes('Sheet') && parseError.includes('not found')) {
+        parseError = `Sheet not found: The Excel file must contain a sheet named "Sheet1". ${parseError}`;
+      } else if (parseError.includes('No valid pricing rows')) {
+        parseError = `No valid pricing rows found. Please ensure your file has: a header row with columns for "SqFt Range", "Weekly", "Bi-Weekly", "4 Week", "General", and "Deep"; and at least one data row with valid price ranges in format "$100-$200". ${parseError}`;
+      } else if (parseError.includes('KV storage is not configured')) {
+        parseError = `KV storage is not configured. This is required for production. For local development, you can use the manual pricing builder. ${parseError}`;
+      }
+      
       // File is still stored, will be parsed on first use
     }
 
@@ -109,12 +121,13 @@ export async function POST(request: NextRequest) {
     } else {
       return NextResponse.json({
         success: true,
-        message: 'File uploaded, but parsing failed. Please check the file format.',
+        message: 'File uploaded, but parsing failed. Please check the file format and try again.',
         size: buffer.length,
         uploadedAt: new Date().toISOString(),
         parsed: false,
         error: parseError || 'Parsing failed',
-        note: 'File is stored but may need to be parsed manually or checked for format issues',
+        errorDetails: parseErrorDetails,
+        note: 'Tips: Ensure your Excel file has a sheet named "Sheet1", a header row with column names, and price ranges in format "$100-$200". Download the template for the correct format.',
       }, { status: 200 });
     }
   } catch (error) {

@@ -182,24 +182,56 @@ export async function loadPricingTable(): Promise<PricingTable> {
       moveInOutFullColIdx = 8;
     }
 
+    // Validate that we found all required columns
+    const missingColumns: string[] = [];
+    if (sqFtColIdx === -1) missingColumns.push('SqFt Range');
+    if (weeklyColIdx === -1) missingColumns.push('Weekly');
+    if (biWeeklyColIdx === -1) missingColumns.push('Bi-Weekly');
+    if (fourWeekColIdx === -1) missingColumns.push('4 Week');
+    if (generalColIdx === -1) missingColumns.push('General');
+    if (deepColIdx === -1) missingColumns.push('Deep');
+
+    if (missingColumns.length > 0) {
+      const foundHeaders = headerRow.map((h, i) => `[${i}]: "${String(h || '').trim()}"`).join(', ');
+      throw new Error(
+        `Missing required columns: ${missingColumns.join(', ')}. ` +
+        `Found headers: ${foundHeaders}. ` +
+        `Please ensure your Excel file has a header row with these column names.`
+      );
+    }
+
+    // Collect diagnostic information about skipped rows
+    const skippedRowReasons: { row: number; reason: string; sample?: string }[] = [];
+
     // Process data rows (skip row 0)
     for (let rowIdx = 1; rowIdx < data.length; rowIdx++) {
       const row = data[rowIdx];
       
       // Skip empty rows
       if (!row || row.length === 0) {
+        skippedRowReasons.push({ row: rowIdx + 1, reason: 'Empty row' });
         continue;
       }
 
       // Parse square footage range
       const sqFtRangeStr = String(row[sqFtColIdx] || '').trim();
       if (!sqFtRangeStr) {
-        continue; // Skip rows without square footage
+        skippedRowReasons.push({ 
+          row: rowIdx + 1, 
+          reason: 'Missing square footage range',
+          sample: `Found: "${sqFtRangeStr}"`
+        });
+        continue;
       }
 
       const sqFtRange = parseSqFtRange(sqFtRangeStr);
       if (!sqFtRange) {
-        continue; // Skip invalid ranges
+        skippedRowReasons.push({ 
+          row: rowIdx + 1, 
+          reason: `Invalid square footage range format: "${sqFtRangeStr}"`,
+          sample: 'Expected format: "0-1500" or "Less Than1500"'
+        });
+        continue;
       }
 
       maxSqFt = Math.max(maxSqFt, sqFtRange.max);
@@ -214,7 +246,29 @@ export async function loadPricingTable(): Promise<PricingTable> {
       const moveInOutFull = parsePriceRange(String(row[moveInOutFullColIdx] || ''));
 
       // Skip rows where essential pricing is missing
-      if (!weekly || !biWeekly || !fourWeek || !general || !deep) {
+      const missingPrices: string[] = [];
+      if (!weekly) missingPrices.push('Weekly');
+      if (!biWeekly) missingPrices.push('Bi-Weekly');
+      if (!fourWeek) missingPrices.push('4 Week');
+      if (!general) missingPrices.push('General');
+      if (!deep) missingPrices.push('Deep');
+
+      if (missingPrices.length > 0) {
+        const sampleValues = missingPrices.map(p => {
+          let colIdx = -1;
+          if (p === 'Weekly') colIdx = weeklyColIdx;
+          else if (p === 'Bi-Weekly') colIdx = biWeeklyColIdx;
+          else if (p === '4 Week') colIdx = fourWeekColIdx;
+          else if (p === 'General') colIdx = generalColIdx;
+          else if (p === 'Deep') colIdx = deepColIdx;
+          return `${p}: "${String(row[colIdx] || '').trim()}"`;
+        }).join(', ');
+
+        skippedRowReasons.push({ 
+          row: rowIdx + 1, 
+          reason: `Missing or invalid price ranges: ${missingPrices.join(', ')}`,
+          sample: sampleValues + `. Expected format: "$100-$200"`
+        });
         continue;
       }
 
@@ -234,7 +288,23 @@ export async function loadPricingTable(): Promise<PricingTable> {
     }
 
     if (rows.length === 0) {
-      throw new Error('No valid pricing rows found in Excel file');
+      const diagnosticInfo = skippedRowReasons.length > 0
+        ? `\n\nDiagnostic information:\n${skippedRowReasons.slice(0, 5).map(s => 
+            `  Row ${s.row}: ${s.reason}${s.sample ? ` (${s.sample})` : ''}`
+          ).join('\n')}${skippedRowReasons.length > 5 ? `\n  ... and ${skippedRowReasons.length - 5} more rows` : ''}`
+        : '';
+      
+      const headerInfo = `Found headers: ${headerRow.map((h, i) => `[${i}]: "${String(h || '').trim()}"`).join(', ')}`;
+      const columnInfo = `Column indices: SqFt=${sqFtColIdx}, Weekly=${weeklyColIdx}, BiWeekly=${biWeeklyColIdx}, FourWeek=${fourWeekColIdx}, General=${generalColIdx}, Deep=${deepColIdx}`;
+      
+      throw new Error(
+        `No valid pricing rows found in Excel file. ` +
+        `${headerInfo}. ${columnInfo}.${diagnosticInfo} ` +
+        `\n\nPlease ensure:\n` +
+        `1. Your file has a header row with: SqFt Range, Weekly, Bi-Weekly, 4 Week, General, Deep\n` +
+        `2. Each data row has a valid square footage range (e.g., "0-1500")\n` +
+        `3. Each data row has price ranges in format "$100-$200" for all required services`
+      );
     }
 
     cachedTable = { rows, maxSqFt };
