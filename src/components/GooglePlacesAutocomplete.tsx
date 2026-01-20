@@ -59,24 +59,44 @@ export function GooglePlacesAutocomplete({
           { address: inputRef.current.value, componentRestrictions: { country: 'us' } },
           (results: any[], status: string) => {
             setIsLoadingGeo(false);
+            console.log('Geocoding status:', status, 'Results:', results);
+            
             if (status === 'OK' && results?.[0]) {
               const place = results[0];
+              const lat = typeof place.geometry?.location?.lat === 'function' 
+                ? place.geometry.location.lat() 
+                : place.geometry?.location?.lat;
+              const lng = typeof place.geometry?.location?.lng === 'function' 
+                ? place.geometry.location.lng() 
+                : place.geometry?.location?.lng;
+              
               const placeDetails: PlaceDetails = {
-                lat: place.geometry?.location?.lat?.() || 0,
-                lng: place.geometry?.location?.lng?.() || 0,
+                lat: lat || 0,
+                lng: lng || 0,
                 formattedAddress: place.formatted_address || inputRef.current?.value || '',
               };
 
+              console.log('Place details:', placeDetails);
               if (onChange) {
                 onChange(placeDetails.formattedAddress, placeDetails);
               }
+            } else if (status !== 'ZERO_RESULTS') {
+              console.warn('Geocoding error:', status);
+            } else {
+              console.log('No results found for address');
             }
           }
         );
       } catch (err) {
         setIsLoadingGeo(false);
-        console.warn('Geocoding failed:', err);
+        console.error('Geocoding error:', err);
       }
+    } else {
+      console.warn('Google Maps Geocoder not available:', {
+        hasGoogle: !!window.google,
+        hasMaps: !!window.google?.maps,
+        hasGeocoder: !!window.google?.maps?.Geocoder
+      });
     }
   };
 
