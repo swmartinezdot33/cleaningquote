@@ -37,7 +37,7 @@ async function makeGHLRequest<T>(
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'Version': '2021-04-15', // Required for API v2
+        'Version': '2021-07-28', // GHL 2.0 API version
       },
     };
 
@@ -101,18 +101,17 @@ export async function createOrUpdateContact(
       ...(contactData.customFields && Object.keys(contactData.customFields).length > 0 && {
         customFields: contactData.customFields,
       }),
-      // Always include locationId for sub-account (location-level) API calls
-      locationId: finalLocationId,
     };
 
     // Use provided token or the API client token
-    const url = `${GHL_API_BASE}/contacts/upsert`;
+    // GHL 2.0 API: Use location-level upsert endpoint with phone or email matching
+    const url = `${GHL_API_BASE}/v2/locations/${finalLocationId}/contacts/upsert`;
     const options: RequestInit = {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${finalToken}`,
         'Content-Type': 'application/json',
-        'Version': '2021-04-15', // Required for API v2
+        'Version': '2021-07-28', // GHL 2.0 API version
       },
       body: JSON.stringify(payload),
     };
@@ -127,7 +126,7 @@ export async function createOrUpdateContact(
     }
 
     const data = await response.json();
-    return data.contact;
+    return data.contact || data;
   } catch (error) {
     console.error('Failed to create/update contact:', error);
     throw error;
@@ -163,17 +162,16 @@ export async function createOpportunity(
       ...(opportunityData.customFields && Object.keys(opportunityData.customFields).length > 0 && {
         customFields: opportunityData.customFields,
       }),
-      // Always include locationId for sub-account (location-level) API calls
-      locationId: finalLocationId,
     };
 
+    // GHL 2.0 API: Use location-level opportunities endpoint
     const response = await makeGHLRequest<{ opportunity: GHLOpportunityResponse }>(
-      '/opportunities',
+      `/v2/locations/${finalLocationId}/opportunities`,
       'POST',
       payload
     );
 
-    return response.opportunity;
+    return response.opportunity || response;
   } catch (error) {
     console.error('Failed to create opportunity:', error);
     throw error;
@@ -196,17 +194,16 @@ export async function createNote(noteData: GHLNote, locationId?: string): Promis
 
     const payload = {
       body: noteData.body,
-      // Always include locationId for sub-account (location-level) API calls
-      locationId: finalLocationId,
     };
 
+    // GHL 2.0 API: Use location-level notes endpoint
     const response = await makeGHLRequest<{ note: GHLNoteResponse }>(
-      `/contacts/${noteData.contactId}/notes`,
+      `/v2/locations/${finalLocationId}/contacts/${noteData.contactId}/notes`,
       'POST',
       payload
     );
 
-    return response.note;
+    return response.note || response;
   } catch (error) {
     console.error('Failed to create note:', error);
     throw error;
@@ -237,17 +234,16 @@ export async function createAppointment(
       endTime: appointmentData.endTime,
       ...(appointmentData.notes && { notes: appointmentData.notes }),
       ...(appointmentData.calendarId && { calendarId: appointmentData.calendarId }),
-      // Always include locationId for sub-account (location-level) API calls
-      locationId: finalLocationId,
     };
 
+    // GHL 2.0 API: Use location-level appointments endpoint
     const response = await makeGHLRequest<{ appointment: GHLAppointmentResponse }>(
-      '/calendars/events/appointments',
+      `/v2/locations/${finalLocationId}/calendars/appointments`,
       'POST',
       payload
     );
 
-    return response.appointment;
+    return response.appointment || response;
   } catch (error) {
     console.error('Failed to create appointment:', error);
     throw error;
@@ -271,7 +267,7 @@ export async function getLocationIdFromToken(token?: string): Promise<string | n
       headers: {
         'Authorization': `Bearer ${testToken.trim()}`,
         'Content-Type': 'application/json',
-        'Version': '2021-04-15',
+        'Version': '2021-07-28',
       },
     });
 
@@ -312,12 +308,12 @@ export async function getLocation(locationId: string): Promise<GHLLocation> {
 
 /**
  * Get all pipelines for a location
- * Uses the correct API v2 endpoint: /opportunities/pipelines?locationId={locationId}
+ * Uses the GHL 2.0 API endpoint: /v2/locations/{locationId}/opportunities/pipelines
  */
 export async function getPipelines(locationId: string): Promise<GHLPipeline[]> {
   try {
     const response = await makeGHLRequest<{ pipelines: GHLPipeline[] }>(
-      `/opportunities/pipelines?locationId=${locationId}`,
+      `/v2/locations/${locationId}/opportunities/pipelines`,
       'GET'
     );
 
