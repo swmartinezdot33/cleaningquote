@@ -46,7 +46,10 @@ const pricingTableSchema = z.object({
 
 type PricingTableFormData = z.infer<typeof pricingTableSchema>;
 
+import { useRouter } from 'next/navigation';
+
 export default function AdminPage() {
+  const router = useRouter();
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [uploadMode, setUploadMode] = useState<'upload' | 'manual' | 'view'>('view');
@@ -499,7 +502,7 @@ export default function AdminPage() {
               </div>
               <div className="flex gap-2 flex-wrap">
                 <Button
-                  onClick={() => window.location.href = '/'}
+                  onClick={() => router.push('/')}
                   variant="outline"
                   className="flex items-center gap-2"
                   title="Preview the quoter page"
@@ -508,7 +511,7 @@ export default function AdminPage() {
                   <span className="hidden sm:inline">View Quoter</span>
                 </Button>
                 <Button
-                  onClick={() => window.location.href = '/admin/survey-builder'}
+                  onClick={() => router.push('/admin/survey-builder')}
                   variant="outline"
                   className="flex items-center gap-2"
                 >
@@ -516,7 +519,7 @@ export default function AdminPage() {
                   <span className="hidden sm:inline">Survey Builder</span>
                 </Button>
                 <Button
-                  onClick={() => window.location.href = '/admin/settings'}
+                  onClick={() => router.push('/admin/settings')}
                   variant="outline"
                   size="icon"
                   className="px-2.5"
