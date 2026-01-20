@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
 
       if (response.status === 403) {
         return NextResponse.json(
-          { error: 'Permission denied. Ensure you have calendars.write scope enabled.' },
+          { error: 'Permission denied. Ensure you have calendars.readonly scope enabled.' },
           { status: 403 }
         );
       }
