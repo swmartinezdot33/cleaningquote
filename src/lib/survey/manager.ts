@@ -34,6 +34,13 @@ export async function getSurveyQuestions(): Promise<SurveyQuestion[]> {
   try {
     const questions = await kv.get<SurveyQuestion[]>(SURVEY_QUESTIONS_KEY);
     if (!questions || !Array.isArray(questions)) {
+      // Check for old key for backward compatibility
+      const oldQuestions = await kv.get<SurveyQuestion[]>('survey:questions');
+      if (oldQuestions && Array.isArray(oldQuestions) && oldQuestions.length > 0) {
+        // Migrate old data to new key
+        await kv.set(SURVEY_QUESTIONS_KEY, oldQuestions);
+        return oldQuestions.sort((a, b) => a.order - b.order);
+      }
       return await initializeSurvey();
     }
     return questions.sort((a, b) => a.order - b.order);
