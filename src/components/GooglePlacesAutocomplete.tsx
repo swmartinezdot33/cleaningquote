@@ -71,6 +71,13 @@ export function GooglePlacesAutocomplete({
     };
   }, []);
 
+  // Update input value when value prop changes
+  useEffect(() => {
+    if (inputRef.current && value !== undefined) {
+      inputRef.current.value = value || '';
+    }
+  }, [value]);
+
   const initializeAutocomplete = () => {
     if (!inputRef.current || !window.google?.maps?.places?.Autocomplete) return;
 
@@ -95,12 +102,16 @@ export function GooglePlacesAutocomplete({
           formattedAddress: place.formatted_address,
         };
 
-        // Update input value
+        // Update input value immediately
         if (inputRef.current) {
           inputRef.current.value = place.formatted_address;
+          // Trigger input event to ensure form state is updated
+          const event = new Event('input', { bubbles: true });
+          inputRef.current.dispatchEvent(event);
         }
 
         // Call onChange with both address and place details
+        // This is crucial for form validation - it must be called synchronously
         if (onChange) {
           onChange(place.formatted_address, placeDetails);
         }
@@ -111,7 +122,7 @@ export function GooglePlacesAutocomplete({
     });
   };
 
-  const handleInputChange = (e: React.Change<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
     
     // Update form value as user types
