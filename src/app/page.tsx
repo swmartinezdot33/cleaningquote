@@ -1016,56 +1016,140 @@ export default function Home() {
                   </p>
                 </motion.div>
 
-                {/* Beautiful Quote Card */}
+                {/* Beautiful Quote Card - DAZZLED UP */}
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.1 }}
                 >
-                  <Card className="shadow-2xl border-0 overflow-hidden">
+                  <Card className="shadow-2xl border-0 overflow-hidden relative">
+                    {/* Animated background gradient */}
                     <div 
-                      className="p-8 text-white"
+                      className="p-8 text-white relative overflow-hidden"
                       style={{
-                        background: `linear-gradient(to right, ${primaryColor}, ${hexToRgba(primaryColor, 0.8)})`
+                        background: `linear-gradient(135deg, ${primaryColor}, ${hexToRgba(primaryColor, 0.7)})`
                       }}
                     >
-                      <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-2xl font-bold">Your Quote</h3>
-                        <Sparkles className="h-8 w-8 opacity-80" />
+                      {/* Decorative animated elements */}
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+                        className="absolute top-2 right-4 opacity-20"
+                      >
+                        <Sparkles className="h-12 w-12" />
+                      </motion.div>
+                      
+                      <div className="flex items-center justify-between mb-2 relative z-10">
+                        <div>
+                          <p className="text-white/80 text-sm font-semibold tracking-widest mb-1">✨ YOUR QUOTE ✨</p>
+                          <h3 className="text-3xl md:text-4xl font-black">Your Perfect Quote</h3>
+                        </div>
+                        <motion.div
+                          animate={{ y: [0, -8, 0] }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                        >
+                          <Sparkles className="h-10 w-10 opacity-90" />
+                        </motion.div>
                       </div>
                     </div>
-                    <CardContent className="pt-8">
-                      <pre className="whitespace-pre-wrap font-sans text-base text-gray-700 leading-relaxed">
-                        {quoteResult.summaryText}
-                      </pre>
+
+                    {/* Quote Content with enhanced styling */}
+                    <CardContent className="pt-10 pb-10 bg-gradient-to-b from-gray-50 to-white">
+                      {/* Parse and display quote content nicely */}
+                      <div className="space-y-6">
+                        {(quoteResult.summaryText || '').split('\n').filter(line => line.trim()).map((line, idx) => {
+                          const isPrice = line.includes('$') || line.includes('to');
+                          const isHeader = !line.startsWith(' ') && line.length < 50;
+                          
+                          return (
+                            <motion.div
+                              key={idx}
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.15 + idx * 0.05 }}
+                              className={`${isPrice ? 'bg-gradient-to-r from-blue-50 to-cyan-50 border-l-4 border-blue-500 pl-4 py-3 rounded-r-lg' : ''} ${
+                                isHeader ? 'font-bold text-lg text-gray-900 pt-2' : 'text-gray-700 text-base'
+                              }`}
+                            >
+                              {isPrice ? (
+                                <div className="flex items-center gap-2">
+                                  <motion.div
+                                    animate={{ scale: [1, 1.2, 1] }}
+                                    transition={{ duration: 2, repeat: Infinity }}
+                                  >
+                                    💰
+                                  </motion.div>
+                                  <span className={isPrice ? 'font-bold text-lg bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent' : ''}>
+                                    {line}
+                                  </span>
+                                </div>
+                              ) : (
+                                line
+                              )}
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Decorative footer */}
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.5 }}
+                        className="mt-8 pt-6 border-t border-gray-200 text-center"
+                      >
+                        <p className="text-gray-500 text-sm">
+                          <span className="inline-block mr-2">🎯</span>
+                          Professional pricing • Customized for your needs
+                        </p>
+                      </motion.div>
                     </CardContent>
                   </Card>
                 </motion.div>
 
-                {/* Two CTAs - Book Appointment and Book a Call */}
+                {/* Two CTAs - Book Appointment and Book a Call - DAZZLED */}
                 {quoteResult?.ghlContactId && !appointmentConfirmed && !callConfirmed && (
                   <motion.div
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.25 }}
+                    transition={{ delay: 0.35 }}
                     className="grid grid-cols-1 md:grid-cols-2 gap-4"
                   >
                     {/* Book Appointment CTA */}
-                    <Button
-                      onClick={() => setShowAppointmentForm(!showAppointmentForm)}
-                      className="h-14 text-lg font-bold shadow-lg hover:shadow-xl transition-shadow"
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.98 }}
                     >
-                      📅 Book an Appointment
-                    </Button>
+                      <Button
+                        onClick={() => setShowAppointmentForm(!showAppointmentForm)}
+                        className="w-full h-16 text-lg font-bold shadow-lg hover:shadow-2xl transition-all duration-300 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 relative overflow-hidden group"
+                      >
+                        <motion.div
+                          className="absolute inset-0 bg-white/20"
+                          animate={{ x: [-100, 100] }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                        />
+                        <span className="relative z-10">📅 Book an Appointment</span>
+                      </Button>
+                    </motion.div>
 
                     {/* Book a Call CTA */}
-                    <Button
-                      onClick={() => setShowCallForm(!showCallForm)}
-                      variant="outline"
-                      className="h-14 text-lg font-bold shadow-lg hover:shadow-xl transition-shadow"
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.98 }}
                     >
-                      📞 Book a Call
-                    </Button>
+                      <Button
+                        onClick={() => setShowCallForm(!showCallForm)}
+                        className="w-full h-16 text-lg font-bold shadow-lg hover:shadow-2xl transition-all duration-300 border-2 border-blue-600 bg-white hover:bg-blue-50 text-blue-700 relative overflow-hidden group"
+                      >
+                        <motion.div
+                          className="absolute inset-0 bg-blue-600/10"
+                          animate={{ x: [-100, 100] }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                        />
+                        <span className="relative z-10">📞 Book a Call</span>
+                      </Button>
+                    </motion.div>
                   </motion.div>
                 )}
 
@@ -1397,9 +1481,9 @@ export default function Home() {
                       setCallNotes('');
                     }}
                     variant="outline"
-                    className="text-gray-600 hover:text-gray-900"
+                    className="text-gray-600 hover:text-gray-900 border-2 border-gray-300 hover:border-gray-500 transition-all hover:shadow-md"
                   >
-                    Get Another Quote
+                    ↻ Get Another Quote
                   </Button>
                 </motion.div>
               </div>
