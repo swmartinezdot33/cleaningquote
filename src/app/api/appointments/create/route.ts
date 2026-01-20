@@ -47,6 +47,18 @@ export async function POST(request: NextRequest) {
       defaultNotes = 'Appointment booked through website quote form';
     }
 
+    // Ensure calendar ID is configured
+    if (!calendarId) {
+      const fieldName = type === 'call' ? 'callCalendarId' : 'appointmentCalendarId';
+      return NextResponse.json(
+        {
+          error: `GHL calendar not configured. Please set up the ${type === 'call' ? 'call' : 'appointment'} calendar in admin settings.`,
+          missingField: fieldName,
+        },
+        { status: 400 }
+      );
+    }
+
     // Parse date and time
     // date format: YYYY-MM-DD, time format: HH:MM
     const startDateTime = new Date(`${date}T${time}:00`);

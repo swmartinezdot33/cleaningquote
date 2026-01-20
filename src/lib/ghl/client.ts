@@ -236,6 +236,11 @@ export async function createAppointment(
       ...(appointmentData.calendarId && { calendarId: appointmentData.calendarId }),
     };
 
+    console.log('Creating appointment with payload:', {
+      ...payload,
+      contactId: '***hidden***',
+    });
+
     // GHL 2.0 API: Use location-level appointments endpoint
     const response = await makeGHLRequest<{ appointment: GHLAppointmentResponse }>(
       `/v2/locations/${finalLocationId}/calendars/appointments`,
@@ -243,9 +248,14 @@ export async function createAppointment(
       payload
     );
 
+    console.log('Appointment created successfully:', response.appointment?.id);
     return response.appointment || response;
   } catch (error) {
-    console.error('Failed to create appointment:', error);
+    console.error('Failed to create appointment:', {
+      error: error instanceof Error ? error.message : String(error),
+      contactId: appointmentData.contactId,
+      calendarId: appointmentData.calendarId,
+    });
     throw error;
   }
 }
