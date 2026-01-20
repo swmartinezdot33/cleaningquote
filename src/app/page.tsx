@@ -3,7 +3,7 @@
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -134,11 +134,16 @@ const questions = [
 ];
 
 export default function Home() {
+  const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const [direction, setDirection] = useState(1); // 1 for forward, -1 for backward
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const {
     register,
@@ -163,6 +168,19 @@ export default function Home() {
   });
 
   const progress = ((currentStep + 1) / questions.length) * 100;
+
+  if (!mounted) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-[#f61590]/5 via-white to-[#f61590]/5 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto text-center">
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-[#f61590] to-[#f61590]/70 bg-clip-text text-transparent mb-4">
+            Raleigh Cleaning Company
+          </h1>
+          <p className="text-xl text-gray-600">Loading...</p>
+        </div>
+      </main>
+    );
+  }
 
   const nextStep = async () => {
     const currentQuestion = questions[currentStep];
