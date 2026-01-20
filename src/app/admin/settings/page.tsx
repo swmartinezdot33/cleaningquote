@@ -83,6 +83,13 @@ export default function SettingsPage() {
   const [selectedOutOfServiceTags, setSelectedOutOfServiceTags] = useState<Set<string>>(new Set());
   const [isLoadingTags, setIsLoadingTags] = useState(false);
 
+  // Google Maps API Key State
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState('');
+  const [googleMapsApiKeyDisplay, setGoogleMapsApiKeyDisplay] = useState('');
+  const [isLoadingApiKey, setIsLoadingApiKey] = useState(false);
+  const [isSavingApiKey, setIsSavingApiKey] = useState(false);
+  const [apiKeyMessage, setApiKeyMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   // Check authentication
   useEffect(() => {
     const storedPassword = sessionStorage.getItem('admin_password');
@@ -544,6 +551,70 @@ export default function SettingsPage() {
     }
   };
 
+  const loadGoogleMapsKey = async () => {
+    setIsLoadingApiKey(true);
+    try {
+      const response = await fetch('/api/admin/google-maps-key', {
+        headers: {
+          'x-admin-password': password,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setGoogleMapsApiKeyDisplay(data.maskedKey || '••••••••••••••••');
+      }
+    } catch (error) {
+      console.error('Error loading Google Maps API key:', error);
+    } finally {
+      setIsLoadingApiKey(false);
+    }
+  };
+
+  const handleSaveGoogleMapsKey = async () => {
+    if (!googleMapsApiKey.trim()) {
+      setApiKeyMessage({ type: 'error', text: 'Please enter a Google Maps API key' });
+      return;
+    }
+
+    setIsSavingApiKey(true);
+    setApiKeyMessage(null);
+
+    try {
+      const response = await fetch('/api/admin/google-maps-key', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': password,
+        },
+        body: JSON.stringify({
+          apiKey: googleMapsApiKey,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setApiKeyMessage({ type: 'success', text: 'Google Maps API key saved successfully!' });
+        setGoogleMapsApiKey('');
+        setGoogleMapsApiKeyDisplay(`****${googleMapsApiKey.slice(-4)}`);
+        setTimeout(() => loadGoogleMapsKey(), 500);
+      } else {
+        setApiKeyMessage({
+          type: 'error',
+          text: data.error || 'Failed to save Google Maps API key',
+        });
+      }
+    } catch (error) {
+      setApiKeyMessage({
+        type: 'error',
+        text: 'Failed to save Google Maps API key. Please try again.',
+      });
+    } finally {
+      setIsSavingApiKey(false);
+    }
+  };
+
   const loadTrackingCodes = async () => {
     setIsLoadingTracking(true);
     try {
@@ -681,6 +752,9 @@ export default function SettingsPage() {
       }
       if (serviceAreaType === 'none') {
         loadServiceAreaConfig();
+      }
+      if (!googleMapsApiKeyDisplay) {
+        loadGoogleMapsKey();
       }
       if (!googleAnalyticsId) {
         loadTrackingCodes();
@@ -1539,6 +1613,96 @@ export default function SettingsPage() {
                     Select which GHL calendar appointments should be booked to. Leave empty to use default calendar.
                   </p>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Google Maps API Key Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.34 }}
+        >
+          <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
+            <CardHeader className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border-b border-gray-200 pb-6">
+              <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                <Code className="h-5 w-5 text-blue-600" />
+                Google Maps API Key
+              </CardTitle>
+              <CardDescription className="text-gray-600 mt-1">
+                Configure your Google Maps API key for address autocomplete and service area mapping
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-8 pb-8">
+              <div className="space-y-6">
+                {apiKeyMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`p-4 rounded-lg flex items-center gap-3 ${
+                      apiKeyMessage.type === 'success'
+                        ? 'bg-green-50 text-green-800 border border-green-200'
+                        : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}
+                  >
+                    {apiKeyMessage.type === 'success' ? (
+                      <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                    )}
+                    <p>{apiKeyMessage.text}</p>
+                  </motion.div>
+                )}
+
+                <div>
+                  <Label htmlFor="google-maps-key" className="text-base font-semibold">
+                    API Key
+                  </Label>
+                  <Input
+                    id="google-maps-key"
+                    type="password"
+                    value={googleMapsApiKey}
+                    onChange={(e) => setGoogleMapsApiKey(e.target.value)}
+                    placeholder="Leave blank to keep current key"
+                    className="mt-3"
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    Current key: {googleMapsApiKeyDisplay}
+                  </p>
+                  <p className="text-sm text-gray-600 mt-2">
+                    Enter your Google Maps API key to enable Google Places Autocomplete for address input and service area mapping features.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-semibold text-blue-900 mb-2">How to get a Google Maps API Key:</h4>
+                  <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                    <li>Go to <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Google Cloud Console</a></li>
+                    <li>Create a new project or select an existing one</li>
+                    <li>Enable the "Places API" and "Maps JavaScript API"</li>
+                    <li>Go to "Credentials" and create an API key</li>
+                    <li>Copy the API key and paste it above</li>
+                  </ol>
+                </div>
+
+                <Button
+                  onClick={handleSaveGoogleMapsKey}
+                  disabled={isSavingApiKey}
+                  className="w-full h-11 font-semibold flex items-center gap-2"
+                >
+                  {isSavingApiKey ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      Save Google Maps API Key
+                    </>
+                  )}
+                </Button>
               </div>
             </CardContent>
           </Card>
