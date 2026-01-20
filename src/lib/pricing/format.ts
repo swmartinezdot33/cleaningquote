@@ -69,7 +69,7 @@ function getSelectedQuoteRange(ranges: QuoteRanges, serviceType: string, frequen
 }
 
 /**
- * Generate pricing summary text - focused on the selected service only
+ * Generate pricing summary text - focused on the selected service only (elegant minimal version)
  */
 export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges }, serviceType?: string, frequency?: string): string {
   const { inputs, ranges, initialCleaningRequired } = result;
@@ -83,45 +83,36 @@ export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges 
     const selectedRange = getSelectedQuoteRange(ranges, serviceType, frequency);
     if (selectedRange) {
       const serviceName = frequency === 'one-time' ? getServiceTypeDisplayName(serviceType) : getServiceName(frequency);
-      let summary = `Your Service: ${serviceName}\n`;
+      
+      // Beautiful minimal format
+      let summary = `✨ YOUR QUOTE\n\n`;
+      summary += `Service: ${serviceName}\n`;
       summary += `Home Size: ${inputs.squareFeet} sq ft\n\n`;
-      summary += `Price Range: ${formatPriceRange(selectedRange)}\n\n`;
-      summary += `This quote is based on:\n`;
-      summary += `• Square footage: ${inputs.squareFeet} sq ft\n`;
-      summary += `• People in home: ${inputs.people}\n`;
-      summary += `• Shedding pets: ${inputs.sheddingPets}\n`;
-      summary += `• Home condition: ${inputs.condition || 'Not specified'}\n`;
+      
+      // Show the exact price range
+      summary += `💰 ${formatPriceRange(selectedRange)}\n\n`;
       
       // Add Initial Cleaning messaging if applicable
       if (initialCleaningRequired && serviceType !== 'initial') {
-        summary += `\nNote: An Initial Cleaning is required as the first service to meet our maintenance standards.\n`;
+        summary += `📌 Note: An initial cleaning is required as your first service.\n`;
+        summary += `This gets your home to our maintenance standards.\n`;
       }
       
       return summary;
     }
   }
 
-  // Fallback: show all services (if no specific selection provided)
-  let summary = `Square Footage: ${inputs.squareFeet}\n`;
-  summary += `People: ${inputs.people}\n`;
-  summary += `Shedding Pets: ${inputs.sheddingPets}\n\n`;
+  // If no service type/frequency, show focused summary of key quote
+  // Default to bi-weekly as it's most popular
+  const defaultRange = ranges.biWeekly || ranges.general;
+  let summary = `✨ YOUR QUOTE\n\n`;
+  summary += `Home Size: ${inputs.squareFeet} sq ft\n`;
+  summary += `Most Popular: Bi-Weekly Service\n`;
+  summary += `💰 ${formatPriceRange(defaultRange)}\n\n`;
   
-  // Show Initial Cleaning first if required
   if (initialCleaningRequired) {
-    summary += `INITIAL CLEANING (Required First Visit): ${formatPriceRange(ranges.initial)}\n`;
-    summary += `This longer cleaning service brings your home to our maintenance standards.\n\n`;
+    summary += `📌 Initial Cleaning Required: ${formatPriceRange(ranges.initial)}\n`;
   }
-  
-  summary += `Recurring Maintenance Cleanings:\n`;
-  summary += `Weekly Clean: ${formatPriceRange(ranges.weekly)}\n`;
-  summary += `Bi Weekly Clean: ${formatPriceRange(ranges.biWeekly)}\n`;
-  summary += `Every 4 Weeks Clean: ${formatPriceRange(ranges.fourWeek)}\n\n`;
-  
-  summary += `One-Time Services:\n`;
-  summary += `General Clean: ${formatPriceRange(ranges.general)}\n`;
-  summary += `Deep Clean: ${formatPriceRange(ranges.deep)}\n`;
-  summary += `Move In Move Out Basic: ${formatPriceRange(ranges.moveInOutBasic)}\n`;
-  summary += `Move In Move Out Full: ${formatPriceRange(ranges.moveInOutFull)}`;
 
   return summary;
 }
