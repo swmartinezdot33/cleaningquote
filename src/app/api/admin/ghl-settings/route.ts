@@ -95,9 +95,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Test connection with the new token before saving
-    const testResult = await testGHLConnection(token).catch(() => ({ success: false, error: 'Connection test failed' }));
+    let testResult;
+    try {
+      testResult = await testGHLConnection(token);
+    } catch (error) {
+      console.error('Token test error:', error);
+      testResult = { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Connection test failed unexpectedly' 
+      };
+    }
 
     if (!testResult.success) {
+      console.error('Token validation failed:', testResult.error);
       return NextResponse.json(
         { 
           error: 'Invalid GHL API token - connection test failed',

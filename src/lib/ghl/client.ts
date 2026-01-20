@@ -224,35 +224,66 @@ export async function testGHLConnection(token?: string): Promise<{ success: bool
       return { success: false, error: 'No token provided or found' };
     }
 
-    // Test with locations endpoint since we require locations.read scope
-    // This tests that the token works and has at least one required scope
-    const response = await fetch(`${GHL_API_BASE}/locations`, {
+    // Validate token format (PIT tokens typically start with ghl_pit_)
+    if (testToken.trim().length < 20) {
+      return { success: false, error: 'Token appears to be invalid (too short)' };
+    }
+
+    // Try multiple endpoints - some PIT tokens might work better with different endpoints
+    // First try the locations endpoint (requires locations.read scope)
+    let response = await fetch(`${GHL_API_BASE}/locations`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${testToken}`,
-        'Version': '2021-07-28',
+        'Authorization': `Bearer ${testToken.trim()}`,
+        'Content-Type': 'application/json',
       },
     });
 
+    // If locations fails with 401, try users/profile as a fallback
+    if (response.status === 401) {
+      response = await fetch(`${GHL_API_BASE}/users/profile`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${testToken.trim()}`,
+          'Content-Type': 'application/json',
+        },
+      });
+    }
+
     if (!response.ok) {
       let errorMessage = `HTTP ${response.status}`;
+      let errorDetails: any = {};
       try {
         const errorData = await response.json();
+        errorDetails = errorData;
         if (errorData.message) {
           errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        } else if (errorData.msg) {
+          errorMessage = errorData.msg;
         }
       } catch {
         // If JSON parsing fails, use status text
-        errorMessage = response.statusText || `HTTP ${response.status}`;
+        const text = await response.text().catch(() => '');
+        errorMessage = text || response.statusText || `HTTP ${response.status}`;
       }
 
       // Provide helpful error messages based on status code
       if (response.status === 401) {
-        return { success: false, error: 'Unauthorized - Invalid token or token does not have required scopes' };
+        const details = errorDetails.message || errorDetails.error || errorMessage;
+        return { 
+          success: false, 
+          error: `Unauthorized - Invalid token or missing required scopes. GHL API says: ${details}` 
+        };
       } else if (response.status === 403) {
-        return { success: false, error: 'Forbidden - Token may not have sufficient permissions' };
+        const details = errorDetails.message || errorDetails.error || errorMessage;
+        return { 
+          success: false, 
+          error: `Forbidden - Token may not have sufficient permissions. GHL API says: ${details}` 
+        };
       } else {
-        return { success: false, error: `Connection failed: ${errorMessage}` };
+        return { success: false, error: `Connection failed (${response.status}): ${errorMessage}` };
       }
     }
 
