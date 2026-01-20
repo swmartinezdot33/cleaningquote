@@ -39,6 +39,7 @@ export default function SurveyBuilderPage() {
   const [ghlFields, setGhlFields] = useState<Array<{ key: string; name: string; type: string; fieldType?: string }>>([]);
   const [isLoadingFields, setIsLoadingFields] = useState(false);
   const [ghlFieldSearchTerm, setGhlFieldSearchTerm] = useState('');
+  const [ghlFieldDropdownOpen, setGhlFieldDropdownOpen] = useState(false);
 
   useEffect(() => {
     const storedPassword = sessionStorage.getItem('admin_password');
@@ -803,12 +804,6 @@ export default function SurveyBuilderPage() {
                             </div>
                           ) : (
                             <>
-                              <Input
-                                placeholder="Search GHL fields..."
-                                value={ghlFieldSearchTerm}
-                                onChange={(e) => setGhlFieldSearchTerm(e.target.value)}
-                                className="mb-2"
-                              />
                               <Select
                                 value={editingQuestion?.ghlFieldMapping && editingQuestion.ghlFieldMapping.trim() !== '' 
                                   ? editingQuestion.ghlFieldMapping 
@@ -819,12 +814,29 @@ export default function SurveyBuilderPage() {
                                     ghlFieldMapping: value === 'none' ? undefined : value
                                   });
                                   setGhlFieldSearchTerm(''); // Clear search after selection
+                                  setGhlFieldDropdownOpen(false);
                                 }}
+                                open={ghlFieldDropdownOpen}
+                                onOpenChange={setGhlFieldDropdownOpen}
                               >
                                 <SelectTrigger className="mt-1">
                                   <SelectValue placeholder="No mapping (data won't be sent to GHL)" />
                                 </SelectTrigger>
                                 <SelectContent>
+                                  {ghlFieldDropdownOpen && (
+                                    <div className="p-2 border-b">
+                                      <Input
+                                        placeholder="Search fields..."
+                                        value={ghlFieldSearchTerm}
+                                        onChange={(e) => {
+                                          e.stopPropagation();
+                                          setGhlFieldSearchTerm(e.target.value);
+                                        }}
+                                        className="h-8"
+                                        autoFocus
+                                      />
+                                    </div>
+                                  )}
                                   <SelectItem value="none">No mapping</SelectItem>
                                   {ghlFields
                                     .filter(field => field.key && field.key.trim() !== '')
