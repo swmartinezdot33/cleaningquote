@@ -565,6 +565,10 @@ export default function Home() {
     const currentQuestion = questions[currentStep];
     const isValid = await trigger(currentQuestion.id as any);
     
+    if (!isValid) {
+      console.log('Validation failed for:', currentQuestion.id, 'Current value:', getValues(currentQuestion.id as any));
+    }
+    
     if (isValid) {
       // Check if this is an address question - if so, check service area
       if (currentQuestion.type === 'address' && addressCoordinates && !serviceAreaChecked) {
@@ -1234,11 +1238,14 @@ export default function Home() {
                         name={currentQuestion.id as any}
                         control={control}
                         render={({ field }) => (
-                          <Select onValueChange={(value) => {
-                            field.onChange(value);
-                            // Move to next step automatically after selection
-                            setTimeout(() => nextStep(), 300);
-                          }} value={field.value || ''}>
+                          <Select 
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              // Move to next step automatically after selection
+                              setTimeout(() => nextStep(), 300);
+                            }} 
+                            value={field.value || ''}
+                          >
                             <SelectTrigger 
                               className="h-14 text-lg"
                               onKeyDown={(e) => {
