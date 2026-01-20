@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { calcQuote, getPeopleMultiplier, getSheddingPetMultiplier } from '../calcQuote';
+import { calcQuote, getPeopleMultiplier, getSheddingPetMultiplier, getConditionMultiplier } from '../calcQuote';
 import { QuoteInputs } from '../types';
 
 // Mock the loadPricingTable function
@@ -65,6 +65,40 @@ describe('getSheddingPetMultiplier', () => {
   it('should return 1.75 for 6+ shedding pets', () => {
     expect(getSheddingPetMultiplier(6)).toBe(1.75);
     expect(getSheddingPetMultiplier(10)).toBe(1.75);
+  });
+});
+
+describe('getConditionMultiplier', () => {
+  it('should return 1.0 for perfectionist/immaculate homes', () => {
+    expect(getConditionMultiplier('perfectionist')).toBe(1.0);
+    expect(getConditionMultiplier('immaculate')).toBe(1.0);
+  });
+
+  it('should return 1.0 for clean/good condition', () => {
+    expect(getConditionMultiplier('clean')).toBe(1.0);
+    expect(getConditionMultiplier('good')).toBe(1.0);
+  });
+
+  it('should return 1.1 for dusty/dirty homes', () => {
+    expect(getConditionMultiplier('dusty')).toBe(1.1);
+    expect(getConditionMultiplier('dirty')).toBe(1.1);
+    expect(getConditionMultiplier('average')).toBe(1.1);
+    expect(getConditionMultiplier('fair')).toBe(1.1);
+  });
+
+  it('should return 1.4 for extremely dusty/dirty homes', () => {
+    expect(getConditionMultiplier('extremely dusty')).toBe(1.4);
+    expect(getConditionMultiplier('poor')).toBe(1.4);
+  });
+
+  it('should return 20.0 for out of scope homes', () => {
+    expect(getConditionMultiplier('above extremely dusty')).toBe(20.0);
+    expect(getConditionMultiplier('out of scope')).toBe(20.0);
+  });
+
+  it('should return 1.0 for undefined/empty condition', () => {
+    expect(getConditionMultiplier()).toBe(1.0);
+    expect(getConditionMultiplier('')).toBe(1.0);
   });
 });
 

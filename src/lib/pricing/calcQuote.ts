@@ -134,6 +134,57 @@ export function getSheddingPetMultiplier(sheddingPets: number): number {
 }
 
 /**
+ * Get home condition multiplier based on condition level
+ * Perfectionist = 1.0x (minimal cleaning needed)
+ * Clean = 1.0x (good baseline)
+ * Dusty/Dirty = 1.1x (moderate extra work)
+ * Extremely Dusty/Dirty = 1.4x (significant extra work)
+ * Above Extremely Dusty = 20x (out of scope - special pricing)
+ */
+export function getConditionMultiplier(condition?: string): number {
+  if (!condition) {
+    return 1.0; // Default if no condition specified
+  }
+
+  const conditionLower = condition.toLowerCase();
+
+  // Perfectionist condition
+  if (
+    conditionLower.includes('perfectionist') ||
+    conditionLower.includes('immaculate')
+  ) {
+    return 1.0;
+  }
+
+  // Clean condition
+  if (conditionLower === 'clean' || conditionLower === 'good') {
+    return 1.0;
+  }
+
+  // Dusty/Dirty condition
+  if (
+    conditionLower.includes('dusty') ||
+    conditionLower === 'average' ||
+    conditionLower === 'fair'
+  ) {
+    return 1.1;
+  }
+
+  // Extremely Dusty/Dirty condition
+  if (conditionLower.includes('extremely dusty') || conditionLower === 'poor') {
+    return 1.4;
+  }
+
+  // Above Extremely Dusty - OUT OF SCOPE
+  if (conditionLower.includes('above extremely') || conditionLower.includes('out of scope')) {
+    return 20.0;
+  }
+
+  // Default
+  return 1.0;
+}
+
+/**
  * Find the pricing row that matches the given square footage
  */
 function findPricingRow(table: PricingTable, squareFeet: number): number {
@@ -186,7 +237,17 @@ export async function calcQuote(inputs: QuoteInputs): Promise<QuoteResult> {
   // Calculate multipliers
   const peopleMultiplier = getPeopleMultiplier(inputs.people);
   const sheddingPetMultiplier = getSheddingPetMultiplier(inputs.sheddingPets);
-  const finalMultiplier = peopleMultiplier * sheddingPetMultiplier;
+  const conditionMultiplier = getConditionMultiplier(inputs.condition);
+
+  // Check if condition is out of scope (multiplier >= 20)
+  if (conditionMultiplier >= 20) {
+    return {
+      outOfLimits: true,
+      message: 'This home condition is outside our standard scope. Homes with excessive uncleanliness, pest activity, unsanitary conditions, or major issues require specialized cleaning services. Please contact management for a custom quote.',
+    };
+  }
+
+  const finalMultiplier = peopleMultiplier * sheddingPetMultiplier * conditionMultiplier;
 
   // Apply multipliers to all price ranges
   const weeklyRange = applyMultiplier(baseRow.weekly, finalMultiplier);
