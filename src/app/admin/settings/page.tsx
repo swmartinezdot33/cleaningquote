@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, AlertCircle, Loader2, Save, RotateCw, Eye, EyeOff, Sparkles, ArrowLeft, Copy, Code } from 'lucide-react';
+import { CheckCircle, AlertCircle, Loader2, Save, RotateCw, Eye, EyeOff, Sparkles, ArrowLeft, Copy, Code, ChevronDown } from 'lucide-react';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -30,6 +30,21 @@ export default function SettingsPage() {
   const [widgetMessage, setWidgetMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
 
+  // GHL Configuration States
+  const [ghlConfigLoaded, setGhlConfigLoaded] = useState(false);
+  const [createContact, setCreateContact] = useState(true);
+  const [createOpportunity, setCreateOpportunity] = useState(false);
+  const [createNote, setCreateNote] = useState(true);
+  const [pipelines, setPipelines] = useState<any[]>([]);
+  const [selectedPipelineId, setSelectedPipelineId] = useState<string>('');
+  const [selectedStageId, setSelectedStageId] = useState<string>('');
+  const [opportunityStatus, setOpportunityStatus] = useState<string>('open');
+  const [opportunityValue, setOpportunityValue] = useState<number>(0);
+  const [isLoadingPipelines, setIsLoadingPipelines] = useState(false);
+  const [pipelinesError, setPipelinesError] = useState<string | null>(null);
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [configMessage, setConfigMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   // Check authentication
   useEffect(() => {
     const storedPassword = sessionStorage.getItem('admin_password');
@@ -44,8 +59,16 @@ export default function SettingsPage() {
     if (isAuthenticated) {
       loadSettings();
       loadWidgetSettings();
+      loadGHLConfig();
     }
   }, [isAuthenticated]);
+
+  // Load pipelines when connection status changes to connected
+  useEffect(() => {
+    if (isAuthenticated && connectionStatus === 'connected' && createOpportunity) {
+      loadPipelines();
+    }
+  }, [connectionStatus, createOpportunity, isAuthenticated]);
 
   const checkAuth = async (pass: string) => {
     try {
@@ -236,6 +259,110 @@ export default function SettingsPage() {
       setTimeout(() => setCopiedEmbed(false), 2000);
     } catch (error) {
       console.error('Failed to copy embed code:', error);
+    }
+  };
+
+  // Load GHL configuration and pipelines
+  const loadGHLConfig = async () => {
+    try {
+      const response = await fetch('/api/admin/ghl-config', {
+        headers: {
+          'x-admin-password': password,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const config = data.config;
+        setCreateContact(config.createContact !== false);
+        setCreateOpportunity(config.createOpportunity === true);
+        setCreateNote(config.createNote !== false);
+        setSelectedPipelineId(config.pipelineId || '');
+        setSelectedStageId(config.pipelineStageId || '');
+        setOpportunityStatus(config.opportunityStatus || 'open');
+        setOpportunityValue(config.opportunityMonetaryValue || 0);
+        setGhlConfigLoaded(true);
+
+        // Load pipelines if token is connected
+        if (connectionStatus === 'connected') {
+          await loadPipelines();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load GHL config:', error);
+    }
+  };
+
+  // Load pipelines from GHL
+  const loadPipelines = async () => {
+    setIsLoadingPipelines(true);
+    setPipelinesError(null);
+    try {
+      const response = await fetch('/api/admin/ghl-pipelines', {
+        headers: {
+          'x-admin-password': password,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPipelines(data.pipelines || []);
+      } else {
+        const data = await response.json();
+        setPipelinesError(data.error || 'Failed to load pipelines');
+      }
+    } catch (error) {
+      console.error('Failed to load pipelines:', error);
+      setPipelinesError('Failed to load pipelines. Please check your GHL connection.');
+    } finally {
+      setIsLoadingPipelines(false);
+    }
+  };
+
+  // Save GHL configuration
+  const handleSaveGHLConfig = async () => {
+    if (createOpportunity && (!selectedPipelineId || !selectedStageId)) {
+      setConfigMessage({ type: 'error', text: 'Please select a pipeline and stage for opportunities' });
+      return;
+    }
+
+    setIsSavingConfig(true);
+    setConfigMessage(null);
+    try {
+      const response = await fetch('/api/admin/ghl-config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': password,
+        },
+        body: JSON.stringify({
+          createContact,
+          createOpportunity,
+          createNote,
+          pipelineId: selectedPipelineId || undefined,
+          pipelineStageId: selectedStageId || undefined,
+          opportunityStatus,
+          opportunityMonetaryValue: opportunityValue || undefined,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setConfigMessage({ type: 'success', text: 'GHL configuration saved successfully!' });
+      } else {
+        setConfigMessage({
+          type: 'error',
+          text: data.error || 'Failed to save GHL configuration',
+        });
+      }
+    } catch (error) {
+      setConfigMessage({
+        type: 'error',
+        text: 'Failed to save GHL configuration. Please try again.',
+      });
+    } finally {
+      setIsSavingConfig(false);
     }
   };
 
@@ -486,6 +613,218 @@ export default function SettingsPage() {
                   <p>Your GHL token is stored securely in encrypted storage and is never exposed to the client.</p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Card className="shadow-xl border-2">
+            <CardHeader className="bg-gradient-to-r from-[#f61590]/5 via-transparent to-transparent border-b">
+              <CardTitle className="flex items-center gap-2 text-2xl font-bold text-gray-900">
+                <Sparkles className="h-6 w-6 text-[#f61590]" />
+                GHL Integration Configuration
+              </CardTitle>
+              <CardDescription>
+                Configure what happens when a customer gets a quote. Choose which GHL features to enable and set default values for opportunities.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              {connectionStatus !== 'connected' ? (
+                <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-yellow-800">
+                  <p className="font-semibold">⚠️ GHL not connected</p>
+                  <p className="text-sm mt-1">Please verify your GHL API token above before configuring integration features.</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {configMessage && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`p-4 rounded-lg flex items-center gap-3 ${
+                        configMessage.type === 'success'
+                          ? 'bg-green-50 text-green-800 border border-green-200'
+                          : 'bg-red-50 text-red-800 border border-red-200'
+                      }`}
+                    >
+                      {configMessage.type === 'success' ? (
+                        <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                      ) : (
+                        <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                      )}
+                      <p>{configMessage.text}</p>
+                    </motion.div>
+                  )}
+
+                  {/* Feature Toggles */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-gray-900">Select Features</h3>
+                    
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <input
+                        type="checkbox"
+                        id="create-contact"
+                        checked={createContact}
+                        onChange={(e) => setCreateContact(e.target.checked)}
+                        className="w-5 h-5 text-[#f61590] rounded cursor-pointer"
+                      />
+                      <label htmlFor="create-contact" className="cursor-pointer flex-1">
+                        <div className="font-semibold text-gray-900">Create/Update Contact</div>
+                        <div className="text-sm text-gray-600">Automatically create or update contact with customer info (name, email, phone)</div>
+                      </label>
+                    </div>
+
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <input
+                        type="checkbox"
+                        id="create-opportunity"
+                        checked={createOpportunity}
+                        onChange={(e) => setCreateOpportunity(e.target.checked)}
+                        className="w-5 h-5 text-[#f61590] rounded cursor-pointer"
+                      />
+                      <label htmlFor="create-opportunity" className="cursor-pointer flex-1">
+                        <div className="font-semibold text-gray-900">Create Opportunity</div>
+                        <div className="text-sm text-gray-600">Automatically create a sales opportunity with the quote details</div>
+                      </label>
+                    </div>
+
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <input
+                        type="checkbox"
+                        id="create-note"
+                        checked={createNote}
+                        onChange={(e) => setCreateNote(e.target.checked)}
+                        className="w-5 h-5 text-[#f61590] rounded cursor-pointer"
+                      />
+                      <label htmlFor="create-note" className="cursor-pointer flex-1">
+                        <div className="font-semibold text-gray-900">Create Note</div>
+                        <div className="text-sm text-gray-600">Add a note to the contact with the complete quote summary</div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Opportunity Configuration */}
+                  {createOpportunity && (
+                    <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg space-y-4">
+                      <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                        <ChevronDown className="h-4 w-4" />
+                        Opportunity Settings
+                      </h3>
+
+                      {pipelinesError ? (
+                        <div className="text-sm text-red-600 bg-red-50 p-3 rounded">
+                          {pipelinesError}
+                        </div>
+                      ) : null}
+
+                      {isLoadingPipelines ? (
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading pipelines...
+                        </div>
+                      ) : pipelines.length === 0 ? (
+                        <div className="text-sm text-gray-600">
+                          No pipelines found. Please create a pipeline in GHL first.
+                        </div>
+                      ) : (
+                        <>
+                          {/* Pipeline Selection */}
+                          <div>
+                            <Label className="text-base font-semibold mb-2 block">Select Pipeline</Label>
+                            <select
+                              value={selectedPipelineId}
+                              onChange={(e) => {
+                                setSelectedPipelineId(e.target.value);
+                                setSelectedStageId(''); // Reset stage when pipeline changes
+                              }}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                            >
+                              <option value="">-- Select a pipeline --</option>
+                              {pipelines.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Stage Selection */}
+                          {selectedPipelineId && (
+                            <div>
+                              <Label className="text-base font-semibold mb-2 block">Select Starting Stage</Label>
+                              <select
+                                value={selectedStageId}
+                                onChange={(e) => setSelectedStageId(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                              >
+                                <option value="">-- Select a stage --</option>
+                                {pipelines
+                                  .find((p) => p.id === selectedPipelineId)
+                                  ?.stages?.map((s: any) => (
+                                    <option key={s.id} value={s.id}>
+                                      {s.name}
+                                    </option>
+                                  ))}
+                              </select>
+                            </div>
+                          )}
+
+                          {/* Status Selection */}
+                          <div>
+                            <Label className="text-base font-semibold mb-2 block">Opportunity Status</Label>
+                            <select
+                              value={opportunityStatus}
+                              onChange={(e) => setOpportunityStatus(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                            >
+                              <option value="open">Open</option>
+                              <option value="won">Won</option>
+                              <option value="lost">Lost</option>
+                              <option value="abandoned">Abandoned</option>
+                            </select>
+                          </div>
+
+                          {/* Monetary Value */}
+                          <div>
+                            <Label className="text-base font-semibold mb-2 block">Monetary Value (optional)</Label>
+                            <Input
+                              type="number"
+                              value={opportunityValue || ''}
+                              onChange={(e) => setOpportunityValue(Number(e.target.value) || 0)}
+                              placeholder="e.g., 150"
+                              className="h-10"
+                            />
+                            <p className="text-sm text-gray-600 mt-1">
+                              Leave blank to use the high end of the selected service pricing
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={handleSaveGHLConfig}
+                    disabled={isSavingConfig}
+                    className="w-full h-11 font-semibold flex items-center gap-2"
+                  >
+                    {isSavingConfig ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4" />
+                        Save GHL Configuration
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>

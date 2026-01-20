@@ -2,6 +2,8 @@ import { kv } from '@vercel/kv';
 
 const PRICING_KEY = 'pricing:file:2026';
 const GHL_TOKEN_KEY = 'ghl:api:token';
+const GHL_CONFIG_KEY = 'ghl:config';
+const WIDGET_SETTINGS_KEY = 'widget:settings';
 
 /**
  * Check if KV is configured
@@ -113,5 +115,47 @@ export async function ghlTokenExists(): Promise<boolean> {
     return exists === 1;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Store GHL configuration (which features are enabled, pipeline settings, etc.)
+ */
+export async function storeGHLConfig(config: {
+  createContact: boolean;
+  createOpportunity: boolean;
+  createNote: boolean;
+  pipelineId?: string;
+  pipelineStageId?: string;
+  opportunityStatus?: string;
+  opportunityMonetaryValue?: number;
+}): Promise<void> {
+  try {
+    const kv = getKV();
+    await kv.set(GHL_CONFIG_KEY, config);
+  } catch (error) {
+    console.error('Error storing GHL config:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get GHL configuration
+ */
+export async function getGHLConfig(): Promise<{
+  createContact: boolean;
+  createOpportunity: boolean;
+  createNote: boolean;
+  pipelineId?: string;
+  pipelineStageId?: string;
+  opportunityStatus?: string;
+  opportunityMonetaryValue?: number;
+} | null> {
+  try {
+    const kv = getKV();
+    const config = await kv.get(GHL_CONFIG_KEY);
+    return config as any;
+  } catch {
+    return null;
   }
 }
