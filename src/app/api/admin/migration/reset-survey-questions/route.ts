@@ -10,7 +10,7 @@ import { SurveyQuestion } from '@/lib/kv';
  * - sheddingPets (must be select with 0 as default)
  */
 
-const SURVEY_QUESTIONS_KEY = 'survey:questions';
+const SURVEY_QUESTIONS_KEY = 'survey:questions:v2';
 
 // Define the correct default questions
 const CORRECTED_DEFAULT_QUESTIONS: SurveyQuestion[] = [
