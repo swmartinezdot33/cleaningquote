@@ -49,7 +49,7 @@ type PricingTableFormData = z.infer<typeof pricingTableSchema>;
 export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [uploadMode, setUploadMode] = useState<'upload' | 'manual' | 'view'>('manual');
+  const [uploadMode, setUploadMode] = useState<'upload' | 'manual' | 'view'>('view');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -103,6 +103,11 @@ export default function AdminPage() {
         if (data.exists && data.data) {
           setCurrentPricing(data.data);
           reset(data.data);
+          // Load in view mode by default
+          setUploadMode('view');
+        } else {
+          // No data exists, default to view mode anyway
+          setUploadMode('view');
         }
       } else if (response.status === 401) {
         setIsAuthenticated(false);
@@ -189,11 +194,8 @@ export default function AdminPage() {
         
         // Reload pricing data immediately to show the parsed structure
         setTimeout(async () => {
-          const loaded = await loadPricingData();
-          // If data loaded successfully, switch to view mode
-          if (loaded && currentPricing) {
-            setUploadMode('view');
-          }
+          const loaded = await loadPricingData('view');
+          // Data will be shown in view mode since we passed 'view' as preserveMode
         }, 1500);
       }
     } catch (error) {
@@ -206,7 +208,7 @@ export default function AdminPage() {
     }
   };
 
-  const loadPricingData = async () => {
+  const loadPricingData = async (preserveMode?: 'view' | 'manual' | 'upload') => {
     try {
       const response = await fetch('/api/admin/pricing', {
         headers: {
@@ -218,9 +220,12 @@ export default function AdminPage() {
         if (data.exists && data.data) {
           setCurrentPricing(data.data);
           reset(data.data);
-          // Only switch to manual mode if we're not in view mode
-          if (uploadMode !== 'view') {
+          // Only switch to manual mode if we're not preserving a specific mode and not already in view mode
+          if (!preserveMode && uploadMode !== 'view') {
             setUploadMode('manual');
+          } else if (preserveMode) {
+            // Preserve the requested mode
+            setUploadMode(preserveMode);
           }
           return true;
         } else {
@@ -460,8 +465,7 @@ export default function AdminPage() {
         <div className="mb-6 flex gap-4 flex-wrap">
           <Button
             onClick={() => {
-              setUploadMode('manual');
-              loadPricingData();
+              loadPricingData('manual');
             }}
             variant={uploadMode === 'manual' ? 'default' : 'outline'}
             className="flex items-center gap-2"
@@ -471,8 +475,7 @@ export default function AdminPage() {
           </Button>
           <Button
             onClick={() => {
-              setUploadMode('view');
-              loadPricingData();
+              loadPricingData('view');
             }}
             variant={uploadMode === 'view' ? 'default' : 'outline'}
             className="flex items-center gap-2"
@@ -480,57 +483,61 @@ export default function AdminPage() {
             <Table className="h-4 w-4" />
             View Structure
           </Button>
-          <Button
-            onClick={() => setUploadMode('upload')}
-            variant={uploadMode === 'upload' ? 'default' : 'outline'}
-            className="flex items-center gap-2"
-          >
-            <Upload className="h-4 w-4" />
-            Import from Excel
-          </Button>
-          <Button
-            onClick={async () => {
-              try {
-                const response = await fetch('/api/admin/download-template', {
-                  headers: {
-                    'x-admin-password': password,
-                  },
-                });
-                
-                if (response.ok) {
-                  const blob = await response.blob();
-                  const url = window.URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = 'Pricing_Template.xlsx';
-                  document.body.appendChild(a);
-                  a.click();
-                  window.URL.revokeObjectURL(url);
-                  document.body.removeChild(a);
-                  setSaveMessage({ 
-                    type: 'success', 
-                    text: 'Template downloaded successfully!' 
-                  });
-                } else {
-                  const errorData = await response.json();
-                  setSaveMessage({ 
-                    type: 'error', 
-                    text: errorData.error || 'Failed to download template' 
-                  });
-                }
-              } catch (error) {
-                setSaveMessage({ 
-                  type: 'error', 
-                  text: 'Failed to download template' 
-                });
-              }
-            }}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Download Template
-          </Button>
+          {uploadMode === 'manual' && (
+            <>
+              <Button
+                onClick={() => setUploadMode('upload')}
+                variant={uploadMode === 'upload' ? 'default' : 'outline'}
+                className="flex items-center gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                Import from Excel
+              </Button>
+              <Button
+                onClick={async () => {
+                  try {
+                    const response = await fetch('/api/admin/download-template', {
+                      headers: {
+                        'x-admin-password': password,
+                      },
+                    });
+                    
+                    if (response.ok) {
+                      const blob = await response.blob();
+                      const url = window.URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = 'Pricing_Template.xlsx';
+                      document.body.appendChild(a);
+                      a.click();
+                      window.URL.revokeObjectURL(url);
+                      document.body.removeChild(a);
+                      setSaveMessage({ 
+                        type: 'success', 
+                        text: 'Template downloaded successfully!' 
+                      });
+                    } else {
+                      const errorData = await response.json();
+                      setSaveMessage({ 
+                        type: 'error', 
+                        text: errorData.error || 'Failed to download template' 
+                      });
+                    }
+                  } catch (error) {
+                    setSaveMessage({ 
+                      type: 'error', 
+                      text: 'Failed to download template' 
+                    });
+                  }
+                }}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Download Template
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Save Message */}
@@ -617,8 +624,7 @@ export default function AdminPage() {
                       <div className="mt-4 flex gap-2">
                         <Button
                           onClick={() => {
-                            setUploadMode('manual');
-                            loadPricingData();
+                            loadPricingData('manual');
                           }}
                           variant="outline"
                         >
@@ -626,7 +632,7 @@ export default function AdminPage() {
                         </Button>
                         <Button
                           onClick={() => {
-                            loadPricingData();
+                            loadPricingData(uploadMode);
                           }}
                           variant="outline"
                         >
@@ -648,8 +654,7 @@ export default function AdminPage() {
                         </Button>
                         <Button
                           onClick={() => {
-                            setUploadMode('manual');
-                            loadPricingData();
+                            loadPricingData('manual');
                           }}
                           variant="outline"
                         >
@@ -752,8 +757,7 @@ export default function AdminPage() {
                         </p>
                         <Button
                           onClick={() => {
-                            setUploadMode('manual');
-                            loadPricingData();
+                            loadPricingData('manual');
                           }}
                           variant="outline"
                           size="sm"
@@ -794,7 +798,7 @@ export default function AdminPage() {
                               <TooltipTrigger asChild>
                                 <Button
                                   type="button"
-                                  onClick={loadPricingData}
+                                  onClick={() => loadPricingData(uploadMode)}
                                   variant="outline"
                                   size="sm"
                                 >
