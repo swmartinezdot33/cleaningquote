@@ -535,14 +535,14 @@ export default function SettingsPage() {
                       Required GHL Scopes:
                     </p>
                     <ul className="text-xs text-amber-800 space-y-1 ml-6 list-disc">
-                      <li><strong>contacts.write</strong> - Create/update contacts and add notes</li>
+                      <li><strong>contacts.write</strong> - Create/update contacts and add notes <span className="font-bold text-amber-900">(REQUIRED)</span></li>
                       <li><strong>opportunities.read</strong> - Read pipelines for configuration</li>
                       <li><strong>opportunities.write</strong> - Create opportunities from quotes</li>
                       <li><strong>calendars.write</strong> - Create appointments for bookings</li>
-                      <li><strong>locations.readonly</strong> - Access location information (also used for connection testing)</li>
+                      <li><strong>locations.readonly</strong> - Only needed if using Agency-level PIT token (optional for Location-level tokens)</li>
                     </ul>
                     <p className="text-xs text-amber-700 mt-2 italic">
-                      Make sure your PIT token has these scopes enabled in your GHL account settings.
+                      <strong>Note:</strong> If using a <strong>Location-level PIT token</strong>, you don't need locations.readonly scope. Location-level tokens are scoped to a single location and cannot search for locations.
                     </p>
                   </div>
                 </div>

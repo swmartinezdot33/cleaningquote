@@ -231,9 +231,11 @@ export async function testGHLConnection(token?: string): Promise<{ success: bool
       return { success: false, error: 'Token appears to be invalid (too short)' };
     }
 
-    // Test with locations/search endpoint which requires locations.readonly scope
-    // This validates the token works with API v2
-    const response = await fetch(`${GHL_API_BASE}/locations/search?limit=1`, {
+    // Test connection - try multiple endpoints to handle both agency-level and location-level tokens
+    // Location-level tokens can't use /locations/search, so we test with contacts endpoint instead
+    
+    // First try: contacts endpoint (works for both agency and location-level tokens with contacts.write scope)
+    let response = await fetch(`${GHL_API_BASE}/contacts?limit=1`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${testToken.trim()}`,
@@ -241,6 +243,18 @@ export async function testGHLConnection(token?: string): Promise<{ success: bool
         'Version': '2021-07-28', // Required for API v2
       },
     });
+
+    // If contacts fails with 401 (missing scope), try locations/search (for agency-level tokens)
+    if (response.status === 401) {
+      response = await fetch(`${GHL_API_BASE}/locations/search?limit=1`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${testToken.trim()}`,
+          'Content-Type': 'application/json',
+          'Version': '2021-07-28',
+        },
+      });
+    }
 
     if (!response.ok) {
       let errorMessage = `HTTP ${response.status}`;
@@ -266,13 +280,15 @@ export async function testGHLConnection(token?: string): Promise<{ success: bool
         const details = errorDetails.message || errorDetails.error || errorMessage;
         return { 
           success: false, 
-          error: `Unauthorized - Invalid token or missing required scopes. GHL API says: ${details}` 
+          error: `Unauthorized - Invalid token or missing required scopes. GHL API says: ${details}. Make sure your PIT token has at least one of: contacts.write, contacts.readonly, or locations.readonly` 
         };
       } else if (response.status === 403) {
         const details = errorDetails.message || errorDetails.error || errorMessage;
+        // 403 might mean location-level token trying agency endpoint - that's actually OK
+        // Let's check if it's a real permission issue by trying contacts
         return { 
           success: false, 
-          error: `Forbidden - Token may not have sufficient permissions. GHL API says: ${details}` 
+          error: `Forbidden - ${details}. Note: If using a location-level PIT token, you don't need locations.readonly scope. Ensure you have contacts.write scope enabled.` 
         };
       } else {
         return { success: false, error: `Connection failed (${response.status}): ${errorMessage}` };
