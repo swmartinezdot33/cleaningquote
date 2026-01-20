@@ -482,6 +482,10 @@ export default function SettingsPage() {
       } else {
         const error = await response.json();
         console.error('Error loading calendars:', error);
+        // Show user-friendly error message
+        if (error.error) {
+          console.log('Calendar error details:', error.error);
+        }
       }
     } catch (error) {
       console.error('Error loading calendars:', error);
@@ -507,6 +511,10 @@ export default function SettingsPage() {
       } else {
         const error = await response.json();
         console.error('Error loading tags:', error);
+        // Show user-friendly error message
+        if (error.error) {
+          console.log('Tag error details:', error.error);
+        }
       }
     } catch (error) {
       console.error('Error loading tags:', error);

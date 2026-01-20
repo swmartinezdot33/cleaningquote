@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     const passwordHeader = request.headers.get('x-admin-password');
     
     if (!authHeader && !passwordHeader) {
+      console.error('No authentication header provided');
       return NextResponse.json(
         { error: 'Unauthorized - missing authentication' },
         { status: 401 }
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest) {
     const locationId = await getGHLLocationId();
 
     if (!token) {
+      console.error('GHL token not configured');
       return NextResponse.json(
         { error: 'GHL token not configured. Please set up your GHL API token in settings.' },
         { status: 400 }
@@ -34,11 +36,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (!locationId) {
+      console.error('Location ID not configured');
       return NextResponse.json(
         { error: 'Location ID not configured. Please set up your location ID in settings.' },
         { status: 400 }
       );
     }
+
+    console.log(`Fetching calendars for location: ${locationId}`);
 
     // Fetch calendars from GHL API v2
     const response = await fetch(
@@ -54,8 +59,8 @@ export async function GET(request: NextRequest) {
     );
 
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('GHL calendars error:', errorData);
+      const errorText = await response.text();
+      console.error(`GHL calendars error (${response.status}):`, errorText);
 
       if (response.status === 401) {
         return NextResponse.json(
@@ -72,7 +77,7 @@ export async function GET(request: NextRequest) {
       }
 
       return NextResponse.json(
-        { error: 'Failed to fetch calendars from GHL' },
+        { error: `Failed to fetch calendars from GHL: ${response.status}` },
         { status: response.status }
       );
     }

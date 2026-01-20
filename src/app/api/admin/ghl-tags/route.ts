@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     const passwordHeader = request.headers.get('x-admin-password');
     
     if (!authHeader && !passwordHeader) {
+      console.error('No authentication header provided');
       return NextResponse.json(
         { error: 'Unauthorized - missing authentication' },
         { status: 401 }
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest) {
     const locationId = await getGHLLocationId();
 
     if (!token) {
+      console.error('GHL token not configured');
       return NextResponse.json(
         { error: 'GHL token not configured' },
         { status: 400 }
@@ -34,11 +36,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (!locationId) {
+      console.error('Location ID not configured');
       return NextResponse.json(
         { error: 'Location ID not configured' },
         { status: 400 }
       );
     }
+
+    console.log(`Fetching tags for location: ${locationId}`);
 
     // Fetch tags from GHL API v2
     // GHL uses /locations/{locationId}/tags endpoint
@@ -55,8 +60,8 @@ export async function GET(request: NextRequest) {
     );
 
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('GHL tags error:', errorData);
+      const errorText = await response.text();
+      console.error(`GHL tags error (${response.status}):`, errorText);
 
       if (response.status === 401) {
         return NextResponse.json(
@@ -73,7 +78,7 @@ export async function GET(request: NextRequest) {
       }
 
       return NextResponse.json(
-        { error: 'Failed to fetch tags from GHL' },
+        { error: `Failed to fetch tags from GHL: ${response.status}` },
         { status: response.status }
       );
     }
