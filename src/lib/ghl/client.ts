@@ -285,11 +285,12 @@ export async function getLocation(locationId: string): Promise<GHLLocation> {
 
 /**
  * Get all pipelines for a location
+ * Uses the correct API v2 endpoint: /opportunities/pipelines?locationId={locationId}
  */
 export async function getPipelines(locationId: string): Promise<GHLPipeline[]> {
   try {
     const response = await makeGHLRequest<{ pipelines: GHLPipeline[] }>(
-      `/locations/${locationId}/pipelines`,
+      `/opportunities/pipelines?locationId=${locationId}`,
       'GET'
     );
 

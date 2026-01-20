@@ -42,8 +42,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch pipelines for this location (API v2)
+    // Correct endpoint: /opportunities/pipelines?locationId={locationId}
     const pipelinesResponse = await fetch(
-      `https://services.leadconnectorhq.com/locations/${locationId}/pipelines`,
+      `https://services.leadconnectorhq.com/opportunities/pipelines?locationId=${locationId}`,
       {
         method: 'GET',
         headers: {
@@ -55,11 +56,76 @@ export async function GET(request: NextRequest) {
     );
 
     if (!pipelinesResponse.ok) {
-      const errorData = await pipelinesResponse.json();
-      throw new Error(`Failed to fetch pipelines: ${errorData.message || pipelinesResponse.statusText}`);
+      let errorMessage = `HTTP ${pipelinesResponse.status}`;
+      let errorDetails: any = {};
+      
+      try {
+        const errorData = await pipelinesResponse.json();
+        errorDetails = errorData;
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        } else if (errorData.msg) {
+          errorMessage = errorData.msg;
+        }
+      } catch {
+        // If JSON parsing fails, try to get text
+        const text = await pipelinesResponse.text().catch(() => '');
+        errorMessage = text || pipelinesResponse.statusText || `HTTP ${pipelinesResponse.status}`;
+      }
+
+      // Provide helpful error messages based on status code
+      if (pipelinesResponse.status === 401) {
+        const details = errorDetails.message || errorDetails.error || errorMessage;
+        return NextResponse.json(
+          { 
+            error: 'Unauthorized - Invalid token or missing required scopes',
+            details: `GHL API says: ${details}. Make sure your PIT token has opportunities.readonly scope.`
+          },
+          { status: 401 }
+        );
+      } else if (pipelinesResponse.status === 403) {
+        const details = errorDetails.message || errorDetails.error || errorMessage;
+        return NextResponse.json(
+          { 
+            error: 'Forbidden - Token may not have sufficient permissions',
+            details: `GHL API says: ${details}. Ensure your PIT token has opportunities.readonly scope and the Location ID is correct.`
+          },
+          { status: 403 }
+        );
+      } else if (pipelinesResponse.status === 404) {
+        return NextResponse.json(
+          { 
+            error: 'Location not found',
+            details: `The Location ID "${locationId}" was not found. Please verify the Location ID is correct.`
+          },
+          { status: 404 }
+        );
+      } else {
+        return NextResponse.json(
+          { 
+            error: 'Failed to fetch pipelines',
+            details: `GHL API returned ${pipelinesResponse.status}: ${errorMessage}`
+          },
+          { status: pipelinesResponse.status }
+        );
+      }
     }
 
-    const pipelinesData = await pipelinesResponse.json();
+    let pipelinesData;
+    try {
+      pipelinesData = await pipelinesResponse.json();
+    } catch (error) {
+      return NextResponse.json(
+        { 
+          error: 'Invalid response from GHL API',
+          details: 'The API response could not be parsed as JSON'
+        },
+        { status: 500 }
+      );
+    }
+
     const pipelines = pipelinesData.pipelines || pipelinesData.data || [];
 
     return NextResponse.json({
@@ -75,9 +141,13 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
-    console.error('Error fetching GHL data:', error);
+    console.error('Error fetching GHL pipelines:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to fetch GHL pipelines', details: (error as Error).message },
+      { 
+        error: 'Failed to fetch GHL pipelines', 
+        details: errorMessage 
+      },
       { status: 500 }
     );
   }
