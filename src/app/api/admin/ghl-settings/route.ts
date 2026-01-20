@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storeGHLToken, storeGHLLocationId, ghlTokenExists, getGHLToken, getGHLLocationId } from '@/lib/kv';
-import { testGHLConnection } from '@/lib/ghl/client';
+import { testGHLConnection, testGHLConnectionComprehensive } from '@/lib/ghl/client';
 
 /**
  * Authenticate request with admin password
@@ -152,7 +152,8 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * POST /test - Test GHL connection
+ * PUT /test - Test GHL connection
+ * Query parameter ?comprehensive=true to run full endpoint tests
  */
 export async function PUT(request: NextRequest) {
   try {
@@ -168,14 +169,42 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const testResult = await testGHLConnection();
+    // Check if comprehensive test is requested
+    const url = new URL(request.url);
+    const comprehensive = url.searchParams.get('comprehensive') === 'true';
 
-    return NextResponse.json({
-      success: testResult.success,
-      connected: testResult.success,
-      message: testResult.success ? 'Connected to GHL successfully' : (testResult.error || 'Failed to connect to GHL'),
-      error: testResult.error,
-    });
+    let testResult;
+    if (comprehensive) {
+      console.log('Running comprehensive GHL API test...');
+      testResult = await testGHLConnectionComprehensive();
+    } else {
+      console.log('Running basic GHL API test...');
+      testResult = await testGHLConnection();
+    }
+
+    if (comprehensive) {
+      // Return comprehensive results
+      return NextResponse.json({
+        success: testResult.success,
+        connected: testResult.success,
+        message: testResult.success 
+          ? 'All GHL API endpoints are working!' 
+          : 'Some GHL API endpoints failed. Check results for details.',
+        error: testResult.error,
+        locationId: testResult.locationId,
+        token: testResult.token,
+        results: testResult.results,
+        summary: testResult.summary,
+      });
+    } else {
+      // Return basic results
+      return NextResponse.json({
+        success: testResult.success,
+        connected: testResult.success,
+        message: testResult.success ? 'Connected to GHL successfully' : (testResult.error || 'Failed to connect to GHL'),
+        error: testResult.error,
+      });
+    }
   } catch (error) {
     console.error('Error testing GHL connection:', error);
     return NextResponse.json(

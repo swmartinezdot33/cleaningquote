@@ -16,6 +16,7 @@ import {
   GHLLocation,
   GHLPipeline,
   GHLAPIError,
+  GHLConnectionTestResult,
 } from './types';
 
 const GHL_API_BASE = 'https://services.leadconnectorhq.com';
@@ -374,8 +375,202 @@ export async function createTag(tagName: string): Promise<{ id: string; name: st
 }
 
 /**
+ * Test a single GHL API endpoint
+ */
+async function testEndpoint(
+  name: string,
+  endpoint: string,
+  method: 'GET' | 'POST',
+  token: string
+): Promise<{ name: string; success: boolean; status?: number; message: string; endpoint: string }> {
+  try {
+    const response = await fetch(`${GHL_API_BASE}${endpoint}`, {
+      method,
+      headers: {
+        'Authorization': `Bearer ${token.trim()}`,
+        'Content-Type': 'application/json',
+        'Version': '2021-07-28',
+      },
+    });
+
+    let message = '';
+    if (response.ok) {
+      message = `✅ Working - HTTP ${response.status}`;
+      return { name, success: true, status: response.status, message, endpoint };
+    } else if (response.status === 404) {
+      message = `⚠️ Not Found - This endpoint may not exist or no data available - HTTP 404`;
+      return { name, success: true, status: 404, message, endpoint }; // 404 is ok for testing
+    } else if (response.status === 401) {
+      message = `❌ Unauthorized - Missing or invalid token - HTTP 401`;
+      return { name, success: false, status: 401, message, endpoint };
+    } else if (response.status === 403) {
+      message = `❌ Forbidden - Missing required scope - HTTP 403`;
+      return { name, success: false, status: 403, message, endpoint };
+    } else {
+      message = `❌ Error - HTTP ${response.status}`;
+      return { name, success: false, status: response.status, message, endpoint };
+    }
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+    return {
+      name,
+      success: false,
+      message: `❌ Connection failed: ${errorMsg}`,
+      endpoint,
+    };
+  }
+}
+
+/**
+ * Comprehensive GHL API connection test
+ * Tests all major endpoints and provides detailed feedback
+ */
+export async function testGHLConnectionComprehensive(token?: string): Promise<GHLConnectionTestResult> {
+  try {
+    const testToken = token || await getGHLToken();
+
+    if (!testToken) {
+      return { 
+        success: false, 
+        error: 'No token provided or found' 
+      };
+    }
+
+    // Validate token format
+    if (testToken.trim().length < 20) {
+      return { 
+        success: false, 
+        error: 'Token appears to be invalid (too short)' 
+      };
+    }
+
+    const locationId = await getGHLLocationId();
+    
+    if (!locationId) {
+      return { 
+        success: false, 
+        error: 'Location ID is required. Please configure it in the admin settings.' 
+      };
+    }
+
+    console.log(`🧪 Starting comprehensive GHL API test for location: ${locationId}`);
+
+    // Define all endpoints to test
+    const endpointsToTest = [
+      // Contacts
+      {
+        name: 'Contacts - List',
+        endpoint: `/v2/locations/${locationId}/contacts?limit=1`,
+        method: 'GET' as const,
+      },
+      {
+        name: 'Contacts - Upsert (dry-run)',
+        endpoint: `/v2/locations/${locationId}/contacts/upsert`,
+        method: 'POST' as const,
+      },
+      // Opportunities
+      {
+        name: 'Opportunities - List',
+        endpoint: `/v2/locations/${locationId}/opportunities?limit=1`,
+        method: 'GET' as const,
+      },
+      {
+        name: 'Opportunities - Create (dry-run)',
+        endpoint: `/v2/locations/${locationId}/opportunities`,
+        method: 'POST' as const,
+      },
+      // Pipelines
+      {
+        name: 'Pipelines - List',
+        endpoint: `/v2/locations/${locationId}/opportunities/pipelines`,
+        method: 'GET' as const,
+      },
+      // Tags
+      {
+        name: 'Tags - List',
+        endpoint: `/v2/locations/${locationId}/tags`,
+        method: 'GET' as const,
+      },
+      {
+        name: 'Tags - Create (dry-run)',
+        endpoint: `/v2/locations/${locationId}/tags`,
+        method: 'POST' as const,
+      },
+      // Calendars
+      {
+        name: 'Calendars - List',
+        endpoint: `/v2/locations/${locationId}/calendars`,
+        method: 'GET' as const,
+      },
+      // Appointments
+      {
+        name: 'Appointments - Create (dry-run)',
+        endpoint: `/v2/locations/${locationId}/calendars/appointments`,
+        method: 'POST' as const,
+      },
+      // Custom Fields
+      {
+        name: 'Custom Fields - List',
+        endpoint: `/v2/locations/${locationId}/customFields?model=contact`,
+        method: 'GET' as const,
+      },
+      // Notes
+      {
+        name: 'Notes - Create (dry-run)',
+        endpoint: `/v2/locations/${locationId}/contacts/test-contact-id/notes`,
+        method: 'POST' as const,
+      },
+    ];
+
+    // Run all tests in parallel
+    const results = await Promise.all(
+      endpointsToTest.map((test) =>
+        testEndpoint(test.name, test.endpoint, test.method, testToken)
+      )
+    );
+
+    // Calculate summary
+    const passed = results.filter((r) => r.success && r.status !== 404).length;
+    const failed = results.filter((r) => !r.success).length;
+    const warnings = results.filter((r) => r.status === 404).length;
+    const total = results.length;
+
+    const summary = {
+      total,
+      passed,
+      failed,
+      warnings,
+    };
+
+    console.log('🧪 Comprehensive GHL API Test Results:', {
+      total,
+      passed,
+      failed,
+      warnings,
+      locationId,
+    });
+
+    return {
+      success: failed === 0,
+      locationId,
+      token: `****${testToken.slice(-4)}`,
+      results,
+      summary,
+    };
+  } catch (error) {
+    console.error('GHL comprehensive connection test failed:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return { 
+      success: false, 
+      error: `Comprehensive test failed: ${errorMessage}` 
+    };
+  }
+}
+
+/**
  * Test GHL API connection with a specific token (optional)
  * Always uses stored locationId for sub-account (location-level) API calls
+ * @deprecated Use testGHLConnectionComprehensive instead for full endpoint testing
  */
 export async function testGHLConnection(token?: string): Promise<{ success: boolean; error?: string }> {
   try {

@@ -91,3 +91,23 @@ export interface GHLAPIError {
   message?: string;
   errors?: Record<string, string[]>;
 }
+
+export interface GHLConnectionTestResult {
+  success: boolean;
+  error?: string;
+  locationId?: string;
+  token?: string;
+  results?: Array<{
+    name: string;
+    success: boolean;
+    status?: number;
+    message: string;
+    endpoint: string;
+  }>;
+  summary?: {
+    total: number;
+    passed: number;
+    failed: number;
+    warnings: number;
+  };
+}
