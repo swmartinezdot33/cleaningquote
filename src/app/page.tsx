@@ -16,14 +16,28 @@ import { SurveyQuestion } from '@/lib/kv';
 import { GooglePlacesAutocomplete, PlaceDetails } from '@/components/GooglePlacesAutocomplete';
 
 /**
+ * Sanitize field ID for React Hook Form (replace dots with underscores)
+ */
+function sanitizeFieldId(id: string): string {
+  return id.replace(/\./g, '_');
+}
+
+/**
+ * Get the form field name (sanitized) from question ID
+ */
+function getFormFieldName(questionId: string): string {
+  return sanitizeFieldId(questionId);
+}
+
+/**
  * Generate dynamic zod schema from survey questions
  */
 function generateSchemaFromQuestions(questions: SurveyQuestion[]): z.ZodObject<any> {
   const schemaShape: Record<string, z.ZodTypeAny> = {};
 
   questions.forEach((question) => {
-    // Use question.id directly - field IDs with dots are handled by React Hook Form
-    const fieldId = question.id;
+    // Sanitize the field ID for use in the schema
+    const fieldId = getFormFieldName(question.id);
     
     if (question.type === 'number') {
       schemaShape[fieldId] = question.required
@@ -401,10 +415,11 @@ export default function Home() {
   const getDefaultValues = () => {
     const defaults: Record<string, any> = {};
     questions.forEach((q) => {
+      const fieldName = getFormFieldName(q.id);
       if (q.type === 'number') {
-        defaults[q.id] = 0;
+        defaults[fieldName] = 0;
       } else {
-        defaults[q.id] = '';
+        defaults[fieldName] = '';
       }
     });
 
@@ -584,15 +599,15 @@ export default function Home() {
       return;
     }
     
-    const isValid = await trigger(currentQuestion.id as any);
+    // Use sanitized field name for validation
+    const fieldName = getFormFieldName(currentQuestion.id);
+    const isValid = await trigger(fieldName as any);
     
     if (!isValid) {
-      const currentValue = getValues(currentQuestion.id as any);
-      const fieldError = (errors[currentQuestion.id as any] as any)?.message;
-      const allErrors = errors;
-      console.warn('Validation failed for:', currentQuestion.id, 'Current value:', currentValue);
+      const currentValue = getValues(fieldName as any);
+      const fieldError = (errors as any)[fieldName]?.message;
+      console.warn('Validation failed for:', fieldName, '(original ID:', currentQuestion.id + ')', 'Current value:', currentValue);
       console.warn('Field error:', fieldError);
-      console.warn('All form errors:', allErrors);
       return;
     }
     
@@ -615,6 +630,7 @@ export default function Home() {
           if (!result.inServiceArea) {
             // Out of service area - create contact and redirect
             const data = getValues();
+            const addressFieldName = getFormFieldName(currentQuestion.id);
             try {
               await fetch('/api/service-area/out-of-service', {
                 method: 'POST',
@@ -624,7 +640,7 @@ export default function Home() {
                   lastName: data.lastName,
                   email: data.email,
                   phone: data.phone,
-                  address: data.address || data[currentQuestion.id],
+                  address: data.address || data[addressFieldName],
                 }),
               });
             } catch (error) {
@@ -638,7 +654,7 @@ export default function Home() {
                 lastName: data.lastName,
                 email: data.email,
                 phone: data.phone,
-                address: data.address || data[currentQuestion.id],
+                address: data.address || data[addressFieldName],
               }),
             });
             window.location.href = `/out-of-service?${params.toString()}`;
@@ -677,25 +693,43 @@ export default function Home() {
     setCopySuccess(false);
 
     try {
-      const data = getValues();
-      const apiPayload = {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        phone: data.phone,
-        serviceType: data.serviceType,
-        frequency: data.frequency,
-        squareFeet: Number(data.squareFeet),
-        fullBaths: Number(data.fullBaths),
-        halfBaths: Number(data.halfBaths),
-        bedrooms: Number(data.bedrooms),
-        people: Number(data.people),
-        pets: Number(data.sheddingPets),
-        sheddingPets: Number(data.sheddingPets),
-        condition: data.condition,
-        hasPreviousService: data.hasPreviousService === 'true' || data.hasPreviousService === 'switching',
-        cleanedWithin3Months: data.cleanedWithin3Months === 'yes',
+      const formData = getValues();
+      
+      // Create a map of sanitized names back to original question IDs for custom fields
+      const fieldMap: Record<string, string> = {};
+      questions.forEach(q => {
+        const sanitized = getFormFieldName(q.id);
+        if (sanitized !== q.id) {
+          fieldMap[sanitized] = q.id;
+        }
+      });
+
+      // Build the API payload, mapping sanitized fields back to original IDs
+      const apiPayload: any = {
+        firstName: formData.firstName || formData.first_name,
+        lastName: formData.lastName || formData.last_name,
+        email: formData.email,
+        phone: formData.phone,
+        serviceType: formData.serviceType,
+        frequency: formData.frequency,
+        squareFeet: Number(formData.squareFeet),
+        fullBaths: Number(formData.fullBaths),
+        halfBaths: Number(formData.halfBaths),
+        bedrooms: Number(formData.bedrooms),
+        people: Number(formData.people),
+        pets: Number(formData.sheddingPets),
+        sheddingPets: Number(formData.sheddingPets),
+        condition: formData.condition,
+        hasPreviousService: formData.hasPreviousService === 'true' || formData.hasPreviousService === 'switching',
+        cleanedWithin3Months: formData.cleanedWithin3Months === 'yes',
       };
+
+      // Add any custom fields (those that were sanitized)
+      Object.entries(fieldMap).forEach(([sanitized, original]) => {
+        if (formData[sanitized] !== undefined) {
+          apiPayload[original] = formData[sanitized];
+        }
+      });
 
       const response = await fetch('/api/quote', {
         method: 'POST',
@@ -1400,10 +1434,11 @@ export default function Home() {
                         placeholder={currentQuestion.placeholder}
                         required={currentQuestion.required}
                         primaryColor={primaryColor}
-                        value={getValues(currentQuestion.id as any)}
+                        value={getValues(getFormFieldName(currentQuestion.id) as any)}
                         onChange={(value, placeDetails) => {
-                          // Update form value
-                          (register(currentQuestion.id as any) as any).onChange({ target: { value } });
+                          // Update form value using sanitized field name
+                          const fieldName = getFormFieldName(currentQuestion.id);
+                          (register(fieldName as any) as any).onChange({ target: { value } });
                           // Store coordinates for service area check
                           if (placeDetails) {
                             setAddressCoordinates({
@@ -1427,7 +1462,7 @@ export default function Home() {
                         type="email"
                         placeholder={currentQuestion.placeholder}
                         className="h-14 text-lg"
-                        {...register(currentQuestion.id as any)}
+                        {...register(getFormFieldName(currentQuestion.id) as any)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
@@ -1443,7 +1478,7 @@ export default function Home() {
                         type="tel"
                         placeholder={currentQuestion.placeholder}
                         className="h-14 text-lg"
-                        {...register(currentQuestion.id as any)}
+                        {...register(getFormFieldName(currentQuestion.id) as any)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
@@ -1460,7 +1495,7 @@ export default function Home() {
                         step="1"
                         placeholder={currentQuestion.placeholder}
                         className="h-14 text-lg"
-                        {...register(currentQuestion.id as any, { valueAsNumber: true })}
+                        {...register(getFormFieldName(currentQuestion.id) as any, { valueAsNumber: true })}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
@@ -1472,7 +1507,7 @@ export default function Home() {
 
                     {currentQuestion.type === 'select' && (
                       <Controller
-                        name={currentQuestion.id as any}
+                        name={getFormFieldName(currentQuestion.id) as any}
                         control={control}
                         render={({ field }) => (
                           <Select 
@@ -1509,13 +1544,13 @@ export default function Home() {
                       />
                     )}
 
-                    {errors[currentQuestion.id as any] && (
+                    {errors[getFormFieldName(currentQuestion.id) as any] && (
                       <motion.p
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         className="text-sm text-red-500 mt-2"
                       >
-                        {(errors[currentQuestion.id as any] as any)?.message}
+                        {(errors[getFormFieldName(currentQuestion.id) as any] as any)?.message}
                       </motion.p>
                     )}
                   </motion.div>
