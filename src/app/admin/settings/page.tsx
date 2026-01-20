@@ -1091,6 +1091,13 @@ export default function SettingsPage() {
                     <div className="flex items-start gap-2">
                       <span className="text-blue-600 font-bold mt-0.5">✓</span>
                       <div>
+                        <p className="font-semibold text-blue-900">contacts.readonly</p>
+                        <p className="text-xs text-blue-800">Required to view customer contact information</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                      <div>
                         <p className="font-semibold text-blue-900">opportunities.write</p>
                         <p className="text-xs text-blue-800">Required to create quote opportunities in your pipeline</p>
                       </div>
@@ -1106,14 +1113,42 @@ export default function SettingsPage() {
                       <span className="text-blue-600 font-bold mt-0.5">✓</span>
                       <div>
                         <p className="font-semibold text-blue-900">calendars.write</p>
-                        <p className="text-xs text-blue-800">Required to book appointments to customer calendars</p>
+                        <p className="text-xs text-blue-800">Required to book and create appointments for customers</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                      <div>
+                        <p className="font-semibold text-blue-900">calendars.readonly</p>
+                        <p className="text-xs text-blue-800">Required to view available calendars</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
                       <span className="text-blue-600 font-bold mt-0.5">✓</span>
                       <div>
                         <p className="font-semibold text-blue-900">locations.readonly</p>
-                        <p className="text-xs text-blue-800">Required to fetch calendars, tags, and location settings</p>
+                        <p className="text-xs text-blue-800">Required to fetch calendars, tags, custom fields, and location information</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                      <div>
+                        <p className="font-semibold text-blue-900">locations/customFields.readonly</p>
+                        <p className="text-xs text-blue-800">Required to view custom fields for mapping survey questions</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                      <div>
+                        <p className="font-semibold text-blue-900">locations/tags.readonly</p>
+                        <p className="text-xs text-blue-800">Required to view available tags for service area tagging</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                      <div>
+                        <p className="font-semibold text-blue-900">locations/tags.write</p>
+                        <p className="text-xs text-blue-800">Required to apply tags to customers (in-service/out-of-service)</p>
                       </div>
                     </div>
                   </div>
