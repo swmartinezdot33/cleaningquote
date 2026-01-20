@@ -38,6 +38,7 @@ export default function SurveyBuilderPage() {
   const [editingQuestion, setEditingQuestion] = useState<Partial<SurveyQuestion> | null>(null);
   const [ghlFields, setGhlFields] = useState<Array<{ key: string; name: string; type: string; fieldType?: string }>>([]);
   const [isLoadingFields, setIsLoadingFields] = useState(false);
+  const [ghlFieldSearchTerm, setGhlFieldSearchTerm] = useState('');
 
   useEffect(() => {
     const storedPassword = sessionStorage.getItem('admin_password');
@@ -802,6 +803,12 @@ export default function SurveyBuilderPage() {
                             </div>
                           ) : (
                             <>
+                              <Input
+                                placeholder="Search GHL fields..."
+                                value={ghlFieldSearchTerm}
+                                onChange={(e) => setGhlFieldSearchTerm(e.target.value)}
+                                className="mb-2"
+                              />
                               <Select
                                 value={editingQuestion?.ghlFieldMapping && editingQuestion.ghlFieldMapping.trim() !== '' 
                                   ? editingQuestion.ghlFieldMapping 
@@ -811,6 +818,7 @@ export default function SurveyBuilderPage() {
                                     ...editingQuestion, 
                                     ghlFieldMapping: value === 'none' ? undefined : value
                                   });
+                                  setGhlFieldSearchTerm(''); // Clear search after selection
                                 }}
                               >
                                 <SelectTrigger className="mt-1">
@@ -820,6 +828,11 @@ export default function SurveyBuilderPage() {
                                   <SelectItem value="none">No mapping</SelectItem>
                                   {ghlFields
                                     .filter(field => field.key && field.key.trim() !== '')
+                                    .filter(field => 
+                                      ghlFieldSearchTerm === '' ||
+                                      field.name.toLowerCase().includes(ghlFieldSearchTerm.toLowerCase()) ||
+                                      field.key.toLowerCase().includes(ghlFieldSearchTerm.toLowerCase())
+                                    )
                                     .map((field) => (
                                       <SelectItem key={field.key} value={field.key}>
                                         {field.name} {field.type === 'native' ? '(Native)' : field.fieldType === 'custom' ? '(Custom)' : ''}
