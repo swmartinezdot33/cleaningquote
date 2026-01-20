@@ -23,16 +23,20 @@ export function parseKML(kmlContent: string): ParsedKMLResult {
       // Extract the href from NetworkLink - handle both plain and CDATA-wrapped URLs
       let networkLink: string | null = null;
       
-      // First try: plain text within <href> tags
-      let hrefMatch = kmlContent.match(/<href>\s*(.*?)\s*<\/href>/);
+      // First try: URL within CDATA section (check this first since plain text pattern is too greedy)
+      // Pattern: <href><![CDATA[URL]]></href>
+      let hrefMatch = kmlContent.match(/<href>\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*<\/href>/);
       if (hrefMatch && hrefMatch[1]) {
         networkLink = hrefMatch[1].trim();
       } else {
-        // Second try: URL within CDATA section
-        // Pattern: <href><![CDATA[URL]]></href>
-        hrefMatch = kmlContent.match(/<href>\s*<!\[CDATA\[(.*?)\]\]>\s*<\/href>/);
+        // Second try: plain text within <href> tags
+        hrefMatch = kmlContent.match(/<href>\s*([^<]+?)\s*<\/href>/);
         if (hrefMatch && hrefMatch[1]) {
-          networkLink = hrefMatch[1].trim();
+          const value = hrefMatch[1].trim();
+          // Make sure it's not CDATA markers (which would indicate parsing failed)
+          if (!value.includes('<![CDATA[') && !value.includes(']]>')) {
+            networkLink = value;
+          }
         }
       }
       
