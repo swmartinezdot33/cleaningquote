@@ -231,11 +231,13 @@ export default function Home() {
   const [quoteSchema, setQuoteSchema] = useState<z.ZodObject<any>>(generateSchemaFromQuestions(defaultQuestions));
   const [addressCoordinates, setAddressCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [serviceAreaChecked, setServiceAreaChecked] = useState(false);
+  const [formSettings, setFormSettings] = useState<any>({});
 
   useEffect(() => {
     setMounted(true);
     loadWidgetSettings();
     loadSurveyQuestions();
+    loadFormSettings();
   }, []);
 
   // Update document title when widgetTitle changes
@@ -289,6 +291,18 @@ export default function Home() {
       return () => clearTimeout(timer);
     }
   }, [currentStep, mounted]);
+
+  const loadFormSettings = async () => {
+    try {
+      const response = await fetch('/api/form-settings');
+      if (response.ok) {
+        const data = await response.json();
+        setFormSettings(data.formSettings || {});
+      }
+    } catch (error) {
+      console.error('Failed to load form settings:', error);
+    }
+  };
 
   // Auto-focus input when step changes
   const loadWidgetSettings = async () => {
@@ -350,6 +364,30 @@ export default function Home() {
         defaults[q.id] = '';
       }
     });
+
+    // Apply query parameters if they are configured
+    if (typeof window !== 'undefined' && mounted) {
+      const params = new URLSearchParams(window.location.search);
+
+      // Map query parameter values to form fields based on admin config
+      const paramMap: Record<string, string> = {
+        firstName: formSettings.firstNameParam,
+        lastName: formSettings.lastNameParam,
+        email: formSettings.emailParam,
+        phone: formSettings.phoneParam,
+        address: formSettings.addressParam,
+      };
+
+      Object.entries(paramMap).forEach(([fieldId, paramName]) => {
+        if (paramName) {
+          const value = params.get(paramName);
+          if (value) {
+            defaults[fieldId] = value;
+          }
+        }
+      });
+    }
+
     return defaults;
   };
 
@@ -366,10 +404,10 @@ export default function Home() {
     defaultValues: getDefaultValues(),
   });
 
-  // Reset form when questions change
+  // Reset form when questions or formSettings change (to apply query parameters)
   useEffect(() => {
     reset(getDefaultValues());
-  }, [questions]);
+  }, [questions, formSettings, mounted]);
 
   // Detect browser autofill and auto-advance
   useEffect(() => {

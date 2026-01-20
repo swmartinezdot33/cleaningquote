@@ -40,6 +40,16 @@ export default function SettingsPage() {
   const [isSavingTracking, setIsSavingTracking] = useState(false);
   const [trackingMessage, setTrackingMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Form Settings State
+  const [firstNameParam, setFirstNameParam] = useState('');
+  const [lastNameParam, setLastNameParam] = useState('');
+  const [emailParam, setEmailParam] = useState('');
+  const [phoneParam, setPhoneParam] = useState('');
+  const [addressParam, setAddressParam] = useState('');
+  const [isLoadingFormSettings, setIsLoadingFormSettings] = useState(false);
+  const [isSavingFormSettings, setIsSavingFormSettings] = useState(false);
+  const [formSettingsMessage, setFormSettingsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   // GHL Configuration States
   const [ghlConfigLoaded, setGhlConfigLoaded] = useState(false);
   const [createContact, setCreateContact] = useState(true);
@@ -520,6 +530,30 @@ export default function SettingsPage() {
     }
   };
 
+  const loadFormSettings = async () => {
+    setIsLoadingFormSettings(true);
+    try {
+      const response = await fetch('/api/admin/form-settings', {
+        headers: {
+          'x-admin-password': password,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setFirstNameParam(data.formSettings.firstNameParam || '');
+        setLastNameParam(data.formSettings.lastNameParam || '');
+        setEmailParam(data.formSettings.emailParam || '');
+        setPhoneParam(data.formSettings.phoneParam || '');
+        setAddressParam(data.formSettings.addressParam || '');
+      }
+    } catch (error) {
+      console.error('Error loading form settings:', error);
+    } finally {
+      setIsLoadingFormSettings(false);
+    }
+  };
+
   const handleSaveTrackingCodes = async () => {
     setIsSavingTracking(true);
     setTrackingMessage(null);
@@ -559,6 +593,46 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSaveFormSettings = async () => {
+    setIsSavingFormSettings(true);
+    setFormSettingsMessage(null);
+
+    try {
+      const response = await fetch('/api/admin/form-settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': password,
+        },
+        body: JSON.stringify({
+          firstNameParam,
+          lastNameParam,
+          emailParam,
+          phoneParam,
+          addressParam,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setFormSettingsMessage({ type: 'success', text: 'Form settings saved successfully!' });
+      } else {
+        setFormSettingsMessage({
+          type: 'error',
+          text: data.error || 'Failed to save form settings',
+        });
+      }
+    } catch (error) {
+      setFormSettingsMessage({
+        type: 'error',
+        text: 'Failed to save form settings. Please try again.',
+      });
+    } finally {
+      setIsSavingFormSettings(false);
+    }
+  };
+
   // Load calendars and tags when component mounts and authenticated
   useEffect(() => {
     if (isAuthenticated) {
@@ -570,6 +644,9 @@ export default function SettingsPage() {
       }
       if (!googleAnalyticsId) {
         loadTrackingCodes();
+      }
+      if (!firstNameParam) {
+        loadFormSettings();
       }
     }
   }, [isAuthenticated]);
@@ -1505,6 +1582,141 @@ export default function SettingsPage() {
                     <>
                       <Save className="h-4 w-4" />
                       Save Tracking Codes
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <Card className="shadow-xl border-2">
+            <CardHeader className="bg-gradient-to-r from-[#f61590]/5 via-transparent to-transparent border-b">
+              <CardTitle>Query Parameter Settings</CardTitle>
+              <CardDescription>
+                Configure which URL query parameters should pre-fill the form fields. Example: ?firstName=John&email=test@example.com
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                {formSettingsMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`p-4 rounded-lg flex items-center gap-3 ${
+                      formSettingsMessage.type === 'success'
+                        ? 'bg-green-50 text-green-800 border border-green-200'
+                        : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}
+                  >
+                    {formSettingsMessage.type === 'success' ? (
+                      <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                    )}
+                    <p>{formSettingsMessage.text}</p>
+                  </motion.div>
+                )}
+
+                <div>
+                  <Label htmlFor="first-name-param" className="text-base font-semibold">
+                    First Name Parameter
+                  </Label>
+                  <Input
+                    id="first-name-param"
+                    value={firstNameParam}
+                    onChange={(e) => setFirstNameParam(e.target.value)}
+                    placeholder="e.g., firstName, first_name"
+                    className="mt-2"
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    The query parameter name to use for first name (e.g., ?firstName=John)
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="last-name-param" className="text-base font-semibold">
+                    Last Name Parameter
+                  </Label>
+                  <Input
+                    id="last-name-param"
+                    value={lastNameParam}
+                    onChange={(e) => setLastNameParam(e.target.value)}
+                    placeholder="e.g., lastName, last_name"
+                    className="mt-2"
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    The query parameter name to use for last name (e.g., ?lastName=Doe)
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="email-param" className="text-base font-semibold">
+                    Email Parameter
+                  </Label>
+                  <Input
+                    id="email-param"
+                    value={emailParam}
+                    onChange={(e) => setEmailParam(e.target.value)}
+                    placeholder="e.g., email, email_address"
+                    className="mt-2"
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    The query parameter name to use for email (e.g., ?email=test@example.com)
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="phone-param" className="text-base font-semibold">
+                    Phone Parameter
+                  </Label>
+                  <Input
+                    id="phone-param"
+                    value={phoneParam}
+                    onChange={(e) => setPhoneParam(e.target.value)}
+                    placeholder="e.g., phone, phone_number"
+                    className="mt-2"
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    The query parameter name to use for phone (e.g., ?phone=555-1234)
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="address-param" className="text-base font-semibold">
+                    Address Parameter
+                  </Label>
+                  <Input
+                    id="address-param"
+                    value={addressParam}
+                    onChange={(e) => setAddressParam(e.target.value)}
+                    placeholder="e.g., address, location"
+                    className="mt-2"
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    The query parameter name to use for address (e.g., ?address=123+Main+St)
+                  </p>
+                </div>
+
+                <Button
+                  onClick={handleSaveFormSettings}
+                  disabled={isSavingFormSettings}
+                  className="w-full h-11 font-semibold flex items-center gap-2"
+                >
+                  {isSavingFormSettings ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      Save Form Settings
                     </>
                   )}
                 </Button>

@@ -1,6 +1,7 @@
 import { kv } from '@vercel/kv';
 
 const PRICING_KEY = 'pricing:file:2026';
+const PRICING_NETWORK_PATH_KEY = 'pricing:network:path';
 const GHL_TOKEN_KEY = 'ghl:api:token';
 const GHL_LOCATION_ID_KEY = 'ghl:location:id';
 const GHL_CONFIG_KEY = 'ghl:config';
@@ -83,6 +84,45 @@ export async function pricingFileExists(): Promise<boolean> {
     return exists === 1;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Store network path for pricing file
+ */
+export async function storeNetworkPricingPath(path: string): Promise<void> {
+  try {
+    const kv = getKV();
+    await kv.set(PRICING_NETWORK_PATH_KEY, path);
+  } catch (error) {
+    console.error('Error storing network pricing path:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get network path for pricing file
+ */
+export async function getNetworkPricingPath(): Promise<string | null> {
+  try {
+    const kv = getKV();
+    const path = await kv.get<string>(PRICING_NETWORK_PATH_KEY);
+    return path || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Delete network path for pricing file
+ */
+export async function deleteNetworkPricingPath(): Promise<void> {
+  try {
+    const kv = getKV();
+    await kv.del(PRICING_NETWORK_PATH_KEY);
+  } catch (error) {
+    console.error('Error deleting network pricing path:', error);
+    throw error;
   }
 }
 
