@@ -594,14 +594,14 @@ export async function testGHLConnection(token?: string): Promise<{ success: bool
 
     // Test with contacts endpoint - works with contacts.write/readonly scope
     // Always use locationId for sub-account (location-level) API calls
-    const testEndpoint = `${GHL_API_BASE}/v2/locations/${locationId}/contacts?limit=1`;
+    const testEndpoint = `${GHL_API_BASE}/contacts?locationId=${locationId}&limit=1`;
 
     const response = await fetch(testEndpoint, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${testToken.trim()}`,
         'Content-Type': 'application/json',
-        'Version': '2021-07-28',
+        'Version': '2021-04-15',
       },
     });
 
