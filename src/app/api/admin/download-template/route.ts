@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import * as XLSX from 'xlsx';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
 
 /**
  * GET /api/admin/download-template
  * 
- * Download an Excel template file with the pricing structure format
+ * Download the actual 2026 Pricing.xlsx file as a template
  * 
  * Authentication: Send password in header 'x-admin-password'
  */
@@ -21,76 +22,52 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Create a workbook
-    const workbook = XLSX.utils.book_new();
-
-    // Create the header row
-    const headers = [
-      'Sq Ft Range',
-      'Weekly',
-      'Bi-Weekly',
-      '4 Week',
-      'General',
-      'Deep',
-      'Move In/Out Basic',
-      'Move In/Out Full',
+    // Try multiple possible paths for the Excel file
+    const possiblePaths = [
+      join(process.cwd(), 'data', '2026 Pricing.xlsx'),
+      join(process.cwd(), 'public', 'data', '2026 Pricing.xlsx'),
+      '/var/task/data/2026 Pricing.xlsx', // Vercel serverless path
+      join(process.cwd(), '.next', 'server', 'data', '2026 Pricing.xlsx'), // Build output
     ];
 
-    // Create sample data rows as a template
-    const templateData = [
-      headers, // Header row
-      ['0-1500', '$135-$165', '$150-$180', '$280-$320', '$200-$240', '$300-$360', '$250-$300', '$400-$500'],
-      ['1501-2000', '$155-$185', '$170-$200', '$300-$340', '$220-$260', '$320-$380', '$270-$320', '$420-$520'],
-      ['2001-2500', '$175-$205', '$190-$220', '$320-$360', '$240-$280', '$340-$400', '$290-$340', '$440-$540'],
-      ['2501-3000', '$195-$225', '$210-$240', '$340-$380', '$260-$300', '$360-$420', '$310-$360', '$460-$560'],
-      // Add more template rows as needed
-    ];
+    let excelBuffer: Buffer | null = null;
+    let filePath: string | null = null;
 
-    // Create worksheet
-    const worksheet = XLSX.utils.aoa_to_sheet(templateData);
-
-    // Set column widths for better readability
-    worksheet['!cols'] = [
-      { wch: 15 }, // Sq Ft Range
-      { wch: 15 }, // Weekly
-      { wch: 15 }, // Bi-Weekly
-      { wch: 15 }, // 4 Week
-      { wch: 15 }, // General
-      { wch: 15 }, // Deep
-      { wch: 20 }, // Move In/Out Basic
-      { wch: 20 }, // Move In/Out Full
-    ];
-
-    // Style header row (bold)
-    const headerRange = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
-    for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
-      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-      if (!worksheet[cellAddress]) continue;
-      worksheet[cellAddress].s = {
-        font: { bold: true },
-        fill: { fgColor: { rgb: 'FFE0E0E0' } },
-        alignment: { horizontal: 'center' },
-      };
+    for (const path of possiblePaths) {
+      try {
+        excelBuffer = await readFile(path);
+        filePath = path;
+        console.log(`Successfully loaded pricing file from: ${path}`);
+        break;
+      } catch (e) {
+        // File not found at this path, try next
+        continue;
+      }
     }
 
-    // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
-
-    // Generate Excel file buffer
-    const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    if (!excelBuffer) {
+      console.error(`Pricing file not found at any of these paths:`, possiblePaths);
+      return NextResponse.json(
+        { 
+          error: 'Pricing template file not found',
+          details: 'The 2026 Pricing.xlsx file could not be located on the server.'
+        },
+        { status: 500 }
+      );
+    }
 
     // Return file as download
-    return new NextResponse(excelBuffer, {
+    return new NextResponse(new Uint8Array(excelBuffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': 'attachment; filename="Pricing_Template.xlsx"',
+        'Content-Disposition': 'attachment; filename="2026_Pricing_Template.xlsx"',
       },
     });
   } catch (error) {
-    console.error('Template generation error:', error);
+    console.error('Template download error:', error);
     return NextResponse.json(
       { 
-        error: 'Failed to generate template',
+        error: 'Failed to download template',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
