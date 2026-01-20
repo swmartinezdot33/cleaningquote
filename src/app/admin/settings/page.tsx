@@ -123,6 +123,11 @@ export default function SettingsPage() {
       return;
     }
 
+    if (!ghlLocationId.trim()) {
+      setMessage({ type: 'error', text: 'Please enter a Location ID' });
+      return;
+    }
+
     setIsSaving(true);
     try {
       const response = await fetch('/api/admin/ghl-settings', {
@@ -505,11 +510,19 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="token" className="text-base font-semibold">
-                    GHL Permanent Integration Token (PIT)
+                    GHL Private Integration Token (PIT)
                   </Label>
                   <p className="text-sm text-gray-600 mt-1 mb-3">
-                    Enter your GoHighLevel API token. Keep this secret - never share it publicly.
+                    Enter your GoHighLevel API token. <strong className="text-[#f61590]">We strongly recommend using a Location-level PIT token</strong> (sub-account level) for better security and reliability. Keep this secret - never share it publicly.
                   </p>
+                  <div className="mt-2 mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm font-semibold text-blue-900 mb-1">
+                      💡 Recommended: Location-level PIT Token
+                    </p>
+                    <p className="text-xs text-blue-800">
+                      Location-level (sub-account) PIT tokens are scoped to a specific location and provide better security. All API calls will use the Location ID you provide below to ensure proper sub-account integration.
+                    </p>
+                  </div>
                   <div className="relative">
                     <Input
                       id="token"
@@ -533,18 +546,19 @@ export default function SettingsPage() {
                   </div>
                   <div className="mt-4">
                     <Label htmlFor="locationId" className="text-base font-semibold">
-                      Location ID (Optional - Recommended for Location-level tokens)
+                      Location ID <span className="text-red-500">*</span>
                     </Label>
                     <p className="text-sm text-gray-600 mt-1 mb-3">
-                      Enter your GoHighLevel Location ID. This is required for Location-level PIT tokens to work properly. You can find this in your GHL dashboard URL after /location/
+                      Enter your GoHighLevel Location ID. This is required for GHL API integration. You can find this in your GHL dashboard URL after /location/
                     </p>
                     <Input
                       id="locationId"
                       type="text"
                       value={ghlLocationId}
                       onChange={(e) => setGhlLocationId(e.target.value)}
-                      placeholder="e.g., ve9EPM428h8vShlRW1KT (leave blank if using Agency-level token)"
+                      placeholder="e.g., ve9EPM428h8vShlRW1KT"
                       className="font-mono"
+                      required
                     />
                   </div>
                   <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -560,7 +574,7 @@ export default function SettingsPage() {
                       <li><strong>locations.readonly</strong> - Only needed if using Agency-level PIT token (optional for Location-level tokens)</li>
                     </ul>
                     <p className="text-xs text-amber-700 mt-2 italic">
-                      <strong>Note:</strong> If using a <strong>Location-level PIT token</strong>, you don't need locations.readonly scope. Location-level tokens are scoped to a single location and cannot search for locations. <strong>You should enter your Location ID above.</strong>
+                      <strong>Important:</strong> We recommend using a <strong>Location-level PIT token</strong> (sub-account level) for all integrations. Location-level tokens don't need the locations.readonly scope and provide better security by scoping to a specific location. All API calls will automatically use your Location ID for sub-account operations.
                     </p>
                   </div>
                 </div>
@@ -576,7 +590,7 @@ export default function SettingsPage() {
                 <div className="flex gap-3 pt-4">
                   <Button
                     onClick={handleSaveToken}
-                    disabled={isSaving || !ghlToken.trim()}
+                    disabled={isSaving || !ghlToken.trim() || !ghlLocationId.trim()}
                     className="flex items-center gap-2"
                   >
                     {isSaving ? (
@@ -643,9 +657,11 @@ export default function SettingsPage() {
                   <h4 className="font-semibold text-gray-900 mb-2">How to get your GHL PIT token</h4>
                   <p>
                     1. Log in to your GoHighLevel dashboard<br />
-                    2. Go to Settings → Integrations → API<br />
-                    3. Create a new API key or use an existing Permanent Integration Token<br />
-                    4. Copy the token and paste it above
+                    2. Navigate to the specific Location (sub-account) you want to integrate<br />
+                    3. Go to Settings → Integrations → API<br />
+                    4. <strong>Create a Location-level Private Integration Token</strong> (recommended) or use an existing one<br />
+                    5. Copy the token and paste it above<br />
+                    6. Enter the Location ID from your dashboard URL (found after /location/)
                   </p>
                 </div>
                 <div>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGHLToken } from '@/lib/kv';
+import { getGHLToken, getGHLLocationId } from '@/lib/kv';
 
 function authenticate(request: NextRequest): NextResponse | null {
   const password = request.headers.get('x-admin-password');
@@ -31,37 +31,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // For API v2, get location ID from token using /oauth/installedLocations
-    // This works for both agency-level and location-level PIT tokens
-    let locationId: string | null = null;
-    let locationName: string | null = null;
+    // Always use stored locationId for sub-account (location-level) API calls
+    const locationId = await getGHLLocationId();
     
-    try {
-      // Use /oauth/installedLocations which works for both token types
-      const locationsResponse = await fetch('https://services.leadconnectorhq.com/oauth/installedLocations', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Version': '2021-07-28',
-        },
-      });
-
-      if (locationsResponse.ok) {
-        const locationsData = await locationsResponse.json();
-        const locations = locationsData.locations || locationsData.data || [];
-        if (locations.length > 0) {
-          locationId = locations[0].id;
-          locationName = locations[0].name || 'My Location';
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to fetch installed locations:', error);
-    }
-
     if (!locationId) {
       return NextResponse.json(
-        { error: 'Could not determine location ID from token. Please ensure your PIT token is valid.' },
+        { error: 'Location ID is required. Please configure it in the admin settings.' },
         { status: 400 }
       );
     }
@@ -90,7 +65,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       locationId,
-      locationName,
       pipelines: pipelines.map((p: any) => ({
         id: p.id,
         name: p.name,

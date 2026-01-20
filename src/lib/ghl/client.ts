@@ -64,22 +64,19 @@ async function makeGHLRequest<T>(
 
 /**
  * Create or update a contact in GHL
- * For location-level tokens, locationId is required in the body
+ * Always uses stored locationId for sub-account (location-level) API calls
  */
 export async function createOrUpdateContact(
   contactData: GHLContact,
   locationId?: string
 ): Promise<GHLContactResponse> {
   try {
-    // Get locationId if not provided (for location-level tokens)
-    let finalLocationId = locationId;
+    // Always use locationId - required for sub-account (location-level) API calls
+    // Use provided locationId, or get from stored settings (required)
+    let finalLocationId = locationId || (await getGHLLocationId());
+    
     if (!finalLocationId) {
-      // First try to get from stored locationId (from settings)
-      finalLocationId = (await getGHLLocationId()) || undefined;
-      // If not stored, try to get from token
-      if (!finalLocationId) {
-        finalLocationId = await getLocationIdFromToken() || undefined;
-      }
+      throw new Error('Location ID is required. Please configure it in the admin settings.');
     }
 
     const payload: Record<string, any> = {
@@ -92,8 +89,8 @@ export async function createOrUpdateContact(
       ...(contactData.customFields && Object.keys(contactData.customFields).length > 0 && {
         customFields: contactData.customFields,
       }),
-      // Include locationId for API v2 (required for location-level tokens, optional for agency-level)
-      ...(finalLocationId && { locationId: finalLocationId }),
+      // Always include locationId for sub-account (location-level) API calls
+      locationId: finalLocationId,
     };
 
     // GHL v2 uses /contacts/upsert for create or update
@@ -112,22 +109,19 @@ export async function createOrUpdateContact(
 
 /**
  * Create an opportunity in GHL
- * For location-level tokens, locationId is required in the body
+ * Always uses stored locationId for sub-account (location-level) API calls
  */
 export async function createOpportunity(
   opportunityData: GHLOpportunity,
   locationId?: string
 ): Promise<GHLOpportunityResponse> {
   try {
-    // Get locationId if not provided (for location-level tokens)
-    let finalLocationId = locationId;
+    // Always use locationId - required for sub-account (location-level) API calls
+    // Use provided locationId, or get from stored settings (required)
+    let finalLocationId = locationId || (await getGHLLocationId());
+    
     if (!finalLocationId) {
-      // First try to get from stored locationId (from settings)
-      finalLocationId = (await getGHLLocationId()) || undefined;
-      // If not stored, try to get from token
-      if (!finalLocationId) {
-        finalLocationId = await getLocationIdFromToken() || undefined;
-      }
+      throw new Error('Location ID is required. Please configure it in the admin settings.');
     }
 
     const payload: Record<string, any> = {
@@ -142,8 +136,8 @@ export async function createOpportunity(
       ...(opportunityData.customFields && Object.keys(opportunityData.customFields).length > 0 && {
         customFields: opportunityData.customFields,
       }),
-      // Include locationId for API v2 (required for location-level tokens, optional for agency-level)
-      ...(finalLocationId && { locationId: finalLocationId }),
+      // Always include locationId for sub-account (location-level) API calls
+      locationId: finalLocationId,
     };
 
     const response = await makeGHLRequest<{ opportunity: GHLOpportunityResponse }>(
@@ -161,11 +155,22 @@ export async function createOpportunity(
 
 /**
  * Add a note to a contact in GHL
+ * Always uses stored locationId for sub-account (location-level) API calls
  */
-export async function createNote(noteData: GHLNote): Promise<GHLNoteResponse> {
+export async function createNote(noteData: GHLNote, locationId?: string): Promise<GHLNoteResponse> {
   try {
+    // Always use locationId - required for sub-account (location-level) API calls
+    // Use provided locationId, or get from stored settings (required)
+    let finalLocationId = locationId || (await getGHLLocationId());
+    
+    if (!finalLocationId) {
+      throw new Error('Location ID is required. Please configure it in the admin settings.');
+    }
+
     const payload = {
       body: noteData.body,
+      // Always include locationId for sub-account (location-level) API calls
+      locationId: finalLocationId,
     };
 
     const response = await makeGHLRequest<{ note: GHLNoteResponse }>(
@@ -183,22 +188,19 @@ export async function createNote(noteData: GHLNote): Promise<GHLNoteResponse> {
 
 /**
  * Create an appointment in GHL
- * For location-level tokens, locationId is required in the body
+ * Always uses stored locationId for sub-account (location-level) API calls
  */
 export async function createAppointment(
   appointmentData: GHLAppointment,
   locationId?: string
 ): Promise<GHLAppointmentResponse> {
   try {
-    // Get locationId if not provided (for location-level tokens)
-    let finalLocationId = locationId;
+    // Always use locationId - required for sub-account (location-level) API calls
+    // Use provided locationId, or get from stored settings (required)
+    let finalLocationId = locationId || (await getGHLLocationId());
+    
     if (!finalLocationId) {
-      // First try to get from stored locationId (from settings)
-      finalLocationId = (await getGHLLocationId()) || undefined;
-      // If not stored, try to get from token
-      if (!finalLocationId) {
-        finalLocationId = await getLocationIdFromToken() || undefined;
-      }
+      throw new Error('Location ID is required. Please configure it in the admin settings.');
     }
 
     const payload: Record<string, any> = {
@@ -208,8 +210,8 @@ export async function createAppointment(
       endTime: appointmentData.endTime,
       ...(appointmentData.notes && { notes: appointmentData.notes }),
       ...(appointmentData.calendarId && { calendarId: appointmentData.calendarId }),
-      // Include locationId for API v2 (required for location-level tokens, optional for agency-level)
-      ...(finalLocationId && { locationId: finalLocationId }),
+      // Always include locationId for sub-account (location-level) API calls
+      locationId: finalLocationId,
     };
 
     const response = await makeGHLRequest<{ appointment: GHLAppointmentResponse }>(
@@ -300,6 +302,7 @@ export async function getPipelines(locationId: string): Promise<GHLPipeline[]> {
 
 /**
  * Test GHL API connection with a specific token (optional)
+ * Always uses stored locationId for sub-account (location-level) API calls
  */
 export async function testGHLConnection(token?: string): Promise<{ success: boolean; error?: string }> {
   try {
@@ -314,38 +317,18 @@ export async function testGHLConnection(token?: string): Promise<{ success: bool
       return { success: false, error: 'Token appears to be invalid (too short)' };
     }
 
-    // For location-level tokens, try to get locationId from /oauth/installedLocations first
-    // If that fails (403/401), try alternative approach
-    let locationId: string | null = null;
-    let response = await fetch(`${GHL_API_BASE}/oauth/installedLocations`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${testToken.trim()}`,
-        'Content-Type': 'application/json',
-        'Version': '2021-07-28',
-      },
-    });
-
-    if (response.ok) {
-      try {
-        const data = await response.json();
-        const locations = data.locations || data.data || [];
-        if (locations.length > 0) {
-          locationId = locations[0].id;
-        }
-      } catch {
-        // If parsing fails, continue without locationId
-      }
+    // Always use stored locationId for sub-account (location-level) API calls
+    const locationId = await getGHLLocationId();
+    
+    if (!locationId) {
+      return { success: false, error: 'Location ID is required. Please configure it in the admin settings.' };
     }
 
     // Test with contacts endpoint - works with contacts.write/readonly scope
-    // For location-level tokens, we need locationId. If we don't have it, try without it first
-    let testEndpoint = `${GHL_API_BASE}/contacts?limit=1`;
-    if (locationId) {
-      testEndpoint = `${GHL_API_BASE}/contacts?locationId=${locationId}&limit=1`;
-    }
+    // Always use locationId for sub-account (location-level) API calls
+    const testEndpoint = `${GHL_API_BASE}/contacts?locationId=${locationId}&limit=1`;
 
-    response = await fetch(testEndpoint, {
+    const response = await fetch(testEndpoint, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${testToken.trim()}`,
@@ -353,42 +336,6 @@ export async function testGHLConnection(token?: string): Promise<{ success: bool
         'Version': '2021-07-28',
       },
     });
-
-    // If it fails with 400 (bad request) and we didn't have locationId, it might need locationId
-    // For location-level tokens, try to create a test contact to get locationId from error
-    if (!response.ok && response.status === 400 && !locationId) {
-      // Try a minimal POST to /contacts/upsert to see if we get location info from error
-      const testContactResponse = await fetch(`${GHL_API_BASE}/contacts/upsert`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${testToken.trim()}`,
-          'Content-Type': 'application/json',
-          'Version': '2021-07-28',
-        },
-        body: JSON.stringify({
-          firstName: 'Test',
-          lastName: 'Connection',
-        }),
-      });
-
-      if (testContactResponse.ok) {
-        // If POST works without locationId, token is valid
-        return { success: true };
-      }
-
-      // Parse error to see if it mentions locationId
-      try {
-        const errorData = await testContactResponse.json();
-        const errorText = JSON.stringify(errorData);
-        // If error mentions location, try to extract it or just accept the token is valid but needs locationId
-        if (errorText.includes('location') || errorText.includes('Location')) {
-          // Token is valid, just needs locationId (which we'll get at runtime)
-          return { success: true };
-        }
-      } catch {
-        // Continue with original error handling
-      }
-    }
 
     if (!response.ok) {
       let errorMessage = `HTTP ${response.status}`;
@@ -420,12 +367,8 @@ export async function testGHLConnection(token?: string): Promise<{ success: bool
         const details = errorDetails.message || errorDetails.error || errorMessage;
         return { 
           success: false, 
-          error: `Forbidden - ${details}. If using a location-level PIT token, ensure you have contacts.write scope enabled.` 
+          error: `Forbidden - ${details}. Ensure you have contacts.write scope enabled and the Location ID is correct.` 
         };
-      } else if (response.status === 400) {
-        // 400 might mean missing locationId - but token is valid
-        // For location-level tokens, we'll handle locationId at runtime
-        return { success: true };
       } else {
         return { success: false, error: `Connection failed (${response.status}): ${errorMessage}` };
       }

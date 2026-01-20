@@ -96,10 +96,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save locationId if provided (optional for location-level tokens)
-    if (locationId && typeof locationId === 'string' && locationId.trim()) {
-      await storeGHLLocationId(locationId.trim());
+    // Location ID is required
+    if (!locationId || typeof locationId !== 'string' || !locationId.trim()) {
+      return NextResponse.json(
+        { error: 'Location ID is required' },
+        { status: 400 }
+      );
     }
+
+    // Save locationId
+    await storeGHLLocationId(locationId.trim());
 
     // Test connection with the new token before saving
     let testResult;
