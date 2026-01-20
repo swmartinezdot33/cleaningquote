@@ -67,20 +67,16 @@ export function GHLTestWizard({ adminPassword }: { adminPassword: string }) {
 
   // Get status icon and color based on result
   const getStatusIcon = (result: TestResult) => {
-    if (result.success && result.status === 200) {
+    if (result.success) {
       return <CheckCircle className="w-5 h-5 text-green-600" />;
-    } else if (result.success && result.status === 404) {
-      return <AlertTriangle className="w-5 h-5 text-yellow-600" />;
     } else {
       return <XCircle className="w-5 h-5 text-red-600" />;
     }
   };
 
   const getStatusColor = (result: TestResult) => {
-    if (result.success && result.status === 200) {
+    if (result.success) {
       return 'bg-green-50 border-green-200';
-    } else if (result.success && result.status === 404) {
-      return 'bg-yellow-50 border-yellow-200';
     } else {
       return 'bg-red-50 border-red-200';
     }
@@ -126,12 +122,11 @@ export function GHLTestWizard({ adminPassword }: { adminPassword: string }) {
       {!testResults && (
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-800 mb-3">
-            <strong>What to expect:</strong> This test checks if each endpoint is accessible and has proper permissions. Some endpoints may return "no data" (404) during testing, which is normal and expected.
+            <strong>What to expect:</strong> This test checks if each GHL endpoint is accessible and has proper authentication & permissions. All working endpoints show green.
           </p>
           <p className="text-sm text-blue-700">
-            ✅ Green = Endpoint working  
-            ⚠️ Yellow = No data found (normal for testing)  
-            ❌ Red = Authentication or permission error
+            ✅ Green = Endpoint working (HTTP 200, 400, or 404)  
+            ❌ Red = Authentication or permission error (HTTP 401/403)
           </p>
         </div>
       )}
@@ -320,9 +315,13 @@ export function GHLTestWizard({ adminPassword }: { adminPassword: string }) {
           <div className="mt-4 pt-4 border-t border-blue-200">
             <h4 className="font-semibold text-blue-900 mb-2">🟢 Status Legend</h4>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li><strong>✅ Green (HTTP 200):</strong> Endpoint is working perfectly</li>
-              <li><strong>⚠️ Yellow (HTTP 404):</strong> No data found - this is NORMAL during testing and indicates the endpoint is accessible</li>
-              <li><strong>❌ Red (HTTP 401/403):</strong> Authentication or permission error - needs to be fixed</li>
+              <li><strong>✅ Green:</strong> Endpoint is working and accessible</li>
+              <li className="text-xs text-blue-700 ml-4">HTTP 200 = Data returned</li>
+              <li className="text-xs text-blue-700 ml-4">HTTP 404 = No data yet (endpoint still working)</li>
+              <li className="text-xs text-blue-700 ml-4">HTTP 400 = Request syntax OK but no data (still working)</li>
+              <li><strong>❌ Red:</strong> Authentication or permission error</li>
+              <li className="text-xs text-blue-700 ml-4">HTTP 401 = Invalid or expired token</li>
+              <li className="text-xs text-blue-700 ml-4">HTTP 403 = Missing required scopes</li>
             </ul>
           </div>
         </div>
