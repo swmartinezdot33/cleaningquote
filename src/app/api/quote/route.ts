@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
       people: Number(body.people),
       pets: Number(body.pets),
       sheddingPets: Number(body.sheddingPets),
+      condition: body.condition,
     };
 
     const result = await calcQuote(inputs);

@@ -439,17 +439,18 @@ export default function Home() {
                 </motion.div>
 
                 {/* CTA Section */}
-                <motion.div
+                <motion.button
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
-                  className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-[#f61590]/10 border-2 border-[#f61590]/30 rounded-lg p-8 text-center"
+                  onClick={() => setShowBookingForm(true)}
+                  className="w-full bg-gradient-to-r from-[#f61590]/10 via-transparent to-[#f61590]/10 border-2 border-[#f61590]/30 rounded-lg p-8 text-center hover:border-[#f61590]/60 hover:bg-gradient-to-r hover:from-[#f61590]/20 hover:via-transparent hover:to-[#f61590]/20 transition-all cursor-pointer"
                 >
                   <h3 className="text-2xl font-bold text-gray-900 mb-3">Ready to Get Started?</h3>
-                  <p className="text-lg text-gray-700 mb-6">
+                  <p className="text-lg text-gray-700 mb-0">
                     Lock in your cleaning service by scheduling your appointment today!
                   </p>
-                </motion.div>
+                </motion.button>
 
                 {/* Appointment Booking Section */}
                 {quoteResult?.ghlContactId && (
