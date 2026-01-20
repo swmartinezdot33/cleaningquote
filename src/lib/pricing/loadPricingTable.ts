@@ -79,14 +79,19 @@ export function loadPricingTable(): PricingTable {
 
   // Try multiple possible paths for Vercel serverless environment
   const possiblePaths = [
+    // Standard data directory (most common)
+    join(process.cwd(), 'data', '2026 Pricing.xlsx'),
+    // Root directory (fallback if file was placed there)
+    join(process.cwd(), '2026 Pricing.xlsx'),
     // Vercel production path (file copied during build)
     join(process.cwd(), '.next', 'server', 'data', '2026 Pricing.xlsx'),
-    // Development and standard paths
-    join(process.cwd(), 'data', '2026 Pricing.xlsx'),
-    join(process.cwd(), '..', 'data', '2026 Pricing.xlsx'),
     // Alternative serverless paths
+    join(process.cwd(), '..', 'data', '2026 Pricing.xlsx'),
     join(__dirname, '..', '..', '..', 'data', '2026 Pricing.xlsx'),
     join(__dirname, '..', '..', '..', '.next', 'server', 'data', '2026 Pricing.xlsx'),
+    // Vercel serverless function paths
+    '/var/task/data/2026 Pricing.xlsx',
+    '/var/task/2026 Pricing.xlsx',
   ];
 
   let fileBuffer: Buffer | null = null;
