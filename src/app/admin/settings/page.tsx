@@ -526,6 +526,22 @@ export default function SettingsPage() {
                       )}
                     </button>
                   </div>
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-sm font-semibold text-amber-900 mb-2 flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4" />
+                      Required GHL Scopes:
+                    </p>
+                    <ul className="text-xs text-amber-800 space-y-1 ml-6 list-disc">
+                      <li><strong>contacts.write</strong> - Create/update contacts and add notes</li>
+                      <li><strong>opportunities.read</strong> - Read pipelines for configuration</li>
+                      <li><strong>opportunities.write</strong> - Create opportunities from quotes</li>
+                      <li><strong>calendars.write</strong> - Create appointments for bookings</li>
+                      <li><strong>locations.read</strong> - Access location information</li>
+                    </ul>
+                    <p className="text-xs text-amber-700 mt-2 italic">
+                      Make sure your PIT token has these scopes enabled in your GHL account settings.
+                    </p>
+                  </div>
                 </div>
 
                 {ghlTokenDisplay && ghlTokenDisplay !== '••••••••••••••••' && (
