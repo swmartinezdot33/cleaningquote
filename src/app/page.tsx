@@ -16,6 +16,16 @@ import { SurveyQuestion } from '@/lib/kv';
 import { GooglePlacesAutocomplete, PlaceDetails } from '@/components/GooglePlacesAutocomplete';
 
 /**
+ * Convert a select value (including "5+") to a number
+ */
+function convertSelectToNumber(value: string): number {
+  if (!value) return 0;
+  if (value === '5+') return 5; // Use 5 as the minimum for "5+"
+  const num = parseInt(value, 10);
+  return !isNaN(num) ? num : 0;
+}
+
+/**
  * Convert square footage range string to numeric value (use upper bound - 1 for better matching)
  */
 function convertSquareFootageToNumber(rangeString: string): number {
@@ -221,8 +231,15 @@ const defaultQuestions: SurveyQuestion[] = [
   {
     id: 'halfBaths',
     label: 'How many half baths?',
-    type: 'number',
-    placeholder: '1',
+    type: 'select',
+    options: [
+      { value: '0', label: '0' },
+      { value: '1', label: '1' },
+      { value: '2', label: '2' },
+      { value: '3', label: '3' },
+      { value: '4', label: '4' },
+      { value: '5+', label: '5+' },
+    ],
     required: true,
     order: 9,
   },
@@ -245,8 +262,15 @@ const defaultQuestions: SurveyQuestion[] = [
   {
     id: 'sheddingPets',
     label: 'How many shedding pets live in the home?',
-    type: 'number',
-    placeholder: '1',
+    type: 'select',
+    options: [
+      { value: '0', label: '0' },
+      { value: '1', label: '1' },
+      { value: '2', label: '2' },
+      { value: '3', label: '3' },
+      { value: '4', label: '4' },
+      { value: '5+', label: '5+' },
+    ],
     required: true,
     order: 12,
   },
@@ -746,11 +770,11 @@ export default function Home() {
         // Convert square footage range to numeric value
         squareFeet: convertSquareFootageToNumber(formData.squareFeet),
         fullBaths: Number(formData.fullBaths),
-        halfBaths: Number(formData.halfBaths),
+        halfBaths: convertSelectToNumber(formData.halfBaths),
         bedrooms: Number(formData.bedrooms),
         people: Number(formData.people),
         pets: Number(formData.sheddingPets),
-        sheddingPets: Number(formData.sheddingPets),
+        sheddingPets: convertSelectToNumber(formData.sheddingPets),
         condition: formData.condition,
         hasPreviousService: formData.hasPreviousService === 'true' || formData.hasPreviousService === 'switching',
         cleanedWithin3Months: formData.cleanedWithin3Months === 'yes',
