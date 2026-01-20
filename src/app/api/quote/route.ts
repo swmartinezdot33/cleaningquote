@@ -1,9 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { calcQuote } from '@/lib/pricing/calcQuote';
 import { generateSummaryText, generateSmsText } from '@/lib/pricing/format';
-import { QuoteInputs } from '@/lib/pricing/types';
+import { QuoteInputs, QuoteRanges } from '@/lib/pricing/types';
 import { createOrUpdateContact, createOpportunity, createNote } from '@/lib/ghl/client';
 import { ghlTokenExists, getGHLConfig, getSurveyQuestions, SurveyQuestion } from '@/lib/kv';
+
+/**
+ * Helper to get the selected quote range based on service type and frequency
+ */
+function getSelectedQuoteRange(ranges: QuoteRanges, serviceType: string, frequency: string): { low: number; high: number } | null {
+  if (frequency === 'weekly') {
+    return ranges.weekly;
+  } else if (frequency === 'bi-weekly') {
+    return ranges.biWeekly;
+  } else if (frequency === 'monthly') {
+    return ranges.fourWeek;
+  } else if (serviceType === 'initial' && frequency === 'one-time') {
+    return ranges.initial;
+  } else if (serviceType === 'deep' && frequency === 'one-time') {
+    return ranges.deep;
+  } else if (serviceType === 'general' && frequency === 'one-time') {
+    return ranges.general;
+  } else if (serviceType === 'move-in' && frequency === 'one-time') {
+    return ranges.moveInOutBasic;
+  } else if (serviceType === 'move-out' && frequency === 'one-time') {
+    return ranges.moveInOutFull;
+  }
+  return null;
+}
 
 /**
  * Helper to get the selected quote price based on service type and frequency
@@ -84,7 +108,14 @@ export async function POST(request: NextRequest) {
 
           // Map form data to GHL fields based on survey question mappings
           surveyQuestions.forEach((question: SurveyQuestion) => {
-            const fieldValue = body[question.id as keyof typeof body];
+            // Handle both original IDs and sanitized field names
+            let fieldValue = body[question.id as keyof typeof body];
+            if (fieldValue === undefined || fieldValue === null) {
+              // Try sanitized version (dots replaced with underscores)
+              const sanitizedId = question.id.replace(/\./g, '_');
+              fieldValue = body[sanitizedId as keyof typeof body];
+            }
+            
             if (fieldValue === undefined || fieldValue === null || fieldValue === '') return;
 
             const mapping = question.ghlFieldMapping;
@@ -94,8 +125,9 @@ export async function POST(request: NextRequest) {
             if (mapping === 'firstName' || mapping === 'lastName' || mapping === 'email' || mapping === 'phone') {
               contactData[mapping] = String(fieldValue);
             } else {
-              // Custom field
-              contactData.customFields![mapping] = String(fieldValue);
+              // Custom field - use original question ID as key if no mapping
+              const fieldKey = mapping || question.id;
+              contactData.customFields![fieldKey] = String(fieldValue);
             }
           });
 
@@ -140,6 +172,9 @@ export async function POST(request: NextRequest) {
 
           const opportunityName = `Cleaning Quote - ${body.serviceType || 'General'} - ${body.frequency || 'TBD'}`;
 
+          // Get the selected price range for storing
+          const selectedRange = getSelectedQuoteRange(result.ranges, body.serviceType, body.frequency);
+
           await createOpportunity({
             contactId: ghlContactId,
             name: opportunityName,
@@ -148,10 +183,22 @@ export async function POST(request: NextRequest) {
             pipelineStageId: ghlConfig.pipelineStageId,
             status: (ghlConfig.opportunityStatus as 'open' | 'won' | 'lost' | 'abandoned') || 'open',
             customFields: {
+              // Home details
               squareFeet: String(body.squareFeet),
               beds: String(body.bedrooms || 0),
               baths: String((body.fullBaths || 0) + (body.halfBaths || 0) * 0.5),
+              people: String(body.people || 0),
+              sheddingPets: String(body.sheddingPets || 0),
               condition: body.condition || 'Unknown',
+              
+              // Service details
+              serviceType: body.serviceType || 'Not specified',
+              frequency: body.frequency || 'Not specified',
+              
+              // Quote pricing
+              quoteMin: String(selectedRange?.low || 0),
+              quoteMax: String(selectedRange?.high || 0),
+              quotePriceMiddle: String(opportunityValue || 0),
             },
           });
         }
