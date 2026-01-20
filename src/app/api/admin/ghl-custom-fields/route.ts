@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch custom fields from GHL API v2
     const response = await fetch(
-      `https://services.leadconnectorhq.com/locations/${locationId}/customFields?model=contact`,
+      `https://services.leadconnectorhq.com/v2/locations/${locationId}/customFields?model=contact`,
       {
         method: 'GET',
         headers: {

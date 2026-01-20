@@ -46,9 +46,9 @@ export async function GET(request: NextRequest) {
     console.log(`Fetching tags for location: ${locationId}`);
 
     // Fetch tags from GHL API v2
-    // GHL uses /locations/{locationId}/tags endpoint
+    // GHL uses /v2/locations/{locationId}/tags endpoint
     const response = await fetch(
-      `https://services.leadconnectorhq.com/locations/${locationId}/tags`,
+      `https://services.leadconnectorhq.com/v2/locations/${locationId}/tags`,
       {
         method: 'GET',
         headers: {
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
         // Try alternative endpoint
         try {
           const altResponse = await fetch(
-            `https://services.leadconnectorhq.com/locations/${locationId}/tags`,
+            `https://services.leadconnectorhq.com/v2/locations/${locationId}/tags`,
             {
               method: 'GET',
               headers: {

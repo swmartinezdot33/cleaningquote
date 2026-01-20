@@ -46,15 +46,15 @@ export async function GET(request: NextRequest) {
     console.log(`Fetching calendars for location: ${locationId}`);
 
     // Fetch calendars from GHL API v2
-    // Official endpoint: GET /calendars/ with locationId as query parameter
+    // Official endpoint: GET /v2/locations/{locationId}/calendars
     const response = await fetch(
-      `https://services.leadconnectorhq.com/calendars/?locationId=${locationId}`,
+      `https://services.leadconnectorhq.com/v2/locations/${locationId}/calendars`,
       {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-          'Version': '2021-04-15', // GHL API version per official docs
+          'Version': '2021-07-28', // GHL API v2
         },
       }
     );

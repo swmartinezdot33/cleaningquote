@@ -25,6 +25,7 @@ export interface PlaceDetails {
 declare global {
   interface Window {
     google?: any;
+    initGooglePlaces?: () => void;
   }
 }
 
@@ -39,136 +40,132 @@ export function GooglePlacesAutocomplete({
   onKeyDown,
 }: GooglePlacesAutocompleteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const autocompleteRef = useRef<any>(null);
   const [isLoadingGeo, setIsLoadingGeo] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const suggestionsRef = useRef<HTMLDivElement>(null);
+  const [googleLoaded, setGoogleLoaded] = useState(false);
 
-  // Use OpenStreetMap/Nominatim for autocomplete (free alternative to Google Places)
-  const handleAddressChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value;
-    if (onChange) {
-      onChange(inputValue);
+  // Initialize Google Places Autocomplete
+  useEffect(() => {
+    // Check if Google Maps is already loaded
+    if (window.google?.maps?.places?.Autocomplete) {
+      setGoogleLoaded(true);
+      initializeAutocomplete();
+      return;
     }
 
-    // Get autocomplete suggestions from Nominatim (free, no API key needed)
-    if (inputValue.length > 2) {
-      try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(inputValue)}&countrycodes=us&limit=5`,
-          { headers: { 'Accept-Language': 'en' } }
-        );
-        const data = await response.json();
-        const displayNames = data.map((item: any) => item.display_name).slice(0, 5);
-        setSuggestions(displayNames);
-        setShowSuggestions(true);
-      } catch (err) {
-        console.warn('Nominatim autocomplete error:', err);
-        setSuggestions([]);
+    // Wait for Google Maps to load
+    const checkGoogle = setInterval(() => {
+      if (window.google?.maps?.places?.Autocomplete) {
+        setGoogleLoaded(true);
+        initializeAutocomplete();
+        clearInterval(checkGoogle);
       }
-    } else {
-      setSuggestions([]);
-      setShowSuggestions(false);
-    }
-  };
+    }, 100);
 
-  const handleSuggestionClick = (suggestion: string) => {
-    if (inputRef.current) {
-      inputRef.current.value = suggestion;
-      if (onChange) {
-        onChange(suggestion);
+    // Cleanup
+    return () => {
+      clearInterval(checkGoogle);
+      if (autocompleteRef.current) {
+        window.google?.maps?.event?.clearInstanceListeners?.(autocompleteRef.current);
       }
-    }
-    setSuggestions([]);
-    setShowSuggestions(false);
-    // Trigger geocoding for the selected suggestion
-    geocodeAddress(suggestion);
-  };
+    };
+  }, []);
 
-  const geocodeAddress = (address: string) => {
-    if (!address) return;
+  const initializeAutocomplete = () => {
+    if (!inputRef.current || !window.google?.maps?.places?.Autocomplete) return;
 
-    // Try Google Maps geocoding first if available
-    if (window.google?.maps?.Geocoder) {
-      setIsLoadingGeo(true);
-      try {
-        const geocoder = new window.google.maps.Geocoder();
-        geocoder.geocode(
-          { address, componentRestrictions: { country: 'us' } },
-          (results: any[], status: string) => {
-            setIsLoadingGeo(false);
-            
-            if (status === 'OK' && results?.[0]) {
-              const place = results[0];
-              const lat = typeof place.geometry?.location?.lat === 'function' 
-                ? place.geometry.location.lat() 
-                : place.geometry?.location?.lat;
-              const lng = typeof place.geometry?.location?.lng === 'function' 
-                ? place.geometry.location.lng() 
-                : place.geometry?.location?.lng;
-              
-              const placeDetails: PlaceDetails = {
-                lat: lat || 0,
-                lng: lng || 0,
-                formattedAddress: place.formatted_address || address,
-              };
+    // Create Autocomplete instance
+    autocompleteRef.current = new window.google.maps.places.Autocomplete(inputRef.current, {
+      componentRestrictions: { country: 'us' },
+      fields: ['formatted_address', 'geometry', 'place_id'],
+      types: ['address'],
+    });
 
-              if (onChange) {
-                onChange(placeDetails.formattedAddress, placeDetails);
-              }
-            } else {
-              // Fallback to Nominatim geocoding
-              fallbackGeocode(address);
-            }
-          }
-        );
-      } catch (err) {
-        setIsLoadingGeo(false);
-        fallbackGeocode(address);
-      }
-    } else {
-      fallbackGeocode(address);
-    }
-  };
-
-  const fallbackGeocode = async (address: string) => {
-    setIsLoadingGeo(true);
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=us&limit=1`,
-        { headers: { 'Accept-Language': 'en' } }
-      );
-      const data = await response.json();
+    // Listen for place selection
+    autocompleteRef.current.addListener('place_changed', () => {
+      const place = autocompleteRef.current.getPlace();
       
-      if (data?.[0]) {
-        const place = data[0];
+      if (place.geometry && place.formatted_address) {
+        const lat = place.geometry.location?.lat();
+        const lng = place.geometry.location?.lng();
+        
         const placeDetails: PlaceDetails = {
-          lat: parseFloat(place.lat) || 0,
-          lng: parseFloat(place.lon) || 0,
-          formattedAddress: place.display_name || address,
+          lat: lat || 0,
+          lng: lng || 0,
+          formattedAddress: place.formatted_address,
         };
 
-        if (onChange) {
-          onChange(placeDetails.formattedAddress, placeDetails);
+        // Update input value
+        if (inputRef.current) {
+          inputRef.current.value = place.formatted_address;
         }
+
+        // Call onChange with both address and place details
+        if (onChange) {
+          onChange(place.formatted_address, placeDetails);
+        }
+
+        // Clear loading state
+        setIsLoadingGeo(false);
       }
-    } catch (err) {
-      console.warn('Nominatim geocoding error:', err);
-    } finally {
-      setIsLoadingGeo(false);
+    });
+  };
+
+  const handleInputChange = (e: React.Change<HTMLInputElement>) => {
+    const inputValue = e.target.value;
+    
+    // Update form value as user types
+    if (onChange) {
+      onChange(inputValue);
     }
   };
 
   const handleBlur = () => {
-    // Delay hiding suggestions to allow click
-    setTimeout(() => {
-      setShowSuggestions(false);
-    }, 200);
-
-    // Geocode on blur if not already done
+    // Validate on blur if we have a value but no place was selected
     if (inputRef.current?.value && !isLoadingGeo) {
+      // Trigger geocoding to validate the address
       geocodeAddress(inputRef.current.value);
     }
+  };
+
+  const geocodeAddress = (address: string) => {
+    if (!address || !window.google?.maps?.Geocoder) return;
+
+    setIsLoadingGeo(true);
+    const geocoder = new window.google.maps.Geocoder();
+    
+    geocoder.geocode(
+      { address, componentRestrictions: { country: 'us' } },
+      (results: any[], status: string) => {
+        setIsLoadingGeo(false);
+        
+        if (status === 'OK' && results?.[0]) {
+          const place = results[0];
+          const lat = typeof place.geometry?.location?.lat === 'function' 
+            ? place.geometry.location.lat() 
+            : place.geometry?.location?.lat;
+          const lng = typeof place.geometry?.location?.lng === 'function' 
+            ? place.geometry.location.lng() 
+            : place.geometry?.location?.lng;
+          
+          const placeDetails: PlaceDetails = {
+            lat: lat || 0,
+            lng: lng || 0,
+            formattedAddress: place.formatted_address || address,
+          };
+
+          // Update input with formatted address
+          if (inputRef.current) {
+            inputRef.current.value = placeDetails.formattedAddress;
+          }
+
+          // Call onChange to update form state
+          if (onChange) {
+            onChange(placeDetails.formattedAddress, placeDetails);
+          }
+        }
+      }
+    );
   };
 
   return (
@@ -187,7 +184,7 @@ export function GooglePlacesAutocomplete({
           placeholder={placeholder || 'Enter your address (e.g., 123 Main St, Raleigh, NC)'}
           className="h-14 text-lg"
           value={value || ''}
-          onChange={handleAddressChange}
+          onChange={handleInputChange}
           onBlur={handleBlur}
           onKeyDown={onKeyDown}
           autoComplete="off"
@@ -202,31 +199,6 @@ export function GooglePlacesAutocomplete({
             Finding location...
           </motion.div>
         )}
-
-        {/* Address Suggestions Dropdown */}
-        <AnimatePresence>
-          {showSuggestions && suggestions.length > 0 && (
-            <motion.div
-              ref={suggestionsRef}
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-50"
-            >
-              {suggestions.map((suggestion, index) => (
-                <motion.button
-                  key={index}
-                  type="button"
-                  onClick={() => handleSuggestionClick(suggestion)}
-                  className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm text-gray-700 border-b border-gray-100 last:border-b-0"
-                  whileHover={{ backgroundColor: '#f3f4f6' }}
-                >
-                  {suggestion}
-                </motion.button>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     </div>
   );
