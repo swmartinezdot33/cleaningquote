@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getKVClient } from '@/lib/kv';
+import { getKV } from '@/lib/kv';
 
 interface InitialCleaningConfig {
   multiplier: number;
@@ -15,7 +15,7 @@ const INITIAL_CLEANING_CONFIG_KEY = 'admin:initial-cleaning-config';
  */
 export async function GET() {
   try {
-    const kv = await getKVClient();
+    const kv = getKV();
     const config = await kv.get<InitialCleaningConfig>(INITIAL_CLEANING_CONFIG_KEY);
 
     if (!config) {
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       recommendedConditions: recommendedConditions.map((c: string) => c.toLowerCase()),
     };
 
-    const kv = await getKVClient();
+    const kv = getKV();
     await kv.set(INITIAL_CLEANING_CONFIG_KEY, config);
 
     console.log('Initial Cleaning config saved:', config);

@@ -1,6 +1,6 @@
 import { PricingTable, QuoteInputs, QuoteRanges, QuoteResult } from './types';
 import { loadPricingTable } from './loadPricingTable';
-import { getKVClient } from '@/lib/kv';
+import { getKV } from '@/lib/kv';
 
 // Re-export for backward compatibility
 export { loadPricingTable } from './loadPricingTable';
@@ -20,7 +20,7 @@ const DEFAULT_INITIAL_CLEANING_CONFIG = {
  */
 export async function getInitialCleaningConfig(): Promise<typeof DEFAULT_INITIAL_CLEANING_CONFIG> {
   try {
-    const kv = await getKVClient();
+    const kv = getKV();
     const config = await kv.get<typeof DEFAULT_INITIAL_CLEANING_CONFIG>('admin:initial-cleaning-config');
     return config || DEFAULT_INITIAL_CLEANING_CONFIG;
   } catch (error) {
