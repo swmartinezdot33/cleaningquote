@@ -173,16 +173,10 @@ export async function PUT(request: NextRequest) {
     const url = new URL(request.url);
     const comprehensive = url.searchParams.get('comprehensive') === 'true';
 
-    let testResult;
     if (comprehensive) {
       console.log('Running comprehensive GHL API test...');
-      testResult = await testGHLConnectionComprehensive();
-    } else {
-      console.log('Running basic GHL API test...');
-      testResult = await testGHLConnection();
-    }
-
-    if (comprehensive) {
+      const testResult = await testGHLConnectionComprehensive();
+      
       // Return comprehensive results
       return NextResponse.json({
         success: testResult.success,
@@ -197,6 +191,9 @@ export async function PUT(request: NextRequest) {
         summary: testResult.summary,
       });
     } else {
+      console.log('Running basic GHL API test...');
+      const testResult = await testGHLConnection();
+      
       // Return basic results
       return NextResponse.json({
         success: testResult.success,
