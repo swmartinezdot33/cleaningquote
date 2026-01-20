@@ -335,6 +335,33 @@ export async function getPipelines(locationId: string): Promise<GHLPipeline[]> {
 }
 
 /**
+ * Create a new tag in GHL
+ * Returns the created tag object
+ */
+export async function createTag(tagName: string): Promise<{ id: string; name: string }> {
+  try {
+    const finalLocationId = await getGHLLocationId();
+    if (!finalLocationId) {
+      throw new Error('Location ID is required');
+    }
+
+    console.log('Creating tag:', tagName);
+
+    const response = await makeGHLRequest<{ tag: { id: string; name: string } }>(
+      `/v2/locations/${finalLocationId}/tags`,
+      'POST',
+      { name: tagName }
+    );
+
+    console.log('Tag created successfully:', response.tag?.id);
+    return response.tag;
+  } catch (error) {
+    console.error('Failed to create tag:', error);
+    throw error;
+  }
+}
+
+/**
  * Test GHL API connection with a specific token (optional)
  * Always uses stored locationId for sub-account (location-level) API calls
  */

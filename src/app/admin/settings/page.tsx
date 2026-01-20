@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, AlertCircle, Loader2, Save, RotateCw, Eye, EyeOff, Sparkles, ArrowLeft, Copy, Code, ChevronDown, FileText, Upload, MapPin } from 'lucide-react';
+import { CheckCircle, AlertCircle, Loader2, Save, RotateCw, Eye, EyeOff, Sparkles, ArrowLeft, Copy, Code, ChevronDown, FileText, Upload, MapPin, Plus } from 'lucide-react';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -84,6 +84,8 @@ export default function SettingsPage() {
   const [selectedInServiceTags, setSelectedInServiceTags] = useState<Set<string>>(new Set());
   const [selectedOutOfServiceTags, setSelectedOutOfServiceTags] = useState<Set<string>>(new Set());
   const [isLoadingTags, setIsLoadingTags] = useState(false);
+  const [newTagName, setNewTagName] = useState<string>('');
+  const [isCreatingTag, setIsCreatingTag] = useState(false);
 
   // Google Maps API Key State
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState('');
@@ -550,6 +552,43 @@ export default function SettingsPage() {
       console.error('Error loading tags:', error);
     } finally {
       setIsLoadingTags(false);
+    }
+  };
+
+  const handleCreateTag = async (tagNameToCreate: string) => {
+    if (!tagNameToCreate.trim()) {
+      alert('Please enter a tag name');
+      return;
+    }
+
+    setIsCreatingTag(true);
+    try {
+      const response = await fetch('/api/admin/ghl-tags/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': password,
+        },
+        body: JSON.stringify({ name: tagNameToCreate.trim() }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Add the new tag to the list
+        setGhlTags([...ghlTags, data.tag]);
+        // Automatically select the newly created tag
+        setSelectedInServiceTags(new Set([...selectedInServiceTags, data.tag.name]));
+        setNewTagName('');
+        alert(`Tag "${data.tag.name}" created successfully!`);
+      } else {
+        const error = await response.json();
+        alert(`Failed to create tag: ${error.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error creating tag:', error);
+      alert('Failed to create tag. Please try again.');
+    } finally {
+      setIsCreatingTag(false);
     }
   };
 
@@ -1673,6 +1712,47 @@ export default function SettingsPage() {
                   <p className="text-sm text-gray-600 mt-2">
                     Select tags from your GHL location or add custom tags. These tags will automatically be applied to customers within your service area.
                   </p>
+
+                  {/* Create New Tag */}
+                  <div className="mt-4 p-3 border-2 border-dashed border-gray-300 rounded-lg">
+                    <Label className="text-sm font-semibold block mb-2">Create New Tag</Label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Enter tag name..."
+                        value={newTagName}
+                        onChange={(e) => setNewTagName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleCreateTag(newTagName);
+                          }
+                        }}
+                        className="flex-1 h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
+                        disabled={isCreatingTag}
+                      />
+                      <Button
+                        type="button"
+                        onClick={() => handleCreateTag(newTagName)}
+                        disabled={isCreatingTag || !newTagName.trim()}
+                        className="h-10"
+                      >
+                        {isCreatingTag ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Creating...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Create
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Create a new tag in GHL that will be immediately available for selection
+                    </p>
+                  </div>
                 </div>
 
                 {/* Out-of-Service Tags */}
