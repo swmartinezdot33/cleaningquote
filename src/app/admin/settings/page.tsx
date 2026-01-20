@@ -955,10 +955,15 @@ export default function SettingsPage() {
                     </p>
                     <ul className="text-xs text-amber-800 space-y-1 ml-6 list-disc">
                       <li><strong>contacts.write</strong> - Create/update contacts and add notes <span className="font-bold text-amber-900">(REQUIRED)</span></li>
+                      <li><strong>contacts.readonly</strong> - View customer contact information</li>
                       <li><strong>opportunities.readonly</strong> - Read pipelines for configuration</li>
                       <li><strong>opportunities.write</strong> - Create opportunities from quotes</li>
                       <li><strong>calendars.write</strong> - Create appointments for bookings</li>
-                      <li><strong>locations.readonly</strong> - Only needed if using Agency-level PIT token (optional for Location-level tokens)</li>
+                      <li><strong>calendars.readonly</strong> - View available calendars</li>
+                      <li><strong>locations.readonly</strong> - Fetch calendars, tags, and location information</li>
+                      <li><strong>locations/customFields.readonly</strong> - View custom fields for field mapping</li>
+                      <li><strong>locations/tags.readonly</strong> - View available tags for service area</li>
+                      <li><strong>locations/tags.write</strong> - Apply tags to customers (in-service/out-of-service)</li>
                     </ul>
                     <p className="text-xs text-amber-700 mt-2 italic">
                       <strong>Important:</strong> We recommend using a <strong>Location-level PIT token</strong> (sub-account level) for all integrations. Location-level tokens don't need the locations.readonly scope and provide better security by scoping to a specific location. All API calls will automatically use your Location ID for sub-account operations.
