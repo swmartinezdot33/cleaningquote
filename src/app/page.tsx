@@ -1618,22 +1618,101 @@ export default function Home() {
                       />
                     )}
 
-                    {currentQuestion.type === 'number' && currentQuestion.id !== 'squareFeet' && (
-                      <Input
-                        id={currentQuestion.id}
-                        type="number"
-                        step="1"
-                        placeholder={currentQuestion.placeholder}
-                        className="h-14 text-lg"
-                        {...register(getFormFieldName(currentQuestion.id) as any, { valueAsNumber: true })}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            nextStep();
-                          }
-                        }}
-                      />
-                    )}
+                    {currentQuestion.type === 'number' && currentQuestion.id !== 'squareFeet' && (() => {
+                      // Generate number options based on question type
+                      // Default range: 0-10, but can be customized per question
+                      const getNumberOptions = (questionId: string): number[] => {
+                        const id = questionId.toLowerCase();
+                        if (id.includes('bath') || id.includes('pets') || id.includes('shedding')) {
+                          // Baths and pets: 0-5
+                          return [0, 1, 2, 3, 4, 5];
+                        } else if (id.includes('people') || id.includes('person') || id.includes('resident')) {
+                          // People: 1-10
+                          return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+                        } else {
+                          // Default: 0-10
+                          return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+                        }
+                      };
+
+                      const numberOptions = getNumberOptions(currentQuestion.id);
+                      const currentValue = watch(getFormFieldName(currentQuestion.id) as any);
+
+                      return (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-6 gap-3 sm:gap-4">
+                            {numberOptions.map((num) => {
+                              const isSelected = currentValue === num;
+                              return (
+                                <motion.button
+                                  key={num}
+                                  type="button"
+                                  whileHover={{ scale: 1.08, y: -2 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={async () => {
+                                    const fieldName = getFormFieldName(currentQuestion.id);
+                                    // Set the value
+                                    setValue(fieldName as any, num, { shouldValidate: true, shouldDirty: true });
+                                    
+                                    // Trigger validation
+                                    const isValid = await trigger(fieldName as any);
+                                    
+                                    // Auto-advance after a brief delay if valid
+                                    if (isValid) {
+                                      setTimeout(() => {
+                                        nextStep();
+                                      }, 200);
+                                    }
+                                  }}
+                                  className={`
+                                    relative h-20 sm:h-24 md:h-28 rounded-2xl sm:rounded-3xl font-bold 
+                                    text-2xl sm:text-3xl md:text-4xl
+                                    transition-all duration-300 border-2 shadow-lg
+                                    flex items-center justify-center
+                                    ${isSelected 
+                                      ? 'shadow-2xl' 
+                                      : 'hover:shadow-xl bg-gradient-to-br from-gray-50 to-white'
+                                    }
+                                  `}
+                                  style={{
+                                    backgroundColor: isSelected ? primaryColor : 'white',
+                                    color: isSelected ? 'white' : '#374151',
+                                    borderColor: isSelected ? primaryColor : '#d1d5db',
+                                    boxShadow: isSelected ? `0 20px 25px -5px ${hexToRgba(primaryColor, 0.3)}, 0 10px 10px -5px ${hexToRgba(primaryColor, 0.15)}, 0 0 0 4px ${hexToRgba(primaryColor, 0.2)}` : undefined,
+                                  }}
+                                >
+                                  {isSelected ? (
+                                    <motion.div
+                                      initial={{ scale: 0, rotate: -180 }}
+                                      animate={{ scale: 1, rotate: 0 }}
+                                      transition={{ type: 'spring', bounce: 0.4, duration: 0.5 }}
+                                      className="relative z-10"
+                                    >
+                                      {num}
+                                    </motion.div>
+                                  ) : (
+                                    <span className="relative z-10">{num}</span>
+                                  )}
+                                  {isSelected && (
+                                    <motion.div
+                                      initial={{ opacity: 0 }}
+                                      animate={{ opacity: 1 }}
+                                      className="absolute inset-0 rounded-2xl sm:rounded-3xl"
+                                      style={{
+                                        background: `linear-gradient(135deg, ${primaryColor}, ${hexToRgba(primaryColor, 0.85)})`,
+                                      }}
+                                    />
+                                  )}
+                                </motion.button>
+                              );
+                            })}
+                          </div>
+                          <p className="text-sm text-gray-500 text-center mt-2">
+                            Click a number to select
+                          </p>
+                        </div>
+                      );
+                    })()}
 
                     {(currentQuestion.type === 'select' || currentQuestion.id === 'squareFeet') && (
                       <Controller
