@@ -91,10 +91,23 @@ export async function POST(request: NextRequest) {
 
     // Check if it's a GHL API error
     if (errorMessage.includes('GHL API Error')) {
+      // Provide user-friendly messages for common GHL errors
+      if (errorMessage.includes("doesn't have any team members associated")) {
+        return NextResponse.json(
+          {
+            error: 'Calendar Configuration Error',
+            details: 'The selected calendar in GHL needs to have team members assigned to it. Please configure the calendar in your GHL account settings.',
+            userMessage: 'This calendar is not properly configured. Please contact support or try again later.',
+          },
+          { status: 500 }
+        );
+      }
+      
       return NextResponse.json(
         {
           error: 'Failed to create appointment in GHL',
           details: errorMessage,
+          userMessage: 'We encountered an issue creating your appointment. Please try again or contact support.',
         },
         { status: 500 }
       );
@@ -104,6 +117,7 @@ export async function POST(request: NextRequest) {
       {
         error: 'Failed to create appointment',
         details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        userMessage: 'We encountered an issue creating your appointment. Please try again.',
       },
       { status: 500 }
     );

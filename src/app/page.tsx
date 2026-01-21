@@ -751,9 +751,11 @@ export default function Home() {
           setAppointmentNotes('');
         }, 1000);
       } else {
+        // Use user-friendly message if available, otherwise use error message
+        const errorMessage = data.userMessage || data.error || 'Failed to book appointment';
         setBookingMessage({
           type: 'error',
-          text: data.error || 'Failed to book appointment',
+          text: errorMessage,
         });
       }
     } catch (error) {
@@ -813,9 +815,11 @@ export default function Home() {
           setCallNotes('');
         }, 1000);
       } else {
+        // Use user-friendly message if available, otherwise use error message
+        const errorMessage = data.userMessage || data.error || 'Failed to schedule call';
         setBookingMessage({
           type: 'error',
-          text: data.error || 'Failed to schedule call',
+          text: errorMessage,
         });
       }
     } catch (error) {
