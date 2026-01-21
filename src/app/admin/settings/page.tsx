@@ -1553,6 +1553,198 @@ export default function SettingsPage() {
                     </div>
                   )}
 
+                  {/* Service Area Tags */}
+                  <div className="mt-8 pt-8 border-t border-gray-200">
+                    <h3 className="font-semibold text-gray-900 mb-6 text-lg">Service Area Tags</h3>
+                    
+                    <div className="space-y-6">
+                      {/* In-Service Tags */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <Label className="text-base font-semibold">Tags for In-Service Customers</Label>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={loadTags}
+                            disabled={isLoadingTags}
+                            className="text-xs h-6"
+                          >
+                            <RotateCw className={`h-3 w-3 ${isLoadingTags ? 'animate-spin' : ''}`} />
+                          </Button>
+                        </div>
+                        
+                        <div className="mt-2 p-3 border-2 border-gray-200 rounded-lg max-h-40 overflow-y-auto space-y-2">
+                          {/* Create New Tag - as first item if no tags */}
+                          {ghlTags.length === 0 && (
+                            <div className="flex gap-2 items-center pb-2 border-b border-gray-200">
+                              <input
+                                type="text"
+                                placeholder="Create new tag..."
+                                value={newTagName}
+                                onChange={(e) => setNewTagName(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    handleCreateTag(newTagName);
+                                  }
+                                }}
+                                className="flex-1 h-8 px-2 rounded-md border border-gray-300 bg-white text-gray-900 text-sm"
+                                disabled={isCreatingTag}
+                              />
+                              <Button
+                                type="button"
+                                onClick={() => handleCreateTag(newTagName)}
+                                disabled={isCreatingTag || !newTagName.trim()}
+                                size="sm"
+                                className="h-8"
+                              >
+                                {isCreatingTag ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Plus className="h-3 w-3" />
+                                )}
+                              </Button>
+                            </div>
+                          )}
+                          
+                          {ghlTags.length > 0 ? (
+                            <>
+                              {/* Create New Tag - as first item when tags exist */}
+                              <div className="flex gap-2 items-center pb-2 border-b border-gray-200">
+                                <input
+                                  type="text"
+                                  placeholder="Create new tag..."
+                                  value={newTagName}
+                                  onChange={(e) => setNewTagName(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleCreateTag(newTagName);
+                                    }
+                                  }}
+                                  className="flex-1 h-8 px-2 rounded-md border border-gray-300 bg-white text-gray-900 text-sm"
+                                  disabled={isCreatingTag}
+                                />
+                                <Button
+                                  type="button"
+                                  onClick={() => handleCreateTag(newTagName)}
+                                  disabled={isCreatingTag || !newTagName.trim()}
+                                  size="sm"
+                                  className="h-8"
+                                >
+                                  {isCreatingTag ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Plus className="h-3 w-3" />
+                                  )}
+                                </Button>
+                              </div>
+
+                              {/* Existing Tags */}
+                              {ghlTags.map((tag) => (
+                                <label key={tag.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedInServiceTags.has(tag.name)}
+                                    onChange={(e) => {
+                                      const newTags = new Set(selectedInServiceTags);
+                                      if (e.target.checked) {
+                                        newTags.add(tag.name);
+                                      } else {
+                                        newTags.delete(tag.name);
+                                      }
+                                      setSelectedInServiceTags(newTags);
+                                    }}
+                                    className="w-4 h-4 rounded text-[#f61590]"
+                                  />
+                                  <span className="text-sm text-gray-700">{tag.name}</span>
+                                </label>
+                              ))}
+                            </>
+                          ) : (
+                            <p className="text-sm text-gray-500 italic">No tags available. Click refresh to load from GHL.</p>
+                          )}
+                        </div>
+
+                        <div className="mt-3 flex gap-2 flex-wrap">
+                          {Array.from(selectedInServiceTags).map((tag) => (
+                            <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm">
+                              {tag}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newTags = new Set(selectedInServiceTags);
+                                  newTags.delete(tag);
+                                  setSelectedInServiceTags(newTags);
+                                }}
+                                className="hover:text-emerald-900"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+
+                        <p className="text-sm text-gray-600 mt-2">
+                          Select tags from your GHL location or create new tags. These will be automatically applied to customers within your service area.
+                        </p>
+                      </div>
+
+                      {/* Out-of-Service Tags */}
+                      <div>
+                        <Label className="text-base font-semibold">Tags for Out-of-Service Customers</Label>
+                        
+                        <div className="mt-2 p-3 border-2 border-gray-200 rounded-lg max-h-40 overflow-y-auto space-y-2">
+                          {ghlTags.length > 0 ? (
+                            ghlTags.map((tag) => (
+                              <label key={tag.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedOutOfServiceTags.has(tag.name)}
+                                  onChange={(e) => {
+                                    const newTags = new Set(selectedOutOfServiceTags);
+                                    if (e.target.checked) {
+                                      newTags.add(tag.name);
+                                    } else {
+                                      newTags.delete(tag.name);
+                                    }
+                                    setSelectedOutOfServiceTags(newTags);
+                                  }}
+                                  className="w-4 h-4 rounded text-[#f61590]"
+                                />
+                                <span className="text-sm text-gray-700">{tag.name}</span>
+                              </label>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-500 italic">No tags available. Click refresh to load from GHL.</p>
+                          )}
+                        </div>
+
+                        <div className="mt-3 flex gap-2 flex-wrap">
+                          {Array.from(selectedOutOfServiceTags).map((tag) => (
+                            <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-800 rounded-full text-sm">
+                              {tag}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newTags = new Set(selectedOutOfServiceTags);
+                                  newTags.delete(tag);
+                                  setSelectedOutOfServiceTags(newTags);
+                                }}
+                                className="hover:text-red-900"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+
+                        <p className="text-sm text-gray-600 mt-2">
+                          Select tags from your GHL location or add custom tags. These tags will automatically be applied to customers outside your service area.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Calendar Selection for Appointments and Calls */}
                   <div className="mt-8 pt-8 border-t border-gray-200">
                     <h3 className="font-semibold text-gray-900 mb-6 text-lg">Appointment & Call Calendars</h3>
@@ -1849,192 +2041,7 @@ export default function SettingsPage() {
                       )}
                     </Button>
                   )}
-                </div>
-
-                {/* In-Service Tags */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <Label className="text-base font-semibold">Tags for In-Service Customers</Label>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={loadTags}
-                      disabled={isLoadingTags}
-                      className="text-xs h-6"
-                    >
-                      <RotateCw className={`h-3 w-3 ${isLoadingTags ? 'animate-spin' : ''}`} />
-                    </Button>
                   </div>
-                  
-                  <div className="mt-2 p-3 border-2 border-gray-200 rounded-lg max-h-40 overflow-y-auto space-y-2">
-                    {/* Create New Tag - as first item if no tags */}
-                    {ghlTags.length === 0 && (
-                      <div className="flex gap-2 items-center pb-2 border-b border-gray-200">
-                        <input
-                          type="text"
-                          placeholder="Create new tag..."
-                          value={newTagName}
-                          onChange={(e) => setNewTagName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleCreateTag(newTagName);
-                            }
-                          }}
-                          className="flex-1 h-8 px-2 rounded-md border border-gray-300 bg-white text-gray-900 text-sm"
-                          disabled={isCreatingTag}
-                        />
-                        <Button
-                          type="button"
-                          onClick={() => handleCreateTag(newTagName)}
-                          disabled={isCreatingTag || !newTagName.trim()}
-                          size="sm"
-                          className="h-8"
-                        >
-                          {isCreatingTag ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Plus className="h-3 w-3" />
-                          )}
-                        </Button>
-                      </div>
-                    )}
-                    
-                    {ghlTags.length > 0 ? (
-                      <>
-                        {/* Create New Tag - as first item when tags exist */}
-                        <div className="flex gap-2 items-center pb-2 border-b border-gray-200">
-                          <input
-                            type="text"
-                            placeholder="Create new tag..."
-                            value={newTagName}
-                            onChange={(e) => setNewTagName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                handleCreateTag(newTagName);
-                              }
-                            }}
-                            className="flex-1 h-8 px-2 rounded-md border border-gray-300 bg-white text-gray-900 text-sm"
-                            disabled={isCreatingTag}
-                          />
-                          <Button
-                            type="button"
-                            onClick={() => handleCreateTag(newTagName)}
-                            disabled={isCreatingTag || !newTagName.trim()}
-                            size="sm"
-                            className="h-8"
-                          >
-                            {isCreatingTag ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <Plus className="h-3 w-3" />
-                            )}
-                          </Button>
-                        </div>
-
-                        {/* Existing Tags */}
-                        {ghlTags.map((tag) => (
-                          <label key={tag.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
-                            <input
-                              type="checkbox"
-                              checked={selectedInServiceTags.has(tag.name)}
-                              onChange={(e) => {
-                                const newTags = new Set(selectedInServiceTags);
-                                if (e.target.checked) {
-                                  newTags.add(tag.name);
-                                } else {
-                                  newTags.delete(tag.name);
-                                }
-                                setSelectedInServiceTags(newTags);
-                              }}
-                              className="w-4 h-4 rounded text-[#f61590]"
-                            />
-                            <span className="text-sm text-gray-700">{tag.name}</span>
-                          </label>
-                        ))}
-                      </>
-                    ) : (
-                      <p className="text-sm text-gray-500 italic">No tags available. Click refresh to load from GHL.</p>
-                    )}
-                  </div>
-
-                  <div className="mt-3 flex gap-2 flex-wrap">
-                    {Array.from(selectedInServiceTags).map((tag) => (
-                      <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm">
-                        {tag}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newTags = new Set(selectedInServiceTags);
-                            newTags.delete(tag);
-                            setSelectedInServiceTags(newTags);
-                          }}
-                          className="hover:text-emerald-900"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-
-                  <p className="text-sm text-gray-600 mt-2">
-                    Select tags from your GHL location or create new tags. These will be automatically applied to customers within your service area.
-                  </p>
-                </div>
-
-                {/* Out-of-Service Tags */}
-                <div>
-                  <Label className="text-base font-semibold">Tags for Out-of-Service Customers</Label>
-                  
-                  <div className="mt-2 p-3 border-2 border-gray-200 rounded-lg max-h-40 overflow-y-auto space-y-2">
-                    {ghlTags.length > 0 ? (
-                      ghlTags.map((tag) => (
-                        <label key={tag.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
-                          <input
-                            type="checkbox"
-                            checked={selectedOutOfServiceTags.has(tag.name)}
-                            onChange={(e) => {
-                              const newTags = new Set(selectedOutOfServiceTags);
-                              if (e.target.checked) {
-                                newTags.add(tag.name);
-                              } else {
-                                newTags.delete(tag.name);
-                              }
-                              setSelectedOutOfServiceTags(newTags);
-                            }}
-                            className="w-4 h-4 rounded text-[#f61590]"
-                          />
-                          <span className="text-sm text-gray-700">{tag.name}</span>
-                        </label>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500 italic">No tags available. Click refresh to load from GHL.</p>
-                    )}
-                  </div>
-
-                  <div className="mt-3 flex gap-2 flex-wrap">
-                    {Array.from(selectedOutOfServiceTags).map((tag) => (
-                      <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-800 rounded-full text-sm">
-                        {tag}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newTags = new Set(selectedOutOfServiceTags);
-                            newTags.delete(tag);
-                            setSelectedOutOfServiceTags(newTags);
-                          }}
-                          className="hover:text-red-900"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-
-                  <p className="text-sm text-gray-600 mt-2">
-                    Select tags from your GHL location or add custom tags. These tags will automatically be applied to customers outside your service area.
-                  </p>
-                </div>
 
               </div>
             </CardContent>
