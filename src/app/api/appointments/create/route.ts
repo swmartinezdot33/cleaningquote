@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
           {
             error: 'Calendar Configuration Error',
             details: 'The selected calendar in GHL needs to have team members assigned to it. Please configure the calendar in your GHL account settings.',
-            userMessage: 'This calendar is not properly configured. Please contact support or try again later.',
+            userMessage: 'This calendar is not properly configured. The calendar needs to have team members assigned in your GHL account. Please contact your administrator to configure the calendar settings in GHL, or try selecting a different calendar.',
           },
           { status: 500 }
         );
