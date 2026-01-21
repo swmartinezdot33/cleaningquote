@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceAreaPolygon, getServiceAreaNetworkLink } from '@/lib/kv';
-import { pointInPolygon } from '@/lib/service-area/pointInPolygon';
+import { pointInPolygon, PolygonCoordinates } from '@/lib/service-area/pointInPolygon';
 import { fetchAndParseNetworkKML } from '@/lib/service-area/fetchNetworkKML';
 
 /**
@@ -81,28 +81,65 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if point is in polygon
-    console.log('Service area check:', {
-      coordinates: { lat, lng },
-      polygonSource,
-      polygonPointCount: polygon?.length || 0,
-      polygonBounds: polygon && polygon.length > 0 ? {
-        minLat: Math.min(...polygon.map(p => p[0])),
-        maxLat: Math.max(...polygon.map(p => p[0])),
-        minLng: Math.min(...polygon.map(p => p[1])),
-        maxLng: Math.max(...polygon.map(p => p[1])),
-      } : null,
-    });
+    // Ensure polygon is closed (first point should equal last point)
+    if (polygon.length > 0) {
+      const firstPoint = polygon[0];
+      const lastPoint = polygon[polygon.length - 1];
+      const isClosed = firstPoint[0] === lastPoint[0] && firstPoint[1] === lastPoint[1];
+      
+      if (!isClosed) {
+        // Close the polygon by adding the first point at the end
+        polygon = [...polygon, [firstPoint[0], firstPoint[1]]] as PolygonCoordinates;
+        console.log('Polygon was not closed - added closing point');
+      }
+    }
     
-    const inServiceArea = pointInPolygon({ lat, lng }, polygon);
+    // Calculate bounding box for quick rejection
+    const polygonBounds = polygon && polygon.length > 0 ? {
+      minLat: Math.min(...polygon.map(p => p[0])),
+      maxLat: Math.max(...polygon.map(p => p[0])),
+      minLng: Math.min(...polygon.map(p => p[1])),
+      maxLng: Math.max(...polygon.map(p => p[1])),
+    } : null;
+    
+    // Quick bounds check - if point is clearly outside bounding box, skip expensive check
+    let inServiceArea = false;
+    if (polygonBounds) {
+      const latWithinBounds = lat >= polygonBounds.minLat && lat <= polygonBounds.maxLat;
+      const lngWithinBounds = lng >= polygonBounds.minLng && lng <= polygonBounds.maxLng;
+      
+      console.log('Service area check:', {
+        coordinates: { lat, lng },
+        polygonSource,
+        polygonPointCount: polygon?.length || 0,
+        polygonBounds,
+        latWithinBounds,
+        lngWithinBounds,
+        polygonSample: polygon.slice(0, 3).map(p => ({ lat: p[0], lng: p[1] })), // First 3 points for debugging
+      });
+      
+      // Only run point-in-polygon check if point is within bounding box
+      if (latWithinBounds && lngWithinBounds) {
+        inServiceArea = pointInPolygon({ lat, lng }, polygon);
+        console.log('Point-in-polygon check result:', {
+          inServiceArea,
+          coordinates: { lat, lng },
+        });
+      } else {
+        console.log('Point is outside bounding box - skipping point-in-polygon check');
+        inServiceArea = false;
+      }
+    } else {
+      inServiceArea = pointInPolygon({ lat, lng }, polygon);
+    }
     
     console.log('Service area check result:', {
       inServiceArea,
       coordinates: { lat, lng },
       polygonSource,
-      pointWithinBounds: polygon && polygon.length > 0 ? {
-        latWithin: lat >= Math.min(...polygon.map(p => p[0])) && lat <= Math.max(...polygon.map(p => p[0])),
-        lngWithin: lng >= Math.min(...polygon.map(p => p[1])) && lng <= Math.max(...polygon.map(p => p[1])),
+      pointWithinBounds: polygonBounds ? {
+        latWithin: lat >= polygonBounds.minLat && lat <= polygonBounds.maxLat,
+        lngWithin: lng >= polygonBounds.minLng && lng <= polygonBounds.maxLng,
       } : null,
     });
 
