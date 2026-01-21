@@ -73,6 +73,47 @@ function getFormFieldName(questionId: string): string {
 }
 
 /**
+ * Parse option label to separate main text from details/explanations
+ * Supports multiple formats: parentheses, dashes, colons, etc.
+ * Returns an object with mainText and detailsText
+ */
+function parseOptionLabel(label: string): { mainText: string; detailsText: string | null } {
+  // Try different patterns to extract details
+  // Pattern 1: Text in parentheses at the end: "Main Text (Details)"
+  let match = label.match(/^(.+?)\s*\((.+?)\)\s*$/);
+  if (match) {
+    return {
+      mainText: match[1].trim(),
+      detailsText: match[2].trim(),
+    };
+  }
+  
+  // Pattern 2: Text with dash separator: "Main Text - Details"
+  match = label.match(/^(.+?)\s*-\s*(.+)$/);
+  if (match) {
+    return {
+      mainText: match[1].trim(),
+      detailsText: match[2].trim(),
+    };
+  }
+  
+  // Pattern 3: Text with colon separator: "Main Text: Details"
+  match = label.match(/^(.+?):\s*(.+)$/);
+  if (match) {
+    return {
+      mainText: match[1].trim(),
+      detailsText: match[2].trim(),
+    };
+  }
+  
+  // No details found, return the whole label as main text
+  return {
+    mainText: label,
+    detailsText: null,
+  };
+}
+
+/**
  * Generate dynamic zod schema from survey questions
  */
 function generateSchemaFromQuestions(questions: SurveyQuestion[]): z.ZodObject<any> {
@@ -1210,14 +1251,16 @@ export default function Home() {
                           </div>
                         </CardContent>
                       </Card>
+                      </div>
                     ) : showAppointmentForm ? (
-                      <Card ref={appointmentFormRef} className="shadow-2xl border-0 overflow-hidden">
-                        <div 
-                          className="p-6 border-b"
-                          style={{
-                            background: `linear-gradient(to right, ${hexToRgba(primaryColor, 0.05)}, transparent)`
-                          }}
-                        >
+                      <div ref={appointmentFormRef}>
+                        <Card className="shadow-2xl border-0 overflow-hidden">
+                          <div 
+                            className="p-6 border-b"
+                            style={{
+                              background: `linear-gradient(to right, ${hexToRgba(primaryColor, 0.05)}, transparent)`
+                            }}
+                          >
                           <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                             <Calendar className="h-6 w-6" style={{ color: primaryColor }} />
                             Schedule Your Appointment
@@ -1911,6 +1954,7 @@ export default function Home() {
                           <div className={`grid ${getGridCols(selectOptions.length)} gap-3 sm:gap-4`}>
                             {selectOptions.map((option) => {
                               const isSelected = currentValue === option.value;
+                              const { mainText, detailsText } = parseOptionLabel(option.label);
                               return (
                                 <motion.button
                                   key={option.value}
@@ -1936,7 +1980,7 @@ export default function Home() {
                                     relative h-24 sm:h-28 md:h-32 rounded-2xl sm:rounded-3xl font-medium 
                                     text-xs sm:text-sm md:text-sm
                                     transition-all duration-300 border-2 shadow-lg
-                                    flex items-center justify-center px-3 py-4
+                                    flex flex-col items-center justify-center px-3 py-4
                                     text-center leading-tight
                                     ${isSelected 
                                       ? 'shadow-2xl' 
@@ -1955,12 +1999,24 @@ export default function Home() {
                                       initial={{ scale: 0.8, opacity: 0 }}
                                       animate={{ scale: 1, opacity: 1 }}
                                       transition={{ type: 'spring', bounce: 0.3, duration: 0.4 }}
-                                      className="relative z-10"
+                                      className="relative z-10 flex flex-col items-center justify-center gap-1"
                                     >
-                                      {option.label}
+                                      <span className="text-xs sm:text-sm md:text-sm font-semibold leading-tight">{mainText}</span>
+                                      {detailsText && (
+                                        <span className="text-[10px] sm:text-[11px] md:text-xs opacity-90 font-normal leading-tight text-center px-1">
+                                          {detailsText}
+                                        </span>
+                                      )}
                                     </motion.div>
                                   ) : (
-                                    <span className="relative z-10">{option.label}</span>
+                                    <span className="relative z-10 flex flex-col items-center justify-center gap-1">
+                                      <span className="text-xs sm:text-sm md:text-sm font-semibold leading-tight">{mainText}</span>
+                                      {detailsText && (
+                                        <span className="text-[10px] sm:text-[11px] md:text-xs opacity-75 font-normal leading-tight text-center px-1">
+                                          {detailsText}
+                                        </span>
+                                      )}
+                                    </span>
                                   )}
                                   {isSelected && (
                                     <motion.div
