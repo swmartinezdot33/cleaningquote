@@ -42,6 +42,7 @@ export function GooglePlacesAutocomplete({
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
   const placeSelectedRef = useRef(false); // Track if a place was just selected from autocomplete
+  const userTypedInputRef = useRef<string>(''); // Track user's typed input to preserve street number
   const [isLoadingGeo, setIsLoadingGeo] = useState(false);
   const [googleLoaded, setGoogleLoaded] = useState(false);
 
@@ -92,13 +93,8 @@ export function GooglePlacesAutocomplete({
     });
 
     // Helper function to build full address from components
-    const buildAddressFromComponents = (place: any): string => {
-      if (place.formatted_address) {
-        // Use formatted_address if available, it usually includes street number
-        return place.formatted_address;
-      }
-
-      // Build address from components if formatted_address is missing
+    // Preserves street number from user's typed input if Google Places doesn't provide one
+    const buildAddressFromComponents = (place: any, userInput?: string): string => {
       const components = place.address_components || [];
       let streetNumber = '';
       let streetName = '';
@@ -124,6 +120,14 @@ export function GooglePlacesAutocomplete({
         }
       });
 
+      // If no street number from Google Places, try to extract it from user's typed input
+      if (!streetNumber && userInput) {
+        const match = userInput.match(/^(\d+)\s/);
+        if (match) {
+          streetNumber = match[1];
+        }
+      }
+
       // Build complete address with street number
       const parts: string[] = [];
       if (streetNumber) parts.push(streetNumber);
@@ -138,6 +142,18 @@ export function GooglePlacesAutocomplete({
         return addressParts.join(', ');
       }
 
+      // Fallback to formatted_address or name
+      if (place.formatted_address) {
+        // If formatted_address doesn't have street number but user typed one, prepend it
+        if (!streetNumber && userInput) {
+          const match = userInput.match(/^(\d+)\s/);
+          if (match && !/^\d+/.test(place.formatted_address)) {
+            return match[1] + ' ' + place.formatted_address;
+          }
+        }
+        return place.formatted_address;
+      }
+
       // Fallback to name if available
       return place.name || '';
     };
@@ -149,14 +165,17 @@ export function GooglePlacesAutocomplete({
       // Mark that a place was just selected to prevent blur handler from interfering
       placeSelectedRef.current = true;
       
+      // Get the user's typed input before the selection
+      const userInput = userTypedInputRef.current || inputRef.current?.value || '';
+      
       if (place.geometry) {
         const lat = place.geometry.location?.lat();
         const lng = place.geometry.location?.lng();
         
         // Only proceed if we have valid coordinates (not 0,0 or NaN)
         if (lat && lng && lat !== 0 && lng !== 0 && !isNaN(lat) && !isNaN(lng)) {
-          // Build complete address with street number
-          const fullAddress = buildAddressFromComponents(place);
+          // Build complete address with street number, preserving user's typed number if needed
+          const fullAddress = buildAddressFromComponents(place, userInput);
           
           const placeDetails: PlaceDetails = {
             lat,
@@ -183,7 +202,7 @@ export function GooglePlacesAutocomplete({
         } else {
           console.warn('Invalid coordinates from place selection:', { lat, lng });
           // Update address but don't pass coordinates
-          const fullAddress = buildAddressFromComponents(place);
+          const fullAddress = buildAddressFromComponents(place, userInput);
           if (onChange) {
             onChange(fullAddress);
           }
@@ -211,6 +230,9 @@ export function GooglePlacesAutocomplete({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
+    
+    // Store the user's typed input to preserve street number if needed
+    userTypedInputRef.current = inputValue;
     
     // Update form value as user types
     if (onChange) {
