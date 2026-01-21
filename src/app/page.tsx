@@ -1665,8 +1665,8 @@ export default function Home() {
                                     }
                                   }}
                                   className={`
-                                    relative h-20 sm:h-24 md:h-28 rounded-2xl sm:rounded-3xl font-bold 
-                                    text-2xl sm:text-3xl md:text-4xl
+                                    relative h-20 sm:h-24 md:h-28 rounded-2xl sm:rounded-3xl font-medium 
+                                    text-xs sm:text-sm md:text-sm
                                     transition-all duration-300 border-2 shadow-lg
                                     flex items-center justify-center
                                     ${isSelected 
