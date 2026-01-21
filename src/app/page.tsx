@@ -547,16 +547,18 @@ export default function Home() {
             // Out of service area - create contact and redirect
             const data = getValues();
             const addressFieldName = getFormFieldName(currentQuestion.id);
+            // Get address from sanitized field name (handles fields with dots)
+            const addressValue = data[addressFieldName] || data.address || '';
             try {
               await fetch('/api/service-area/out-of-service', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  firstName: data.firstName,
-                  lastName: data.lastName,
-                  email: data.email,
-                  phone: data.phone,
-                  address: data.address || data[addressFieldName],
+                  firstName: data.firstName || '',
+                  lastName: data.lastName || '',
+                  email: data.email || '',
+                  phone: data.phone || '',
+                  address: addressValue,
                 }),
               });
             } catch (error) {
@@ -566,11 +568,11 @@ export default function Home() {
             // Redirect to out-of-service page
             const params = new URLSearchParams({
               data: JSON.stringify({
-                firstName: data.firstName,
-                lastName: data.lastName,
-                email: data.email,
-                phone: data.phone,
-                address: data.address || data[addressFieldName],
+                firstName: data.firstName || '',
+                lastName: data.lastName || '',
+                email: data.email || '',
+                phone: data.phone || '',
+                address: addressValue,
               }),
             });
             window.location.href = `/out-of-service?${params.toString()}`;

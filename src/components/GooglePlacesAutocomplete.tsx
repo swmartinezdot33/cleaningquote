@@ -82,29 +82,84 @@ export function GooglePlacesAutocomplete({
     if (!inputRef.current || !window.google?.maps?.places?.Autocomplete) return;
 
     // Create Autocomplete instance
+    // Request address components to ensure we get street number
     autocompleteRef.current = new window.google.maps.places.Autocomplete(inputRef.current, {
       componentRestrictions: { country: 'us' },
-      fields: ['formatted_address', 'geometry', 'place_id'],
+      fields: ['formatted_address', 'geometry', 'place_id', 'address_components', 'name'],
       types: ['address'],
     });
+
+    // Helper function to build full address from components
+    const buildAddressFromComponents = (place: any): string => {
+      if (place.formatted_address) {
+        // Use formatted_address if available, it usually includes street number
+        return place.formatted_address;
+      }
+
+      // Build address from components if formatted_address is missing
+      const components = place.address_components || [];
+      let streetNumber = '';
+      let streetName = '';
+      let city = '';
+      let state = '';
+      let zipCode = '';
+      let country = '';
+
+      components.forEach((component: any) => {
+        const types = component.types;
+        if (types.includes('street_number')) {
+          streetNumber = component.long_name;
+        } else if (types.includes('route')) {
+          streetName = component.long_name;
+        } else if (types.includes('locality')) {
+          city = component.long_name;
+        } else if (types.includes('administrative_area_level_1')) {
+          state = component.short_name;
+        } else if (types.includes('postal_code')) {
+          zipCode = component.long_name;
+        } else if (types.includes('country')) {
+          country = component.short_name;
+        }
+      });
+
+      // Build complete address with street number
+      const parts: string[] = [];
+      if (streetNumber) parts.push(streetNumber);
+      if (streetName) parts.push(streetName);
+      if (parts.length > 0) {
+        const street = parts.join(' ');
+        const addressParts = [street];
+        if (city) addressParts.push(city);
+        if (state) addressParts.push(state);
+        if (zipCode) addressParts.push(zipCode);
+        if (country) addressParts.push(country);
+        return addressParts.join(', ');
+      }
+
+      // Fallback to name if available
+      return place.name || '';
+    };
 
     // Listen for place selection
     autocompleteRef.current.addListener('place_changed', () => {
       const place = autocompleteRef.current.getPlace();
       
-      if (place.geometry && place.formatted_address) {
+      if (place.geometry) {
         const lat = place.geometry.location?.lat();
         const lng = place.geometry.location?.lng();
+        
+        // Build complete address with street number
+        const fullAddress = buildAddressFromComponents(place);
         
         const placeDetails: PlaceDetails = {
           lat: lat || 0,
           lng: lng || 0,
-          formattedAddress: place.formatted_address,
+          formattedAddress: fullAddress,
         };
 
-        // Update input value immediately
+        // Update input value immediately with complete address
         if (inputRef.current) {
-          inputRef.current.value = place.formatted_address;
+          inputRef.current.value = fullAddress;
           // Trigger input event to ensure form state is updated
           const event = new Event('input', { bubbles: true });
           inputRef.current.dispatchEvent(event);
@@ -113,7 +168,7 @@ export function GooglePlacesAutocomplete({
         // Call onChange with both address and place details
         // This is crucial for form validation - it must be called synchronously
         if (onChange) {
-          onChange(place.formatted_address, placeDetails);
+          onChange(fullAddress, placeDetails);
         }
 
         // Clear loading state
@@ -139,6 +194,65 @@ export function GooglePlacesAutocomplete({
     }
   };
 
+  // Helper function to build full address from geocoding results
+  const buildAddressFromGeocodeResult = (place: any, originalAddress: string): string => {
+    // Check if original address starts with a street number (digit followed by space)
+    const originalHasStreetNumber = /^\d+\s/.test(originalAddress);
+    
+    // Prefer formatted_address as it usually includes street number
+    if (place.formatted_address) {
+      // If original had street number but formatted doesn't, preserve original street number
+      if (originalHasStreetNumber && !/^\d+\s/.test(place.formatted_address)) {
+        const originalNumber = originalAddress.match(/^(\d+\s)/)?.[1] || '';
+        return originalNumber + place.formatted_address;
+      }
+      return place.formatted_address;
+    }
+
+    // Build from address components if formatted_address is missing
+    const components = place.address_components || [];
+    let streetNumber = '';
+    let streetName = '';
+    let city = '';
+    let state = '';
+    let zipCode = '';
+    let country = '';
+
+    components.forEach((component: any) => {
+      const types = component.types;
+      if (types.includes('street_number')) {
+        streetNumber = component.long_name;
+      } else if (types.includes('route')) {
+        streetName = component.long_name;
+      } else if (types.includes('locality')) {
+        city = component.long_name;
+      } else if (types.includes('administrative_area_level_1')) {
+        state = component.short_name;
+      } else if (types.includes('postal_code')) {
+        zipCode = component.long_name;
+      } else if (types.includes('country')) {
+        country = component.short_name;
+      }
+    });
+
+    // Build complete address with street number
+    const parts: string[] = [];
+    if (streetNumber) parts.push(streetNumber);
+    if (streetName) parts.push(streetName);
+    if (parts.length > 0) {
+      const street = parts.join(' ');
+      const addressParts = [street];
+      if (city) addressParts.push(city);
+      if (state) addressParts.push(state);
+      if (zipCode) addressParts.push(zipCode);
+      if (country) addressParts.push(country);
+      return addressParts.join(', ');
+    }
+
+    // Fallback to original address if we can't build from components
+    return originalAddress;
+  };
+
   const geocodeAddress = (address: string) => {
     if (!address || !window.google?.maps?.Geocoder) return;
 
@@ -159,20 +273,23 @@ export function GooglePlacesAutocomplete({
             ? place.geometry.location.lng() 
             : place.geometry?.location?.lng;
           
+          // Build complete address with street number from geocoding result
+          const fullAddress = buildAddressFromGeocodeResult(place, address);
+          
           const placeDetails: PlaceDetails = {
             lat: lat || 0,
             lng: lng || 0,
-            formattedAddress: place.formatted_address || address,
+            formattedAddress: fullAddress,
           };
 
-          // Update input with formatted address
+          // Update input with complete formatted address
           if (inputRef.current) {
-            inputRef.current.value = placeDetails.formattedAddress;
+            inputRef.current.value = fullAddress;
           }
 
-          // Call onChange to update form state
+          // Call onChange to update form state with complete address
           if (onChange) {
-            onChange(placeDetails.formattedAddress, placeDetails);
+            onChange(fullAddress, placeDetails);
           }
         }
       }
