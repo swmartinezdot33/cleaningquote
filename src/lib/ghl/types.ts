@@ -60,6 +60,7 @@ export interface GHLAppointment {
   endTime: string; // ISO string
   notes?: string;
   calendarId?: string;
+  assignedTo?: string; // User ID to assign the appointment to
 }
 
 export interface GHLAppointmentResponse {

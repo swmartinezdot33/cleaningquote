@@ -368,6 +368,7 @@ export async function createAppointment(
       endTime: appointmentData.endTime,
       locationId: finalLocationId, // locationId is required in the request body
       ...(appointmentData.calendarId && { calendarId: appointmentData.calendarId }),
+      ...(appointmentData.assignedTo && { assignedTo: appointmentData.assignedTo }),
       ...(appointmentData.notes && { notes: appointmentData.notes }),
     };
 

@@ -79,6 +79,10 @@ export default function SettingsPage() {
   const [calendars, setCalendars] = useState<any[]>([]);
   const [selectedAppointmentCalendarId, setSelectedAppointmentCalendarId] = useState<string>('');
   const [selectedCallCalendarId, setSelectedCallCalendarId] = useState<string>('');
+  const [users, setUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
+  const [selectedAppointmentUserId, setSelectedAppointmentUserId] = useState<string>('');
+  const [selectedCallUserId, setSelectedCallUserId] = useState<string>('');
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [quotedAmountField, setQuotedAmountField] = useState<string>('');
   const [customFields, setCustomFields] = useState<any[]>([]);
   const [isLoadingCustomFields, setIsLoadingCustomFields] = useState(false);
@@ -371,12 +375,15 @@ export default function SettingsPage() {
         setUseDynamicPricingForValue(config.useDynamicPricingForValue !== false);
         setSelectedAppointmentCalendarId(config.appointmentCalendarId || '');
         setSelectedCallCalendarId(config.callCalendarId || '');
+        setSelectedAppointmentUserId(config.appointmentUserId || '');
+        setSelectedCallUserId(config.callUserId || '');
         setQuotedAmountField(config.quotedAmountField || '');
         setGhlConfigLoaded(true);
 
-        // Load pipelines if token is connected
+        // Load pipelines and users if token is connected
         if (connectionStatus === 'connected') {
           await loadPipelines();
+          await loadUsers();
         }
       }
     } catch (error) {
@@ -410,6 +417,30 @@ export default function SettingsPage() {
     }
   };
 
+  // Load users from GHL
+  const loadUsers = async () => {
+    setIsLoadingUsers(true);
+    try {
+      const response = await fetch('/api/admin/ghl-users', {
+        headers: {
+          'x-admin-password': password,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.users || []);
+      } else {
+        const data = await response.json();
+        console.error('Failed to load users:', data.error || 'Unknown error');
+      }
+    } catch (error) {
+      console.error('Failed to load users:', error);
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
+
   // Save GHL configuration
   const handleSaveGHLConfig = async () => {
     if (createOpportunity && (!selectedPipelineId || !selectedStageId)) {
@@ -439,6 +470,8 @@ export default function SettingsPage() {
           outOfServiceTags: Array.from(selectedOutOfServiceTags).length > 0 ? Array.from(selectedOutOfServiceTags) : undefined,
           appointmentCalendarId: selectedAppointmentCalendarId || undefined,
           callCalendarId: selectedCallCalendarId || undefined,
+          appointmentUserId: selectedAppointmentUserId || undefined,
+          callUserId: selectedCallUserId || undefined,
           quotedAmountField: quotedAmountField || undefined,
         }),
       });
@@ -1712,6 +1745,40 @@ export default function SettingsPage() {
                             <p className="text-sm text-gray-600 mt-2">
                               Calendar for users to book cleaning appointments
                             </p>
+                            {selectedAppointmentCalendarId && (
+                              <div className="mt-3">
+                                <Label htmlFor="appointment-user-select" className="text-sm font-semibold text-gray-700">
+                                  Assign to User (Required)
+                                </Label>
+                                <div className="mt-1 flex gap-2">
+                                  <select
+                                    id="appointment-user-select"
+                                    value={selectedAppointmentUserId}
+                                    onChange={(e) => setSelectedAppointmentUserId(e.target.value)}
+                                    className="flex-1 h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900 text-sm"
+                                  >
+                                    <option value="">-- Select a user --</option>
+                                    {users.map((user) => (
+                                      <option key={user.id} value={user.id}>
+                                        {user.name} {user.email ? `(${user.email})` : ''}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={loadUsers}
+                                    disabled={isLoadingUsers}
+                                  >
+                                    <RotateCw className={`h-4 w-4 ${isLoadingUsers ? 'animate-spin' : ''}`} />
+                                  </Button>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Select which team member should be assigned appointments from this calendar
+                                </p>
+                              </div>
+                            )}
                           </div>
 
                           <div>
@@ -1745,6 +1812,40 @@ export default function SettingsPage() {
                             <p className="text-sm text-gray-600 mt-2">
                               Calendar for users to schedule consultation calls
                             </p>
+                            {selectedCallCalendarId && (
+                              <div className="mt-3">
+                                <Label htmlFor="call-user-select" className="text-sm font-semibold text-gray-700">
+                                  Assign to User (Required)
+                                </Label>
+                                <div className="mt-1 flex gap-2">
+                                  <select
+                                    id="call-user-select"
+                                    value={selectedCallUserId}
+                                    onChange={(e) => setSelectedCallUserId(e.target.value)}
+                                    className="flex-1 h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900 text-sm"
+                                  >
+                                    <option value="">-- Select a user --</option>
+                                    {users.map((user) => (
+                                      <option key={user.id} value={user.id}>
+                                        {user.name} {user.email ? `(${user.email})` : ''}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={loadUsers}
+                                    disabled={isLoadingUsers}
+                                  >
+                                    <RotateCw className={`h-4 w-4 ${isLoadingUsers ? 'animate-spin' : ''}`} />
+                                  </Button>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Select which team member should be assigned calls from this calendar
+                                </p>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

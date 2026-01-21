@@ -63,6 +63,8 @@ export async function POST(request: NextRequest) {
       outOfServiceTags,
       appointmentCalendarId,
       callCalendarId,
+      appointmentUserId,
+      callUserId,
       quotedAmountField,
     } = body;
 
@@ -79,6 +81,8 @@ export async function POST(request: NextRequest) {
       outOfServiceTags: outOfServiceTags || undefined,
       appointmentCalendarId: appointmentCalendarId || undefined,
       callCalendarId: callCalendarId || undefined,
+      appointmentUserId: appointmentUserId || undefined,
+      callUserId: callUserId || undefined,
       quotedAmountField: quotedAmountField || undefined,
     });
 

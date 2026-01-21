@@ -31,18 +31,21 @@ export async function POST(request: NextRequest) {
     // Get GHL config to retrieve calendar IDs
     const ghlConfig = await getGHLConfig();
 
-    // Determine which calendar to use based on booking type
+    // Determine which calendar and user to use based on booking type
     let calendarId: string | undefined;
+    let assignedTo: string | undefined;
     let title: string;
     let defaultNotes: string;
 
     if (type === 'call') {
       calendarId = ghlConfig?.callCalendarId;
+      assignedTo = ghlConfig?.callUserId;
       title = 'Consultation Call';
       defaultNotes = 'Consultation call scheduled through website quote form';
     } else {
       // default to appointment
       calendarId = ghlConfig?.appointmentCalendarId;
+      assignedTo = ghlConfig?.appointmentUserId;
       title = 'Cleaning Service Appointment';
       defaultNotes = 'Appointment booked through website quote form';
     }
@@ -53,6 +56,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: `GHL calendar not configured. Please set up the ${type === 'call' ? 'call' : 'appointment'} calendar in admin settings.`,
+          missingField: fieldName,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Ensure user is configured
+    if (!assignedTo) {
+      const fieldName = type === 'call' ? 'callUserId' : 'appointmentUserId';
+      return NextResponse.json(
+        {
+          error: `GHL user not configured for ${type === 'call' ? 'call' : 'appointment'} calendar. Please select a user in admin settings.`,
           missingField: fieldName,
         },
         { status: 400 }
@@ -70,7 +85,7 @@ export async function POST(request: NextRequest) {
     // End time is 1 hour after start time
     const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
 
-    // Create appointment in GHL with appropriate calendar ID
+    // Create appointment in GHL with appropriate calendar ID and assigned user
     const appointment = await createAppointment({
       contactId,
       title,
@@ -78,6 +93,7 @@ export async function POST(request: NextRequest) {
       endTime: endDateTime.toISOString(),
       notes: notes || defaultNotes,
       calendarId,
+      assignedTo, // Assign to the configured user
     });
 
     return NextResponse.json({
