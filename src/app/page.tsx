@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -878,8 +879,9 @@ export default function Home() {
   }
 
   if (quoteResult) {
+    const primaryHsl = hexToHsl(primaryColor);
     return (
-      <div style={{ '--primary-color': primaryColor, '--primary': hexToHsl(primaryColor) } as React.CSSProperties}>
+      <div>
         <style>{`
           :root {
             --primary-color: ${primaryColor};
@@ -1328,8 +1330,9 @@ export default function Home() {
                     transition={{ delay: 0.35 }}
                   >
                     {callConfirmed ? (
-                      <Card ref={callFormRef} className="shadow-2xl border-0 overflow-hidden">
-                        <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-8 text-white">
+                      <div ref={callFormRef}>
+                        <Card className="shadow-2xl border-0 overflow-hidden">
+                          <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-8 text-white">
                           <div className="text-center">
                             <motion.div
                               initial={{ scale: 0 }}
@@ -1512,8 +1515,11 @@ export default function Home() {
     );
   }
 
+  const mainDivStyle: React.CSSProperties & Record<string, string> = {
+    '--primary-color': primaryColor,
+  };
   return (
-    <div style={{ '--primary-color': primaryColor } as React.CSSProperties}>
+    <div style={mainDivStyle}>
       <style>{`
         :root {
           --primary-color: ${primaryColor};
