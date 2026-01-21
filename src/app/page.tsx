@@ -1510,12 +1510,66 @@ export default function Home() {
                               // Reset service area check flag when new coordinates are set
                               setServiceAreaChecked(false);
                               
-                              // If validation passed and we have valid coordinates, auto-advance to next step
-                              // The service area check will happen in nextStep() if needed
+                              // If validation passed and we have valid coordinates, check service area first
+                              // Then auto-advance only if in service area
                               if (isValid) {
-                                // Wait a moment to ensure state is updated, then auto-advance
-                                setTimeout(() => {
-                                  nextStep();
+                                // Wait a moment to ensure state is updated, then check service area and advance
+                                setTimeout(async () => {
+                                  // Run service area check before auto-advancing
+                                  try {
+                                    console.log('Auto-advance: Checking service area with coordinates:', { lat, lng });
+                                    const response = await fetch('/api/service-area/check', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ lat, lng }),
+                                    });
+                                    const result = await response.json();
+                                    console.log('Auto-advance: Service area check result:', result);
+                                    
+                                    if (result.inServiceArea) {
+                                      // In service area - mark as checked and advance
+                                      setServiceAreaChecked(true);
+                                      nextStep();
+                                    } else {
+                                      // Out of service area - redirect directly without advancing
+                                      console.log('Auto-advance: Address is out of service area - redirecting');
+                                      const data = getValues();
+                                      const addressFieldName = getFormFieldName(currentQuestion.id);
+                                      const addressValue = data[addressFieldName] || data.address || '';
+                                      
+                                      // Create out-of-service contact
+                                      try {
+                                        await fetch('/api/service-area/out-of-service', {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({
+                                            firstName: data.firstName || '',
+                                            lastName: data.lastName || '',
+                                            email: data.email || '',
+                                            phone: data.phone || '',
+                                            address: addressValue,
+                                          }),
+                                        });
+                                      } catch (error) {
+                                        console.error('Error creating out-of-service contact:', error);
+                                      }
+                                      
+                                      // Redirect to out-of-service page
+                                      const params = new URLSearchParams({
+                                        data: JSON.stringify({
+                                          firstName: data.firstName || '',
+                                          lastName: data.lastName || '',
+                                          email: data.email || '',
+                                          phone: data.phone || '',
+                                          address: addressValue,
+                                        }),
+                                      });
+                                      window.location.href = `/out-of-service?${params.toString()}`;
+                                    }
+                                  } catch (error) {
+                                    console.error('Auto-advance: Error checking service area:', error);
+                                    // If service area check fails, don't auto-advance (user can click Next manually)
+                                  }
                                 }, 200);
                               }
                             } else {
