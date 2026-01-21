@@ -121,6 +121,15 @@ export async function createOrUpdateContact(
       ...(additionalTags || []),
     ];
 
+    // Validate required fields
+    if (!finalToken) {
+      throw new Error('GHL API token is required but not configured');
+    }
+    
+    if (!finalLocationId) {
+      throw new Error('Location ID is required but not configured');
+    }
+
     const payload: Record<string, any> = {
       firstName: contactData.firstName,
       lastName: contactData.lastName,
@@ -138,6 +147,22 @@ export async function createOrUpdateContact(
     // Use provided token or the API client token
     // GHL 2.0 API: Use upsert endpoint - locationId is in the request body
     const url = `${GHL_API_BASE}/contacts/upsert`;
+    
+    console.log('Making GHL upsert contact request:', {
+      url,
+      hasToken: !!finalToken,
+      tokenLength: finalToken?.length || 0,
+      locationId: finalLocationId,
+      payload: {
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        hasEmail: !!payload.email,
+        hasPhone: !!payload.phone,
+        tagsCount: payload.tags?.length || 0,
+        customFieldsCount: Object.keys(payload.customFields || {}).length,
+      },
+    });
+    
     const options: RequestInit = {
       method: 'POST',
       headers: {
@@ -167,6 +192,23 @@ export async function createOrUpdateContact(
       } else {
         errorMessage = `${errorMessage}: Empty response from GHL API`;
       }
+      
+      // Enhanced error logging for 404 errors (endpoint not found)
+      if (response.status === 404) {
+        console.error('GHL API 404 Error - Endpoint not found:', {
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          responseText: responseText || '(empty)',
+          payload: {
+            hasLocationId: !!payload.locationId,
+            locationId: payload.locationId,
+            firstName: payload.firstName,
+            lastName: payload.lastName,
+          },
+        });
+      }
+      
       throw new Error(errorMessage);
     }
 
