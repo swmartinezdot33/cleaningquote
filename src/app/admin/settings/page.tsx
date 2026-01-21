@@ -1540,73 +1540,66 @@ export default function SettingsPage() {
                               </Button>
                             </div>
                             
+                            {/* Search input for filtering tags */}
+                            <div className="mb-2">
+                              <Input
+                                type="text"
+                                placeholder="Search tags..."
+                                value={inServiceTagSearch}
+                                onChange={(e) => setInServiceTagSearch(e.target.value)}
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                            
                             <div className="mt-2 p-3 border-2 border-gray-200 rounded-lg max-h-40 overflow-y-auto space-y-2">
-                              {/* Create New Tag - as first item if no tags */}
-                              {ghlTags.length === 0 && (
-                                <div className="flex gap-2 items-center pb-2 border-b border-gray-200">
-                                  <input
-                                    type="text"
-                                    placeholder="Create new tag..."
-                                    value={newTagName}
-                                    onChange={(e) => setNewTagName(e.target.value)}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') {
-                                        handleCreateTag(newTagName);
-                                      }
-                                    }}
-                                    className="flex-1 h-8 px-2 rounded-md border border-gray-300 bg-white text-gray-900 text-sm"
-                                    disabled={isCreatingTag}
-                                  />
-                                  <Button
-                                    type="button"
-                                    onClick={() => handleCreateTag(newTagName)}
-                                    disabled={isCreatingTag || !newTagName.trim()}
-                                    size="sm"
-                                    className="h-8"
-                                  >
-                                    {isCreatingTag ? (
-                                      <Loader2 className="h-3 w-3 animate-spin" />
-                                    ) : (
-                                      <Plus className="h-3 w-3" />
-                                    )}
-                                  </Button>
-                                </div>
-                              )}
-                              
-                              {ghlTags.length > 0 ? (
-                                <>
-                                  {/* Create New Tag - as first item when tags exist */}
-                                  <div className="flex gap-2 items-center pb-2 border-b border-gray-200">
-                                    <input
-                                      type="text"
-                                      placeholder="Create new tag..."
-                                      value={newTagName}
-                                      onChange={(e) => setNewTagName(e.target.value)}
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                          handleCreateTag(newTagName);
-                                        }
-                                      }}
-                                      className="flex-1 h-8 px-2 rounded-md border border-gray-300 bg-white text-gray-900 text-sm"
-                                      disabled={isCreatingTag}
-                                    />
-                                    <Button
-                                      type="button"
-                                      onClick={() => handleCreateTag(newTagName)}
-                                      disabled={isCreatingTag || !newTagName.trim()}
-                                      size="sm"
-                                      className="h-8"
-                                    >
-                                      {isCreatingTag ? (
-                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                      ) : (
-                                        <Plus className="h-3 w-3" />
-                                      )}
-                                    </Button>
-                                  </div>
+                              {/* Create New Tag - as first item */}
+                              <div className="flex gap-2 items-center pb-2 border-b border-gray-200">
+                                <input
+                                  type="text"
+                                  placeholder="Create new tag..."
+                                  value={newTagName}
+                                  onChange={(e) => setNewTagName(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      handleCreateTag(newTagName);
+                                    }
+                                  }}
+                                  className="flex-1 h-8 px-2 rounded-md border border-gray-300 bg-white text-gray-900 text-sm"
+                                  disabled={isCreatingTag}
+                                />
+                                <Button
+                                  type="button"
+                                  onClick={() => handleCreateTag(newTagName)}
+                                  disabled={isCreatingTag || !newTagName.trim()}
+                                  size="sm"
+                                  className="h-8"
+                                >
+                                  {isCreatingTag ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Plus className="h-3 w-3" />
+                                  )}
+                                </Button>
+                              </div>
 
-                                  {/* Existing Tags */}
-                                  {ghlTags.map((tag) => (
+                              {/* Filtered Existing Tags */}
+                              {ghlTags.length > 0 ? (
+                                (() => {
+                                  const searchLower = inServiceTagSearch.toLowerCase();
+                                  const filteredTags = ghlTags.filter((tag) =>
+                                    tag.name.toLowerCase().includes(searchLower)
+                                  );
+                                  
+                                  if (filteredTags.length === 0 && inServiceTagSearch) {
+                                    return (
+                                      <p className="text-sm text-gray-500 italic py-2">
+                                        No tags match "{inServiceTagSearch}". Create a new tag above.
+                                      </p>
+                                    );
+                                  }
+                                  
+                                  return filteredTags.map((tag) => (
                                     <label key={tag.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
                                       <input
                                         type="checkbox"
@@ -1624,8 +1617,8 @@ export default function SettingsPage() {
                                       />
                                       <span className="text-sm text-gray-700">{tag.name}</span>
                                     </label>
-                                  ))}
-                                </>
+                                  ));
+                                })()
                               ) : (
                                 <p className="text-sm text-gray-500 italic">No tags available. Click refresh to load from GHL.</p>
                               )}
@@ -1659,27 +1652,53 @@ export default function SettingsPage() {
                           <div>
                             <Label className="text-base font-semibold">Tags for Out-of-Service Customers</Label>
                             
+                            {/* Search input for filtering tags */}
+                            <div className="mt-2 mb-2">
+                              <Input
+                                type="text"
+                                placeholder="Search tags..."
+                                value={outOfServiceTagSearch}
+                                onChange={(e) => setOutOfServiceTagSearch(e.target.value)}
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                            
                             <div className="mt-2 p-3 border-2 border-gray-200 rounded-lg max-h-40 overflow-y-auto space-y-2">
                               {ghlTags.length > 0 ? (
-                                ghlTags.map((tag) => (
-                                  <label key={tag.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedOutOfServiceTags.has(tag.name)}
-                                      onChange={(e) => {
-                                        const newTags = new Set(selectedOutOfServiceTags);
-                                        if (e.target.checked) {
-                                          newTags.add(tag.name);
-                                        } else {
-                                          newTags.delete(tag.name);
-                                        }
-                                        setSelectedOutOfServiceTags(newTags);
-                                      }}
-                                      className="w-4 h-4 rounded text-[#f61590]"
-                                    />
-                                    <span className="text-sm text-gray-700">{tag.name}</span>
-                                  </label>
-                                ))
+                                (() => {
+                                  const searchLower = outOfServiceTagSearch.toLowerCase();
+                                  const filteredTags = ghlTags.filter((tag) =>
+                                    tag.name.toLowerCase().includes(searchLower)
+                                  );
+                                  
+                                  if (filteredTags.length === 0 && outOfServiceTagSearch) {
+                                    return (
+                                      <p className="text-sm text-gray-500 italic py-2">
+                                        No tags match "{outOfServiceTagSearch}".
+                                      </p>
+                                    );
+                                  }
+                                  
+                                  return filteredTags.map((tag) => (
+                                    <label key={tag.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedOutOfServiceTags.has(tag.name)}
+                                        onChange={(e) => {
+                                          const newTags = new Set(selectedOutOfServiceTags);
+                                          if (e.target.checked) {
+                                            newTags.add(tag.name);
+                                          } else {
+                                            newTags.delete(tag.name);
+                                          }
+                                          setSelectedOutOfServiceTags(newTags);
+                                        }}
+                                        className="w-4 h-4 rounded text-[#f61590]"
+                                      />
+                                      <span className="text-sm text-gray-700">{tag.name}</span>
+                                    </label>
+                                  ));
+                                })()
                               ) : (
                                 <p className="text-sm text-gray-500 italic">No tags available. Click refresh to load from GHL.</p>
                               )}
