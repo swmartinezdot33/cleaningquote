@@ -115,7 +115,13 @@ export async function POST(request: NextRequest) {
     }
 
     // At this point, TypeScript knows ranges is defined
-    const summaryText = generateSummaryText({ ...result, ranges: result.ranges }, body.serviceType, body.frequency);
+    // Pass the original square footage range string if it's a range (not a number)
+    const squareFeetRange = typeof body.squareFeet === 'string' && body.squareFeet.includes('-') 
+      ? body.squareFeet 
+      : typeof body.squareFeet === 'string' && body.squareFeet.toLowerCase().includes('less than')
+      ? body.squareFeet
+      : undefined;
+    const summaryText = generateSummaryText({ ...result, ranges: result.ranges }, body.serviceType, body.frequency, squareFeetRange);
     const smsText = generateSmsText({ ...result, ranges: result.ranges });
 
     // Attempt GHL integration (non-blocking)

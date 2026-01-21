@@ -69,48 +69,88 @@ function getSelectedQuoteRange(ranges: QuoteRanges, serviceType: string, frequen
 }
 
 /**
- * Generate pricing summary text - focused on the selected service only (elegant minimal version)
+ * Convert square footage number back to range string for display
  */
-export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges }, serviceType?: string, frequency?: string): string {
+function getSquareFootageRangeDisplay(squareFeet: number): string {
+  if (squareFeet < 1500) {
+    return 'Less Than 1500';
+  } else if (squareFeet < 2000) {
+    return '1501-2000';
+  } else if (squareFeet < 2500) {
+    return '2001-2500';
+  } else if (squareFeet < 3000) {
+    return '2501-3000';
+  } else if (squareFeet < 3500) {
+    return '3001-3500';
+  } else if (squareFeet < 4000) {
+    return '3501-4000';
+  } else if (squareFeet < 4500) {
+    return '4001-4500';
+  } else if (squareFeet < 5000) {
+    return '4501-5000';
+  } else if (squareFeet < 5500) {
+    return '5001-5500';
+  } else if (squareFeet < 6000) {
+    return '5501-6000';
+  } else if (squareFeet < 6500) {
+    return '6001-6500';
+  } else if (squareFeet < 7000) {
+    return '6501-7000';
+  } else if (squareFeet < 7500) {
+    return '7001-7500';
+  } else if (squareFeet < 8000) {
+    return '7501-8000';
+  } else if (squareFeet < 8500) {
+    return '8001-8500';
+  } else {
+    return '8500+';
+  }
+}
+
+/**
+ * Generate pricing summary text - always shows deep clean, general clean, and selected recurring service
+ */
+export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges }, serviceType?: string, frequency?: string, squareFeetRange?: string): string {
   const { inputs, ranges, initialCleaningRequired } = result;
   
   if (!inputs || !ranges) {
     return '';
   }
 
-  // If serviceType and frequency provided, show only that specific quote
-  if (serviceType && frequency) {
+  // Get square footage range for display (use provided range or calculate from number)
+  const squareFeetDisplay = squareFeetRange || getSquareFootageRangeDisplay(inputs.squareFeet);
+  
+  // Build summary with always-visible prices
+  let summary = `✨ YOUR QUOTE\n\n`;
+  summary += `Home Size: ${squareFeetDisplay} sq ft\n\n`;
+  
+  // Always show Deep Clean price
+  summary += `🧹 Deep Clean: ${formatPriceRange(ranges.deep)}\n`;
+  
+  // Always show General Clean price
+  summary += `✨ General Clean: ${formatPriceRange(ranges.general)}\n\n`;
+  
+  // Show the selected recurring service if one was picked
+  if (serviceType && frequency && frequency !== 'one-time') {
     const selectedRange = getSelectedQuoteRange(ranges, serviceType, frequency);
     if (selectedRange) {
-      const serviceName = frequency === 'one-time' ? getServiceTypeDisplayName(serviceType) : getServiceName(frequency);
-      
-      // Beautiful minimal format
-      let summary = `✨ YOUR QUOTE\n\n`;
-      summary += `Service: ${serviceName}\n`;
-      summary += `Home Size: ${inputs.squareFeet} sq ft\n\n`;
-      
-      // Show the exact price range
-      summary += `💰 ${formatPriceRange(selectedRange)}\n\n`;
-      
-      // Add Initial Cleaning messaging if applicable
-      if (initialCleaningRequired && serviceType !== 'initial') {
-        summary += `📌 Note: An initial cleaning is required as your first service.\n`;
-        summary += `This gets your home to our maintenance standards.\n`;
-      }
-      
-      return summary;
+      const serviceName = getServiceName(frequency);
+      summary += `📅 ${serviceName}: ${formatPriceRange(selectedRange)}\n\n`;
     }
+  } else if (frequency && frequency !== 'one-time') {
+    // If only frequency provided (recurring service)
+    const selectedRange = getSelectedQuoteRange(ranges, 'recurring', frequency);
+    if (selectedRange) {
+      const serviceName = getServiceName(frequency);
+      summary += `📅 ${serviceName}: ${formatPriceRange(selectedRange)}\n\n`;
+    }
+  } else {
+    // Default to bi-weekly if no recurring service selected
+    summary += `📅 Bi-Weekly Cleaning: ${formatPriceRange(ranges.biWeekly)}\n\n`;
   }
-
-  // If no service type/frequency, show focused summary of key quote
-  // Default to bi-weekly as it's most popular option for maintenance
-  const defaultRange = ranges.biWeekly || ranges.general;
-  let summary = `✨ YOUR QUOTE\n\n`;
-  summary += `Home Size: ${inputs.squareFeet} sq ft\n`;
-  summary += `Service: Bi-Weekly Cleaning\n`;
-  summary += `💰 ${formatPriceRange(defaultRange)}\n\n`;
   
-  if (initialCleaningRequired) {
+  // Add Initial Cleaning messaging if applicable
+  if (initialCleaningRequired && serviceType !== 'initial') {
     summary += `📌 Note: An initial cleaning is required as your first service.\n`;
     summary += `This gets your home to our maintenance standards.\n`;
   }

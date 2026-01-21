@@ -95,6 +95,8 @@ export default function SettingsPage() {
   const [isLoadingTags, setIsLoadingTags] = useState(false);
   const [newTagName, setNewTagName] = useState<string>('');
   const [isCreatingTag, setIsCreatingTag] = useState(false);
+  const [inServiceTagSearch, setInServiceTagSearch] = useState<string>('');
+  const [outOfServiceTagSearch, setOutOfServiceTagSearch] = useState<string>('');
 
   // Google Maps API Key State
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState('');
