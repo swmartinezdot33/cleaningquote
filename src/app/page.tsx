@@ -219,15 +219,9 @@ export default function Home() {
     if (mounted && currentQuestion) {
       // Small delay to ensure the animation has started and input is rendered
       const timer = setTimeout(() => {
-        if (currentQuestion.type === 'select') {
-          // For select fields, try to focus the trigger button
-          // The SelectTrigger might not have the ID, so we look for the button inside the card
-          const selectTrigger = document.querySelector(`[role="combobox"]`) as HTMLButtonElement;
-          if (selectTrigger) {
-            selectTrigger.focus();
-          }
-        } else {
-          // For input fields, focus by ID
+        // Only focus text inputs (name, email, phone, address) for keyboard users
+        // For number/select questions, we use bubble buttons - no need to focus
+        if (currentQuestion.type === 'text' || currentQuestion.type === 'email' || currentQuestion.type === 'tel' || currentQuestion.type === 'address') {
           const inputElement = document.getElementById(currentQuestion.id) as HTMLInputElement;
           if (inputElement) {
             inputElement.focus();
@@ -237,6 +231,7 @@ export default function Home() {
             }
           }
         }
+        // For number/select questions with bubble buttons, we don't focus - users just click bubbles
       }, 300); // Delay to allow animation to complete and DOM to update
 
       return () => clearTimeout(timer);
@@ -1714,58 +1709,120 @@ export default function Home() {
                       );
                     })()}
 
-                    {(currentQuestion.type === 'select' || currentQuestion.id === 'squareFeet') && (
-                      <Controller
-                        name={getFormFieldName(currentQuestion.id) as any}
-                        control={control}
-                        render={({ field }) => (
-                          <Select 
-                            onValueChange={(value) => {
-                              field.onChange(value);
-                              // Move to next step with a small delay to ensure state is updated
-                              // Don't validate here - just move forward, nextStep will validate
-                              setTimeout(() => {
-                                nextStep();
-                              }, 100);
-                            }} 
-                            value={field.value || ''}
-                          >
-                            <SelectTrigger 
-                              className="h-14 text-lg"
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' && field.value) {
-                                  e.preventDefault();
-                                  nextStep();
-                                }
-                              }}
-                            >
-                              <SelectValue placeholder="Select an option" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(currentQuestion.id === 'squareFeet' && (!currentQuestion.options || currentQuestion.options.length === 0)) ? (
-                                <>
-                                  <SelectItem value="500-1000">Under 1,000 sq ft</SelectItem>
-                                  <SelectItem value="1000-1500">1,000 - 1,500 sq ft</SelectItem>
-                                  <SelectItem value="1500-2000">1,500 - 2,000 sq ft</SelectItem>
-                                  <SelectItem value="2000-2500">2,000 - 2,500 sq ft</SelectItem>
-                                  <SelectItem value="2500-3000">2,500 - 3,000 sq ft</SelectItem>
-                                  <SelectItem value="3000-3500">3,000 - 3,500 sq ft</SelectItem>
-                                  <SelectItem value="3500-4000">3,500 - 4,000 sq ft</SelectItem>
-                                  <SelectItem value="4000-4500">4,000 - 4,500 sq ft</SelectItem>
-                                  <SelectItem value="4500+">Over 4,500 sq ft</SelectItem>
-                                </>
-                              ) : (
-                                currentQuestion.options?.filter(option => option.value && option.value.trim() !== '').map((option) => (
-                                  <SelectItem key={option.value} value={option.value}>
-                                    {option.label}
-                                  </SelectItem>
-                                ))
-                              )}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                    )}
+                    {(currentQuestion.type === 'select' || currentQuestion.id === 'squareFeet') && (() => {
+                      // Get options for select/square footage questions
+                      const getSelectOptions = () => {
+                        // Square footage options if no custom options
+                        if (currentQuestion.id === 'squareFeet' && (!currentQuestion.options || currentQuestion.options.length === 0)) {
+                          return [
+                            { value: '500-1000', label: 'Under 1,000 sq ft' },
+                            { value: '1000-1500', label: '1,000 - 1,500 sq ft' },
+                            { value: '1500-2000', label: '1,500 - 2,000 sq ft' },
+                            { value: '2000-2500', label: '2,000 - 2,500 sq ft' },
+                            { value: '2500-3000', label: '2,500 - 3,000 sq ft' },
+                            { value: '3000-3500', label: '3,000 - 3,500 sq ft' },
+                            { value: '3500-4000', label: '3,500 - 4,000 sq ft' },
+                            { value: '4000-4500', label: '4,000 - 4,500 sq ft' },
+                            { value: '4500+', label: 'Over 4,500 sq ft' },
+                          ];
+                        }
+                        
+                        // Use custom options from question
+                        return (currentQuestion.options || [])
+                          .filter(option => option.value && option.value.trim() !== '')
+                          .map(option => ({
+                            value: option.value,
+                            label: option.label || option.value,
+                          }));
+                      };
+
+                      const selectOptions = getSelectOptions();
+                      const currentValue = watch(getFormFieldName(currentQuestion.id) as any);
+
+                      // Determine grid columns based on number of options
+                      const getGridCols = (count: number) => {
+                        if (count <= 3) return 'grid-cols-3';
+                        if (count <= 4) return 'grid-cols-4';
+                        if (count <= 6) return 'grid-cols-3 sm:grid-cols-6';
+                        return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4';
+                      };
+
+                      return (
+                        <div className="space-y-4">
+                          <div className={`grid ${getGridCols(selectOptions.length)} gap-3 sm:gap-4`}>
+                            {selectOptions.map((option) => {
+                              const isSelected = currentValue === option.value;
+                              return (
+                                <motion.button
+                                  key={option.value}
+                                  type="button"
+                                  whileHover={{ scale: 1.05, y: -2 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={async () => {
+                                    const fieldName = getFormFieldName(currentQuestion.id);
+                                    // Set the value
+                                    setValue(fieldName as any, option.value, { shouldValidate: true, shouldDirty: true });
+                                    
+                                    // Trigger validation
+                                    const isValid = await trigger(fieldName as any);
+                                    
+                                    // Auto-advance after a brief delay if valid
+                                    if (isValid) {
+                                      setTimeout(() => {
+                                        nextStep();
+                                      }, 200);
+                                    }
+                                  }}
+                                  className={`
+                                    relative h-24 sm:h-28 md:h-32 rounded-2xl sm:rounded-3xl font-semibold 
+                                    text-base sm:text-lg md:text-xl
+                                    transition-all duration-300 border-2 shadow-lg
+                                    flex items-center justify-center px-3 py-4
+                                    text-center
+                                    ${isSelected 
+                                      ? 'shadow-2xl' 
+                                      : 'hover:shadow-xl bg-gradient-to-br from-gray-50 to-white'
+                                    }
+                                  `}
+                                  style={{
+                                    backgroundColor: isSelected ? primaryColor : 'white',
+                                    color: isSelected ? 'white' : '#374151',
+                                    borderColor: isSelected ? primaryColor : '#d1d5db',
+                                    boxShadow: isSelected ? `0 20px 25px -5px ${hexToRgba(primaryColor, 0.3)}, 0 10px 10px -5px ${hexToRgba(primaryColor, 0.15)}, 0 0 0 4px ${hexToRgba(primaryColor, 0.2)}` : undefined,
+                                  }}
+                                >
+                                  {isSelected ? (
+                                    <motion.div
+                                      initial={{ scale: 0.8, opacity: 0 }}
+                                      animate={{ scale: 1, opacity: 1 }}
+                                      transition={{ type: 'spring', bounce: 0.3, duration: 0.4 }}
+                                      className="relative z-10"
+                                    >
+                                      {option.label}
+                                    </motion.div>
+                                  ) : (
+                                    <span className="relative z-10">{option.label}</span>
+                                  )}
+                                  {isSelected && (
+                                    <motion.div
+                                      initial={{ opacity: 0 }}
+                                      animate={{ opacity: 1 }}
+                                      className="absolute inset-0 rounded-2xl sm:rounded-3xl"
+                                      style={{
+                                        background: `linear-gradient(135deg, ${primaryColor}, ${hexToRgba(primaryColor, 0.85)})`,
+                                      }}
+                                    />
+                                  )}
+                                </motion.button>
+                              );
+                            })}
+                          </div>
+                          <p className="text-sm text-gray-500 text-center mt-2">
+                            Click an option to select
+                          </p>
+                        </div>
+                      );
+                    })()}
 
                     {errors[getFormFieldName(currentQuestion.id) as any] && (
                       <motion.p
