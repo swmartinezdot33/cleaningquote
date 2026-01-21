@@ -1619,6 +1619,15 @@ export default function Home() {
             disabled={isLoading}
             size="lg"
             className="flex items-center gap-2 min-w-[140px]"
+            style={{ backgroundColor: primaryColor, borderColor: primaryColor }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = primaryColor;
+              e.currentTarget.style.opacity = '0.9';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = primaryColor;
+              e.currentTarget.style.opacity = '1';
+            }}
           >
             {isLoading ? (
               <>
