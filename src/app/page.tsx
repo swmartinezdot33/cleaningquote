@@ -1485,7 +1485,7 @@ export default function Home() {
                         required={currentQuestion.required}
                         primaryColor={primaryColor}
                         value={watch(getFormFieldName(currentQuestion.id) as any) || ''}
-                        onChange={(value, placeDetails) => {
+                        onChange={async (value, placeDetails) => {
                           // Update form value using sanitized field name
                           const fieldName = getFormFieldName(currentQuestion.id);
                           console.log('Address onChange called:', { fieldName, value, hasPlaceDetails: !!placeDetails });
@@ -1494,9 +1494,10 @@ export default function Home() {
                           // Use shouldValidate: true to mark the field as valid
                           setValue(fieldName as any, value, { shouldValidate: true, shouldDirty: true });
                           
-                          // Also trigger validation to ensure React Hook Form recognizes the field as valid
-                          trigger(fieldName as any).catch(err => {
+                          // Wait for validation to complete
+                          const isValid = await trigger(fieldName as any).catch(err => {
                             console.error('Validation trigger error:', err);
+                            return false;
                           });
                           
                           // Store coordinates for service area check
@@ -1508,6 +1509,15 @@ export default function Home() {
                               setAddressCoordinates({ lat, lng });
                               // Reset service area check flag when new coordinates are set
                               setServiceAreaChecked(false);
+                              
+                              // If validation passed and we have valid coordinates, auto-advance to next step
+                              // The service area check will happen in nextStep() if needed
+                              if (isValid) {
+                                // Wait a moment to ensure state is updated, then auto-advance
+                                setTimeout(() => {
+                                  nextStep();
+                                }, 200);
+                              }
                             } else {
                               console.warn('Invalid coordinates received, not setting:', { lat, lng, address: value });
                             }
