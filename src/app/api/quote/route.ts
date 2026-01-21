@@ -162,6 +162,12 @@ export async function POST(request: NextRequest) {
           surveyQuestionCount: surveyQuestions.length,
           mappingsFound: Array.from(fieldIdToMapping.entries()).map(([id, mapping]) => ({ id, mapping })),
           bodyKeys: Object.keys(body),
+          sampleQuestions: surveyQuestions.slice(0, 3).map(q => ({
+            id: q.id,
+            label: q.label,
+            hasMapping: !!q.ghlFieldMapping,
+            mapping: q.ghlFieldMapping,
+          })),
         });
 
         // Iterate through ALL fields in the body and map them to GHL fields

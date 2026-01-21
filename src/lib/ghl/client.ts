@@ -327,11 +327,12 @@ export async function createNote(noteData: GHLNote, locationId?: string): Promis
 
     const payload = {
       body: noteData.body,
+      locationId: finalLocationId, // locationId must be in the request body
     };
 
-    // GHL 2.0 API: Use location-level notes endpoint
+    // GHL 2.0 API: Use contacts notes endpoint - locationId is in the request body
     const response = await makeGHLRequest<{ note: GHLNoteResponse }>(
-      `/v2/locations/${finalLocationId}/contacts/${noteData.contactId}/notes`,
+      `/contacts/${noteData.contactId}/notes`,
       'POST',
       payload
     );
