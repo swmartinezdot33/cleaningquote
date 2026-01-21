@@ -377,7 +377,7 @@ export async function createAppointment(
 
     // GHL 2.0 API: Use calendars/events endpoint for appointments - locationId is in the request body
     const response = await makeGHLRequest<{ appointment: GHLAppointmentResponse }>(
-      `/calendars/events/`,
+      `/calendars/events`,
       'POST',
       payload
     );
