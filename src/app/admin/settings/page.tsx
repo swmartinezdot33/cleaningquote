@@ -1553,6 +1553,152 @@ export default function SettingsPage() {
                     </div>
                   )}
 
+                  {/* Calendar Selection for Appointments and Calls */}
+                  <div className="mt-8 pt-8 border-t border-gray-200">
+                    <h3 className="font-semibold text-gray-900 mb-6 text-lg">Appointment & Call Calendars</h3>
+                    
+                    <div className="space-y-6">
+                      <div>
+                        <Label htmlFor="appointment-calendar-select" className="text-base font-semibold">
+                          Calendar for Appointments
+                        </Label>
+                        <div className="mt-2 flex gap-2">
+                          <select
+                            id="appointment-calendar-select"
+                            value={selectedAppointmentCalendarId}
+                            onChange={(e) => setSelectedAppointmentCalendarId(e.target.value)}
+                            className="flex-1 h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
+                          >
+                            <option value="">-- Select a calendar --</option>
+                            {calendars.map((cal) => (
+                              <option key={cal.id} value={cal.id}>
+                                {cal.name}
+                              </option>
+                            ))}
+                          </select>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={loadCalendars}
+                            disabled={isLoadingCalendars}
+                          >
+                            <RotateCw className={`h-4 w-4 ${isLoadingCalendars ? 'animate-spin' : ''}`} />
+                          </Button>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-2">
+                          Calendar for users to book cleaning appointments
+                        </p>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="call-calendar-select" className="text-base font-semibold">
+                          Calendar for Calls
+                        </Label>
+                        <div className="mt-2 flex gap-2">
+                          <select
+                            id="call-calendar-select"
+                            value={selectedCallCalendarId}
+                            onChange={(e) => setSelectedCallCalendarId(e.target.value)}
+                            className="flex-1 h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
+                          >
+                            <option value="">-- Select a calendar --</option>
+                            {calendars.map((cal) => (
+                              <option key={cal.id} value={cal.id}>
+                                {cal.name}
+                              </option>
+                            ))}
+                          </select>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={loadCalendars}
+                            disabled={isLoadingCalendars}
+                          >
+                            <RotateCw className={`h-4 w-4 ${isLoadingCalendars ? 'animate-spin' : ''}`} />
+                          </Button>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-2">
+                          Calendar for users to schedule consultation calls
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quoted Amount Field Mapping */}
+                  <div className="mt-8 pt-8 border-t border-gray-200">
+                    <h3 className="font-semibold text-gray-900 mb-4 text-lg">Custom Fields</h3>
+                    
+                    <div>
+                      <Label htmlFor="quoted-amount-field" className="text-base font-semibold">
+                        GHL Field for Quoted Amount (Custom Field)
+                      </Label>
+                      <div className="flex gap-2 mt-2">
+                        <div className="flex-1 relative">
+                          <input
+                            type="text"
+                            placeholder="Search custom fields..."
+                            value={quotedAmountSearch}
+                            onChange={(e) => setQuotedAmountSearch(e.target.value)}
+                            className="w-full h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
+                          />
+                          {quotedAmountSearch && customFields.length > 0 && (
+                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
+                              {customFields
+                                .filter(field => 
+                                  field.name?.toLowerCase().includes(quotedAmountSearch.toLowerCase()) ||
+                                  field.key?.toLowerCase().includes(quotedAmountSearch.toLowerCase())
+                                )
+                                .map((field) => (
+                                  <button
+                                    key={field.key}
+                                    type="button"
+                                    className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
+                                    onClick={() => {
+                                      setQuotedAmountField(field.key);
+                                      setQuotedAmountSearch('');
+                                    }}
+                                  >
+                                    <div className="font-semibold text-gray-900">{field.name}</div>
+                                    <div className="text-xs text-gray-500 font-mono">{field.key}</div>
+                                  </button>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={loadCustomFields}
+                          disabled={isLoadingCustomFields}
+                          title="Refresh custom fields"
+                        >
+                          <RotateCw className={`h-4 w-4 ${isLoadingCustomFields ? 'animate-spin' : ''}`} />
+                        </Button>
+                      </div>
+                      
+                      {quotedAmountField && (
+                        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="text-sm text-blue-800">
+                            Selected: <span className="font-mono font-semibold">{quotedAmountField}</span>
+                          </p>
+                        </div>
+                      )}
+                      
+                      {customFieldsError && (
+                        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-800">
+                          {customFieldsError}
+                        </div>
+                      )}
+                      
+                      <p className="text-sm text-gray-600 mt-2">
+                        Select a GHL custom field where the quoted amount will be stored. Leave empty to skip.
+                      </p>
+                    </div>
+                  </div>
+
                   <Button
                     onClick={handleSaveGHLConfig}
                     disabled={isSavingConfig}
@@ -1890,143 +2036,6 @@ export default function SettingsPage() {
                   </p>
                 </div>
 
-                {/* Calendar Selection */}
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="appointment-calendar-select" className="text-base font-semibold">
-                      Calendar for Appointments
-                    </Label>
-                    <div className="mt-2 flex gap-2">
-                      <select
-                        id="appointment-calendar-select"
-                        value={selectedAppointmentCalendarId}
-                        onChange={(e) => setSelectedAppointmentCalendarId(e.target.value)}
-                        className="flex-1 h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
-                      >
-                        <option value="">-- Select a calendar --</option>
-                        {calendars.map((cal) => (
-                          <option key={cal.id} value={cal.id}>
-                            {cal.name}
-                          </option>
-                        ))}
-                      </select>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={loadCalendars}
-                        disabled={isLoadingCalendars}
-                      >
-                        <RotateCw className={`h-4 w-4 ${isLoadingCalendars ? 'animate-spin' : ''}`} />
-                      </Button>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-2">
-                      Calendar for users to book cleaning appointments
-                    </p>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="call-calendar-select" className="text-base font-semibold">
-                      Calendar for Calls
-                    </Label>
-                    <div className="mt-2 flex gap-2">
-                      <select
-                        id="call-calendar-select"
-                        value={selectedCallCalendarId}
-                        onChange={(e) => setSelectedCallCalendarId(e.target.value)}
-                        className="flex-1 h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
-                      >
-                        <option value="">-- Select a calendar --</option>
-                        {calendars.map((cal) => (
-                          <option key={cal.id} value={cal.id}>
-                            {cal.name}
-                          </option>
-                        ))}
-                      </select>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={loadCalendars}
-                        disabled={isLoadingCalendars}
-                      >
-                        <RotateCw className={`h-4 w-4 ${isLoadingCalendars ? 'animate-spin' : ''}`} />
-                      </Button>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-2">
-                      Calendar for users to schedule consultation calls
-                    </p>
-                  </div>
-
-                  {/* Quoted Amount Field Mapping */}
-                  <div>
-                    <Label htmlFor="quoted-amount-field" className="text-base font-semibold">
-                      GHL Field for Quoted Amount (Custom Field)
-                    </Label>
-                    <div className="flex gap-2 mt-2">
-                      <div className="flex-1 relative">
-                        <input
-                          type="text"
-                          placeholder="Search custom fields..."
-                          value={quotedAmountSearch}
-                          onChange={(e) => setQuotedAmountSearch(e.target.value)}
-                          className="w-full h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
-                        />
-                        {quotedAmountSearch && customFields.length > 0 && (
-                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
-                            {customFields
-                              .filter(field => 
-                                field.name?.toLowerCase().includes(quotedAmountSearch.toLowerCase()) ||
-                                field.key?.toLowerCase().includes(quotedAmountSearch.toLowerCase())
-                              )
-                              .map((field) => (
-                                <button
-                                  key={field.key}
-                                  type="button"
-                                  className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
-                                  onClick={() => {
-                                    setQuotedAmountField(field.key);
-                                    setQuotedAmountSearch('');
-                                  }}
-                                >
-                                  <div className="font-semibold text-gray-900">{field.name}</div>
-                                  <div className="text-xs text-gray-500 font-mono">{field.key}</div>
-                                </button>
-                              ))}
-                          </div>
-                        )}
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={loadCustomFields}
-                        disabled={isLoadingCustomFields}
-                        title="Refresh custom fields"
-                      >
-                        <RotateCw className={`h-4 w-4 ${isLoadingCustomFields ? 'animate-spin' : ''}`} />
-                      </Button>
-                    </div>
-                    
-                    {quotedAmountField && (
-                      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm text-blue-800">
-                          Selected: <span className="font-mono font-semibold">{quotedAmountField}</span>
-                        </p>
-                      </div>
-                    )}
-                    
-                    {customFieldsError && (
-                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-800">
-                        {customFieldsError}
-                      </div>
-                    )}
-                    
-                    <p className="text-sm text-gray-600 mt-2">
-                      Select a GHL custom field where the quoted amount will be stored. Leave empty to skip.
-                    </p>
-                  </div>
-                </div>
               </div>
             </CardContent>
             )}

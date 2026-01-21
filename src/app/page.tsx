@@ -1365,6 +1365,19 @@ export default function Home() {
         .primary-text { color: var(--primary-color); }
         .primary-border { border-color: var(--primary-color); }
         .primary-gradient { background: linear-gradient(to right, var(--primary-color), ${hexToRgba(primaryColor, 0.7)}); }
+        
+        /* Input focus colors */
+        input:focus-visible,
+        input:focus {
+          --tw-ring-color: ${primaryColor} !important;
+          border-color: ${primaryColor} !important;
+        }
+        
+        /* Select focus colors */
+        button[role="combobox"]:focus,
+        [role="combobox"]:focus-visible {
+          --tw-ring-color: ${primaryColor} !important;
+        }
       `}</style>
       <main className="min-h-screen bg-gradient-to-br via-white pt-12 pb-20 px-4 sm:px-6 lg:px-8"
             style={{ 
