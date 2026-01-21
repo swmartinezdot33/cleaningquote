@@ -148,27 +148,40 @@ export function GooglePlacesAutocomplete({
         const lat = place.geometry.location?.lat();
         const lng = place.geometry.location?.lng();
         
-        // Build complete address with street number
-        const fullAddress = buildAddressFromComponents(place);
-        
-        const placeDetails: PlaceDetails = {
-          lat: lat || 0,
-          lng: lng || 0,
-          formattedAddress: fullAddress,
-        };
+        // Only proceed if we have valid coordinates (not 0,0 or NaN)
+        if (lat && lng && lat !== 0 && lng !== 0 && !isNaN(lat) && !isNaN(lng)) {
+          // Build complete address with street number
+          const fullAddress = buildAddressFromComponents(place);
+          
+          const placeDetails: PlaceDetails = {
+            lat,
+            lng,
+            formattedAddress: fullAddress,
+          };
 
-        // Update input value immediately with complete address
-        if (inputRef.current) {
-          inputRef.current.value = fullAddress;
-          // Trigger input event to ensure form state is updated
-          const event = new Event('input', { bubbles: true });
-          inputRef.current.dispatchEvent(event);
-        }
+          // Update input value immediately with complete address
+          if (inputRef.current) {
+            inputRef.current.value = fullAddress;
+            // Trigger input event to ensure form state is updated
+            const event = new Event('input', { bubbles: true });
+            inputRef.current.dispatchEvent(event);
+          }
 
-        // Call onChange with both address and place details
-        // This is crucial for form validation - it must be called synchronously
-        if (onChange) {
-          onChange(fullAddress, placeDetails);
+          // Call onChange with both address and place details (valid coordinates)
+          // This is crucial for form validation - it must be called synchronously
+          if (onChange) {
+            onChange(fullAddress, placeDetails);
+          }
+        } else {
+          console.warn('Invalid coordinates from place selection:', { lat, lng });
+          // Update address but don't pass coordinates
+          const fullAddress = buildAddressFromComponents(place);
+          if (inputRef.current) {
+            inputRef.current.value = fullAddress;
+          }
+          if (onChange) {
+            onChange(fullAddress);
+          }
         }
 
         // Clear loading state
@@ -273,23 +286,42 @@ export function GooglePlacesAutocomplete({
             ? place.geometry.location.lng() 
             : place.geometry?.location?.lng;
           
-          // Build complete address with street number from geocoding result
-          const fullAddress = buildAddressFromGeocodeResult(place, address);
-          
-          const placeDetails: PlaceDetails = {
-            lat: lat || 0,
-            lng: lng || 0,
-            formattedAddress: fullAddress,
-          };
+          // Only proceed if we have valid coordinates (not 0,0 or NaN)
+          if (lat && lng && lat !== 0 && lng !== 0 && !isNaN(lat) && !isNaN(lng)) {
+            // Build complete address with street number from geocoding result
+            const fullAddress = buildAddressFromGeocodeResult(place, address);
+            
+            const placeDetails: PlaceDetails = {
+              lat,
+              lng,
+              formattedAddress: fullAddress,
+            };
 
-          // Update input with complete formatted address
-          if (inputRef.current) {
-            inputRef.current.value = fullAddress;
+            // Update input with complete formatted address
+            if (inputRef.current) {
+              inputRef.current.value = fullAddress;
+            }
+
+            // Call onChange to update form state with complete address and valid coordinates
+            if (onChange) {
+              onChange(fullAddress, placeDetails);
+            }
+          } else {
+            console.warn('Geocoding returned invalid coordinates:', { lat, lng, status });
+            // Update address but don't set coordinates
+            const fullAddress = buildAddressFromGeocodeResult(place, address);
+            if (inputRef.current) {
+              inputRef.current.value = fullAddress;
+            }
+            if (onChange) {
+              onChange(fullAddress);
+            }
           }
-
-          // Call onChange to update form state with complete address
+        } else {
+          console.warn('Geocoding failed:', { status, address });
+          // Geocoding failed - keep original address but don't set coordinates
           if (onChange) {
-            onChange(fullAddress, placeDetails);
+            onChange(address);
           }
         }
       }

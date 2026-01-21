@@ -69,17 +69,32 @@ export async function POST(request: NextRequest) {
     }
 
     if (!polygon || polygon.length === 0) {
+      // If no service area is configured, allow all addresses (return true)
+      // This prevents blocking all addresses when service area isn't set up yet
+      console.log('No service area configured - allowing all addresses');
       return NextResponse.json(
         {
-          inServiceArea: false,
-          message: 'Service area not configured. Please contact support.',
+          inServiceArea: true,
+          message: 'Service area check skipped - no service area configured.',
         },
         { status: 200 }
       );
     }
 
     // Check if point is in polygon
+    console.log('Service area check:', {
+      coordinates: { lat, lng },
+      polygonSource,
+      polygonPointCount: polygon?.length || 0,
+    });
+    
     const inServiceArea = pointInPolygon({ lat, lng }, polygon);
+    
+    console.log('Service area check result:', {
+      inServiceArea,
+      coordinates: { lat, lng },
+      polygonSource,
+    });
 
     return NextResponse.json(
       {

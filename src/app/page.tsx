@@ -530,8 +530,20 @@ export default function Home() {
     if (isValid) {
       // Check if this is an address question - if so, check service area
       if (currentQuestion.type === 'address' && addressCoordinates && !serviceAreaChecked) {
+        // Validate coordinates are not 0,0 (invalid/unknown location)
+        if (addressCoordinates.lat === 0 && addressCoordinates.lng === 0) {
+          console.warn('Invalid coordinates (0,0) - skipping service area check. Address may need to be geocoded.');
+          setServiceAreaChecked(true);
+          setDirection(1);
+          if (currentStep < questions.length - 1) {
+            setCurrentStep(currentStep + 1);
+          }
+          return;
+        }
+
         setIsLoading(true);
         try {
+          console.log('Checking service area with coordinates:', addressCoordinates);
           const response = await fetch('/api/service-area/check', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -542,6 +554,7 @@ export default function Home() {
           });
 
           const result = await response.json();
+          console.log('Service area check result:', result);
 
           if (!result.inServiceArea) {
             // Out of service area - create contact and redirect
