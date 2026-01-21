@@ -1785,11 +1785,11 @@ export default function Home() {
                                     }
                                   }}
                                   className={`
-                                    relative h-24 sm:h-28 md:h-32 rounded-2xl sm:rounded-3xl font-semibold 
-                                    text-base sm:text-lg md:text-xl
+                                    relative h-24 sm:h-28 md:h-32 rounded-2xl sm:rounded-3xl font-medium 
+                                    text-xs sm:text-sm md:text-sm
                                     transition-all duration-300 border-2 shadow-lg
                                     flex items-center justify-center px-3 py-4
-                                    text-center
+                                    text-center leading-tight
                                     ${isSelected 
                                       ? 'shadow-2xl' 
                                       : 'hover:shadow-xl bg-gradient-to-br from-gray-50 to-white'
