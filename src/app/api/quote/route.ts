@@ -218,6 +218,25 @@ export async function POST(request: NextRequest) {
           contactData.phone = body.phone;
         }
 
+        // Add quoted amount to contact custom fields if configured
+        if (ghlConfig?.quotedAmountField && result.ranges) {
+          // Calculate the quoted amount (same logic as opportunity)
+          let quotedAmount: number | undefined = ghlConfig.opportunityMonetaryValue;
+          
+          // If using dynamic pricing, calculate from selected service
+          if (ghlConfig.useDynamicPricingForValue !== false) {
+            quotedAmount = getSelectedQuotePrice(result.ranges, body.serviceType, body.frequency);
+          }
+          
+          // Only add if we have a valid amount
+          if (quotedAmount !== undefined && quotedAmount !== null && quotedAmount > 0) {
+            // Extract just the field key (remove "contact." prefix if present)
+            const fieldKey = ghlConfig.quotedAmountField.replace(/^contact\./, '');
+            contactData.customFields![fieldKey] = String(quotedAmount);
+            console.log(`✅ Added quoted amount to contact custom field: ${fieldKey} = ${quotedAmount}`);
+          }
+        }
+
         // Remove customFields if empty
         if (Object.keys(contactData.customFields || {}).length === 0) {
           delete contactData.customFields;
