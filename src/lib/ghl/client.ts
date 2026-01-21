@@ -130,6 +130,17 @@ export async function createOrUpdateContact(
       throw new Error('Location ID is required but not configured');
     }
 
+    // Convert customFields object to array format required by GHL API
+    // GHL expects: [{ key: "fieldKey", value: "fieldValue" }, ...]
+    // We have: { fieldKey: "fieldValue", ... }
+    let customFieldsArray: Array<{ key: string; value: string }> | undefined;
+    if (contactData.customFields && Object.keys(contactData.customFields).length > 0) {
+      customFieldsArray = Object.entries(contactData.customFields).map(([key, value]) => ({
+        key,
+        value: String(value),
+      }));
+    }
+
     const payload: Record<string, any> = {
       firstName: contactData.firstName,
       lastName: contactData.lastName,
@@ -139,8 +150,8 @@ export async function createOrUpdateContact(
       ...(contactData.source && { source: contactData.source }),
       ...(contactData.address1 && { address1: contactData.address1 }),
       ...(allTags.length > 0 && { tags: allTags }),
-      ...(contactData.customFields && Object.keys(contactData.customFields).length > 0 && {
-        customFields: contactData.customFields,
+      ...(customFieldsArray && customFieldsArray.length > 0 && {
+        customFields: customFieldsArray,
       }),
     };
 
