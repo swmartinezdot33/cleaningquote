@@ -353,7 +353,7 @@ export async function createTag(tagName: string): Promise<{ id: string; name: st
     console.log('Creating tag:', tagName);
 
     const response = await makeGHLRequest<any>(
-      `/v2/locations/${finalLocationId}/tags`,
+      `/locations/${finalLocationId}/tags`,
       'POST',
       { name: tagName }
     );
