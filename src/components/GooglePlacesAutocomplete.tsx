@@ -72,8 +72,9 @@ export function GooglePlacesAutocomplete({
   }, []);
 
   // Update input value when value prop changes
+  // Only update if it's different to avoid interfering with Google Places autocomplete
   useEffect(() => {
-    if (inputRef.current && value !== undefined) {
+    if (inputRef.current && value !== undefined && inputRef.current.value !== value) {
       inputRef.current.value = value || '';
     }
   }, [value]);
@@ -199,12 +200,23 @@ export function GooglePlacesAutocomplete({
     }
   };
 
-  const handleBlur = () => {
-    // Validate on blur if we have a value but no place was selected
-    if (inputRef.current?.value && !isLoadingGeo) {
-      // Trigger geocoding to validate the address
-      geocodeAddress(inputRef.current.value);
-    }
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    // Delay blur handler to allow clicking on autocomplete dropdown
+    // The Google Places autocomplete dropdown renders after the input
+    // so we need to check if the relatedTarget (where focus is going) is within the autocomplete container
+    setTimeout(() => {
+      // Check if focus moved to an autocomplete suggestion
+      const activeElement = document.activeElement;
+      const isClickingAutocomplete = activeElement?.closest('.pac-container');
+      
+      // Only geocode if we're not clicking on autocomplete suggestions
+      if (!isClickingAutocomplete && inputRef.current?.value && !isLoadingGeo) {
+        // Check if place was already selected by autocomplete
+        // If autocomplete worked, the place_changed event would have fired
+        // So we only geocode if we have a value but no valid coordinates were set
+        geocodeAddress(inputRef.current.value);
+      }
+    }, 300);
   };
 
   // Helper function to build full address from geocoding results
@@ -347,7 +359,7 @@ export function GooglePlacesAutocomplete({
           onChange={handleInputChange}
           onBlur={handleBlur}
           onKeyDown={onKeyDown}
-          autoComplete="off"
+          autoComplete="address-line1"
           disabled={isLoadingGeo}
         />
         {isLoadingGeo && (

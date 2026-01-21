@@ -27,17 +27,23 @@ export function pointInPolygon(point: Coordinate, polygon: PolygonCoordinates): 
   let isInside = false;
 
   // Ray casting algorithm
+  // Cast a ray from the point to the right (positive longitude)
+  // Count intersections with polygon edges
   let j = polygon.length - 1;
   for (let i = 0; i < polygon.length; i++) {
-    const xi = polygon[i][1]; // longitude
-    const yi = polygon[i][0]; // latitude
-    const xj = polygon[j][1]; // longitude
-    const yj = polygon[j][0]; // latitude
+    const polyLat1 = polygon[i][0]; // latitude of first vertex
+    const polyLng1 = polygon[i][1]; // longitude of first vertex
+    const polyLat2 = polygon[j][0]; // latitude of second vertex
+    const polyLng2 = polygon[j][1]; // longitude of second vertex
 
-    // Check if ray crosses the edge
+    // Check if the horizontal ray from the point intersects this edge
+    // The ray is at the point's latitude, going right (increasing longitude)
     const intersect =
-      yi > lng !== yj > lng &&
-      lat < ((xj - xi) * (lng - yi)) / (yj - yi) + xi;
+      // Point's latitude must be between the two edge latitudes
+      ((polyLat1 > lat) !== (polyLat2 > lat)) &&
+      // Calculate where the edge intersects the horizontal ray (at point's latitude)
+      // Then check if that intersection is to the right of the point's longitude
+      lng < ((polyLng2 - polyLng1) * (lat - polyLat1)) / (polyLat2 - polyLat1) + polyLng1;
 
     if (intersect) {
       isInside = !isInside;
