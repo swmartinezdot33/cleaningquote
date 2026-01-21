@@ -61,19 +61,30 @@ function getSelectedQuotePrice(ranges: any, serviceType: string, frequency: stri
 function convertSquareFootageRange(range: string): number {
   if (!range) return 1500; // Default fallback
   
-  const rangeMap: { [key: string]: number } = {
-    '500-1000': 999,
-    '1000-1500': 1499,
-    '1500-2000': 1999,
-    '2000-2500': 2499,
-    '2500-3000': 2999,
-    '3000-3500': 3499,
-    '3500-4000': 3999,
-    '4000-4500': 4499,
-    '4500+': 4500,
-  };
+  const cleaned = range.trim();
   
-  return rangeMap[range] || 1500;
+  // Handle "Less Than 1500" or "Less Than1500" format
+  if (cleaned.toLowerCase().includes('less than')) {
+    const match = cleaned.match(/\d+/);
+    if (match) {
+      const max = parseInt(match[0], 10);
+      return max - 1; // Use upper bound - 1 for matching
+    }
+    return 1499; // Default for "Less Than 1500"
+  }
+  
+  // Handle ranges like '1501-2000', '2001-2500', etc.
+  if (cleaned.includes('-')) {
+    const parts = cleaned.split('-');
+    const min = parseInt(parts[0], 10) || 0;
+    const max = parseInt(parts[1], 10) || min;
+    // Use upper bound - 1 to ensure we stay within this range tier
+    return max - 1;
+  }
+  
+  // Try to parse as direct number
+  const num = parseInt(cleaned, 10);
+  return !isNaN(num) ? num : 1500;
 }
 
 export async function POST(request: NextRequest) {

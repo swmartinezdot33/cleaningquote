@@ -31,10 +31,21 @@ function convertSelectToNumber(value: string): number {
 function convertSquareFootageToNumber(rangeString: string): number {
   if (!rangeString) return 1500; // default
   
-  // Handle ranges like '500-1000', '1000-1500', etc.
-  if (rangeString.includes('-')) {
-    const parts = rangeString.split('-');
-    if (rangeString.includes('4500+')) return 4500; // upper bound for 4500+
+  const cleaned = rangeString.trim();
+  
+  // Handle "Less Than 1500" or "Less Than1500" format
+  if (cleaned.toLowerCase().includes('less than')) {
+    const match = cleaned.match(/\d+/);
+    if (match) {
+      const max = parseInt(match[0], 10);
+      return max - 1; // Use upper bound - 1 for matching
+    }
+    return 1499; // Default for "Less Than 1500"
+  }
+  
+  // Handle ranges like '1501-2000', '2001-2500', etc.
+  if (cleaned.includes('-')) {
+    const parts = cleaned.split('-');
     const min = parseInt(parts[0], 10) || 0;
     const max = parseInt(parts[1], 10) || min;
     // Use upper bound - 1 to ensure we stay within this range tier
@@ -42,7 +53,7 @@ function convertSquareFootageToNumber(rangeString: string): number {
   }
   
   // Try to parse as direct number
-  const num = parseInt(rangeString, 10);
+  const num = parseInt(cleaned, 10);
   return !isNaN(num) ? num : 1500;
 }
 
@@ -1715,15 +1726,21 @@ export default function Home() {
                         // Square footage options if no custom options
                         if (currentQuestion.id === 'squareFeet' && (!currentQuestion.options || currentQuestion.options.length === 0)) {
                           return [
-                            { value: '500-1000', label: 'Under 1,000 sq ft' },
-                            { value: '1000-1500', label: '1,000 - 1,500 sq ft' },
-                            { value: '1500-2000', label: '1,500 - 2,000 sq ft' },
-                            { value: '2000-2500', label: '2,000 - 2,500 sq ft' },
-                            { value: '2500-3000', label: '2,500 - 3,000 sq ft' },
-                            { value: '3000-3500', label: '3,000 - 3,500 sq ft' },
-                            { value: '3500-4000', label: '3,500 - 4,000 sq ft' },
-                            { value: '4000-4500', label: '4,000 - 4,500 sq ft' },
-                            { value: '4500+', label: 'Over 4,500 sq ft' },
+                            { value: 'Less Than 1500', label: 'Less Than 1500' },
+                            { value: '1501-2000', label: '1501-2000' },
+                            { value: '2001-2500', label: '2001-2500' },
+                            { value: '2501-3000', label: '2501-3000' },
+                            { value: '3001-3500', label: '3001-3500' },
+                            { value: '3501-4000', label: '3501-4000' },
+                            { value: '4001-4500', label: '4001-4500' },
+                            { value: '4501-5000', label: '4501-5000' },
+                            { value: '5001-5500', label: '5001-5500' },
+                            { value: '5501-6000', label: '5501-6000' },
+                            { value: '6001-6500', label: '6001-6500' },
+                            { value: '6501-7000', label: '6501-7000' },
+                            { value: '7001-7500', label: '7001-7500' },
+                            { value: '7501-8000', label: '7501-8000' },
+                            { value: '8001-8500', label: '8001-8500' },
                           ];
                         }
                         
