@@ -1858,7 +1858,7 @@ export default function SettingsPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.2 }}
         >
           <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
             <CardHeader 
