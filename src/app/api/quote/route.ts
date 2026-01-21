@@ -145,16 +145,31 @@ export async function POST(request: NextRequest) {
             customFields: {},
           };
 
-        // Map form data to GHL fields based on survey question mappings
+        // Build a map of field IDs to their GHL custom field mappings
+        // This helps us find mappings for standard fields like squareFeet, serviceType, etc.
+        const fieldIdToMapping = new Map<string, string>();
         surveyQuestions.forEach((question: SurveyQuestion) => {
-            // Handle both original IDs and sanitized field names
-            let fieldValue = body[question.id as keyof typeof body];
-            if (fieldValue === undefined || fieldValue === null) {
-              // Try sanitized version (dots replaced with underscores)
-              const sanitizedId = question.id.replace(/\./g, '_');
-              fieldValue = body[sanitizedId as keyof typeof body];
+          if (question.ghlFieldMapping) {
+            fieldIdToMapping.set(question.id, question.ghlFieldMapping);
+            // Also map sanitized version (dots replaced with underscores)
+            const sanitizedId = question.id.replace(/\./g, '_');
+            if (sanitizedId !== question.id) {
+              fieldIdToMapping.set(sanitizedId, question.ghlFieldMapping);
             }
-            
+          }
+        });
+
+        // Map form data to GHL fields based on survey question mappings
+        // Only use fields that have explicit GHL custom field mappings
+        surveyQuestions.forEach((question: SurveyQuestion) => {
+          // Handle both original IDs and sanitized field names
+          let fieldValue = body[question.id as keyof typeof body];
+          if (fieldValue === undefined || fieldValue === null) {
+            // Try sanitized version (dots replaced with underscores)
+            const sanitizedId = question.id.replace(/\./g, '_');
+            fieldValue = body[sanitizedId as keyof typeof body];
+          }
+          
           if (fieldValue === undefined || fieldValue === null || fieldValue === '') return;
 
           const mapping = question.ghlFieldMapping;
@@ -163,60 +178,25 @@ export async function POST(request: NextRequest) {
           if (mapping === 'firstName' || mapping === 'lastName' || mapping === 'email' || mapping === 'phone') {
             contactData[mapping] = String(fieldValue);
           } else if (mapping) {
-            // Custom field with explicit mapping
+            // Custom field with explicit mapping - use the mapped GHL custom field key
             contactData.customFields![mapping] = String(fieldValue);
-          } else {
-            // NO mapping - still send as custom field with question ID as key
-            // This ensures NO data is lost
-            const fieldKey = question.id;
-            contactData.customFields![fieldKey] = String(fieldValue);
           }
+          // NO mapping - skip it (don't add unmapped fields to customFields)
         });
 
-        // Also add any fields from body that aren't in survey questions
-        // This captures service-specific data like serviceType, frequency, etc.
-        const standardFields = ['firstName', 'lastName', 'email', 'phone', 'squareFeet', 'people', 'bedrooms', 'fullBaths', 'halfBaths', 'sheddingPets', 'condition', 'serviceType', 'frequency', 'hasPreviousService', 'cleanedWithin3Months'];
-        Object.keys(body).forEach((key) => {
-          if (!standardFields.includes(key) && body[key] && !contactData.customFields![key]) {
-            // Add any extra fields as custom fields
-            contactData.customFields![key] = String(body[key]);
+        // Also check standard fields for mappings (squareFeet, serviceType, etc.)
+        // Only add them if they have a mapping in survey questions
+        const standardFieldIds = ['squareFeet', 'people', 'bedrooms', 'fullBaths', 'halfBaths', 'sheddingPets', 'condition', 'serviceType', 'frequency', 'hasPreviousService', 'cleanedWithin3Months'];
+        standardFieldIds.forEach((fieldId) => {
+          const fieldValue = body[fieldId];
+          if (fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
+            const mapping = fieldIdToMapping.get(fieldId);
+            if (mapping && mapping !== 'firstName' && mapping !== 'lastName' && mapping !== 'email' && mapping !== 'phone') {
+              // Only add if it has a mapping to a GHL custom field (not native fields)
+              contactData.customFields![mapping] = String(fieldValue);
+            }
           }
         });
-        
-        // Also explicitly add standard fields that might not have mappings
-        if (body.squareFeet && !contactData.customFields!['squareFeet']) {
-          contactData.customFields!['squareFeet'] = String(body.squareFeet);
-        }
-        if (body.serviceType && !contactData.customFields!['serviceType']) {
-          contactData.customFields!['serviceType'] = String(body.serviceType);
-        }
-        if (body.frequency && !contactData.customFields!['frequency']) {
-          contactData.customFields!['frequency'] = String(body.frequency);
-        }
-        if (body.bedrooms && !contactData.customFields!['bedrooms']) {
-          contactData.customFields!['bedrooms'] = String(body.bedrooms);
-        }
-        if (body.fullBaths && !contactData.customFields!['fullBaths']) {
-          contactData.customFields!['fullBaths'] = String(body.fullBaths);
-        }
-        if (body.halfBaths && !contactData.customFields!['halfBaths']) {
-          contactData.customFields!['halfBaths'] = String(body.halfBaths);
-        }
-        if (body.people && !contactData.customFields!['people']) {
-          contactData.customFields!['people'] = String(body.people);
-        }
-        if (body.sheddingPets && !contactData.customFields!['sheddingPets']) {
-          contactData.customFields!['sheddingPets'] = String(body.sheddingPets);
-        }
-        if (body.condition && !contactData.customFields!['condition']) {
-          contactData.customFields!['condition'] = String(body.condition);
-        }
-        if (body.hasPreviousService && !contactData.customFields!['hasPreviousService']) {
-          contactData.customFields!['hasPreviousService'] = String(body.hasPreviousService);
-        }
-        if (body.cleanedWithin3Months && !contactData.customFields!['cleanedWithin3Months']) {
-          contactData.customFields!['cleanedWithin3Months'] = String(body.cleanedWithin3Months);
-        }
 
         // Fallback to direct body fields if no mappings exist (backward compatibility)
         if (!contactData.firstName || contactData.firstName === 'Unknown') {
