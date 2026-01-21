@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
         errorData = { message: response.statusText };
       }
       
-      // If it's a 401 or 403, provide more helpful error message
+      // Handle specific HTTP error statuses with graceful responses
       if (response.status === 401) {
         return NextResponse.json(
           { 
@@ -105,7 +105,33 @@ export async function GET(request: NextRequest) {
         );
       }
       
-      throw new Error(`Failed to fetch custom fields: ${errorData.message || response.statusText}`);
+      // Handle 404 - no custom fields found or endpoint not available
+      if (response.status === 404) {
+        return NextResponse.json({
+          success: true,
+          fields: [
+            { key: 'firstName', name: 'First Name', type: 'native' },
+            { key: 'lastName', name: 'Last Name', type: 'native' },
+            { key: 'email', name: 'Email', type: 'native' },
+            { key: 'phone', name: 'Phone', type: 'native' },
+          ],
+        });
+      }
+      
+      // For other errors, return error with fallback native fields
+      return NextResponse.json(
+        { 
+          error: 'Failed to fetch GHL custom fields',
+          details: errorData.message || response.statusText,
+          fields: [
+            { key: 'firstName', name: 'First Name', type: 'native' },
+            { key: 'lastName', name: 'Last Name', type: 'native' },
+            { key: 'email', name: 'Email', type: 'native' },
+            { key: 'phone', name: 'Phone', type: 'native' },
+          ],
+        },
+        { status: 400 }
+      );
     }
 
     const data = await response.json();
