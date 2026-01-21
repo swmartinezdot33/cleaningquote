@@ -138,15 +138,15 @@ export async function storeGHLToken(token: string): Promise<void> {
 /**
  * Get GHL API token
  */
-export async function getGHLToken(): Promise<string> {
-  const kv = getKV();
-  const token = await kv.get<string>(GHL_TOKEN_KEY);
-  
-  if (!token) {
-    throw new Error('GHL API token not configured. Please set it in the admin settings.');
+export async function getGHLToken(): Promise<string | null> {
+  try {
+    const kv = getKV();
+    const token = await kv.get<string>(GHL_TOKEN_KEY);
+    return token || null;
+  } catch (error) {
+    console.error('Error retrieving GHL token:', error);
+    return null;
   }
-  
-  return token;
 }
 
 /**

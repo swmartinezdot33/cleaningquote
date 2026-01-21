@@ -32,6 +32,10 @@ async function makeGHLRequest<T>(
   try {
     const token = await getGHLToken();
 
+    if (!token || typeof token !== 'string') {
+      throw new Error('GHL API token not configured. Please set it in the admin settings.');
+    }
+
     const url = `${GHL_API_BASE}${endpoint}`;
     const options: RequestInit = {
       method,

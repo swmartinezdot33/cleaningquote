@@ -32,6 +32,13 @@ export async function POST(request: NextRequest) {
     const locationId = await getGHLLocationId();
     const config = await getGHLConfig();
 
+    if (!token) {
+      return NextResponse.json(
+        { error: 'GHL token not configured. Please set it in the admin settings.' },
+        { status: 500 }
+      );
+    }
+
     if (!locationId) {
       return NextResponse.json(
         { error: 'Location ID not configured' },

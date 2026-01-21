@@ -28,9 +28,17 @@ export async function GET(request: NextRequest) {
     const token = await getGHLToken();
     const locationId = await getGHLLocationId();
 
-    if (!token) {
+    if (!token || typeof token !== 'string') {
       return NextResponse.json(
-        { error: 'GHL token not configured' },
+        { 
+          error: 'GHL token not configured',
+          fields: [
+            { key: 'firstName', name: 'First Name', type: 'native' },
+            { key: 'lastName', name: 'Last Name', type: 'native' },
+            { key: 'email', name: 'Email', type: 'native' },
+            { key: 'phone', name: 'Phone', type: 'native' },
+          ],
+        },
         { status: 400 }
       );
     }
