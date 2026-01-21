@@ -127,13 +127,13 @@ export async function POST(request: NextRequest) {
         // Get GHL configuration
         const ghlConfig = await getGHLConfig();
 
-        // Create/update contact if enabled
-        if (ghlConfig?.createContact !== false) {
-          // Get survey questions to map fields
-          const surveyQuestions = await getSurveyQuestions();
-          
-          // Build contact data using field mappings
-          const contactData: any = {
+        // ALWAYS create/update contact when quote is given (required for bookings to work)
+        // Even if createContact is disabled, we still create it for booking functionality
+        // Get survey questions to map fields
+        const surveyQuestions = await getSurveyQuestions();
+        
+        // Build contact data using field mappings
+        const contactData: any = {
             firstName: 'Unknown',
             lastName: 'Customer',
             source: 'Website Quote Form',
@@ -145,8 +145,8 @@ export async function POST(request: NextRequest) {
             customFields: {},
           };
 
-          // Map form data to GHL fields based on survey question mappings
-          surveyQuestions.forEach((question: SurveyQuestion) => {
+        // Map form data to GHL fields based on survey question mappings
+        surveyQuestions.forEach((question: SurveyQuestion) => {
             // Handle both original IDs and sanitized field names
             let fieldValue = body[question.id as keyof typeof body];
             if (fieldValue === undefined || fieldValue === null) {
@@ -155,108 +155,112 @@ export async function POST(request: NextRequest) {
               fieldValue = body[sanitizedId as keyof typeof body];
             }
             
-            if (fieldValue === undefined || fieldValue === null || fieldValue === '') return;
+          if (fieldValue === undefined || fieldValue === null || fieldValue === '') return;
 
-            const mapping = question.ghlFieldMapping;
-            
-            // Handle native fields (firstName, lastName, email, phone)
-            if (mapping === 'firstName' || mapping === 'lastName' || mapping === 'email' || mapping === 'phone') {
-              contactData[mapping] = String(fieldValue);
-            } else if (mapping) {
-              // Custom field with explicit mapping
-              contactData.customFields![mapping] = String(fieldValue);
-            } else {
-              // NO mapping - still send as custom field with question ID as key
-              // This ensures NO data is lost
-              const fieldKey = question.id;
-              contactData.customFields![fieldKey] = String(fieldValue);
-            }
-          });
-
-          // Also add any fields from body that aren't in survey questions
-          // This captures service-specific data like serviceType, frequency, etc.
-          const standardFields = ['firstName', 'lastName', 'email', 'phone', 'squareFeet', 'people', 'bedrooms', 'fullBaths', 'halfBaths', 'sheddingPets', 'condition', 'serviceType', 'frequency', 'hasPreviousService', 'cleanedWithin3Months'];
-          Object.keys(body).forEach((key) => {
-            if (!standardFields.includes(key) && body[key] && !contactData.customFields![key]) {
-              // Add any extra fields as custom fields
-              contactData.customFields![key] = String(body[key]);
-            }
-          });
+          const mapping = question.ghlFieldMapping;
           
-          // Also explicitly add standard fields that might not have mappings
-          if (body.squareFeet && !contactData.customFields!['squareFeet']) {
-            contactData.customFields!['squareFeet'] = String(body.squareFeet);
+          // Handle native fields (firstName, lastName, email, phone)
+          if (mapping === 'firstName' || mapping === 'lastName' || mapping === 'email' || mapping === 'phone') {
+            contactData[mapping] = String(fieldValue);
+          } else if (mapping) {
+            // Custom field with explicit mapping
+            contactData.customFields![mapping] = String(fieldValue);
+          } else {
+            // NO mapping - still send as custom field with question ID as key
+            // This ensures NO data is lost
+            const fieldKey = question.id;
+            contactData.customFields![fieldKey] = String(fieldValue);
           }
-          if (body.serviceType && !contactData.customFields!['serviceType']) {
-            contactData.customFields!['serviceType'] = String(body.serviceType);
-          }
-          if (body.frequency && !contactData.customFields!['frequency']) {
-            contactData.customFields!['frequency'] = String(body.frequency);
-          }
-          if (body.bedrooms && !contactData.customFields!['bedrooms']) {
-            contactData.customFields!['bedrooms'] = String(body.bedrooms);
-          }
-          if (body.fullBaths && !contactData.customFields!['fullBaths']) {
-            contactData.customFields!['fullBaths'] = String(body.fullBaths);
-          }
-          if (body.halfBaths && !contactData.customFields!['halfBaths']) {
-            contactData.customFields!['halfBaths'] = String(body.halfBaths);
-          }
-          if (body.people && !contactData.customFields!['people']) {
-            contactData.customFields!['people'] = String(body.people);
-          }
-          if (body.sheddingPets && !contactData.customFields!['sheddingPets']) {
-            contactData.customFields!['sheddingPets'] = String(body.sheddingPets);
-          }
-          if (body.condition && !contactData.customFields!['condition']) {
-            contactData.customFields!['condition'] = String(body.condition);
-          }
-          if (body.hasPreviousService && !contactData.customFields!['hasPreviousService']) {
-            contactData.customFields!['hasPreviousService'] = String(body.hasPreviousService);
-          }
-          if (body.cleanedWithin3Months && !contactData.customFields!['cleanedWithin3Months']) {
-            contactData.customFields!['cleanedWithin3Months'] = String(body.cleanedWithin3Months);
-          }
+        });
 
-          // Fallback to direct body fields if no mappings exist (backward compatibility)
-          if (!contactData.firstName || contactData.firstName === 'Unknown') {
-            contactData.firstName = body.firstName || 'Unknown';
+        // Also add any fields from body that aren't in survey questions
+        // This captures service-specific data like serviceType, frequency, etc.
+        const standardFields = ['firstName', 'lastName', 'email', 'phone', 'squareFeet', 'people', 'bedrooms', 'fullBaths', 'halfBaths', 'sheddingPets', 'condition', 'serviceType', 'frequency', 'hasPreviousService', 'cleanedWithin3Months'];
+        Object.keys(body).forEach((key) => {
+          if (!standardFields.includes(key) && body[key] && !contactData.customFields![key]) {
+            // Add any extra fields as custom fields
+            contactData.customFields![key] = String(body[key]);
           }
-          if (!contactData.lastName || contactData.lastName === 'Customer') {
-            contactData.lastName = body.lastName || 'Customer';
-          }
-          if (!contactData.email) {
-            contactData.email = body.email;
-          }
-          if (!contactData.phone) {
-            contactData.phone = body.phone;
-          }
-
-          // Remove customFields if empty
-          if (Object.keys(contactData.customFields || {}).length === 0) {
-            delete contactData.customFields;
-          }
-
-          console.log('📞 Sending contact data to GHL:', {
-            firstName: contactData.firstName,
-            lastName: contactData.lastName,
-            email: contactData.email,
-            phone: contactData.phone,
-            source: contactData.source,
-            tags: contactData.tags,
-            customFieldsCount: Object.keys(contactData.customFields || {}).length,
-            customFields: contactData.customFields,
-          });
-
-          // Pass additional tags (in-service tags)
-          const contact = await createOrUpdateContact(
-            contactData, 
-            undefined, // token - will use stored token
-            undefined, // locationId - will use stored locationId
-            ghlConfig?.inServiceTags // additional tags for in-service customers
-          );
-          ghlContactId = contact.id;
+        });
+        
+        // Also explicitly add standard fields that might not have mappings
+        if (body.squareFeet && !contactData.customFields!['squareFeet']) {
+          contactData.customFields!['squareFeet'] = String(body.squareFeet);
         }
+        if (body.serviceType && !contactData.customFields!['serviceType']) {
+          contactData.customFields!['serviceType'] = String(body.serviceType);
+        }
+        if (body.frequency && !contactData.customFields!['frequency']) {
+          contactData.customFields!['frequency'] = String(body.frequency);
+        }
+        if (body.bedrooms && !contactData.customFields!['bedrooms']) {
+          contactData.customFields!['bedrooms'] = String(body.bedrooms);
+        }
+        if (body.fullBaths && !contactData.customFields!['fullBaths']) {
+          contactData.customFields!['fullBaths'] = String(body.fullBaths);
+        }
+        if (body.halfBaths && !contactData.customFields!['halfBaths']) {
+          contactData.customFields!['halfBaths'] = String(body.halfBaths);
+        }
+        if (body.people && !contactData.customFields!['people']) {
+          contactData.customFields!['people'] = String(body.people);
+        }
+        if (body.sheddingPets && !contactData.customFields!['sheddingPets']) {
+          contactData.customFields!['sheddingPets'] = String(body.sheddingPets);
+        }
+        if (body.condition && !contactData.customFields!['condition']) {
+          contactData.customFields!['condition'] = String(body.condition);
+        }
+        if (body.hasPreviousService && !contactData.customFields!['hasPreviousService']) {
+          contactData.customFields!['hasPreviousService'] = String(body.hasPreviousService);
+        }
+        if (body.cleanedWithin3Months && !contactData.customFields!['cleanedWithin3Months']) {
+          contactData.customFields!['cleanedWithin3Months'] = String(body.cleanedWithin3Months);
+        }
+
+        // Fallback to direct body fields if no mappings exist (backward compatibility)
+        if (!contactData.firstName || contactData.firstName === 'Unknown') {
+          contactData.firstName = body.firstName || 'Unknown';
+        }
+        if (!contactData.lastName || contactData.lastName === 'Customer') {
+          contactData.lastName = body.lastName || 'Customer';
+        }
+        if (!contactData.email) {
+          contactData.email = body.email;
+        }
+        if (!contactData.phone) {
+          contactData.phone = body.phone;
+        }
+
+        // Remove customFields if empty
+        if (Object.keys(contactData.customFields || {}).length === 0) {
+          delete contactData.customFields;
+        }
+
+        console.log('📞 Sending contact data to GHL:', {
+          firstName: contactData.firstName,
+          lastName: contactData.lastName,
+          email: contactData.email,
+          phone: contactData.phone,
+          source: contactData.source,
+          tags: contactData.tags,
+          customFieldsCount: Object.keys(contactData.customFields || {}).length,
+          customFields: contactData.customFields,
+        });
+
+        // Pass additional tags (in-service tags)
+        const contact = await createOrUpdateContact(
+          contactData, 
+          undefined, // token - will use stored token
+          undefined, // locationId - will use stored locationId
+          ghlConfig?.inServiceTags // additional tags for in-service customers
+        );
+        ghlContactId = contact.id;
+        
+        console.log('✅ Contact created in GHL:', ghlContactId);
+        
+        // Note: Contact creation happens regardless of createContact config
+        // This ensures bookings work even if contact creation is "disabled"
 
         // Create opportunity if enabled
         if (ghlConfig?.createOpportunity && ghlContactId) {
