@@ -365,6 +365,7 @@ export async function createAppointment(
       title: appointmentData.title,
       startTime: appointmentData.startTime,
       endTime: appointmentData.endTime,
+      locationId: finalLocationId, // locationId is required in the request body
       ...(appointmentData.calendarId && { calendarId: appointmentData.calendarId }),
       ...(appointmentData.notes && { notes: appointmentData.notes }),
     };
@@ -374,7 +375,7 @@ export async function createAppointment(
       contactId: '***hidden***',
     });
 
-    // GHL 2.0 API: Use calendars/events endpoint for appointments
+    // GHL 2.0 API: Use calendars/events endpoint for appointments - locationId is in the request body
     const response = await makeGHLRequest<{ appointment: GHLAppointmentResponse }>(
       `/calendars/events/`,
       'POST',
