@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Try to get polygon: first from NetworkLink if available, then from stored polygon
-    let polygon = null;
+    // Try to get polygons: first from NetworkLink if available, then from stored polygon
+    let polygons: PolygonCoordinates[] = [];
     let polygonSource = 'none';
 
     // Check if we have a NetworkLink configured
@@ -51,8 +51,9 @@ export async function POST(request: NextRequest) {
       try {
         const result = await fetchAndParseNetworkKML(networkLink);
         if (result.polygons && result.polygons.length > 0) {
-          polygon = result.polygons[0];
+          polygons = result.polygons;
           polygonSource = 'network';
+          console.log(`[service-area/check] Found ${polygons.length} polygon(s) from NetworkLink`);
         }
       } catch (error) {
         console.error('Error fetching NetworkLink KML:', error);
@@ -61,14 +62,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Fall back to stored polygon if NetworkLink didn't work
-    if (!polygon) {
-      polygon = await getServiceAreaPolygon();
-      if (polygon) {
+    if (polygons.length === 0) {
+      const storedPolygon = await getServiceAreaPolygon();
+      if (storedPolygon && storedPolygon.length > 0) {
+        polygons = [storedPolygon];
         polygonSource = 'stored';
+        console.log(`[service-area/check] Using stored polygon with ${storedPolygon.length} points`);
       }
     }
 
-    if (!polygon || polygon.length === 0) {
+    if (polygons.length === 0 || polygons.every(p => p.length === 0)) {
       // If no service area is configured, allow all addresses (return true)
       // This prevents blocking all addresses when service area isn't set up yet
       console.log('No service area configured - allowing all addresses');
@@ -81,28 +84,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Ensure polygon is closed (first point should equal last point)
-    if (polygon.length > 0) {
+    // Ensure all polygons are closed (first point should equal last point)
+    const closedPolygons = polygons.map((polygon) => {
+      if (polygon.length === 0) return polygon;
+      
       const firstPoint = polygon[0];
       const lastPoint = polygon[polygon.length - 1];
       const isClosed = firstPoint[0] === lastPoint[0] && firstPoint[1] === lastPoint[1];
       
       if (!isClosed) {
         // Close the polygon by adding the first point at the end
-        polygon = [...polygon, [firstPoint[0], firstPoint[1]]] as PolygonCoordinates;
-        console.log('Polygon was not closed - added closing point');
+        return [...polygon, [firstPoint[0], firstPoint[1]]] as PolygonCoordinates;
       }
-    }
+      return polygon;
+    });
     
-    // Calculate bounding box for quick rejection
-    const polygonBounds = polygon && polygon.length > 0 ? {
-      minLat: Math.min(...polygon.map(p => p[0])),
-      maxLat: Math.max(...polygon.map(p => p[0])),
-      minLng: Math.min(...polygon.map(p => p[1])),
-      maxLng: Math.max(...polygon.map(p => p[1])),
+    // Calculate combined bounding box for all polygons (for quick rejection)
+    const allPoints = closedPolygons.flat();
+    const polygonBounds = allPoints.length > 0 ? {
+      minLat: Math.min(...allPoints.map(p => p[0])),
+      maxLat: Math.max(...allPoints.map(p => p[0])),
+      minLng: Math.min(...allPoints.map(p => p[1])),
+      maxLng: Math.max(...allPoints.map(p => p[1])),
     } : null;
     
-    // Quick bounds check - if point is clearly outside bounding box, skip expensive check
+    // Quick bounds check - if point is clearly outside combined bounding box, skip expensive checks
     let inServiceArea = false;
     if (polygonBounds) {
       const latWithinBounds = lat >= polygonBounds.minLat && lat <= polygonBounds.maxLat;
@@ -111,29 +117,36 @@ export async function POST(request: NextRequest) {
       console.log('Service area check:', {
         coordinates: { lat, lng },
         polygonSource,
-        polygonPointCount: polygon?.length || 0,
+        polygonCount: closedPolygons.length,
+        totalPolygonPoints: allPoints.length,
         polygonBounds,
         latWithinBounds,
         lngWithinBounds,
-        polygonSample: polygon.slice(0, 3).map(p => ({ lat: p[0], lng: p[1] })), // First 3 points for debugging
       });
       
-      // Only run point-in-polygon check if point is within bounding box
+      // Only run point-in-polygon checks if point is within combined bounding box
       if (latWithinBounds && lngWithinBounds) {
-        console.log('Running point-in-polygon check:', {
-          point: { lat, lng },
-          polygonFirstPoint: polygon[0],
-          polygonLastPoint: polygon[polygon.length - 1],
-          polygonIsClosed: polygon[0][0] === polygon[polygon.length - 1][0] && 
-                          polygon[0][1] === polygon[polygon.length - 1][1],
-        });
-        inServiceArea = pointInPolygon({ lat, lng }, polygon);
-        console.log('Point-in-polygon check result:', {
-          inServiceArea,
-          coordinates: { lat, lng },
-        });
+        // Check the point against ALL polygons - return true if it's in ANY polygon
+        console.log(`Running point-in-polygon check against ${closedPolygons.length} polygon(s)...`);
+        
+        for (let i = 0; i < closedPolygons.length; i++) {
+          const polygon = closedPolygons[i];
+          if (polygon.length < 3) continue; // Skip invalid polygons
+          
+          const isInThisPolygon = pointInPolygon({ lat, lng }, polygon);
+          
+          if (isInThisPolygon) {
+            console.log(`Point is inside polygon ${i + 1} of ${closedPolygons.length}`);
+            inServiceArea = true;
+            break; // Found in at least one polygon, no need to check others
+          }
+        }
+        
+        if (!inServiceArea) {
+          console.log(`Point is not inside any of the ${closedPolygons.length} polygon(s)`);
+        }
       } else {
-        console.log('Point is outside bounding box - skipping point-in-polygon check', {
+        console.log('Point is outside combined bounding box - skipping point-in-polygon checks', {
           point: { lat, lng },
           bounds: polygonBounds,
           latWithinBounds,
@@ -142,13 +155,20 @@ export async function POST(request: NextRequest) {
         inServiceArea = false;
       }
     } else {
-      inServiceArea = pointInPolygon({ lat, lng }, polygon);
+      // Fallback: check against all polygons even without bounds
+      for (const polygon of closedPolygons) {
+        if (polygon.length >= 3 && pointInPolygon({ lat, lng }, polygon)) {
+          inServiceArea = true;
+          break;
+        }
+      }
     }
     
     console.log('Service area check result:', {
       inServiceArea,
       coordinates: { lat, lng },
       polygonSource,
+      polygonCount: closedPolygons.length,
       pointWithinBounds: polygonBounds ? {
         latWithin: lat >= polygonBounds.minLat && lat <= polygonBounds.maxLat,
         lngWithin: lng >= polygonBounds.minLng && lng <= polygonBounds.maxLng,
