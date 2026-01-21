@@ -5,6 +5,8 @@ interface InitialCleaningConfig {
   multiplier: number;
   requiredConditions: string[];
   recommendedConditions: string[];
+  sheddingPetsMultiplier?: number;
+  peopleMultiplier?: number;
 }
 
 const INITIAL_CLEANING_CONFIG_KEY = 'admin:initial-cleaning-config';
@@ -24,10 +26,18 @@ export async function GET() {
         multiplier: 1.5,
         requiredConditions: ['poor'],
         recommendedConditions: ['fair'],
+        sheddingPetsMultiplier: 1.1,
+        peopleMultiplier: 1.05,
       });
     }
 
-    return NextResponse.json(config);
+    // Ensure backward compatibility - add default multipliers if not present
+    const configWithDefaults = {
+      ...config,
+      sheddingPetsMultiplier: config.sheddingPetsMultiplier ?? 1.1,
+      peopleMultiplier: config.peopleMultiplier ?? 1.05,
+    };
+    return NextResponse.json(configWithDefaults);
   } catch (error) {
     console.error('Error fetching Initial Cleaning config:', error);
     return NextResponse.json(
@@ -55,12 +65,28 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { multiplier, requiredConditions, recommendedConditions } = body;
+    const { multiplier, requiredConditions, recommendedConditions, sheddingPetsMultiplier, peopleMultiplier } = body;
 
     // Validate multiplier
     if (typeof multiplier !== 'number' || multiplier < 1.0 || multiplier > 3.0) {
       return NextResponse.json(
         { error: 'Multiplier must be between 1.0 and 3.0' },
+        { status: 400 }
+      );
+    }
+
+    // Validate shedding pets multiplier
+    if (sheddingPetsMultiplier !== undefined && (typeof sheddingPetsMultiplier !== 'number' || sheddingPetsMultiplier < 1.0 || sheddingPetsMultiplier > 2.0)) {
+      return NextResponse.json(
+        { error: 'Shedding pets multiplier must be between 1.0 and 2.0' },
+        { status: 400 }
+      );
+    }
+
+    // Validate people multiplier
+    if (peopleMultiplier !== undefined && (typeof peopleMultiplier !== 'number' || peopleMultiplier < 1.0 || peopleMultiplier > 2.0)) {
+      return NextResponse.json(
+        { error: 'People multiplier must be between 1.0 and 2.0' },
         { status: 400 }
       );
     }
@@ -77,6 +103,8 @@ export async function POST(request: NextRequest) {
       multiplier,
       requiredConditions: requiredConditions.map((c: string) => c.toLowerCase()),
       recommendedConditions: recommendedConditions.map((c: string) => c.toLowerCase()),
+      sheddingPetsMultiplier: sheddingPetsMultiplier ?? 1.1,
+      peopleMultiplier: peopleMultiplier ?? 1.05,
     };
 
     const kv = getKV();

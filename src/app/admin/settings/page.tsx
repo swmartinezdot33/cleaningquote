@@ -965,13 +965,16 @@ export default function SettingsPage() {
           <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
             <CardHeader 
               className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6 cursor-pointer"
-              onClick={() => toggleCard('ghl-token')}
+              onClick={() => toggleCard('ghl-unified')}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-2xl font-bold">GoHighLevel API Token</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-2xl font-bold text-gray-900">
+                    <Sparkles className="h-6 w-6 text-[#f61590]" />
+                    GoHighLevel Integration
+                  </CardTitle>
                   <CardDescription className="text-gray-600 mt-1">
-                    Configure your GHL PIT token to enable CRM integration
+                    Configure your GHL token and CRM integration settings
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-3">
@@ -1004,916 +1007,852 @@ export default function SettingsPage() {
                     )}
                   </div>
                   <ChevronDown 
-                    className={`h-5 w-5 transition-transform ${isCardExpanded('ghl-token') ? 'rotate-180' : ''}`}
+                    className={`h-5 w-5 transition-transform ${isCardExpanded('ghl-unified') ? 'rotate-180' : ''}`}
                   />
                 </div>
               </div>
             </CardHeader>
-            {isCardExpanded('ghl-token') && (
+            {isCardExpanded('ghl-unified') && (
               <CardContent className="pt-8 pb-8">
-              <div className="space-y-6">
+              <div className="space-y-8">
+                {/* API Token Section */}
                 <div>
-                  <Label htmlFor="token" className="text-base font-semibold">
-                    GHL Private Integration Token (PIT)
-                  </Label>
-                  <p className="text-sm text-gray-600 mt-1 mb-3">
-                    Enter your GoHighLevel API token. <strong className="text-[#f61590]">We strongly recommend using a Location-level PIT token</strong> (sub-account level) for better security and reliability. Keep this secret - never share it publicly.
-                  </p>
-                  <div className="mt-2 mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm font-semibold text-blue-900 mb-1">
-                      💡 Recommended: Location-level PIT Token
-                    </p>
-                    <p className="text-xs text-blue-800">
-                      Location-level (sub-account) PIT tokens are scoped to a specific location and provide better security. All API calls will use the Location ID you provide below to ensure proper sub-account integration.
-                    </p>
-                  </div>
-                  <div className="relative">
-                    <Input
-                      id="token"
-                      type={showToken ? 'text' : 'password'}
-                      value={ghlToken}
-                      onChange={(e) => setGhlToken(e.target.value)}
-                      placeholder="ghl_pit_... (leave blank to keep current token)"
-                      className="pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowToken(!showToken)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                    >
-                      {showToken ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-                  <div className="mt-4">
-                    <Label htmlFor="locationId" className="text-base font-semibold">
-                      Location ID <span className="text-red-500">*</span>
-                    </Label>
-                    <p className="text-sm text-gray-600 mt-1 mb-3">
-                      Enter your GoHighLevel Location ID. This is required for GHL API integration. You can find this in your GHL dashboard URL after /location/
-                    </p>
-                    <Input
-                      id="locationId"
-                      type="text"
-                      value={ghlLocationId}
-                      onChange={(e) => setGhlLocationId(e.target.value)}
-                      placeholder="e.g., ve9EPM428h8vShlRW1KT"
-                      className="font-mono"
-                      required
-                    />
-                  </div>
-                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-sm font-semibold text-amber-900 mb-2 flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4" />
-                      Required GHL Scopes:
-                    </p>
-                    <ul className="text-xs text-amber-800 space-y-1 ml-6 list-disc">
-                      <li><strong>contacts.write</strong> - Create/update contacts and add notes <span className="font-bold text-amber-900">(REQUIRED)</span></li>
-                      <li><strong>contacts.readonly</strong> - View customer contact information</li>
-                      <li><strong>opportunities.readonly</strong> - Read pipelines for configuration</li>
-                      <li><strong>opportunities.write</strong> - Create opportunities from quotes</li>
-                      <li><strong>calendars.write</strong> - Create appointments for bookings</li>
-                      <li><strong>calendars.readonly</strong> - View available calendars</li>
-                      <li><strong>locations.readonly</strong> - Fetch calendars, tags, and location information</li>
-                      <li><strong>locations/customFields.readonly</strong> - View custom fields for field mapping</li>
-                      <li><strong>locations/tags.readonly</strong> - View available tags for service area</li>
-                      <li><strong>locations/tags.write</strong> - Apply tags to customers (in-service/out-of-service)</li>
-                    </ul>
-                    <p className="text-xs text-amber-700 mt-2 italic">
-                      <strong>Important:</strong> We recommend using a <strong>Location-level PIT token</strong> (sub-account level) for all integrations. Location-level tokens don't need the locations.readonly scope and provide better security by scoping to a specific location. All API calls will automatically use your Location ID for sub-account operations.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Field Mapping Section */}
-                <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-blue-600" />
-                        Field Mapping
-                      </h4>
-                      <p className="text-sm text-gray-700 mb-3">
-                        Map your survey questions to GHL fields (native fields like firstName, lastName, email, phone, or custom fields). 
-                        Edit each question in the Survey Builder and select which GHL field it should map to.
+                  <h3 className="text-lg font-semibold text-gray-900 mb-6 pb-4 border-b border-gray-200">API Token & Authentication</h3>
+                  
+                  <div className="space-y-6">
+                    <div>
+                      <Label htmlFor="token" className="text-base font-semibold">
+                        GHL Private Integration Token (PIT)
+                      </Label>
+                      <p className="text-sm text-gray-600 mt-1 mb-3">
+                        Enter your GoHighLevel API token. <strong className="text-[#f61590]">We strongly recommend using a Location-level PIT token</strong> (sub-account level) for better security and reliability. Keep this secret - never share it publicly.
                       </p>
+                      <div className="mt-2 mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm font-semibold text-blue-900 mb-1">
+                          💡 Recommended: Location-level PIT Token
+                        </p>
+                        <p className="text-xs text-blue-800">
+                          Location-level (sub-account) PIT tokens are scoped to a specific location and provide better security. All API calls will use the Location ID you provide below to ensure proper sub-account integration.
+                        </p>
+                      </div>
+                      <div className="relative">
+                        <Input
+                          id="token"
+                          type={showToken ? 'text' : 'password'}
+                          value={ghlToken}
+                          onChange={(e) => setGhlToken(e.target.value)}
+                          placeholder="ghl_pit_... (leave blank to keep current token)"
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowToken(!showToken)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        >
+                          {showToken ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                      <div className="mt-4">
+                        <Label htmlFor="locationId" className="text-base font-semibold">
+                          Location ID <span className="text-red-500">*</span>
+                        </Label>
+                        <p className="text-sm text-gray-600 mt-1 mb-3">
+                          Enter your GoHighLevel Location ID. This is required for GHL API integration. You can find this in your GHL dashboard URL after /location/
+                        </p>
+                        <Input
+                          id="locationId"
+                          type="text"
+                          value={ghlLocationId}
+                          onChange={(e) => setGhlLocationId(e.target.value)}
+                          placeholder="e.g., ve9EPM428h8vShlRW1KT"
+                          className="font-mono"
+                          required
+                        />
+                      </div>
+                      <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                        <p className="text-sm font-semibold text-amber-900 mb-2 flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4" />
+                          Required GHL Scopes:
+                        </p>
+                        <ul className="text-xs text-amber-800 space-y-1 ml-6 list-disc">
+                          <li><strong>contacts.write</strong> - Create/update contacts and add notes <span className="font-bold text-amber-900">(REQUIRED)</span></li>
+                          <li><strong>contacts.readonly</strong> - View customer contact information</li>
+                          <li><strong>opportunities.readonly</strong> - Read pipelines for configuration</li>
+                          <li><strong>opportunities.write</strong> - Create opportunities from quotes</li>
+                          <li><strong>calendars.write</strong> - Create appointments for bookings</li>
+                          <li><strong>calendars.readonly</strong> - View available calendars</li>
+                          <li><strong>locations.readonly</strong> - Fetch calendars, tags, and location information</li>
+                          <li><strong>locations/customFields.readonly</strong> - View custom fields for field mapping</li>
+                          <li><strong>locations/tags.readonly</strong> - View available tags for service area</li>
+                          <li><strong>locations/tags.write</strong> - Apply tags to customers (in-service/out-of-service)</li>
+                        </ul>
+                        <p className="text-xs text-amber-700 mt-2 italic">
+                          <strong>Important:</strong> We recommend using a <strong>Location-level PIT token</strong> (sub-account level) for all integrations. Location-level tokens don't need the locations.readonly scope and provide better security by scoping to a specific location. All API calls will automatically use your Location ID for sub-account operations.
+                        </p>
+                      </div>
+                    </div>
+
+                    {ghlTokenDisplay && ghlTokenDisplay !== '••••••••••••••••' && (
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                          Current token: <span className="font-mono font-semibold">{ghlTokenDisplay}</span>
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="flex gap-3 pt-4">
                       <Button
-                        onClick={() => router.push('/admin/survey-builder')}
-                        variant="default"
+                        onClick={handleSaveToken}
+                        disabled={isSaving || !ghlToken.trim() || !ghlLocationId.trim()}
                         className="flex items-center gap-2"
                       >
-                        <FileText className="h-4 w-4" />
-                        Go to Survey Builder
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4" />
+                            Save Token
+                          </>
+                        )}
+                      </Button>
+
+                      <Button
+                        onClick={handleTestConnection}
+                        disabled={isTesting}
+                        variant="outline"
+                        className="flex items-center gap-2"
+                      >
+                        {isTesting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Testing...
+                          </>
+                        ) : (
+                          <>
+                            <RotateCw className="h-4 w-4" />
+                            Test Connection
+                          </>
+                        )}
                       </Button>
                     </div>
-                  </div>
-                </div>
 
-                {ghlTokenDisplay && ghlTokenDisplay !== '••••••••••••••••' && (
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm text-blue-800">
-                      Current token: <span className="font-mono font-semibold">{ghlTokenDisplay}</span>
-                    </p>
-                  </div>
-                )}
-
-                <div className="flex gap-3 pt-4">
-                  <Button
-                    onClick={handleSaveToken}
-                    disabled={isSaving || !ghlToken.trim() || !ghlLocationId.trim()}
-                    className="flex items-center gap-2"
-                  >
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4" />
-                        Save Token
-                      </>
-                    )}
-                  </Button>
-
-                  <Button
-                    onClick={handleTestConnection}
-                    disabled={isTesting}
-                    variant="outline"
-                    className="flex items-center gap-2"
-                  >
-                    {isTesting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Testing...
-                      </>
-                    ) : (
-                      <>
-                        <RotateCw className="h-4 w-4" />
-                        Test Connection
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                {/* GHL Test Wizard */}
-                <div className="mt-8 pt-8 border-t border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Comprehensive Endpoint Test</h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Test all GHL API endpoints at once and get detailed feedback on each one. This helps diagnose issues with your GHL integration.
-                  </p>
-                  {isAuthenticated && password && (
-                    <GHLTestWizard adminPassword={password} />
-                  )}
-                </div>
-              </div>
-            </CardContent>
-            )}
-          </Card>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
-            <CardHeader 
-              className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6 cursor-pointer"
-              onClick={() => toggleCard('about-ghl')}
-            >
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-2xl font-bold">About GHL Integration</CardTitle>
-                <ChevronDown 
-                  className={`h-5 w-5 transition-transform ${isCardExpanded('about-ghl') ? 'rotate-180' : ''}`}
-                />
-              </div>
-            </CardHeader>
-            {isCardExpanded('about-ghl') && (
-              <CardContent className="pt-8 pb-8">
-              <div className="space-y-6 text-sm text-gray-700">
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">What does this do?</h4>
-                  <p>
-                    When enabled, the quote form will automatically create contacts and opportunities in your
-                    GoHighLevel CRM whenever a customer generates a quote. This includes:
-                  </p>
-                  <ul className="list-disc list-inside mt-2 space-y-1 ml-2">
-                    <li>Creating a new contact with customer information</li>
-                    <li>Creating an opportunity with the quote value</li>
-                    <li>Adding a detailed note with all quote information</li>
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">How to get your GHL PIT token</h4>
-                  <p>
-                    1. Log in to your GoHighLevel dashboard<br />
-                    2. Navigate to the specific Location (sub-account) you want to integrate<br />
-                    3. Go to Settings → Integrations → API<br />
-                    4. <strong>Create a Location-level Private Integration Token</strong> (recommended) or use an existing one<br />
-                    5. Copy the token and paste it above<br />
-                    6. Enter the Location ID from your dashboard URL (found after /location/)
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Required API Scopes</h4>
-                  <p className="mb-2">
-                    When creating your Private Integration Token, make sure to enable these scopes:
-                  </p>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
-                    <div className="flex items-start gap-2">
-                      <span className="text-blue-600 font-bold mt-0.5">✓</span>
-                      <div>
-                        <p className="font-semibold text-blue-900">contacts.write</p>
-                        <p className="text-xs text-blue-800">Required to create and update customer contacts</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-blue-600 font-bold mt-0.5">✓</span>
-                      <div>
-                        <p className="font-semibold text-blue-900">contacts.readonly</p>
-                        <p className="text-xs text-blue-800">Required to view customer contact information</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-blue-600 font-bold mt-0.5">✓</span>
-                      <div>
-                        <p className="font-semibold text-blue-900">opportunities.write</p>
-                        <p className="text-xs text-blue-800">Required to create quote opportunities in your pipeline</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-blue-600 font-bold mt-0.5">✓</span>
-                      <div>
-                        <p className="font-semibold text-blue-900">opportunities.readonly</p>
-                        <p className="text-xs text-blue-800">Required to fetch pipeline and stage information</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-blue-600 font-bold mt-0.5">✓</span>
-                      <div>
-                        <p className="font-semibold text-blue-900">calendars.write</p>
-                        <p className="text-xs text-blue-800">Required to book and create appointments for customers</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-blue-600 font-bold mt-0.5">✓</span>
-                      <div>
-                        <p className="font-semibold text-blue-900">calendars.readonly</p>
-                        <p className="text-xs text-blue-800">Required to view available calendars</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-blue-600 font-bold mt-0.5">✓</span>
-                      <div>
-                        <p className="font-semibold text-blue-900">locations.readonly</p>
-                        <p className="text-xs text-blue-800">Required to fetch calendars, tags, custom fields, and location information</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-blue-600 font-bold mt-0.5">✓</span>
-                      <div>
-                        <p className="font-semibold text-blue-900">locations/customFields.readonly</p>
-                        <p className="text-xs text-blue-800">Required to view custom fields for mapping survey questions</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-blue-600 font-bold mt-0.5">✓</span>
-                      <div>
-                        <p className="font-semibold text-blue-900">locations/tags.readonly</p>
-                        <p className="text-xs text-blue-800">Required to view available tags for service area tagging</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-blue-600 font-bold mt-0.5">✓</span>
-                      <div>
-                        <p className="font-semibold text-blue-900">locations/tags.write</p>
-                        <p className="text-xs text-blue-800">Required to apply tags to customers (in-service/out-of-service)</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Field Mapping</h4>
-                  <p>
-                    To map your survey questions to GHL fields (native fields like firstName, lastName, email, phone, or custom fields), 
-                    go to the <strong>Survey Builder</strong> page. There you can edit each question and select which GHL field it should map to.
-                  </p>
-                  <Button
-                    onClick={() => router.push('/admin/survey-builder')}
-                    variant="outline"
-                    className="mt-3 flex items-center gap-2"
-                  >
-                    <FileText className="h-4 w-4" />
-                    Go to Survey Builder
-                  </Button>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Security</h4>
-                  <p>Your GHL token is stored securely in encrypted storage and is never exposed to the client.</p>
-                </div>
-              </div>
-            </CardContent>
-            )}
-          </Card>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
-            <CardHeader 
-              className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6 cursor-pointer"
-              onClick={() => toggleCard('ghl-config')}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-2xl font-bold text-gray-900">
-                    <Sparkles className="h-6 w-6 text-[#f61590]" />
-                    GHL Integration Configuration
-                  </CardTitle>
-                  <CardDescription className="text-gray-600 mt-1">
-                    Configure what happens when a customer gets a quote. Choose which GHL features to enable and set default values for opportunities.
-                  </CardDescription>
-                </div>
-                <ChevronDown 
-                  className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('ghl-config') ? 'rotate-180' : ''}`}
-                />
-              </div>
-            </CardHeader>
-            {isCardExpanded('ghl-config') && (
-              <CardContent className="pt-8 pb-8">
-              {connectionStatus !== 'connected' ? (
-                <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-yellow-800">
-                  <p className="font-semibold">⚠️ GHL not connected</p>
-                  <p className="text-sm mt-1">Please verify your GHL API token above before configuring integration features.</p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {configMessage && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={`p-4 rounded-lg flex items-center gap-3 ${
-                        configMessage.type === 'success'
-                          ? 'bg-green-50 text-green-800 border border-green-200'
-                          : 'bg-red-50 text-red-800 border border-red-200'
-                      }`}
-                    >
-                      {configMessage.type === 'success' ? (
-                        <CheckCircle className="h-5 w-5 flex-shrink-0" />
-                      ) : (
-                        <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                    {/* GHL Test Wizard */}
+                    <div className="mt-8 pt-8 border-t border-gray-200">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4">Comprehensive Endpoint Test</h4>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Test all GHL API endpoints at once and get detailed feedback on each one. This helps diagnose issues with your GHL integration.
+                      </p>
+                      {isAuthenticated && password && (
+                        <GHLTestWizard adminPassword={password} />
                       )}
-                      <p>{configMessage.text}</p>
-                    </motion.div>
-                  )}
-
-                  {/* Feature Toggles */}
-                  <div className="space-y-6">
-                    <h3 className="font-semibold text-gray-900">Select Features</h3>
-                    
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <input
-                        type="checkbox"
-                        id="create-contact"
-                        checked={createContact}
-                        onChange={(e) => setCreateContact(e.target.checked)}
-                        className="w-5 h-5 text-[#f61590] rounded cursor-pointer"
-                      />
-                      <label htmlFor="create-contact" className="cursor-pointer flex-1">
-                        <div className="font-semibold text-gray-900">Create/Update Contact</div>
-                        <div className="text-sm text-gray-600">Automatically create or update contact with customer info (name, email, phone)</div>
-                      </label>
                     </div>
 
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <input
-                        type="checkbox"
-                        id="create-opportunity"
-                        checked={createOpportunity}
-                        onChange={(e) => setCreateOpportunity(e.target.checked)}
-                        className="w-5 h-5 text-[#f61590] rounded cursor-pointer"
-                      />
-                      <label htmlFor="create-opportunity" className="cursor-pointer flex-1">
-                        <div className="font-semibold text-gray-900">Create Opportunity</div>
-                        <div className="text-sm text-gray-600">Automatically create a sales opportunity with the quote details</div>
-                      </label>
-                    </div>
-
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <input
-                        type="checkbox"
-                        id="create-note"
-                        checked={createNote}
-                        onChange={(e) => setCreateNote(e.target.checked)}
-                        className="w-5 h-5 text-[#f61590] rounded cursor-pointer"
-                      />
-                      <label htmlFor="create-note" className="cursor-pointer flex-1">
-                        <div className="font-semibold text-gray-900">Create Note</div>
-                        <div className="text-sm text-gray-600">Add a note to the contact with the complete quote summary</div>
-                      </label>
+                    {/* About GHL Integration */}
+                    <div className="mt-8 pt-8 border-t border-gray-200 space-y-6 text-sm text-gray-700">
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-2">What does this do?</h4>
+                        <p>
+                          When enabled, the quote form will automatically create contacts and opportunities in your
+                          GoHighLevel CRM whenever a customer generates a quote. This includes:
+                        </p>
+                        <ul className="list-disc list-inside mt-2 space-y-1 ml-2">
+                          <li>Creating a new contact with customer information</li>
+                          <li>Creating an opportunity with the quote value</li>
+                          <li>Adding a detailed note with all quote information</li>
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-2">How to get your GHL PIT token</h4>
+                        <p>
+                          1. Log in to your GoHighLevel dashboard<br />
+                          2. Navigate to the specific Location (sub-account) you want to integrate<br />
+                          3. Go to Settings → Integrations → API<br />
+                          4. <strong>Create a Location-level Private Integration Token</strong> (recommended) or use an existing one<br />
+                          5. Copy the token and paste it above<br />
+                          6. Enter the Location ID from your dashboard URL (found after /location/)
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-2">Required API Scopes</h4>
+                        <p className="mb-2">
+                          When creating your Private Integration Token, make sure to enable these scopes:
+                        </p>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+                          <div className="flex items-start gap-2">
+                            <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                            <div>
+                              <p className="font-semibold text-blue-900">contacts.write</p>
+                              <p className="text-xs text-blue-800">Required to create and update customer contacts</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                            <div>
+                              <p className="font-semibold text-blue-900">contacts.readonly</p>
+                              <p className="text-xs text-blue-800">Required to view customer contact information</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                            <div>
+                              <p className="font-semibold text-blue-900">opportunities.write</p>
+                              <p className="text-xs text-blue-800">Required to create quote opportunities in your pipeline</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                            <div>
+                              <p className="font-semibold text-blue-900">opportunities.readonly</p>
+                              <p className="text-xs text-blue-800">Required to fetch pipeline and stage information</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                            <div>
+                              <p className="font-semibold text-blue-900">calendars.write</p>
+                              <p className="text-xs text-blue-800">Required to book and create appointments for customers</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                            <div>
+                              <p className="font-semibold text-blue-900">calendars.readonly</p>
+                              <p className="text-xs text-blue-800">Required to view available calendars</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                            <div>
+                              <p className="font-semibold text-blue-900">locations.readonly</p>
+                              <p className="text-xs text-blue-800">Required to fetch calendars, tags, custom fields, and location information</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                            <div>
+                              <p className="font-semibold text-blue-900">locations/customFields.readonly</p>
+                              <p className="text-xs text-blue-800">Required to view custom fields for mapping survey questions</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                            <div>
+                              <p className="font-semibold text-blue-900">locations/tags.readonly</p>
+                              <p className="text-xs text-blue-800">Required to view available tags for service area tagging</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="text-blue-600 font-bold mt-0.5">✓</span>
+                            <div>
+                              <p className="font-semibold text-blue-900">locations/tags.write</p>
+                              <p className="text-xs text-blue-800">Required to apply tags to customers (in-service/out-of-service)</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-2">Field Mapping</h4>
+                        <p>
+                          To map your survey questions to GHL fields (native fields like firstName, lastName, email, phone, or custom fields), 
+                          go to the <strong>Survey Builder</strong> page. There you can edit each question and select which GHL field it should map to.
+                        </p>
+                        <Button
+                          onClick={() => router.push('/admin/survey-builder')}
+                          variant="outline"
+                          className="mt-3 flex items-center gap-2"
+                        >
+                          <FileText className="h-4 w-4" />
+                          Go to Survey Builder
+                        </Button>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-2">Security</h4>
+                        <p>Your GHL token is stored securely in encrypted storage and is never exposed to the client.</p>
+                      </div>
                     </div>
                   </div>
+                </div>
 
-                  {/* Opportunity Configuration */}
-                  {createOpportunity && (
-                    <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg space-y-4">
-                      <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                        <ChevronDown className="h-4 w-4" />
-                        Opportunity Settings
-                      </h3>
+                {/* Integration Configuration Section */}
+                {connectionStatus === 'connected' ? (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-6 pb-4 border-b border-gray-200">Integration Configuration</h3>
+                    
+                    <div className="space-y-8">
+                      {configMessage && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={`p-4 rounded-lg flex items-center gap-3 ${
+                            configMessage.type === 'success'
+                              ? 'bg-green-50 text-green-800 border border-green-200'
+                              : 'bg-red-50 text-red-800 border border-red-200'
+                          }`}
+                        >
+                          {configMessage.type === 'success' ? (
+                            <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                          ) : (
+                            <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                          )}
+                          <p>{configMessage.text}</p>
+                        </motion.div>
+                      )}
 
-                      {pipelinesError ? (
-                        <div className="text-sm text-red-600 bg-red-50 p-3 rounded">
-                          {pipelinesError}
+                      {/* Feature Toggles */}
+                      <div className="space-y-6">
+                        <h4 className="font-semibold text-gray-900">Select Features</h4>
+                        
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <input
+                            type="checkbox"
+                            id="create-contact"
+                            checked={createContact}
+                            onChange={(e) => setCreateContact(e.target.checked)}
+                            className="w-5 h-5 text-[#f61590] rounded cursor-pointer"
+                          />
+                          <label htmlFor="create-contact" className="cursor-pointer flex-1">
+                            <div className="font-semibold text-gray-900">Create/Update Contact</div>
+                            <div className="text-sm text-gray-600">Automatically create or update contact with customer info (name, email, phone)</div>
+                          </label>
                         </div>
-                      ) : null}
 
-                      {isLoadingPipelines ? (
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Loading pipelines...
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <input
+                            type="checkbox"
+                            id="create-opportunity"
+                            checked={createOpportunity}
+                            onChange={(e) => setCreateOpportunity(e.target.checked)}
+                            className="w-5 h-5 text-[#f61590] rounded cursor-pointer"
+                          />
+                          <label htmlFor="create-opportunity" className="cursor-pointer flex-1">
+                            <div className="font-semibold text-gray-900">Create Opportunity</div>
+                            <div className="text-sm text-gray-600">Automatically create a sales opportunity with the quote details</div>
+                          </label>
                         </div>
-                      ) : pipelines.length === 0 ? (
-                        <div className="text-sm text-gray-600">
-                          No pipelines found. Please create a pipeline in GHL first.
-                        </div>
-                      ) : (
-                        <>
-                          {/* Pipeline Selection */}
-                          <div>
-                            <Label className="text-base font-semibold mb-2 block">Select Pipeline</Label>
-                            <select
-                              value={selectedPipelineId}
-                              onChange={(e) => {
-                                setSelectedPipelineId(e.target.value);
-                                setSelectedStageId(''); // Reset stage when pipeline changes
-                              }}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
-                            >
-                              <option value="">-- Select a pipeline --</option>
-                              {pipelines.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                  {p.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
 
-                          {/* Stage Selection */}
-                          {selectedPipelineId && (
-                            <div>
-                              <Label className="text-base font-semibold mb-2 block">Select Starting Stage</Label>
-                              <select
-                                value={selectedStageId}
-                                onChange={(e) => setSelectedStageId(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
-                              >
-                                <option value="">-- Select a stage --</option>
-                                {pipelines
-                                  .find((p) => p.id === selectedPipelineId)
-                                  ?.stages?.map((s: any) => (
-                                    <option key={s.id} value={s.id}>
-                                      {s.name}
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <input
+                            type="checkbox"
+                            id="create-note"
+                            checked={createNote}
+                            onChange={(e) => setCreateNote(e.target.checked)}
+                            className="w-5 h-5 text-[#f61590] rounded cursor-pointer"
+                          />
+                          <label htmlFor="create-note" className="cursor-pointer flex-1">
+                            <div className="font-semibold text-gray-900">Create Note</div>
+                            <div className="text-sm text-gray-600">Add a note to the contact with the complete quote summary</div>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Opportunity Configuration */}
+                      {createOpportunity && (
+                        <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg space-y-4">
+                          <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                            <ChevronDown className="h-4 w-4" />
+                            Opportunity Settings
+                          </h4>
+
+                          {pipelinesError ? (
+                            <div className="text-sm text-red-600 bg-red-50 p-3 rounded">
+                              {pipelinesError}
+                            </div>
+                          ) : null}
+
+                          {isLoadingPipelines ? (
+                            <div className="flex items-center gap-2 text-gray-600">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Loading pipelines...
+                            </div>
+                          ) : pipelines.length === 0 ? (
+                            <div className="text-sm text-gray-600">
+                              No pipelines found. Please create a pipeline in GHL first.
+                            </div>
+                          ) : (
+                            <>
+                              {/* Pipeline Selection */}
+                              <div>
+                                <Label className="text-base font-semibold mb-2 block">Select Pipeline</Label>
+                                <select
+                                  value={selectedPipelineId}
+                                  onChange={(e) => {
+                                    setSelectedPipelineId(e.target.value);
+                                    setSelectedStageId(''); // Reset stage when pipeline changes
+                                  }}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                                >
+                                  <option value="">-- Select a pipeline --</option>
+                                  {pipelines.map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                      {p.name}
                                     </option>
                                   ))}
-                              </select>
-                            </div>
+                                </select>
+                              </div>
+
+                              {/* Stage Selection */}
+                              {selectedPipelineId && (
+                                <div>
+                                  <Label className="text-base font-semibold mb-2 block">Select Starting Stage</Label>
+                                  <select
+                                    value={selectedStageId}
+                                    onChange={(e) => setSelectedStageId(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                                  >
+                                    <option value="">-- Select a stage --</option>
+                                    {pipelines
+                                      .find((p) => p.id === selectedPipelineId)
+                                      ?.stages?.map((s: any) => (
+                                        <option key={s.id} value={s.id}>
+                                          {s.name}
+                                        </option>
+                                      ))}
+                                  </select>
+                                </div>
+                              )}
+
+                              {/* Status Selection */}
+                              <div>
+                                <Label className="text-base font-semibold mb-2 block">Opportunity Status</Label>
+                                <select
+                                  value={opportunityStatus}
+                                  onChange={(e) => setOpportunityStatus(e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                                >
+                                  <option value="open">Open</option>
+                                  <option value="won">Won</option>
+                                  <option value="lost">Lost</option>
+                                  <option value="abandoned">Abandoned</option>
+                                </select>
+                              </div>
+
+                              {/* Monetary Value Options */}
+                              <div className="space-y-3">
+                                <Label className="text-base font-semibold">Opportunity Monetary Value</Label>
+                                
+                                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                  <input
+                                    type="radio"
+                                    id="use-dynamic-pricing"
+                                    checked={useDynamicPricingForValue}
+                                    onChange={() => setUseDynamicPricingForValue(true)}
+                                    className="w-4 h-4 text-[#f61590] cursor-pointer"
+                                  />
+                                  <label htmlFor="use-dynamic-pricing" className="cursor-pointer flex-1">
+                                    <div className="font-semibold text-gray-900">Use Dynamic Quote Price</div>
+                                    <div className="text-sm text-gray-600">
+                                      Use the quote price calculated from the customer's selections
+                                    </div>
+                                  </label>
+                                </div>
+
+                                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                  <input
+                                    type="radio"
+                                    id="use-fixed-value"
+                                    checked={!useDynamicPricingForValue}
+                                    onChange={() => setUseDynamicPricingForValue(false)}
+                                    className="w-4 h-4 text-[#f61590] cursor-pointer"
+                                  />
+                                  <label htmlFor="use-fixed-value" className="cursor-pointer flex-1">
+                                    <div className="font-semibold text-gray-900">Use Fixed Value</div>
+                                    <div className="text-sm text-gray-600">
+                                      Set a fixed monetary value for all opportunities
+                                    </div>
+                                  </label>
+                                </div>
+
+                                {!useDynamicPricingForValue && (
+                                  <Input
+                                    type="number"
+                                    value={opportunityValue || ''}
+                                    onChange={(e) => setOpportunityValue(Number(e.target.value) || 0)}
+                                    placeholder="e.g., 150"
+                                    className="h-10"
+                                  />
+                                )}
+                              </div>
+                            </>
                           )}
-
-                          {/* Status Selection */}
-                          <div>
-                            <Label className="text-base font-semibold mb-2 block">Opportunity Status</Label>
-                            <select
-                              value={opportunityStatus}
-                              onChange={(e) => setOpportunityStatus(e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
-                            >
-                              <option value="open">Open</option>
-                              <option value="won">Won</option>
-                              <option value="lost">Lost</option>
-                              <option value="abandoned">Abandoned</option>
-                            </select>
-                          </div>
-
-                          {/* Monetary Value Options */}
-                          <div className="space-y-3">
-                            <Label className="text-base font-semibold">Opportunity Monetary Value</Label>
-                            
-                            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                              <input
-                                type="radio"
-                                id="use-dynamic-pricing"
-                                checked={useDynamicPricingForValue}
-                                onChange={() => setUseDynamicPricingForValue(true)}
-                                className="w-4 h-4 text-[#f61590] cursor-pointer"
-                              />
-                              <label htmlFor="use-dynamic-pricing" className="cursor-pointer flex-1">
-                                <div className="font-semibold text-gray-900">Use Dynamic Quote Price</div>
-                                <div className="text-sm text-gray-600">
-                                  Use the quote price calculated from the customer's selections
-                                </div>
-                              </label>
-                            </div>
-
-                            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                              <input
-                                type="radio"
-                                id="use-fixed-value"
-                                checked={!useDynamicPricingForValue}
-                                onChange={() => setUseDynamicPricingForValue(false)}
-                                className="w-4 h-4 text-[#f61590] cursor-pointer"
-                              />
-                              <label htmlFor="use-fixed-value" className="cursor-pointer flex-1">
-                                <div className="font-semibold text-gray-900">Use Fixed Value</div>
-                                <div className="text-sm text-gray-600">
-                                  Set a fixed monetary value for all opportunities
-                                </div>
-                              </label>
-                            </div>
-
-                            {!useDynamicPricingForValue && (
-                              <Input
-                                type="number"
-                                value={opportunityValue || ''}
-                                onChange={(e) => setOpportunityValue(Number(e.target.value) || 0)}
-                                placeholder="e.g., 150"
-                                className="h-10"
-                              />
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Service Area Tags */}
-                  <div className="mt-8 pt-8 border-t border-gray-200">
-                    <h3 className="font-semibold text-gray-900 mb-6 text-lg">Service Area Tags</h3>
-                    
-                    <div className="space-y-6">
-                      {/* In-Service Tags */}
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <Label className="text-base font-semibold">Tags for In-Service Customers</Label>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={loadTags}
-                            disabled={isLoadingTags}
-                            className="text-xs h-6"
-                          >
-                            <RotateCw className={`h-3 w-3 ${isLoadingTags ? 'animate-spin' : ''}`} />
-                          </Button>
                         </div>
+                      )}
+
+                      {/* Service Area Tags */}
+                      <div className="mt-8 pt-8 border-t border-gray-200">
+                        <h4 className="font-semibold text-gray-900 mb-6 text-lg">Service Area Tags</h4>
                         
-                        <div className="mt-2 p-3 border-2 border-gray-200 rounded-lg max-h-40 overflow-y-auto space-y-2">
-                          {/* Create New Tag - as first item if no tags */}
-                          {ghlTags.length === 0 && (
-                            <div className="flex gap-2 items-center pb-2 border-b border-gray-200">
-                              <input
-                                type="text"
-                                placeholder="Create new tag..."
-                                value={newTagName}
-                                onChange={(e) => setNewTagName(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    handleCreateTag(newTagName);
-                                  }
-                                }}
-                                className="flex-1 h-8 px-2 rounded-md border border-gray-300 bg-white text-gray-900 text-sm"
-                                disabled={isCreatingTag}
-                              />
+                        <div className="space-y-6">
+                          {/* In-Service Tags */}
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <Label className="text-base font-semibold">Tags for In-Service Customers</Label>
                               <Button
                                 type="button"
-                                onClick={() => handleCreateTag(newTagName)}
-                                disabled={isCreatingTag || !newTagName.trim()}
+                                variant="ghost"
                                 size="sm"
-                                className="h-8"
+                                onClick={loadTags}
+                                disabled={isLoadingTags}
+                                className="text-xs h-6"
                               >
-                                {isCreatingTag ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <Plus className="h-3 w-3" />
-                                )}
+                                <RotateCw className={`h-3 w-3 ${isLoadingTags ? 'animate-spin' : ''}`} />
                               </Button>
+                            </div>
+                            
+                            <div className="mt-2 p-3 border-2 border-gray-200 rounded-lg max-h-40 overflow-y-auto space-y-2">
+                              {/* Create New Tag - as first item if no tags */}
+                              {ghlTags.length === 0 && (
+                                <div className="flex gap-2 items-center pb-2 border-b border-gray-200">
+                                  <input
+                                    type="text"
+                                    placeholder="Create new tag..."
+                                    value={newTagName}
+                                    onChange={(e) => setNewTagName(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        handleCreateTag(newTagName);
+                                      }
+                                    }}
+                                    className="flex-1 h-8 px-2 rounded-md border border-gray-300 bg-white text-gray-900 text-sm"
+                                    disabled={isCreatingTag}
+                                  />
+                                  <Button
+                                    type="button"
+                                    onClick={() => handleCreateTag(newTagName)}
+                                    disabled={isCreatingTag || !newTagName.trim()}
+                                    size="sm"
+                                    className="h-8"
+                                  >
+                                    {isCreatingTag ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <Plus className="h-3 w-3" />
+                                    )}
+                                  </Button>
+                                </div>
+                              )}
+                              
+                              {ghlTags.length > 0 ? (
+                                <>
+                                  {/* Create New Tag - as first item when tags exist */}
+                                  <div className="flex gap-2 items-center pb-2 border-b border-gray-200">
+                                    <input
+                                      type="text"
+                                      placeholder="Create new tag..."
+                                      value={newTagName}
+                                      onChange={(e) => setNewTagName(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          handleCreateTag(newTagName);
+                                        }
+                                      }}
+                                      className="flex-1 h-8 px-2 rounded-md border border-gray-300 bg-white text-gray-900 text-sm"
+                                      disabled={isCreatingTag}
+                                    />
+                                    <Button
+                                      type="button"
+                                      onClick={() => handleCreateTag(newTagName)}
+                                      disabled={isCreatingTag || !newTagName.trim()}
+                                      size="sm"
+                                      className="h-8"
+                                    >
+                                      {isCreatingTag ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        <Plus className="h-3 w-3" />
+                                      )}
+                                    </Button>
+                                  </div>
+
+                                  {/* Existing Tags */}
+                                  {ghlTags.map((tag) => (
+                                    <label key={tag.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedInServiceTags.has(tag.name)}
+                                        onChange={(e) => {
+                                          const newTags = new Set(selectedInServiceTags);
+                                          if (e.target.checked) {
+                                            newTags.add(tag.name);
+                                          } else {
+                                            newTags.delete(tag.name);
+                                          }
+                                          setSelectedInServiceTags(newTags);
+                                        }}
+                                        className="w-4 h-4 rounded text-[#f61590]"
+                                      />
+                                      <span className="text-sm text-gray-700">{tag.name}</span>
+                                    </label>
+                                  ))}
+                                </>
+                              ) : (
+                                <p className="text-sm text-gray-500 italic">No tags available. Click refresh to load from GHL.</p>
+                              )}
+                            </div>
+
+                            <div className="mt-3 flex gap-2 flex-wrap">
+                              {Array.from(selectedInServiceTags).map((tag) => (
+                                <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm">
+                                  {tag}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newTags = new Set(selectedInServiceTags);
+                                      newTags.delete(tag);
+                                      setSelectedInServiceTags(newTags);
+                                    }}
+                                    className="hover:text-emerald-900"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+
+                            <p className="text-sm text-gray-600 mt-2">
+                              Select tags from your GHL location or create new tags. These will be automatically applied to customers within your service area.
+                            </p>
+                          </div>
+
+                          {/* Out-of-Service Tags */}
+                          <div>
+                            <Label className="text-base font-semibold">Tags for Out-of-Service Customers</Label>
+                            
+                            <div className="mt-2 p-3 border-2 border-gray-200 rounded-lg max-h-40 overflow-y-auto space-y-2">
+                              {ghlTags.length > 0 ? (
+                                ghlTags.map((tag) => (
+                                  <label key={tag.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedOutOfServiceTags.has(tag.name)}
+                                      onChange={(e) => {
+                                        const newTags = new Set(selectedOutOfServiceTags);
+                                        if (e.target.checked) {
+                                          newTags.add(tag.name);
+                                        } else {
+                                          newTags.delete(tag.name);
+                                        }
+                                        setSelectedOutOfServiceTags(newTags);
+                                      }}
+                                      className="w-4 h-4 rounded text-[#f61590]"
+                                    />
+                                    <span className="text-sm text-gray-700">{tag.name}</span>
+                                  </label>
+                                ))
+                              ) : (
+                                <p className="text-sm text-gray-500 italic">No tags available. Click refresh to load from GHL.</p>
+                              )}
+                            </div>
+
+                            <div className="mt-3 flex gap-2 flex-wrap">
+                              {Array.from(selectedOutOfServiceTags).map((tag) => (
+                                <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-800 rounded-full text-sm">
+                                  {tag}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newTags = new Set(selectedOutOfServiceTags);
+                                      newTags.delete(tag);
+                                      setSelectedOutOfServiceTags(newTags);
+                                    }}
+                                    className="hover:text-red-900"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+
+                            <p className="text-sm text-gray-600 mt-2">
+                              Select tags from your GHL location or add custom tags. These tags will automatically be applied to customers outside your service area.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Calendar Selection for Appointments and Calls */}
+                      <div className="mt-8 pt-8 border-t border-gray-200">
+                        <h4 className="font-semibold text-gray-900 mb-6 text-lg">Appointment & Call Calendars</h4>
+                        
+                        <div className="space-y-6">
+                          <div>
+                            <Label htmlFor="appointment-calendar-select" className="text-base font-semibold">
+                              Calendar for Appointments
+                            </Label>
+                            <div className="mt-2 flex gap-2">
+                              <select
+                                id="appointment-calendar-select"
+                                value={selectedAppointmentCalendarId}
+                                onChange={(e) => setSelectedAppointmentCalendarId(e.target.value)}
+                                className="flex-1 h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
+                              >
+                                <option value="">-- Select a calendar --</option>
+                                {calendars.map((cal) => (
+                                  <option key={cal.id} value={cal.id}>
+                                    {cal.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={loadCalendars}
+                                disabled={isLoadingCalendars}
+                              >
+                                <RotateCw className={`h-4 w-4 ${isLoadingCalendars ? 'animate-spin' : ''}`} />
+                              </Button>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-2">
+                              Calendar for users to book cleaning appointments
+                            </p>
+                          </div>
+
+                          <div>
+                            <Label htmlFor="call-calendar-select" className="text-base font-semibold">
+                              Calendar for Calls
+                            </Label>
+                            <div className="mt-2 flex gap-2">
+                              <select
+                                id="call-calendar-select"
+                                value={selectedCallCalendarId}
+                                onChange={(e) => setSelectedCallCalendarId(e.target.value)}
+                                className="flex-1 h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
+                              >
+                                <option value="">-- Select a calendar --</option>
+                                {calendars.map((cal) => (
+                                  <option key={cal.id} value={cal.id}>
+                                    {cal.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={loadCalendars}
+                                disabled={isLoadingCalendars}
+                              >
+                                <RotateCw className={`h-4 w-4 ${isLoadingCalendars ? 'animate-spin' : ''}`} />
+                              </Button>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-2">
+                              Calendar for users to schedule consultation calls
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Quoted Amount Field Mapping */}
+                      <div className="mt-8 pt-8 border-t border-gray-200">
+                        <h4 className="font-semibold text-gray-900 mb-4 text-lg">Custom Fields</h4>
+                        
+                        <div>
+                          <Label htmlFor="quoted-amount-field" className="text-base font-semibold">
+                            GHL Field for Quoted Amount (Custom Field)
+                          </Label>
+                          <div className="flex gap-2 mt-2">
+                            <div className="flex-1 relative">
+                              <input
+                                type="text"
+                                placeholder="Search custom fields..."
+                                value={quotedAmountSearch}
+                                onChange={(e) => setQuotedAmountSearch(e.target.value)}
+                                className="w-full h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
+                              />
+                              {quotedAmountSearch && customFields.length > 0 && (
+                                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
+                                  {customFields
+                                    .filter(field => 
+                                      field.name?.toLowerCase().includes(quotedAmountSearch.toLowerCase()) ||
+                                      field.key?.toLowerCase().includes(quotedAmountSearch.toLowerCase())
+                                    )
+                                    .map((field) => (
+                                      <button
+                                        key={field.key}
+                                        type="button"
+                                        className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
+                                        onClick={() => {
+                                          setQuotedAmountField(field.key);
+                                          setQuotedAmountSearch('');
+                                        }}
+                                      >
+                                        <div className="font-semibold text-gray-900">{field.name}</div>
+                                        <div className="text-xs text-gray-500 font-mono">{field.key}</div>
+                                      </button>
+                                    ))}
+                              </div>
+                              )}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={loadCustomFields}
+                              disabled={isLoadingCustomFields}
+                              title="Refresh custom fields"
+                            >
+                              <RotateCw className={`h-4 w-4 ${isLoadingCustomFields ? 'animate-spin' : ''}`} />
+                            </Button>
+                          </div>
+                          
+                          {quotedAmountField && (
+                            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                              <p className="text-sm text-blue-800">
+                                Selected: <span className="font-mono font-semibold">{quotedAmountField}</span>
+                              </p>
                             </div>
                           )}
                           
-                          {ghlTags.length > 0 ? (
-                            <>
-                              {/* Create New Tag - as first item when tags exist */}
-                              <div className="flex gap-2 items-center pb-2 border-b border-gray-200">
-                                <input
-                                  type="text"
-                                  placeholder="Create new tag..."
-                                  value={newTagName}
-                                  onChange={(e) => setNewTagName(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      handleCreateTag(newTagName);
-                                    }
-                                  }}
-                                  className="flex-1 h-8 px-2 rounded-md border border-gray-300 bg-white text-gray-900 text-sm"
-                                  disabled={isCreatingTag}
-                                />
-                                <Button
-                                  type="button"
-                                  onClick={() => handleCreateTag(newTagName)}
-                                  disabled={isCreatingTag || !newTagName.trim()}
-                                  size="sm"
-                                  className="h-8"
-                                >
-                                  {isCreatingTag ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                  ) : (
-                                    <Plus className="h-3 w-3" />
-                                  )}
-                                </Button>
-                              </div>
-
-                              {/* Existing Tags */}
-                              {ghlTags.map((tag) => (
-                                <label key={tag.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedInServiceTags.has(tag.name)}
-                                    onChange={(e) => {
-                                      const newTags = new Set(selectedInServiceTags);
-                                      if (e.target.checked) {
-                                        newTags.add(tag.name);
-                                      } else {
-                                        newTags.delete(tag.name);
-                                      }
-                                      setSelectedInServiceTags(newTags);
-                                    }}
-                                    className="w-4 h-4 rounded text-[#f61590]"
-                                  />
-                                  <span className="text-sm text-gray-700">{tag.name}</span>
-                                </label>
-                              ))}
-                            </>
-                          ) : (
-                            <p className="text-sm text-gray-500 italic">No tags available. Click refresh to load from GHL.</p>
-                          )}
-                        </div>
-
-                        <div className="mt-3 flex gap-2 flex-wrap">
-                          {Array.from(selectedInServiceTags).map((tag) => (
-                            <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm">
-                              {tag}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newTags = new Set(selectedInServiceTags);
-                                  newTags.delete(tag);
-                                  setSelectedInServiceTags(newTags);
-                                }}
-                                className="hover:text-emerald-900"
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-
-                        <p className="text-sm text-gray-600 mt-2">
-                          Select tags from your GHL location or create new tags. These will be automatically applied to customers within your service area.
-                        </p>
-                      </div>
-
-                      {/* Out-of-Service Tags */}
-                      <div>
-                        <Label className="text-base font-semibold">Tags for Out-of-Service Customers</Label>
-                        
-                        <div className="mt-2 p-3 border-2 border-gray-200 rounded-lg max-h-40 overflow-y-auto space-y-2">
-                          {ghlTags.length > 0 ? (
-                            ghlTags.map((tag) => (
-                              <label key={tag.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedOutOfServiceTags.has(tag.name)}
-                                  onChange={(e) => {
-                                    const newTags = new Set(selectedOutOfServiceTags);
-                                    if (e.target.checked) {
-                                      newTags.add(tag.name);
-                                    } else {
-                                      newTags.delete(tag.name);
-                                    }
-                                    setSelectedOutOfServiceTags(newTags);
-                                  }}
-                                  className="w-4 h-4 rounded text-[#f61590]"
-                                />
-                                <span className="text-sm text-gray-700">{tag.name}</span>
-                              </label>
-                            ))
-                          ) : (
-                            <p className="text-sm text-gray-500 italic">No tags available. Click refresh to load from GHL.</p>
-                          )}
-                        </div>
-
-                        <div className="mt-3 flex gap-2 flex-wrap">
-                          {Array.from(selectedOutOfServiceTags).map((tag) => (
-                            <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-800 rounded-full text-sm">
-                              {tag}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newTags = new Set(selectedOutOfServiceTags);
-                                  newTags.delete(tag);
-                                  setSelectedOutOfServiceTags(newTags);
-                                }}
-                                className="hover:text-red-900"
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-
-                        <p className="text-sm text-gray-600 mt-2">
-                          Select tags from your GHL location or add custom tags. These tags will automatically be applied to customers outside your service area.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Calendar Selection for Appointments and Calls */}
-                  <div className="mt-8 pt-8 border-t border-gray-200">
-                    <h3 className="font-semibold text-gray-900 mb-6 text-lg">Appointment & Call Calendars</h3>
-                    
-                    <div className="space-y-6">
-                      <div>
-                        <Label htmlFor="appointment-calendar-select" className="text-base font-semibold">
-                          Calendar for Appointments
-                        </Label>
-                        <div className="mt-2 flex gap-2">
-                          <select
-                            id="appointment-calendar-select"
-                            value={selectedAppointmentCalendarId}
-                            onChange={(e) => setSelectedAppointmentCalendarId(e.target.value)}
-                            className="flex-1 h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
-                          >
-                            <option value="">-- Select a calendar --</option>
-                            {calendars.map((cal) => (
-                              <option key={cal.id} value={cal.id}>
-                                {cal.name}
-                              </option>
-                            ))}
-                          </select>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={loadCalendars}
-                            disabled={isLoadingCalendars}
-                          >
-                            <RotateCw className={`h-4 w-4 ${isLoadingCalendars ? 'animate-spin' : ''}`} />
-                          </Button>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-2">
-                          Calendar for users to book cleaning appointments
-                        </p>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="call-calendar-select" className="text-base font-semibold">
-                          Calendar for Calls
-                        </Label>
-                        <div className="mt-2 flex gap-2">
-                          <select
-                            id="call-calendar-select"
-                            value={selectedCallCalendarId}
-                            onChange={(e) => setSelectedCallCalendarId(e.target.value)}
-                            className="flex-1 h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
-                          >
-                            <option value="">-- Select a calendar --</option>
-                            {calendars.map((cal) => (
-                              <option key={cal.id} value={cal.id}>
-                                {cal.name}
-                              </option>
-                            ))}
-                          </select>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={loadCalendars}
-                            disabled={isLoadingCalendars}
-                          >
-                            <RotateCw className={`h-4 w-4 ${isLoadingCalendars ? 'animate-spin' : ''}`} />
-                          </Button>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-2">
-                          Calendar for users to schedule consultation calls
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Quoted Amount Field Mapping */}
-                  <div className="mt-8 pt-8 border-t border-gray-200">
-                    <h3 className="font-semibold text-gray-900 mb-4 text-lg">Custom Fields</h3>
-                    
-                    <div>
-                      <Label htmlFor="quoted-amount-field" className="text-base font-semibold">
-                        GHL Field for Quoted Amount (Custom Field)
-                      </Label>
-                      <div className="flex gap-2 mt-2">
-                        <div className="flex-1 relative">
-                          <input
-                            type="text"
-                            placeholder="Search custom fields..."
-                            value={quotedAmountSearch}
-                            onChange={(e) => setQuotedAmountSearch(e.target.value)}
-                            className="w-full h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
-                          />
-                          {quotedAmountSearch && customFields.length > 0 && (
-                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
-                              {customFields
-                                .filter(field => 
-                                  field.name?.toLowerCase().includes(quotedAmountSearch.toLowerCase()) ||
-                                  field.key?.toLowerCase().includes(quotedAmountSearch.toLowerCase())
-                                )
-                                .map((field) => (
-                                  <button
-                                    key={field.key}
-                                    type="button"
-                                    className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
-                                    onClick={() => {
-                                      setQuotedAmountField(field.key);
-                                      setQuotedAmountSearch('');
-                                    }}
-                                  >
-                                    <div className="font-semibold text-gray-900">{field.name}</div>
-                                    <div className="text-xs text-gray-500 font-mono">{field.key}</div>
-                                  </button>
-                                ))}
+                          {customFieldsError && (
+                            <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-800">
+                              {customFieldsError}
                             </div>
                           )}
-                        </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={loadCustomFields}
-                          disabled={isLoadingCustomFields}
-                          title="Refresh custom fields"
-                        >
-                          <RotateCw className={`h-4 w-4 ${isLoadingCustomFields ? 'animate-spin' : ''}`} />
-                        </Button>
-                      </div>
-                      
-                      {quotedAmountField && (
-                        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                          <p className="text-sm text-blue-800">
-                            Selected: <span className="font-mono font-semibold">{quotedAmountField}</span>
+                          
+                          <p className="text-sm text-gray-600 mt-2">
+                            Select a GHL custom field where the quoted amount will be stored. Leave empty to skip.
                           </p>
                         </div>
-                      )}
-                      
-                      {customFieldsError && (
-                        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-800">
-                          {customFieldsError}
-                        </div>
-                      )}
-                      
-                      <p className="text-sm text-gray-600 mt-2">
-                        Select a GHL custom field where the quoted amount will be stored. Leave empty to skip.
-                      </p>
+                      </div>
+
+                      <Button
+                        onClick={handleSaveGHLConfig}
+                        disabled={isSavingConfig}
+                        className="w-full h-11 font-semibold flex items-center gap-2"
+                      >
+                        {isSavingConfig ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4" />
+                            Save GHL Configuration
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </div>
-
-                  <Button
-                    onClick={handleSaveGHLConfig}
-                    disabled={isSavingConfig}
-                    className="w-full h-11 font-semibold flex items-center gap-2"
-                  >
-                    {isSavingConfig ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4" />
-                        Save GHL Configuration
-                      </>
-                    )}
-                  </Button>
-                </div>
-              )}
+                ) : (
+                  <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-yellow-800">
+                    <p className="font-semibold">⚠️ GHL not connected</p>
+                    <p className="text-sm mt-1">Please verify your GHL API token above before configuring integration features.</p>
+                  </div>
+                )}
+              </div>
             </CardContent>
             )}
           </Card>
         </motion.div>
+
 
         {/* Service Area Management Card */}
         <motion.div

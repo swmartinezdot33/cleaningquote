@@ -64,6 +64,8 @@ export default function AdminPage() {
   const [initialCleaningMultiplier, setInitialCleaningMultiplier] = useState(1.5);
   const [requiredConditions, setRequiredConditions] = useState<string[]>(['poor']);
   const [recommendedConditions, setRecommendedConditions] = useState<string[]>(['fair']);
+  const [sheddingPetsMultiplier, setSheddingPetsMultiplier] = useState(1.1);
+  const [peopleMultiplier, setPeopleMultiplier] = useState(1.05);
   const [isLoadingInitialCleaning, setIsLoadingInitialCleaning] = useState(false);
   const [isSavingInitialCleaning, setIsSavingInitialCleaning] = useState(false);
   const [initialCleaningMessage, setInitialCleaningMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -314,6 +316,8 @@ export default function AdminPage() {
         setInitialCleaningMultiplier(data.multiplier);
         setRequiredConditions(data.requiredConditions);
         setRecommendedConditions(data.recommendedConditions);
+        setSheddingPetsMultiplier(data.sheddingPetsMultiplier ?? 1.1);
+        setPeopleMultiplier(data.peopleMultiplier ?? 1.05);
       }
     } catch (error) {
       console.error('Error loading Initial Cleaning config:', error);
@@ -337,6 +341,8 @@ export default function AdminPage() {
           multiplier: initialCleaningMultiplier,
           requiredConditions,
           recommendedConditions,
+          sheddingPetsMultiplier,
+          peopleMultiplier,
         }),
       });
 
@@ -1386,6 +1392,52 @@ export default function AdminPage() {
                         className="flex-1 h-10"
                       />
                       <span className="text-sm font-semibold text-gray-700">×</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="shedding-pets-multiplier" className="text-base font-semibold">
+                        Shedding Pets Multiplier
+                      </Label>
+                      <p className="text-sm text-gray-600 mt-1 mb-3">
+                        Price multiplier per shedding pet (1.0 = no extra charge, 1.1 = 10% more per pet)
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id="shedding-pets-multiplier"
+                          type="number"
+                          min="1.0"
+                          max="2.0"
+                          step="0.05"
+                          value={sheddingPetsMultiplier}
+                          onChange={(e) => setSheddingPetsMultiplier(parseFloat(e.target.value) || 1.1)}
+                          className="flex-1 h-10"
+                        />
+                        <span className="text-sm font-semibold text-gray-700">×</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="people-multiplier" className="text-base font-semibold">
+                        People Multiplier
+                      </Label>
+                      <p className="text-sm text-gray-600 mt-1 mb-3">
+                        Price multiplier per person (1.0 = no extra charge, 1.05 = 5% more per person)
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id="people-multiplier"
+                          type="number"
+                          min="1.0"
+                          max="2.0"
+                          step="0.05"
+                          value={peopleMultiplier}
+                          onChange={(e) => setPeopleMultiplier(parseFloat(e.target.value) || 1.05)}
+                          className="flex-1 h-10"
+                        />
+                        <span className="text-sm font-semibold text-gray-700">×</span>
+                      </div>
                     </div>
                   </div>
 

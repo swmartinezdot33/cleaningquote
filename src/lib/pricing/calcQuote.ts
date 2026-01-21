@@ -9,20 +9,35 @@ export { loadPricingTable } from './loadPricingTable';
  * Default configuration for Initial Cleaning
  * Can be overridden by admin settings in KV
  */
-const DEFAULT_INITIAL_CLEANING_CONFIG = {
+interface InitialCleaningConfig {
+  multiplier: number;
+  requiredConditions: string[];
+  recommendedConditions: string[];
+  sheddingPetsMultiplier?: number;
+  peopleMultiplier?: number;
+}
+
+const DEFAULT_INITIAL_CLEANING_CONFIG: InitialCleaningConfig = {
   multiplier: 1.5, // 50% more than General Clean
   requiredConditions: ['poor'], // Conditions that REQUIRE Initial Cleaning
   recommendedConditions: ['fair'], // Conditions that RECOMMEND Initial Cleaning
+  sheddingPetsMultiplier: 1.1, // Per shedding pet multiplier (10% per pet)
+  peopleMultiplier: 1.05, // Per person multiplier (5% per person)
 };
 
 /**
  * Get Initial Cleaning configuration (from KV or defaults)
  */
-export async function getInitialCleaningConfig(): Promise<typeof DEFAULT_INITIAL_CLEANING_CONFIG> {
+export async function getInitialCleaningConfig(): Promise<InitialCleaningConfig> {
   try {
     const kv = getKV();
-    const config = await kv.get<typeof DEFAULT_INITIAL_CLEANING_CONFIG>('admin:initial-cleaning-config');
-    return config || DEFAULT_INITIAL_CLEANING_CONFIG;
+    const config = await kv.get<InitialCleaningConfig>('admin:initial-cleaning-config');
+    return {
+      ...DEFAULT_INITIAL_CLEANING_CONFIG,
+      ...(config || {}),
+      sheddingPetsMultiplier: config?.sheddingPetsMultiplier ?? DEFAULT_INITIAL_CLEANING_CONFIG.sheddingPetsMultiplier,
+      peopleMultiplier: config?.peopleMultiplier ?? DEFAULT_INITIAL_CLEANING_CONFIG.peopleMultiplier,
+    };
   } catch (error) {
     console.warn('Failed to load Initial Cleaning config from KV, using defaults:', error);
     return DEFAULT_INITIAL_CLEANING_CONFIG;
@@ -96,41 +111,35 @@ export function calculateGeneralCleanPrice(
 }
 
 /**
- * Get people multiplier based on count
+ * Get people multiplier based on count and per-person multiplier
+ * Formula: 1.0 + (peopleCount * (perPersonMultiplier - 1.0))
+ * Example: If perPersonMultiplier is 1.05 and there are 4 people:
+ *   1.0 + (4 * (1.05 - 1.0)) = 1.0 + (4 * 0.05) = 1.2 (20% increase)
  */
-export function getPeopleMultiplier(people: number): number {
-  if (people >= 0 && people <= 5) {
+export function getPeopleMultiplier(people: number, perPersonMultiplier: number = 1.05): number {
+  if (people <= 0) {
     return 1.0;
-  } else if (people >= 6 && people <= 7) {
-    return 1.1;
-  } else if (people >= 8) {
-    return 1.15;
   }
-  // Fallback (shouldn't happen with validation)
-  return 1.0;
+  // Each person adds (perPersonMultiplier - 1.0) to the base multiplier
+  const base = 1.0;
+  const perPersonIncrease = perPersonMultiplier - 1.0;
+  return base + (people * perPersonIncrease);
 }
 
 /**
- * Get shedding pet multiplier based on count
+ * Get shedding pet multiplier based on count and per-pet multiplier
+ * Formula: 1.0 + (sheddingPetsCount * (perPetMultiplier - 1.0))
+ * Example: If perPetMultiplier is 1.1 and there are 3 shedding pets:
+ *   1.0 + (3 * (1.1 - 1.0)) = 1.0 + (3 * 0.1) = 1.3 (30% increase)
  */
-export function getSheddingPetMultiplier(sheddingPets: number): number {
-  if (sheddingPets === 0) {
+export function getSheddingPetMultiplier(sheddingPets: number, perPetMultiplier: number = 1.1): number {
+  if (sheddingPets <= 0) {
     return 1.0;
-  } else if (sheddingPets === 1) {
-    return 1.1;
-  } else if (sheddingPets === 2) {
-    return 1.15;
-  } else if (sheddingPets === 3) {
-    return 1.2;
-  } else if (sheddingPets === 4) {
-    return 1.35;
-  } else if (sheddingPets === 5) {
-    return 1.5;
-  } else if (sheddingPets >= 6) {
-    return 1.75;
   }
-  // Fallback (shouldn't happen)
-  return 1.0;
+  // Each shedding pet adds (perPetMultiplier - 1.0) to the base multiplier
+  const base = 1.0;
+  const perPetIncrease = perPetMultiplier - 1.0;
+  return base + (sheddingPets * perPetIncrease);
 }
 
 /**
@@ -234,9 +243,9 @@ export async function calcQuote(inputs: QuoteInputs): Promise<QuoteResult> {
 
   const baseRow = table.rows[rowIdx];
 
-  // Calculate multipliers
-  const peopleMultiplier = getPeopleMultiplier(inputs.people);
-  const sheddingPetMultiplier = getSheddingPetMultiplier(inputs.sheddingPets);
+  // Calculate multipliers using configurable values
+  const peopleMultiplier = getPeopleMultiplier(inputs.people, config.peopleMultiplier);
+  const sheddingPetMultiplier = getSheddingPetMultiplier(inputs.sheddingPets, config.sheddingPetsMultiplier);
   const conditionMultiplier = getConditionMultiplier(inputs.condition);
 
   // Check if condition is out of scope (multiplier >= 20)
