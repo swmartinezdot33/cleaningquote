@@ -124,6 +124,7 @@ export async function createOrUpdateContact(
     const payload: Record<string, any> = {
       firstName: contactData.firstName,
       lastName: contactData.lastName,
+      locationId: finalLocationId, // locationId must be in the request body, not URL path
       ...(contactData.email && { email: contactData.email }),
       ...(contactData.phone && { phone: contactData.phone }),
       ...(contactData.source && { source: contactData.source }),
@@ -135,8 +136,8 @@ export async function createOrUpdateContact(
     };
 
     // Use provided token or the API client token
-    // GHL 2.0 API: Use location-level upsert endpoint with phone or email matching
-    const url = `${GHL_API_BASE}/v2/locations/${finalLocationId}/contacts/upsert`;
+    // GHL 2.0 API: Use upsert endpoint - locationId is in the request body
+    const url = `${GHL_API_BASE}/contacts/upsert`;
     const options: RequestInit = {
       method: 'POST',
       headers: {
