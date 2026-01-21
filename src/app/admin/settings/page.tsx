@@ -93,7 +93,8 @@ export default function SettingsPage() {
   const [selectedInServiceTags, setSelectedInServiceTags] = useState<Set<string>>(new Set());
   const [selectedOutOfServiceTags, setSelectedOutOfServiceTags] = useState<Set<string>>(new Set());
   const [isLoadingTags, setIsLoadingTags] = useState(false);
-  const [newTagName, setNewTagName] = useState<string>('');
+  const [newInServiceTagName, setNewInServiceTagName] = useState<string>('');
+  const [newOutOfServiceTagName, setNewOutOfServiceTagName] = useState<string>('');
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [inServiceTagSearch, setInServiceTagSearch] = useState<string>('');
   const [outOfServiceTagSearch, setOutOfServiceTagSearch] = useState<string>('');
@@ -633,9 +634,15 @@ export default function SettingsPage() {
     }
   };
 
-  const handleCreateTag = async (tagNameToCreate: string) => {
+  const handleCreateTag = async (tagNameToCreate: string, section: 'in-service' | 'out-of-service') => {
     if (!tagNameToCreate.trim()) {
-      alert('Please enter a tag name');
+      return;
+    }
+
+    // Check if tag already exists
+    const tagExists = ghlTags.some(tag => tag.name.toLowerCase() === tagNameToCreate.trim().toLowerCase());
+    if (tagExists) {
+      alert(`Tag "${tagNameToCreate.trim()}" already exists. Please select it from the list.`);
       return;
     }
 
@@ -652,12 +659,18 @@ export default function SettingsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        // Add the new tag to the list
-        setGhlTags([...ghlTags, data.tag]);
-        // Automatically select the newly created tag
-        setSelectedInServiceTags(new Set([...selectedInServiceTags, data.tag.name]));
-        setNewTagName('');
-        alert(`Tag "${data.tag.name}" created successfully!`);
+        // Refresh tags list to ensure consistency
+        await loadTags();
+        // Automatically select the newly created tag in the appropriate section
+        if (section === 'in-service') {
+          setSelectedInServiceTags(new Set([...selectedInServiceTags, data.tag.name]));
+          setNewInServiceTagName('');
+          setInServiceTagSearch(''); // Clear search to show the new tag
+        } else {
+          setSelectedOutOfServiceTags(new Set([...selectedOutOfServiceTags, data.tag.name]));
+          setNewOutOfServiceTagName('');
+          setOutOfServiceTagSearch(''); // Clear search to show the new tag
+        }
       } else {
         const error = await response.json();
         console.error('Tag creation error:', error);
@@ -1551,37 +1564,38 @@ export default function SettingsPage() {
                               />
                             </div>
                             
+                            {/* Create New Tag - outside scrollable container */}
+                            <div className="mb-2 flex gap-2 items-center">
+                              <Input
+                                type="text"
+                                placeholder="Create new tag..."
+                                value={newInServiceTagName}
+                                onChange={(e) => setNewInServiceTagName(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleCreateTag(newInServiceTagName, 'in-service');
+                                  }
+                                }}
+                                className="h-8 text-sm"
+                                disabled={isCreatingTag}
+                              />
+                              <Button
+                                type="button"
+                                onClick={() => handleCreateTag(newInServiceTagName, 'in-service')}
+                                disabled={isCreatingTag || !newInServiceTagName.trim()}
+                                size="sm"
+                                className="h-8"
+                              >
+                                {isCreatingTag ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Plus className="h-3 w-3" />
+                                )}
+                              </Button>
+                            </div>
+                            
                             <div className="mt-2 p-3 border-2 border-gray-200 rounded-lg max-h-40 overflow-y-auto space-y-2">
-                              {/* Create New Tag - as first item */}
-                              <div className="flex gap-2 items-center pb-2 border-b border-gray-200">
-                                <input
-                                  type="text"
-                                  placeholder="Create new tag..."
-                                  value={newTagName}
-                                  onChange={(e) => setNewTagName(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault();
-                                      handleCreateTag(newTagName);
-                                    }
-                                  }}
-                                  className="flex-1 h-8 px-2 rounded-md border border-gray-300 bg-white text-gray-900 text-sm"
-                                  disabled={isCreatingTag}
-                                />
-                                <Button
-                                  type="button"
-                                  onClick={() => handleCreateTag(newTagName)}
-                                  disabled={isCreatingTag || !newTagName.trim()}
-                                  size="sm"
-                                  className="h-8"
-                                >
-                                  {isCreatingTag ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                  ) : (
-                                    <Plus className="h-3 w-3" />
-                                  )}
-                                </Button>
-                              </div>
 
                               {/* Filtered Existing Tags */}
                               {ghlTags.length > 0 ? (
@@ -1661,6 +1675,37 @@ export default function SettingsPage() {
                                 onChange={(e) => setOutOfServiceTagSearch(e.target.value)}
                                 className="h-8 text-sm"
                               />
+                            </div>
+                            
+                            {/* Create New Tag - outside scrollable container */}
+                            <div className="mb-2 flex gap-2 items-center">
+                              <Input
+                                type="text"
+                                placeholder="Create new tag..."
+                                value={newOutOfServiceTagName}
+                                onChange={(e) => setNewOutOfServiceTagName(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleCreateTag(newOutOfServiceTagName, 'out-of-service');
+                                  }
+                                }}
+                                className="h-8 text-sm"
+                                disabled={isCreatingTag}
+                              />
+                              <Button
+                                type="button"
+                                onClick={() => handleCreateTag(newOutOfServiceTagName, 'out-of-service')}
+                                disabled={isCreatingTag || !newOutOfServiceTagName.trim()}
+                                size="sm"
+                                className="h-8"
+                              >
+                                {isCreatingTag ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Plus className="h-3 w-3" />
+                                )}
+                              </Button>
                             </div>
                             
                             <div className="mt-2 p-3 border-2 border-gray-200 rounded-lg max-h-40 overflow-y-auto space-y-2">
