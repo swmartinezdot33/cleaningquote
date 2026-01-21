@@ -145,17 +145,16 @@ export async function POST(request: NextRequest) {
             customFields: {},
           };
 
-        // Build a map of field IDs to their GHL custom field mappings
-        // This helps us find mappings for standard fields like squareFeet, serviceType, etc.
+        // Build a map of field IDs (both original and sanitized) to their GHL custom field mappings
+        // The form sanitizes field IDs (replaces dots with underscores), so we need to map both versions
         const fieldIdToMapping = new Map<string, string>();
         surveyQuestions.forEach((question: SurveyQuestion) => {
           if (question.ghlFieldMapping) {
+            // Map original question ID
             fieldIdToMapping.set(question.id, question.ghlFieldMapping);
-            // Also map sanitized version (dots replaced with underscores)
+            // Also map sanitized version (dots replaced with underscores) - this is what's in the body
             const sanitizedId = question.id.replace(/\./g, '_');
-            if (sanitizedId !== question.id) {
-              fieldIdToMapping.set(sanitizedId, question.ghlFieldMapping);
-            }
+            fieldIdToMapping.set(sanitizedId, question.ghlFieldMapping);
           }
         });
 
@@ -165,50 +164,37 @@ export async function POST(request: NextRequest) {
           bodyKeys: Object.keys(body),
         });
 
-        // Map form data to GHL fields based on survey question mappings
-        // Only use fields that have explicit GHL custom field mappings
-        surveyQuestions.forEach((question: SurveyQuestion) => {
-          // Handle both original IDs and sanitized field names
-          let fieldValue = body[question.id as keyof typeof body];
-          if (fieldValue === undefined || fieldValue === null) {
-            // Try sanitized version (dots replaced with underscores)
-            const sanitizedId = question.id.replace(/\./g, '_');
-            fieldValue = body[sanitizedId as keyof typeof body];
+        // Iterate through ALL fields in the body and map them to GHL fields
+        // This ensures we capture all survey data, including fields that might not match exactly
+        Object.keys(body).forEach((bodyKey) => {
+          const fieldValue = body[bodyKey];
+          
+          // Skip if value is empty or undefined
+          if (fieldValue === undefined || fieldValue === null || fieldValue === '') return;
+          
+          // Get the mapping for this field (should work since we mapped sanitized versions)
+          const mapping = fieldIdToMapping.get(bodyKey);
+          
+          if (!mapping) {
+            // No mapping found - this field won't be sent to GHL
+            console.log(`⏭️  Skipping unmapped field "${bodyKey}": ${fieldValue}`);
+            return;
           }
           
-          if (fieldValue === undefined || fieldValue === null || fieldValue === '') return;
-
-          const mapping = question.ghlFieldMapping;
-          
-          console.log(`🔍 Mapping field "${question.id}":`, {
-            questionId: question.id,
+          console.log(`🔍 Mapping field "${bodyKey}":`, {
+            bodyKey,
             fieldValue,
-            hasMapping: !!mapping,
             mapping,
           });
           
           // Handle native fields (firstName, lastName, email, phone)
           if (mapping === 'firstName' || mapping === 'lastName' || mapping === 'email' || mapping === 'phone') {
             contactData[mapping] = String(fieldValue);
-          } else if (mapping) {
+            console.log(`✅ Mapped to native field: ${mapping} = ${fieldValue}`);
+          } else {
             // Custom field with explicit mapping - use the mapped GHL custom field key
             contactData.customFields![mapping] = String(fieldValue);
             console.log(`✅ Added custom field: ${mapping} = ${fieldValue}`);
-          }
-          // NO mapping - skip it (don't add unmapped fields to customFields)
-        });
-
-        // Also check standard fields for mappings (squareFeet, serviceType, etc.)
-        // Only add them if they have a mapping in survey questions
-        const standardFieldIds = ['squareFeet', 'people', 'bedrooms', 'fullBaths', 'halfBaths', 'sheddingPets', 'condition', 'serviceType', 'frequency', 'hasPreviousService', 'cleanedWithin3Months'];
-        standardFieldIds.forEach((fieldId) => {
-          const fieldValue = body[fieldId];
-          if (fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
-            const mapping = fieldIdToMapping.get(fieldId);
-            if (mapping && mapping !== 'firstName' && mapping !== 'lastName' && mapping !== 'email' && mapping !== 'phone') {
-              // Only add if it has a mapping to a GHL custom field (not native fields)
-              contactData.customFields![mapping] = String(fieldValue);
-            }
           }
         });
 
