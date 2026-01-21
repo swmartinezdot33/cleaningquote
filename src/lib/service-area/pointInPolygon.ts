@@ -38,15 +38,33 @@ export function pointInPolygon(point: Coordinate, polygon: PolygonCoordinates): 
 
     // Check if the horizontal ray from the point intersects this edge
     // The ray is at the point's latitude, going right (increasing longitude)
-    const intersect =
+    
+    // Skip if edge is horizontal (same latitude) - can't intersect horizontal ray
+    if (polyLat1 === polyLat2) {
+      // Edge is horizontal - check if point is exactly on the edge
+      if (polyLat1 === lat) {
+        const minLng = Math.min(polyLng1, polyLng2);
+        const maxLng = Math.max(polyLng1, polyLng2);
+        if (lng >= minLng && lng <= maxLng) {
+          // Point is on horizontal edge - consider it inside
+          return true;
+        }
+      }
+      // Skip horizontal edges for intersection counting
+    } else {
       // Point's latitude must be between the two edge latitudes
-      ((polyLat1 > lat) !== (polyLat2 > lat)) &&
-      // Calculate where the edge intersects the horizontal ray (at point's latitude)
-      // Then check if that intersection is to the right of the point's longitude
-      lng < ((polyLng2 - polyLng1) * (lat - polyLat1)) / (polyLat2 - polyLat1) + polyLng1;
-
-    if (intersect) {
-      isInside = !isInside;
+      const latBetween = (polyLat1 > lat) !== (polyLat2 > lat);
+      
+      if (latBetween) {
+        // Calculate where the edge intersects the horizontal ray (at point's latitude)
+        // Formula: x = ((lng2 - lng1) * (lat - lat1)) / (lat2 - lat1) + lng1
+        const intersectionLng = ((polyLng2 - polyLng1) * (lat - polyLat1)) / (polyLat2 - polyLat1) + polyLng1;
+        
+        // Check if intersection is to the right of the point (greater longitude)
+        if (lng < intersectionLng) {
+          isInside = !isInside;
+        }
+      }
     }
 
     j = i;

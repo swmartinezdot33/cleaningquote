@@ -120,13 +120,25 @@ export async function POST(request: NextRequest) {
       
       // Only run point-in-polygon check if point is within bounding box
       if (latWithinBounds && lngWithinBounds) {
+        console.log('Running point-in-polygon check:', {
+          point: { lat, lng },
+          polygonFirstPoint: polygon[0],
+          polygonLastPoint: polygon[polygon.length - 1],
+          polygonIsClosed: polygon[0][0] === polygon[polygon.length - 1][0] && 
+                          polygon[0][1] === polygon[polygon.length - 1][1],
+        });
         inServiceArea = pointInPolygon({ lat, lng }, polygon);
         console.log('Point-in-polygon check result:', {
           inServiceArea,
           coordinates: { lat, lng },
         });
       } else {
-        console.log('Point is outside bounding box - skipping point-in-polygon check');
+        console.log('Point is outside bounding box - skipping point-in-polygon check', {
+          point: { lat, lng },
+          bounds: polygonBounds,
+          latWithinBounds,
+          lngWithinBounds,
+        });
         inServiceArea = false;
       }
     } else {
