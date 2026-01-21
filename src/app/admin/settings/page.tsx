@@ -1803,10 +1803,19 @@ export default function SettingsPage() {
                           </div>
                           
                           {quotedAmountField && (
-                            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
                               <p className="text-sm text-blue-800">
                                 Selected: <span className="font-mono font-semibold">{quotedAmountField}</span>
                               </p>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setQuotedAmountField('')}
+                                className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 h-8 px-3"
+                              >
+                                Clear
+                              </Button>
                             </div>
                           )}
                           
