@@ -175,6 +175,8 @@ export default function Home() {
   const [addressCoordinates, setAddressCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [serviceAreaChecked, setServiceAreaChecked] = useState(false);
   const [formSettings, setFormSettings] = useState<any>({});
+  const appointmentFormRef = useRef<HTMLDivElement>(null);
+  const callFormRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -182,6 +184,34 @@ export default function Home() {
     loadSurveyQuestions();
     loadFormSettings();
   }, []);
+
+  // Auto-scroll when appointment form opens
+  useEffect(() => {
+    if (showAppointmentForm && appointmentFormRef.current) {
+      setTimeout(() => {
+        appointmentFormRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start',
+          inline: 'nearest'
+        });
+        window.scrollBy({ top: -20, behavior: 'smooth' });
+      }, 200);
+    }
+  }, [showAppointmentForm]);
+
+  // Auto-scroll when call form opens
+  useEffect(() => {
+    if (showCallForm && callFormRef.current) {
+      setTimeout(() => {
+        callFormRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start',
+          inline: 'nearest'
+        });
+        window.scrollBy({ top: -20, behavior: 'smooth' });
+      }, 200);
+    }
+  }, [showCallForm]);
 
   // Update document title when widgetTitle changes
   useEffect(() => {
@@ -946,19 +976,20 @@ export default function Home() {
                               initial={{ opacity: 0, x: -10 }}
                               animate={{ opacity: 1, x: 0 }}
                               transition={{ delay: 0.15 + idx * 0.05 }}
-                              className={`${isPrice ? 'bg-gradient-to-r from-blue-50 to-cyan-50 border-l-4 border-blue-500 pl-4 py-3 rounded-r-lg' : ''} ${
-                                isHeader ? 'font-bold text-lg text-gray-900 pt-2' : 'text-gray-700 text-base'
+                              className={`${isPrice ? 'bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-4 rounded-r-xl shadow-md' : ''} ${
+                                isHeader ? 'font-bold text-xl text-gray-900 pt-2' : 'text-gray-700 text-base'
                               }`}
                             >
                               {isPrice ? (
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-3">
                                   <motion.div
-                                    animate={{ scale: [1, 1.2, 1] }}
+                                    animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
                                     transition={{ duration: 2, repeat: Infinity }}
+                                    className="text-2xl"
                                   >
                                     💰
                                   </motion.div>
-                                  <span className={isPrice ? 'font-bold text-lg bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent' : ''}>
+                                  <span className="font-black text-2xl md:text-3xl bg-gradient-to-r from-blue-700 via-cyan-600 to-blue-700 bg-clip-text text-transparent tracking-wide">
                                     {line}
                                   </span>
                                 </div>
@@ -986,47 +1017,149 @@ export default function Home() {
                   </Card>
                 </motion.div>
 
-                {/* Two CTAs - Book Appointment and Book a Call - DAZZLED */}
+                {/* Two CTAs - Book Appointment and Book a Call - SUPER PROMINENT */}
                 {quoteResult && !appointmentConfirmed && !callConfirmed && (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.35 }}
-                    className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                    className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8"
                   >
                     {/* Book Appointment CTA */}
                     <motion.div
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.98 }}
+                      whileHover={{ scale: 1.03, y: -4 }}
+                      whileTap={{ scale: 0.97 }}
+                      animate={{ 
+                        boxShadow: [
+                          `0 20px 40px -12px ${hexToRgba(primaryColor, 0.4)}`,
+                          `0 25px 50px -12px ${hexToRgba(primaryColor, 0.5)}`,
+                          `0 20px 40px -12px ${hexToRgba(primaryColor, 0.4)}`
+                        ]
+                      }}
+                      transition={{ 
+                        boxShadow: { duration: 2, repeat: Infinity, ease: "easeInOut" }
+                      }}
                     >
                       <Button
-                        onClick={() => setShowAppointmentForm(!showAppointmentForm)}
-                        className="w-full h-16 text-lg font-bold shadow-lg hover:shadow-2xl transition-all duration-300 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 relative overflow-hidden group"
+                        onClick={() => {
+                          const willShow = !showAppointmentForm;
+                          setShowAppointmentForm(willShow);
+                          // Close call form if opening appointment form
+                          if (willShow) {
+                            setShowCallForm(false);
+                          }
+                          // Scroll to appointment form after a brief delay to allow it to render
+                          if (willShow) {
+                            setTimeout(() => {
+                              appointmentFormRef.current?.scrollIntoView({ 
+                                behavior: 'smooth', 
+                                block: 'start',
+                                inline: 'nearest'
+                              });
+                              // Add a small offset for better visibility
+                              window.scrollBy({ top: -20, behavior: 'smooth' });
+                            }, 150);
+                          }
+                        }}
+                        className="w-full h-24 md:h-28 text-xl md:text-2xl font-black shadow-2xl hover:shadow-[0_30px_60px_-12px_rgba(0,0,0,0.4)] transition-all duration-300 bg-gradient-to-br from-blue-600 via-blue-700 to-cyan-600 hover:from-blue-700 hover:via-blue-800 hover:to-cyan-700 relative overflow-hidden group border-4 border-white/30"
+                        style={{
+                          boxShadow: `0 20px 40px -12px ${hexToRgba(primaryColor, 0.4)}, 0 0 0 1px rgba(255,255,255,0.1) inset`,
+                        }}
                       >
+                        {/* Animated gradient overlay */}
                         <motion.div
-                          className="absolute inset-0 bg-white/20"
-                          animate={{ x: [-100, 100] }}
+                          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                          animate={{ x: [-200, 200] }}
+                          transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                        />
+                        {/* Pulsing glow effect */}
+                        <motion.div
+                          className="absolute inset-0 bg-gradient-to-br from-blue-400/50 to-cyan-400/50"
+                          animate={{ opacity: [0.5, 0.8, 0.5] }}
                           transition={{ duration: 2, repeat: Infinity }}
                         />
-                        <span className="relative z-10">📅 Book an Appointment</span>
+                        <span className="relative z-10 flex items-center justify-center gap-3 text-white drop-shadow-lg">
+                          <motion.span
+                            animate={{ rotate: [0, 10, -10, 0] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                            className="text-3xl"
+                          >
+                            📅
+                          </motion.span>
+                          <span className="tracking-wide">Book an Appointment</span>
+                        </span>
                       </Button>
                     </motion.div>
 
                     {/* Book a Call CTA */}
                     <motion.div
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.98 }}
+                      whileHover={{ scale: 1.03, y: -4 }}
+                      whileTap={{ scale: 0.97 }}
+                      animate={{ 
+                        boxShadow: [
+                          `0 20px 40px -12px ${hexToRgba(primaryColor, 0.3)}`,
+                          `0 25px 50px -12px ${hexToRgba(primaryColor, 0.4)}`,
+                          `0 20px 40px -12px ${hexToRgba(primaryColor, 0.3)}`
+                        ]
+                      }}
+                      transition={{ 
+                        boxShadow: { duration: 2, repeat: Infinity, ease: "easeInOut" }
+                      }}
                     >
                       <Button
-                        onClick={() => setShowCallForm(!showCallForm)}
-                        className="w-full h-16 text-lg font-bold shadow-lg hover:shadow-2xl transition-all duration-300 border-2 border-blue-600 bg-white hover:bg-blue-50 text-blue-700 relative overflow-hidden group"
+                        onClick={() => {
+                          const willShow = !showCallForm;
+                          setShowCallForm(willShow);
+                          // Close appointment form if opening call form
+                          if (willShow) {
+                            setShowAppointmentForm(false);
+                          }
+                          // Scroll to call form after a brief delay to allow it to render
+                          if (willShow) {
+                            setTimeout(() => {
+                              callFormRef.current?.scrollIntoView({ 
+                                behavior: 'smooth', 
+                                block: 'start',
+                                inline: 'nearest'
+                              });
+                              // Add a small offset for better visibility
+                              window.scrollBy({ top: -20, behavior: 'smooth' });
+                            }, 150);
+                          }
+                        }}
+                        className="w-full h-24 md:h-28 text-xl md:text-2xl font-black shadow-2xl hover:shadow-[0_30px_60px_-12px_rgba(0,0,0,0.4)] transition-all duration-300 border-4 border-blue-600 bg-gradient-to-br from-white via-blue-50 to-cyan-50 hover:from-blue-50 hover:via-blue-100 hover:to-cyan-100 relative overflow-hidden group"
+                        style={{
+                          boxShadow: `0 20px 40px -12px ${hexToRgba(primaryColor, 0.3)}, 0 0 0 1px rgba(59,130,246,0.2) inset`,
+                          color: primaryColor,
+                        }}
                       >
+                        {/* Animated gradient overlay */}
                         <motion.div
-                          className="absolute inset-0 bg-blue-600/10"
-                          animate={{ x: [-100, 100] }}
+                          className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-600/20 to-transparent"
+                          animate={{ x: [-200, 200] }}
+                          transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                        />
+                        {/* Pulsing glow effect */}
+                        <motion.div
+                          className="absolute inset-0 bg-gradient-to-br from-blue-200/30 to-cyan-200/30"
+                          animate={{ opacity: [0.3, 0.6, 0.3] }}
                           transition={{ duration: 2, repeat: Infinity }}
                         />
-                        <span className="relative z-10">📞 Book a Call</span>
+                        <div className="relative z-10 flex flex-col items-center justify-center gap-2">
+                          <div className="flex items-center gap-3">
+                            <motion.span
+                              animate={{ rotate: [0, -15, 15, 0] }}
+                              transition={{ duration: 2, repeat: Infinity }}
+                              className="text-3xl"
+                            >
+                              📞
+                            </motion.span>
+                            <span className="tracking-wide" style={{ color: primaryColor }}>Schedule a Callback</span>
+                          </div>
+                          <span className="text-sm md:text-base font-semibold opacity-90" style={{ color: primaryColor }}>
+                            We'll call you to discuss your needs
+                          </span>
+                        </div>
                       </Button>
                     </motion.div>
                   </motion.div>
@@ -1040,8 +1173,9 @@ export default function Home() {
                     transition={{ delay: 0.3 }}
                   >
                     {appointmentConfirmed ? (
-                      <Card className="shadow-2xl border-0 overflow-hidden">
-                        <div className="bg-gradient-to-r from-green-500 to-green-600 p-8 text-white">
+                      <div ref={appointmentFormRef}>
+                        <Card className="shadow-2xl border-0 overflow-hidden">
+                          <div className="bg-gradient-to-r from-green-500 to-green-600 p-8 text-white">
                           <div className="text-center">
                             <motion.div
                               initial={{ scale: 0 }}
@@ -1075,7 +1209,7 @@ export default function Home() {
                         </CardContent>
                       </Card>
                     ) : showAppointmentForm ? (
-                      <Card className="shadow-2xl border-0 overflow-hidden">
+                      <Card ref={appointmentFormRef} className="shadow-2xl border-0 overflow-hidden">
                         <div 
                           className="p-6 border-b"
                           style={{
@@ -1180,7 +1314,8 @@ export default function Home() {
                             </div>
                           </motion.div>
                         </CardContent>
-                      </Card>
+                        </Card>
+                      </div>
                     ) : null}
                   </motion.div>
                 )}
@@ -1193,7 +1328,7 @@ export default function Home() {
                     transition={{ delay: 0.35 }}
                   >
                     {callConfirmed ? (
-                      <Card className="shadow-2xl border-0 overflow-hidden">
+                      <Card ref={callFormRef} className="shadow-2xl border-0 overflow-hidden">
                         <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-8 text-white">
                           <div className="text-center">
                             <motion.div
@@ -1226,19 +1361,21 @@ export default function Home() {
                             </div>
                           </div>
                         </CardContent>
-                      </Card>
+                        </Card>
+                      </div>
                     ) : showCallForm ? (
-                      <Card className="shadow-2xl border-0 overflow-hidden">
-                        <div 
-                          className="p-6 border-b"
+                      <div ref={callFormRef}>
+                        <Card className="shadow-2xl border-0 overflow-hidden">
+                          <div 
+                            className="p-6 border-b"
                           style={{
                             background: `linear-gradient(to right, ${hexToRgba(primaryColor, 0.05)}, transparent)`
                           }}
                         >
                           <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                            📞 Schedule a Consultation Call
+                            📞 Schedule a Callback
                           </h3>
-                          <p className="text-gray-600 mt-2">Let's discuss your cleaning needs</p>
+                          <p className="text-gray-600 mt-2 font-semibold">We'll call you at your preferred time to discuss your cleaning needs and answer any questions</p>
                         </div>
                         <CardContent className="pt-8">
                           {bookingMessage && (
@@ -1332,7 +1469,8 @@ export default function Home() {
                             </div>
                           </motion.div>
                         </CardContent>
-                      </Card>
+                        </Card>
+                      </div>
                     ) : null}
                   </motion.div>
                 )}
