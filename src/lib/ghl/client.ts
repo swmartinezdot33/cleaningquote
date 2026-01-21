@@ -184,7 +184,19 @@ export async function createOrUpdateContact(
       throw new Error('Invalid response from GHL API - could not parse JSON');
     }
 
-    return data.contact || data;
+    // Log the full response structure for debugging
+    console.log('GHL API upsert contact response:', JSON.stringify(data, null, 2));
+
+    // Handle different response structures
+    // GHL API might return { contact: { id: ... } } or { id: ... } directly
+    const contact = data.contact || data;
+    
+    if (!contact || !contact.id) {
+      console.error('GHL API response missing contact or contact.id:', data);
+      throw new Error('Invalid response from GHL API - missing contact or contact.id');
+    }
+
+    return contact;
   } catch (error) {
     console.error('Failed to create/update contact:', error);
     throw error;

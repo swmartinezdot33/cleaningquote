@@ -255,8 +255,13 @@ export async function POST(request: NextRequest) {
           undefined, // locationId - will use stored locationId
           ghlConfig?.inServiceTags // additional tags for in-service customers
         );
-        ghlContactId = contact.id;
         
+        if (!contact || !contact.id) {
+          console.error('Contact creation failed - no contact ID returned:', contact);
+          throw new Error('Failed to create contact - no contact ID returned');
+        }
+        
+        ghlContactId = contact.id;
         console.log('✅ Contact created in GHL:', ghlContactId);
         
         // Note: Contact creation happens regardless of createContact config
@@ -320,8 +325,13 @@ export async function POST(request: NextRequest) {
 
         console.log('Successfully synced quote to GHL for contact:', ghlContactId);
       } catch (ghlError) {
-        console.warn('GHL integration failed (quote still delivered):', ghlError);
+        console.error('GHL integration failed (quote still delivered):', ghlError);
+        console.error('Error details:', {
+          message: ghlError instanceof Error ? ghlError.message : String(ghlError),
+          stack: ghlError instanceof Error ? ghlError.stack : undefined,
+        });
         // Don't throw - we still want to deliver the quote to the customer
+        // But log the error so we can debug why contact creation failed
       }
     }
 
