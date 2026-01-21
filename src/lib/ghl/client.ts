@@ -52,14 +52,40 @@ async function makeGHLRequest<T>(
 
     const response = await fetch(url, options);
 
+    // Read response text once (can only read body once)
+    const responseText = await response.text();
+
     if (!response.ok) {
-      const errorData = (await response.json()) as GHLAPIError;
-      throw new Error(
-        `GHL API Error (${response.status}): ${errorData.message || JSON.stringify(errorData)}`
-      );
+      // Try to get error message from response
+      let errorMessage = `GHL API Error (${response.status})`;
+      if (responseText && responseText.trim().length > 0) {
+        try {
+          const errorData = JSON.parse(responseText) as GHLAPIError;
+          errorMessage = `${errorMessage}: ${errorData.message || JSON.stringify(errorData)}`;
+        } catch (parseError) {
+          // Response is not valid JSON, include raw text
+          errorMessage = `${errorMessage}: ${responseText.substring(0, 200)}`;
+        }
+      } else {
+        errorMessage = `${errorMessage}: Empty response from GHL API`;
+      }
+      throw new Error(errorMessage);
     }
 
-    const data = await response.json();
+    // Parse successful response
+    if (!responseText || responseText.trim().length === 0) {
+      throw new Error('Empty response from GHL API');
+    }
+
+    let data;
+    try {
+      data = JSON.parse(responseText) as T;
+    } catch (parseError) {
+      console.error('Failed to parse GHL API response:', parseError);
+      console.error('Response text:', responseText.substring(0, 500));
+      throw new Error('Invalid response from GHL API - could not parse JSON');
+    }
+
     return data;
   } catch (error) {
     console.error('GHL API request failed:', error);
@@ -123,14 +149,40 @@ export async function createOrUpdateContact(
 
     const response = await fetch(url, options);
 
+    // Read response text once (can only read body once)
+    const responseText = await response.text();
+
     if (!response.ok) {
-      const errorData = (await response.json()) as any;
-      throw new Error(
-        `GHL API Error (${response.status}): ${errorData.message || JSON.stringify(errorData)}`
-      );
+      // Try to get error message from response
+      let errorMessage = `GHL API Error (${response.status})`;
+      if (responseText && responseText.trim().length > 0) {
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = `${errorMessage}: ${errorData.message || JSON.stringify(errorData)}`;
+        } catch (parseError) {
+          // Response is not valid JSON, include raw text
+          errorMessage = `${errorMessage}: ${responseText.substring(0, 200)}`;
+        }
+      } else {
+        errorMessage = `${errorMessage}: Empty response from GHL API`;
+      }
+      throw new Error(errorMessage);
     }
 
-    const data = await response.json();
+    // Parse successful response
+    if (!responseText || responseText.trim().length === 0) {
+      throw new Error('Empty response from GHL API');
+    }
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Failed to parse GHL API response:', parseError);
+      console.error('Response text:', responseText.substring(0, 500));
+      throw new Error('Invalid response from GHL API - could not parse JSON');
+    }
+
     return data.contact || data;
   } catch (error) {
     console.error('Failed to create/update contact:', error);
@@ -290,11 +342,21 @@ export async function getLocationIdFromToken(token?: string): Promise<string | n
       return null;
     }
 
-    const data = await response.json();
-    const locations = data.locations || data.data || [];
-    
-    if (locations.length > 0) {
-      return locations[0].id;
+    // Read response text once
+    const responseText = await response.text();
+    if (!responseText || responseText.trim().length === 0) {
+      return null;
+    }
+
+    try {
+      const data = JSON.parse(responseText);
+      const locations = data.locations || data.data || [];
+      
+      if (locations.length > 0) {
+        return locations[0].id;
+      }
+    } catch (parseError) {
+      console.error('Failed to parse locationId response:', parseError);
     }
 
     return null;
@@ -597,23 +659,29 @@ export async function testGHLConnection(token?: string): Promise<{ success: bool
       },
     });
 
+    // Read response text once (can only read body once)
+    const responseText = await response.text();
+
     if (!response.ok) {
       let errorMessage = `HTTP ${response.status}`;
       let errorDetails: any = {};
-      try {
-        const errorData = await response.json();
-        errorDetails = errorData;
-        if (errorData.message) {
-          errorMessage = errorData.message;
-        } else if (errorData.error) {
-          errorMessage = errorData.error;
-        } else if (errorData.msg) {
-          errorMessage = errorData.msg;
+      if (responseText && responseText.trim().length > 0) {
+        try {
+          const errorData = JSON.parse(responseText);
+          errorDetails = errorData;
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (errorData.error) {
+            errorMessage = errorData.error;
+          } else if (errorData.msg) {
+            errorMessage = errorData.msg;
+          }
+        } catch {
+          // If JSON parsing fails, use raw text
+          errorMessage = responseText.substring(0, 200) || response.statusText || `HTTP ${response.status}`;
         }
-      } catch {
-        // If JSON parsing fails, use status text
-        const text = await response.text().catch(() => '');
-        errorMessage = text || response.statusText || `HTTP ${response.status}`;
+      } else {
+        errorMessage = response.statusText || `HTTP ${response.status}: Empty response`;
       }
 
       // Provide helpful error messages based on status code
