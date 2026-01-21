@@ -159,6 +159,12 @@ export async function POST(request: NextRequest) {
           }
         });
 
+        console.log('🔍 Custom field mapping debug:', {
+          surveyQuestionCount: surveyQuestions.length,
+          mappingsFound: Array.from(fieldIdToMapping.entries()).map(([id, mapping]) => ({ id, mapping })),
+          bodyKeys: Object.keys(body),
+        });
+
         // Map form data to GHL fields based on survey question mappings
         // Only use fields that have explicit GHL custom field mappings
         surveyQuestions.forEach((question: SurveyQuestion) => {
@@ -174,12 +180,20 @@ export async function POST(request: NextRequest) {
 
           const mapping = question.ghlFieldMapping;
           
+          console.log(`🔍 Mapping field "${question.id}":`, {
+            questionId: question.id,
+            fieldValue,
+            hasMapping: !!mapping,
+            mapping,
+          });
+          
           // Handle native fields (firstName, lastName, email, phone)
           if (mapping === 'firstName' || mapping === 'lastName' || mapping === 'email' || mapping === 'phone') {
             contactData[mapping] = String(fieldValue);
           } else if (mapping) {
             // Custom field with explicit mapping - use the mapped GHL custom field key
             contactData.customFields![mapping] = String(fieldValue);
+            console.log(`✅ Added custom field: ${mapping} = ${fieldValue}`);
           }
           // NO mapping - skip it (don't add unmapped fields to customFields)
         });

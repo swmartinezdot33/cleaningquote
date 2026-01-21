@@ -273,23 +273,33 @@ export async function createOpportunity(
       throw new Error('Location ID is required. Please configure it in the admin settings.');
     }
 
+    // Convert customFields object to array format required by GHL API
+    let customFieldsArray: Array<{ key: string; value: string }> | undefined;
+    if (opportunityData.customFields && Object.keys(opportunityData.customFields).length > 0) {
+      customFieldsArray = Object.entries(opportunityData.customFields).map(([key, value]) => ({
+        key,
+        value: String(value),
+      }));
+    }
+
     const payload: Record<string, any> = {
       contactId: opportunityData.contactId,
       name: opportunityData.name,
+      locationId: finalLocationId, // locationId must be in the request body, not URL path
       ...(opportunityData.value && { monetaryValue: opportunityData.value }),
       ...(opportunityData.pipelineId && { pipelineId: opportunityData.pipelineId }),
       ...(opportunityData.pipelineStageId && {
         pipelineStageId: opportunityData.pipelineStageId,
       }),
       ...(opportunityData.status && { status: opportunityData.status }),
-      ...(opportunityData.customFields && Object.keys(opportunityData.customFields).length > 0 && {
-        customFields: opportunityData.customFields,
+      ...(customFieldsArray && customFieldsArray.length > 0 && {
+        customFields: customFieldsArray,
       }),
     };
 
-    // GHL 2.0 API: Use location-level opportunities endpoint
+    // GHL 2.0 API: Use opportunities endpoint - locationId is in the request body
     const response = await makeGHLRequest<{ opportunity: GHLOpportunityResponse }>(
-      `/v2/locations/${finalLocationId}/opportunities`,
+      `/opportunities/`,
       'POST',
       payload
     );
@@ -355,8 +365,8 @@ export async function createAppointment(
       title: appointmentData.title,
       startTime: appointmentData.startTime,
       endTime: appointmentData.endTime,
-      ...(appointmentData.notes && { notes: appointmentData.notes }),
       ...(appointmentData.calendarId && { calendarId: appointmentData.calendarId }),
+      ...(appointmentData.notes && { notes: appointmentData.notes }),
     };
 
     console.log('Creating appointment with payload:', {
@@ -364,9 +374,9 @@ export async function createAppointment(
       contactId: '***hidden***',
     });
 
-    // GHL 2.0 API: Use location-level appointments endpoint
+    // GHL 2.0 API: Use calendars/events endpoint for appointments
     const response = await makeGHLRequest<{ appointment: GHLAppointmentResponse }>(
-      `/v2/locations/${finalLocationId}/calendars/appointments`,
+      `/calendars/events/`,
       'POST',
       payload
     );
