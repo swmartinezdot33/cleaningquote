@@ -711,16 +711,13 @@ export default function Home() {
       return;
     }
 
-    // If no GHL contact ID, try to create one first
+    // If no GHL contact ID, this is an error - contact should have been created with quote
     if (!quoteResult?.ghlContactId) {
+      console.error('No contactId available for booking - contact creation may have failed');
       setBookingMessage({
         type: 'error',
-        text: 'Creating contact... Please try again in a moment.',
+        text: 'Unable to book appointment. Please try again.',
       });
-      // Wait a moment for GHL sync, then allow retry
-      setTimeout(() => {
-        setBookingMessage(null);
-      }, 3000);
       return;
     }
 
@@ -776,16 +773,13 @@ export default function Home() {
       return;
     }
 
-    // If no GHL contact ID, try to create one first
+    // If no GHL contact ID, this is an error - contact should have been created with quote
     if (!quoteResult?.ghlContactId) {
+      console.error('No contactId available for booking - contact creation may have failed');
       setBookingMessage({
         type: 'error',
-        text: 'Creating contact... Please try again in a moment.',
+        text: 'Unable to book appointment. Please try again.',
       });
-      // Wait a moment for GHL sync, then allow retry
-      setTimeout(() => {
-        setBookingMessage(null);
-      }, 3000);
       return;
     }
 
