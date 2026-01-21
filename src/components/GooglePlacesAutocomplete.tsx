@@ -41,6 +41,7 @@ export function GooglePlacesAutocomplete({
 }: GooglePlacesAutocompleteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
+  const placeSelectedRef = useRef(false); // Track if a place was just selected from autocomplete
   const [isLoadingGeo, setIsLoadingGeo] = useState(false);
   const [googleLoaded, setGoogleLoaded] = useState(false);
 
@@ -145,6 +146,9 @@ export function GooglePlacesAutocomplete({
     autocompleteRef.current.addListener('place_changed', () => {
       const place = autocompleteRef.current.getPlace();
       
+      // Mark that a place was just selected to prevent blur handler from interfering
+      placeSelectedRef.current = true;
+      
       if (place.geometry) {
         const lat = place.geometry.location?.lat();
         const lng = place.geometry.location?.lng();
@@ -173,6 +177,11 @@ export function GooglePlacesAutocomplete({
           if (onChange) {
             onChange(fullAddress, placeDetails);
           }
+          
+          // Clear the flag after a delay to allow normal blur handling in the future
+          setTimeout(() => {
+            placeSelectedRef.current = false;
+          }, 500);
         } else {
           console.warn('Invalid coordinates from place selection:', { lat, lng });
           // Update address but don't pass coordinates
@@ -183,10 +192,20 @@ export function GooglePlacesAutocomplete({
           if (onChange) {
             onChange(fullAddress);
           }
+          
+          // Clear the flag even if coordinates are invalid
+          setTimeout(() => {
+            placeSelectedRef.current = false;
+          }, 500);
         }
 
         // Clear loading state
         setIsLoadingGeo(false);
+      } else {
+        // No geometry - clear flag
+        setTimeout(() => {
+          placeSelectedRef.current = false;
+        }, 500);
       }
     });
   };
@@ -205,6 +224,13 @@ export function GooglePlacesAutocomplete({
     // The Google Places autocomplete dropdown renders after the input
     // so we need to check if the relatedTarget (where focus is going) is within the autocomplete container
     setTimeout(() => {
+      // If a place was just selected from autocomplete, don't geocode
+      // This prevents the blur handler from interfering with the selection
+      if (placeSelectedRef.current) {
+        console.log('Place was just selected from autocomplete - skipping geocoding');
+        return;
+      }
+      
       // Check if focus moved to an autocomplete suggestion
       const activeElement = document.activeElement;
       const isClickingAutocomplete = activeElement?.closest('.pac-container');

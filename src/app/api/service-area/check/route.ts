@@ -86,6 +86,12 @@ export async function POST(request: NextRequest) {
       coordinates: { lat, lng },
       polygonSource,
       polygonPointCount: polygon?.length || 0,
+      polygonBounds: polygon && polygon.length > 0 ? {
+        minLat: Math.min(...polygon.map(p => p[0])),
+        maxLat: Math.max(...polygon.map(p => p[0])),
+        minLng: Math.min(...polygon.map(p => p[1])),
+        maxLng: Math.max(...polygon.map(p => p[1])),
+      } : null,
     });
     
     const inServiceArea = pointInPolygon({ lat, lng }, polygon);
@@ -94,6 +100,10 @@ export async function POST(request: NextRequest) {
       inServiceArea,
       coordinates: { lat, lng },
       polygonSource,
+      pointWithinBounds: polygon && polygon.length > 0 ? {
+        latWithin: lat >= Math.min(...polygon.map(p => p[0])) && lat <= Math.max(...polygon.map(p => p[0])),
+        lngWithin: lng >= Math.min(...polygon.map(p => p[1])) && lng <= Math.max(...polygon.map(p => p[1])),
+      } : null,
     });
 
     return NextResponse.json(

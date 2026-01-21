@@ -1490,11 +1490,17 @@ export default function Home() {
                           const fieldName = getFormFieldName(currentQuestion.id);
                           setValue(fieldName as any, value);
                           // Store coordinates for service area check
+                          // Only set coordinates if they're valid (not 0,0 or NaN)
                           if (placeDetails) {
-                            setAddressCoordinates({
-                              lat: placeDetails.lat,
-                              lng: placeDetails.lng,
-                            });
+                            const { lat, lng } = placeDetails;
+                            if (lat && lng && lat !== 0 && lng !== 0 && !isNaN(lat) && !isNaN(lng)) {
+                              console.log('Setting valid address coordinates:', { lat, lng, address: value });
+                              setAddressCoordinates({ lat, lng });
+                              // Reset service area check flag when new coordinates are set
+                              setServiceAreaChecked(false);
+                            } else {
+                              console.warn('Invalid coordinates received, not setting:', { lat, lng, address: value });
+                            }
                           }
                         }}
                         onKeyDown={(e) => {
