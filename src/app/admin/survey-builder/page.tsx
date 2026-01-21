@@ -601,6 +601,75 @@ export default function SurveyBuilderPage() {
                     </label>
                   </div>
 
+                  <div>
+                    <Label>GHL Field Mapping (optional)</Label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      Map this question to a GHL custom field or native field (firstName, lastName, email, phone)
+                    </p>
+                    <div className="relative">
+                      <Select
+                        value={editingQuestion.ghlFieldMapping || ''}
+                        onValueChange={(value) => {
+                          setEditingQuestion({ 
+                            ...editingQuestion, 
+                            ghlFieldMapping: value === 'none' ? undefined : value 
+                          });
+                        }}
+                        onOpenChange={(open) => {
+                          setGhlFieldDropdownOpen(open);
+                          if (!open) {
+                            setGhlFieldSearchTerm('');
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select GHL field (or leave blank)" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[300px]">
+                          {ghlFieldDropdownOpen && (
+                            <div className="px-2 pb-2 sticky top-0 bg-white z-10">
+                              <Input
+                                placeholder="Search fields..."
+                                value={ghlFieldSearchTerm}
+                                onChange={(e) => setGhlFieldSearchTerm(e.target.value.toLowerCase())}
+                                className="h-8 text-sm"
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => e.stopPropagation()}
+                              />
+                            </div>
+                          )}
+                          <SelectItem value="none">
+                            <span className="text-gray-400">-- No mapping --</span>
+                          </SelectItem>
+                          {ghlFields
+                            .filter((field) => {
+                              if (!ghlFieldSearchTerm) return true;
+                              const searchLower = ghlFieldSearchTerm.toLowerCase();
+                              return (
+                                field.name.toLowerCase().includes(searchLower) ||
+                                field.key.toLowerCase().includes(searchLower)
+                              );
+                            })
+                            .map((field) => (
+                              <SelectItem key={field.key} value={field.key}>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{field.name}</span>
+                                  <span className="text-xs text-gray-500">
+                                    {field.key} {field.type !== 'native' && `(${field.type})`}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {editingQuestion.ghlFieldMapping && (
+                      <p className="text-xs text-green-600 mt-1">
+                        ✓ Will map to GHL field: <strong>{editingQuestion.ghlFieldMapping}</strong>
+                      </p>
+                    )}
+                  </div>
+
                   <div className="flex gap-2 justify-end">
                     <Button variant="outline" onClick={() => setEditingQuestion(null)}>
                       Cancel
