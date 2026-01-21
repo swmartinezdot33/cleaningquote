@@ -1485,10 +1485,19 @@ export default function Home() {
                         required={currentQuestion.required}
                         primaryColor={primaryColor}
                         value={watch(getFormFieldName(currentQuestion.id) as any) || ''}
-                        onChange={(value, placeDetails) => {
+                        onChange={async (value, placeDetails) => {
                           // Update form value using sanitized field name
                           const fieldName = getFormFieldName(currentQuestion.id);
-                          setValue(fieldName as any, value);
+                          console.log('Address onChange called:', { fieldName, value, hasPlaceDetails: !!placeDetails });
+                          
+                          // Set the form value synchronously (this should update immediately)
+                          setValue(fieldName as any, value, { shouldValidate: false, shouldDirty: true });
+                          
+                          // Wait a tick to ensure React Hook Form has processed the value update
+                          // Then trigger validation to ensure the form knows the field is valid
+                          await new Promise(resolve => setTimeout(resolve, 0));
+                          await trigger(fieldName as any);
+                          
                           // Store coordinates for service area check
                           // Only set coordinates if they're valid (not 0,0 or NaN)
                           if (placeDetails) {

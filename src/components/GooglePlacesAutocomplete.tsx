@@ -164,18 +164,16 @@ export function GooglePlacesAutocomplete({
             formattedAddress: fullAddress,
           };
 
-          // Update input value immediately with complete address
-          if (inputRef.current) {
-            inputRef.current.value = fullAddress;
-            // Trigger input event to ensure form state is updated
-            const event = new Event('input', { bubbles: true });
-            inputRef.current.dispatchEvent(event);
-          }
-
           // Call onChange with both address and place details (valid coordinates)
           // This is crucial for form validation - it must be called synchronously
+          // React Hook Form will handle updating the input value via the value prop
           if (onChange) {
             onChange(fullAddress, placeDetails);
+          }
+          
+          // Update input value to match what we just set (React Hook Form should handle this, but ensure it matches)
+          if (inputRef.current && inputRef.current.value !== fullAddress) {
+            inputRef.current.value = fullAddress;
           }
           
           // Clear the flag after a delay to allow normal blur handling in the future
@@ -186,11 +184,12 @@ export function GooglePlacesAutocomplete({
           console.warn('Invalid coordinates from place selection:', { lat, lng });
           // Update address but don't pass coordinates
           const fullAddress = buildAddressFromComponents(place);
-          if (inputRef.current) {
-            inputRef.current.value = fullAddress;
-          }
           if (onChange) {
             onChange(fullAddress);
+          }
+          // Update input value to match (React Hook Form should handle this, but ensure it matches)
+          if (inputRef.current && inputRef.current.value !== fullAddress) {
+            inputRef.current.value = fullAddress;
           }
           
           // Clear the flag even if coordinates are invalid
