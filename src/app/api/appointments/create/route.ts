@@ -103,9 +103,13 @@ export async function POST(request: NextRequest) {
 
     // Parse date and time
     // date format: YYYY-MM-DD, time format: HH:MM
+    // The date/time comes from a UTC timestamp, so we need to parse it as UTC
     // Ensure time has seconds (HH:MM:00)
     const timeWithSeconds = time.includes(':') && time.split(':').length === 2 ? `${time}:00` : time;
-    const dateTimeString = `${date}T${timeWithSeconds}`;
+    
+    // Parse as UTC to avoid timezone conversion issues
+    // Format: YYYY-MM-DDTHH:MM:SSZ (explicitly UTC)
+    const dateTimeString = `${date}T${timeWithSeconds}Z`;
     const startDateTime = new Date(dateTimeString);
 
     console.log('Parsing date/time for appointment:', {
@@ -115,6 +119,7 @@ export async function POST(request: NextRequest) {
       dateTimeString,
       parsed: startDateTime.toISOString(),
       local: startDateTime.toLocaleString(),
+      utc: startDateTime.toUTCString(),
       isValid: !isNaN(startDateTime.getTime()),
     });
 

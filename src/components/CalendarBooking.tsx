@@ -26,6 +26,11 @@ interface DayAvailability {
   hasAvailability: boolean;
 }
 
+interface TimeSlotOption {
+  displayTime: string; // HH:MM format for display
+  timestamp: number; // Actual timestamp in milliseconds
+}
+
 export function CalendarBooking({
   type,
   onConfirm,
@@ -36,11 +41,12 @@ export function CalendarBooking({
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [selectedTimestamp, setSelectedTimestamp] = useState<number | null>(null); // Store actual timestamp
   const [notes, setNotes] = useState('');
   const [showNotes, setShowNotes] = useState(false);
   
   const [availableDays, setAvailableDays] = useState<Map<string, DayAvailability>>(new Map());
-  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlotOption[]>([]);
   const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
   const [isLoadingTimes, setIsLoadingTimes] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
@@ -200,15 +206,18 @@ export function CalendarBooking({
         
         console.log('[CalendarBooking] Filtered', availableSlots.length, 'available slots (removed', dayData.slots.length - availableSlots.length, 'past/too-soon slots)');
         
-        // Convert slots to time strings (HH:MM format)
-        const timeSlots = availableSlots
+        // Convert slots to time slot options with both display time and timestamp
+        const timeSlots: TimeSlotOption[] = availableSlots
           .map((slot: AvailableSlot) => {
             const dateObj = new Date(slot.start);
             const hours = dateObj.getHours().toString().padStart(2, '0');
             const minutes = dateObj.getMinutes().toString().padStart(2, '0');
-            return `${hours}:${minutes}`;
+            return {
+              displayTime: `${hours}:${minutes}`,
+              timestamp: slot.start, // Store the actual timestamp
+            };
           })
-          .sort();
+          .sort((a, b) => a.timestamp - b.timestamp);
 
         console.log('[CalendarBooking] Loaded', timeSlots.length, 'time slots for', date);
         setAvailableTimeSlots(timeSlots);
@@ -267,16 +276,19 @@ export function CalendarBooking({
         
         console.log('[CalendarBooking] Filtered', availableSlots.length, 'available slots from', slots.length, 'total slots');
         
-        // Convert slots to time strings (HH:MM format)
-        const timeSlots = availableSlots
+        // Convert slots to time slot options with both display time and timestamp
+        const timeSlots: TimeSlotOption[] = availableSlots
           .map((slot: any) => {
             const start = typeof slot.start === 'number' ? slot.start : new Date(slot.start).getTime();
             const dateObj = new Date(start);
             const hours = dateObj.getHours().toString().padStart(2, '0');
             const minutes = dateObj.getMinutes().toString().padStart(2, '0');
-            return `${hours}:${minutes}`;
+            return {
+              displayTime: `${hours}:${minutes}`,
+              timestamp: start, // Store the actual timestamp
+            };
           })
-          .sort();
+          .sort((a, b) => a.timestamp - b.timestamp);
 
         console.log('[CalendarBooking] Loaded', timeSlots.length, 'time slots for', date, 'from API');
         setAvailableTimeSlots(timeSlots);
@@ -297,40 +309,58 @@ export function CalendarBooking({
     if (dayData && dayData.hasAvailability) {
       setSelectedDate(date);
       setSelectedTime(null);
+      setSelectedTimestamp(null);
       setShowNotes(false);
     }
   };
 
-  const handleTimeSelect = (time: string) => {
-    setSelectedTime(time);
+  const handleTimeSelect = (timeSlot: TimeSlotOption) => {
+    setSelectedTime(timeSlot.displayTime);
+    setSelectedTimestamp(timeSlot.timestamp);
     setShowNotes(true);
   };
 
   const handleConfirm = () => {
     // Validate that both date and time are selected and not empty
-    if (!selectedDate || !selectedTime || selectedDate.trim() === '' || selectedTime.trim() === '') {
+    if (!selectedDate || !selectedTime || !selectedTimestamp || selectedDate.trim() === '' || selectedTime.trim() === '') {
       console.error('[CalendarBooking] Cannot confirm - missing date or time:', {
         selectedDate,
         selectedTime,
+        selectedTimestamp,
         hasDate: !!selectedDate,
         hasTime: !!selectedTime,
+        hasTimestamp: !!selectedTimestamp,
       });
       return;
     }
     
+    // Convert timestamp to UTC date/time strings for the server
+    // This ensures we're using the exact timestamp that was available, avoiding timezone conversion issues
+    const selectedDateTime = new Date(selectedTimestamp);
+    const dateStr = selectedDateTime.toISOString().split('T')[0]; // YYYY-MM-DD in UTC
+    const timeStr = selectedDateTime.toISOString().split('T')[1].split('.')[0]; // HH:MM:SS in UTC
+    
     console.log('[CalendarBooking] Confirming appointment:', {
-      date: selectedDate,
-      time: selectedTime,
+      originalSelectedDate: selectedDate,
+      originalSelectedTime: selectedTime,
+      timestamp: selectedTimestamp,
+      utcDate: dateStr,
+      utcTime: timeStr.substring(0, 5), // HH:MM
+      isoString: selectedDateTime.toISOString(),
+      localTime: selectedDateTime.toLocaleString(),
       notes: notes || '(none)',
     });
     
-    onConfirm(selectedDate, selectedTime, notes || '');
+    // Pass the UTC date/time extracted from the actual timestamp
+    // This ensures the server receives the exact time that was shown as available
+    onConfirm(dateStr, timeStr.substring(0, 5), notes || '');
   };
 
   const handlePreviousMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
     setSelectedDate(null);
     setSelectedTime(null);
+    setSelectedTimestamp(null);
     setShowNotes(false);
   };
 
@@ -338,6 +368,7 @@ export function CalendarBooking({
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
     setSelectedDate(null);
     setSelectedTime(null);
+    setSelectedTimestamp(null);
     setShowNotes(false);
   };
 
@@ -573,9 +604,9 @@ export function CalendarBooking({
             </div>
           ) : (
             <div className="grid grid-cols-4 gap-3">
-              {availableTimeSlots.map((time) => {
-                const isSelected = selectedTime === time;
-                const [hours, minutes] = time.split(':');
+              {availableTimeSlots.map((timeSlot) => {
+                const isSelected = selectedTime === timeSlot.displayTime;
+                const [hours, minutes] = timeSlot.displayTime.split(':');
                 const date = new Date();
                 date.setHours(parseInt(hours), parseInt(minutes));
                 const timeString = date.toLocaleTimeString('en-US', { 
@@ -586,8 +617,8 @@ export function CalendarBooking({
 
                 return (
                   <button
-                    key={time}
-                    onClick={() => handleTimeSelect(time)}
+                    key={timeSlot.timestamp}
+                    onClick={() => handleTimeSelect(timeSlot)}
                     className={`
                       px-4 py-3 rounded-lg border-2 transition-all text-center
                       ${isSelected
@@ -640,6 +671,7 @@ export function CalendarBooking({
               onClick={() => {
                 setShowNotes(false);
                 setSelectedTime(null);
+                setSelectedTimestamp(null);
               }}
             >
               Change Time

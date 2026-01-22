@@ -2297,15 +2297,18 @@ export default function Home() {
 
                       // Determine grid columns based on number of options
                       const getGridCols = (count: number) => {
+                        // Use fewer columns to make boxes wider, max 3 columns on desktop
+                        if (count <= 2) return 'grid-cols-2';
                         if (count <= 3) return 'grid-cols-3';
-                        if (count <= 4) return 'grid-cols-4';
-                        if (count <= 6) return 'grid-cols-3 sm:grid-cols-6';
+                        if (count <= 4) return 'grid-cols-2 sm:grid-cols-4';
+                        if (count <= 5) return 'grid-cols-2 sm:grid-cols-3';
+                        if (count <= 6) return 'grid-cols-2 sm:grid-cols-3';
                         return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4';
                       };
 
                       return (
                         <div className="space-y-4">
-                          <div className={`grid ${getGridCols(selectOptions.length)} gap-3 sm:gap-4`}>
+                          <div className={`grid ${getGridCols(selectOptions.length)} gap-3 sm:gap-4 max-w-4xl mx-auto`}>
                             {selectOptions.map((option) => {
                               const isSelected = currentValue === option.value;
                               const { mainText, detailsText } = parseOptionLabel(option.label);
@@ -2331,10 +2334,10 @@ export default function Home() {
                                     }
                                   }}
                                   className={`
-                                    relative h-24 sm:h-28 md:h-32 rounded-2xl sm:rounded-3xl font-medium 
+                                    relative h-28 sm:h-32 md:h-36 lg:h-40 rounded-2xl sm:rounded-3xl font-medium 
                                     text-xs sm:text-sm md:text-sm
                                     transition-all duration-300 border-2 shadow-lg
-                                    flex flex-col items-center justify-center px-3 py-4
+                                    flex flex-col items-center justify-center px-4 py-5 sm:px-5 sm:py-6
                                     text-center leading-tight
                                     overflow-hidden break-words whitespace-normal
                                     min-w-0 w-full
