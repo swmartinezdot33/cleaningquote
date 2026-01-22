@@ -337,16 +337,27 @@ export function CalendarBooking({
             </div>
           )}
 
-          {calendarError && !isLoadingCalendar && (
+          {(calendarError || (availableDays.size === 0 && !isLoadingCalendar)) && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
               <div className="flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-amber-900 mb-1">Unable to Load Calendar</p>
-                  <p className="text-sm text-amber-800">{calendarError}</p>
-                  {calendarError.includes('No users assigned') && (
+                  <p className="text-sm font-semibold text-amber-900 mb-1">
+                    {calendarError ? 'Unable to Load Calendar' : 'No Available Time Slots'}
+                  </p>
+                  <p className="text-sm text-amber-800">
+                    {calendarError || 'No available time slots found for this calendar. This usually means:'}
+                  </p>
+                  {!calendarError && (
+                    <ul className="text-xs text-amber-700 mt-2 list-disc list-inside space-y-1">
+                      <li>Users are assigned to the calendar but don't have office hours/availability configured</li>
+                      <li>No availability is set for the requested date range</li>
+                      <li>Calendar settings need to be configured in GHL</li>
+                    </ul>
+                  )}
+                  {(calendarError?.includes('No users assigned') || calendarError?.includes('users assigned')) && (
                     <p className="text-xs text-amber-700 mt-2">
-                      Please assign users to the calendar in GHL Calendar settings to enable booking.
+                      Please assign users to the calendar AND configure their availability/office hours in GHL Calendar settings.
                     </p>
                   )}
                 </div>

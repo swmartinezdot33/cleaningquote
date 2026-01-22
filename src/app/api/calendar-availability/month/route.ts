@@ -185,19 +185,56 @@ export async function GET(request: NextRequest) {
     
     if (slots && typeof slots === 'object') {
       Object.keys(slots).forEach((dateKey) => {
-        const dateSlots = slots[dateKey];
-        console.log(`[calendar-availability/month] Processing date ${dateKey}:`, Array.isArray(dateSlots) ? `${dateSlots.length} slots` : typeof dateSlots);
+        // Skip traceId and other non-date keys
+        if (dateKey === 'traceId' || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+          return;
+        }
         
-        if (Array.isArray(dateSlots) && dateSlots.length > 0) {
-          normalizedSlots[dateKey] = dateSlots.map((slot: any) => {
+        const dateSlots = slots[dateKey];
+        console.log(`[calendar-availability/month] Processing date ${dateKey}:`, typeof dateSlots);
+        
+        // GHL returns slots in format: { "2026-01-22": { slots: ["2026-01-22T12:00:00-05:00", ...] } }
+        // OR sometimes: { "2026-01-22": [{ start: ..., end: ... }, ...] }
+        let slotArray: any[] = [];
+        
+        if (Array.isArray(dateSlots)) {
+          // Direct array format
+          slotArray = dateSlots;
+        } else if (dateSlots && typeof dateSlots === 'object' && dateSlots.slots && Array.isArray(dateSlots.slots)) {
+          // Object with slots property
+          slotArray = dateSlots.slots;
+          console.log(`[calendar-availability/month] Extracted ${slotArray.length} slots from object for ${dateKey}`);
+        } else if (dateSlots && typeof dateSlots === 'object') {
+          // Try to find any array property
+          const arrayProps = Object.values(dateSlots).filter(v => Array.isArray(v));
+          if (arrayProps.length > 0) {
+            slotArray = arrayProps[0] as any[];
+            console.log(`[calendar-availability/month] Found array property with ${slotArray.length} items for ${dateKey}`);
+          }
+        }
+        
+        if (slotArray.length > 0) {
+          normalizedSlots[dateKey] = slotArray.map((slot: any) => {
             // Handle different slot formats
             let start: number;
             let end: number;
             
-            if (typeof slot === 'object' && slot !== null) {
+            if (typeof slot === 'string') {
+              // Slot is an ISO date string - assume 30 minute duration
+              const startTime = new Date(slot).getTime();
+              start = startTime;
+              end = startTime + (30 * 60 * 1000); // 30 minutes
+            } else if (typeof slot === 'object' && slot !== null) {
               // Slot is an object with start/end properties
-              start = typeof slot.start === 'number' ? slot.start : new Date(slot.start).getTime();
-              end = typeof slot.end === 'number' ? slot.end : new Date(slot.end).getTime();
+              if (slot.start !== undefined) {
+                start = typeof slot.start === 'number' ? slot.start : new Date(slot.start).getTime();
+                end = typeof slot.end === 'number' ? slot.end : (slot.end ? new Date(slot.end).getTime() : start + (30 * 60 * 1000));
+              } else {
+                // Try to parse as ISO string
+                const startTime = new Date(slot).getTime();
+                start = startTime;
+                end = startTime + (30 * 60 * 1000);
+              }
             } else if (Array.isArray(slot) && slot.length >= 2) {
               // Slot might be [start, end] array
               start = typeof slot[0] === 'number' ? slot[0] : new Date(slot[0]).getTime();
@@ -209,8 +246,10 @@ export async function GET(request: NextRequest) {
             
             return { start, end };
           }).filter((slot: any) => slot !== null) as Array<{ start: number; end: number }>;
-        } else if (dateSlots && !Array.isArray(dateSlots)) {
-          console.warn(`[calendar-availability/month] Date ${dateKey} has non-array value:`, typeof dateSlots, dateSlots);
+          
+          console.log(`[calendar-availability/month] Normalized ${normalizedSlots[dateKey].length} slots for ${dateKey}`);
+        } else {
+          console.warn(`[calendar-availability/month] No valid slots array found for ${dateKey}`);
         }
       });
     } else {
