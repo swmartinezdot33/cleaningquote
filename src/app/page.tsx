@@ -1488,8 +1488,6 @@ export default function Home() {
                             </>
                           );
                         })()}
-                          </>
-                        )}
 
                         {/* Initial Cleaning Note if applicable */}
                         {quoteResult.initialCleaningRequired && (
