@@ -607,6 +607,9 @@ export default function SurveyBuilderPage() {
                                   <SelectItem value="next">
                                     <span className="text-sm">→ Next Question</span>
                                   </SelectItem>
+                                  <SelectItem value="__END__">
+                                    <span className="text-sm">🏁 Skip to Quote Summary</span>
+                                  </SelectItem>
                                   {questions
                                     .filter(q => q.order > (editingQuestion.order || 0))
                                     .sort((a, b) => a.order - b.order)
@@ -619,7 +622,11 @@ export default function SurveyBuilderPage() {
                               </Select>
                               {option.skipToQuestionId && (
                                 <p className="text-xs text-blue-600 mt-1">
-                                  ✓ Will skip to: {questions.find(q => q.id === option.skipToQuestionId)?.label}
+                                  ✓ Will skip to: {
+                                    option.skipToQuestionId === '__END__' 
+                                      ? 'Quote Summary (End of Form)' 
+                                      : questions.find(q => q.id === option.skipToQuestionId)?.label
+                                  }
                                 </p>
                               )}
                             </div>

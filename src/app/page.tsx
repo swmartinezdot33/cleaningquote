@@ -480,6 +480,11 @@ export default function Home() {
     
     // If option has a skipToQuestionId, find that question's index
     if (selectedOption?.skipToQuestionId) {
+      // Special case: "__END__" means skip to the end (trigger form submission)
+      if (selectedOption.skipToQuestionId === '__END__') {
+        return questions.length; // Return length to trigger form submission
+      }
+      
       const skipToIndex = questions.findIndex(q => q.id === selectedOption.skipToQuestionId);
       if (skipToIndex !== -1) {
         return skipToIndex;
