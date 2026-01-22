@@ -258,6 +258,21 @@ export default function SurveyBuilderPage() {
         }
       } else {
         // Update existing question
+        // Ensure ghlFieldMapping is included in updates (even if undefined)
+        const updates = {
+          ...editingQuestion,
+          // Explicitly include ghlFieldMapping to ensure it's preserved or cleared
+          ghlFieldMapping: editingQuestion.ghlFieldMapping,
+        };
+        
+        console.log('💾 Saving question update with GHL mapping:', {
+          id: editingQuestion.id,
+          label: editingQuestion.label,
+          ghlFieldMapping: editingQuestion.ghlFieldMapping,
+          hasMapping: !!editingQuestion.ghlFieldMapping,
+          updates,
+        });
+        
         const response = await fetch('/api/surveys/questions', {
           method: 'POST',
           headers: {
@@ -267,7 +282,7 @@ export default function SurveyBuilderPage() {
           body: JSON.stringify({
             action: 'update',
             id: editingQuestion.id,
-            updates: editingQuestion,
+            updates: updates,
           }),
         });
 

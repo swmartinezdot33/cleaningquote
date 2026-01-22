@@ -43,6 +43,24 @@ export async function getSurveyQuestions(): Promise<SurveyQuestion[]> {
       }
       return await initializeSurvey();
     }
+    
+    // Log questions with mappings for debugging
+    const questionsWithMappings = questions.filter(q => q.ghlFieldMapping && q.ghlFieldMapping.trim() !== '');
+    if (questionsWithMappings.length > 0) {
+      console.log('📋 Loaded survey questions with GHL mappings:', {
+        totalQuestions: questions.length,
+        questionsWithMappings: questionsWithMappings.length,
+        mappings: questionsWithMappings.map(q => ({
+          id: q.id,
+          sanitizedId: q.id.replace(/\./g, '_'),
+          label: q.label,
+          ghlFieldMapping: q.ghlFieldMapping,
+        })),
+      });
+    } else {
+      console.warn('⚠️ No GHL field mappings found in loaded questions!');
+    }
+    
     return questions.sort((a, b) => a.order - b.order);
   } catch (error) {
     // If KV fails (e.g., in local dev without KV configured), return defaults
@@ -73,21 +91,31 @@ export async function saveSurveyQuestions(questions: SurveyQuestion[]): Promise<
     const sorted = [...questions].sort((a, b) => a.order - b.order);
 
     // Log questions with GHL mappings before saving
-    const questionsWithMappings = sorted.filter(q => q.ghlFieldMapping);
+    const questionsWithMappings = sorted.filter(q => q.ghlFieldMapping && q.ghlFieldMapping.trim() !== '');
     if (questionsWithMappings.length > 0) {
       console.log('💾 Saving survey questions with GHL mappings:', {
         totalQuestions: sorted.length,
         questionsWithMappings: questionsWithMappings.length,
         mappings: questionsWithMappings.map(q => ({
           id: q.id,
+          sanitizedId: q.id.replace(/\./g, '_'),
           label: q.label,
           ghlFieldMapping: q.ghlFieldMapping,
         })),
       });
+    } else {
+      console.warn('⚠️ No GHL field mappings found in questions being saved!');
     }
 
+    // Ensure all fields are preserved (including ghlFieldMapping)
+    const questionsToSave = sorted.map(q => ({
+      ...q,
+      // Explicitly preserve ghlFieldMapping even if it's undefined
+      ghlFieldMapping: q.ghlFieldMapping,
+    }));
+
     // Save to KV
-    await kv.set(SURVEY_QUESTIONS_KEY, sorted);
+    await kv.set(SURVEY_QUESTIONS_KEY, questionsToSave);
 
     return sorted;
   } catch (error) {

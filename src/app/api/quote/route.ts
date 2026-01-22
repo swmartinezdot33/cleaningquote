@@ -170,42 +170,54 @@ export async function POST(request: NextRequest) {
         });
 
         // Enhanced logging to verify mappings are loaded correctly
-        const questionsWithMappings = surveyQuestions.filter(q => q.ghlFieldMapping);
+        const questionsWithMappings = surveyQuestions.filter(q => q.ghlFieldMapping && q.ghlFieldMapping.trim() !== '');
         console.log('🔍 Custom field mapping debug:', {
           surveyQuestionCount: surveyQuestions.length,
           questionsWithMappings: questionsWithMappings.length,
           mappingsFound: Array.from(fieldIdToMapping.entries()).map(([id, mapping]) => ({ id, mapping })),
           bodyKeys: Object.keys(body),
+          bodyKeysWithValues: Object.keys(body).filter(key => body[key] !== undefined && body[key] !== null && body[key] !== ''),
           allQuestionsWithMappings: questionsWithMappings.map(q => ({
             id: q.id,
+            sanitizedId: q.id.replace(/\./g, '_'),
             label: q.label,
             ghlFieldMapping: q.ghlFieldMapping,
           })),
-          sampleQuestions: surveyQuestions.slice(0, 5).map(q => ({
+          sampleQuestions: surveyQuestions.slice(0, 10).map(q => ({
             id: q.id,
+            sanitizedId: q.id.replace(/\./g, '_'),
             label: q.label,
-            hasMapping: !!q.ghlFieldMapping,
+            hasMapping: !!q.ghlFieldMapping && q.ghlFieldMapping.trim() !== '',
             mapping: q.ghlFieldMapping,
           })),
+          fieldIdToMappingSize: fieldIdToMapping.size,
         });
 
         // Iterate through ALL fields in the body and map them to GHL fields
         // This ensures we capture all survey data, including fields that might not match exactly
+        let mappedFieldsCount = 0;
+        let skippedFieldsCount = 0;
+        
         Object.keys(body).forEach((bodyKey) => {
           const fieldValue = body[bodyKey];
           
           // Skip if value is empty or undefined
-          if (fieldValue === undefined || fieldValue === null || fieldValue === '') return;
+          if (fieldValue === undefined || fieldValue === null || fieldValue === '') {
+            skippedFieldsCount++;
+            return;
+          }
           
           // Get the mapping for this field (should work since we mapped sanitized versions)
           const mapping = fieldIdToMapping.get(bodyKey);
           
           if (!mapping) {
             // No mapping found - this field won't be sent to GHL
+            skippedFieldsCount++;
             console.log(`⏭️  Skipping unmapped field "${bodyKey}": ${fieldValue}`);
             return;
           }
           
+          mappedFieldsCount++;
           console.log(`🔍 Mapping field "${bodyKey}":`, {
             bodyKey,
             fieldValue,
@@ -221,6 +233,13 @@ export async function POST(request: NextRequest) {
             contactData.customFields![mapping] = String(fieldValue);
             console.log(`✅ Added custom field: ${mapping} = ${fieldValue}`);
           }
+        });
+        
+        console.log('📊 Field mapping summary:', {
+          totalBodyFields: Object.keys(body).length,
+          mappedFields: mappedFieldsCount,
+          skippedFields: skippedFieldsCount,
+          customFieldsCount: Object.keys(contactData.customFields || {}).length,
         });
 
         // Fallback to direct body fields if no mappings exist (backward compatibility)
