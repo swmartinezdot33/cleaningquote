@@ -2481,7 +2481,7 @@ export default function Home() {
                                     }
                                   }}
                                   className={`
-                                    relative h-32 sm:h-40 md:h-44 lg:h-48 rounded-2xl sm:rounded-3xl font-medium 
+                                    relative h-40 sm:h-40 md:h-44 lg:h-48 rounded-2xl sm:rounded-3xl font-medium 
                                     text-sm sm:text-base md:text-base
                                     transition-all duration-300 border-2 shadow-lg
                                     flex flex-col items-center justify-center px-5 py-6 sm:px-6 sm:py-8
