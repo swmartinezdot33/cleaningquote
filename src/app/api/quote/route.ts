@@ -159,20 +159,29 @@ export async function POST(request: NextRequest) {
         // The form sanitizes field IDs (replaces dots with underscores), so we need to map both versions
         const fieldIdToMapping = new Map<string, string>();
         surveyQuestions.forEach((question: SurveyQuestion) => {
-          if (question.ghlFieldMapping) {
+          // Only process questions that have a ghlFieldMapping set (not null, not undefined, not empty string)
+          if (question.ghlFieldMapping && question.ghlFieldMapping.trim() !== '') {
             // Map original question ID
-            fieldIdToMapping.set(question.id, question.ghlFieldMapping);
+            fieldIdToMapping.set(question.id, question.ghlFieldMapping.trim());
             // Also map sanitized version (dots replaced with underscores) - this is what's in the body
             const sanitizedId = question.id.replace(/\./g, '_');
-            fieldIdToMapping.set(sanitizedId, question.ghlFieldMapping);
+            fieldIdToMapping.set(sanitizedId, question.ghlFieldMapping.trim());
           }
         });
 
+        // Enhanced logging to verify mappings are loaded correctly
+        const questionsWithMappings = surveyQuestions.filter(q => q.ghlFieldMapping);
         console.log('🔍 Custom field mapping debug:', {
           surveyQuestionCount: surveyQuestions.length,
+          questionsWithMappings: questionsWithMappings.length,
           mappingsFound: Array.from(fieldIdToMapping.entries()).map(([id, mapping]) => ({ id, mapping })),
           bodyKeys: Object.keys(body),
-          sampleQuestions: surveyQuestions.slice(0, 3).map(q => ({
+          allQuestionsWithMappings: questionsWithMappings.map(q => ({
+            id: q.id,
+            label: q.label,
+            ghlFieldMapping: q.ghlFieldMapping,
+          })),
+          sampleQuestions: surveyQuestions.slice(0, 5).map(q => ({
             id: q.id,
             label: q.label,
             hasMapping: !!q.ghlFieldMapping,
@@ -261,6 +270,11 @@ export async function POST(request: NextRequest) {
           tags: contactData.tags,
           customFieldsCount: Object.keys(contactData.customFields || {}).length,
           customFields: contactData.customFields,
+          customFieldsDetail: contactData.customFields ? Object.entries(contactData.customFields).map(([key, value]) => ({
+            ghlFieldKey: key,
+            value: value,
+            valueType: typeof value,
+          })) : [],
         });
 
         // Pass additional tags (in-service tags)

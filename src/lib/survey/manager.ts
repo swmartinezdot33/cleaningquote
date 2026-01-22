@@ -72,6 +72,20 @@ export async function saveSurveyQuestions(questions: SurveyQuestion[]): Promise<
     // Sort by order before saving
     const sorted = [...questions].sort((a, b) => a.order - b.order);
 
+    // Log questions with GHL mappings before saving
+    const questionsWithMappings = sorted.filter(q => q.ghlFieldMapping);
+    if (questionsWithMappings.length > 0) {
+      console.log('💾 Saving survey questions with GHL mappings:', {
+        totalQuestions: sorted.length,
+        questionsWithMappings: questionsWithMappings.length,
+        mappings: questionsWithMappings.map(q => ({
+          id: q.id,
+          label: q.label,
+          ghlFieldMapping: q.ghlFieldMapping,
+        })),
+      });
+    }
+
     // Save to KV
     await kv.set(SURVEY_QUESTIONS_KEY, sorted);
 
@@ -130,14 +144,28 @@ export async function updateQuestion(id: string, updates: Partial<SurveyQuestion
       console.warn(`⚠️ Warning: Changing type of core field "${id}" from ${question.type} to ${updates.type}`);
     }
 
-    // Merge updates
-    const updated = { ...question, ...updates, id }; // Force ID to stay the same
+    // Merge updates - explicitly preserve ghlFieldMapping if it's being set to undefined (to clear mapping)
+    const updated = { 
+      ...question, 
+      ...updates, 
+      id, // Force ID to stay the same
+      // Explicitly handle ghlFieldMapping - if it's in updates (even if undefined), use it
+      // This allows clearing a mapping by setting it to undefined
+      ...(updates.hasOwnProperty('ghlFieldMapping') ? { ghlFieldMapping: updates.ghlFieldMapping } : {})
+    };
 
     // Validate
     const validation = validateSurveyQuestion(updated);
     if (!validation.valid) {
       throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
     }
+
+    console.log('📝 Updating question with GHL mapping:', {
+      id: updated.id,
+      label: updated.label,
+      ghlFieldMapping: updated.ghlFieldMapping,
+      hasMapping: !!updated.ghlFieldMapping,
+    });
 
     questions[index] = updated;
     return saveSurveyQuestions(questions);
