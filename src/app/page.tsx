@@ -417,7 +417,7 @@ export default function Home() {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
-  // Helper function to format date as DD/MM/YYYY
+  // Helper function to format date as MM/DD/YYYY
   const formatDateDDMMYYYY = (date: string): string => {
     if (!date) return '';
     
@@ -426,7 +426,7 @@ export default function Home() {
     if (parts.length !== 3) return date; // Return as-is if invalid format
     
     const [year, month, day] = parts;
-    return `${day}/${month}/${year}`;
+    return `${month}/${day}/${year}`;
   };
 
   // Helper function to convert hex to HSL for Tailwind CSS variables
