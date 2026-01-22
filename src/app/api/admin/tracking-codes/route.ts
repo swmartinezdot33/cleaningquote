@@ -9,6 +9,8 @@ interface TrackingCodes {
   facebookPixelId?: string;
   metaPixelId?: string;
   customHeadCode?: string;
+  googleAdsConversionId?: string;
+  googleAdsConversionLabel?: string;
 }
 
 /**
@@ -54,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { googleAnalyticsId, googleTagManagerId, facebookPixelId, metaPixelId, customHeadCode } = body;
+    const { googleAnalyticsId, googleTagManagerId, facebookPixelId, metaPixelId, customHeadCode, googleAdsConversionId, googleAdsConversionLabel } = body;
 
     // Build tracking codes object (only include non-empty values)
     const trackingCodes: TrackingCodes = {};
@@ -64,6 +66,8 @@ export async function POST(request: NextRequest) {
     if (facebookPixelId?.trim()) trackingCodes.facebookPixelId = facebookPixelId.trim();
     if (metaPixelId?.trim()) trackingCodes.metaPixelId = metaPixelId.trim();
     if (customHeadCode?.trim()) trackingCodes.customHeadCode = customHeadCode.trim();
+    if (googleAdsConversionId?.trim()) trackingCodes.googleAdsConversionId = googleAdsConversionId.trim();
+    if (googleAdsConversionLabel?.trim()) trackingCodes.googleAdsConversionLabel = googleAdsConversionLabel.trim();
 
     await kv.set(TRACKING_CODES_KEY, trackingCodes);
 

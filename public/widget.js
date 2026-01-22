@@ -171,12 +171,19 @@
       }
     }
     
-    // Google Ads conversion tracking (if configured)
-    if (eventType === 'quote_submitted' && typeof gtag !== 'undefined') {
-      // Fire conversion event - conversion ID should be configured in parent page
-      gtag('event', 'conversion', {
-        'send_to': 'AW-CONVERSION_ID/CONVERSION_LABEL', // These need to be configured
-      });
+    // Google Ads conversion tracking
+    if (typeof gtag !== 'undefined') {
+      // Get conversion ID and label from window (set by parent page or this script)
+      const conversionId = window.__GOOGLE_ADS_CONVERSION_ID;
+      const conversionLabel = window.__GOOGLE_ADS_CONVERSION_LABEL;
+      
+      if (conversionId && conversionLabel) {
+        if (eventType === 'quote_submitted' || eventType === 'appointment_booked') {
+          gtag('event', 'conversion', {
+            'send_to': `${conversionId}/${conversionLabel}`,
+          });
+        }
+      }
     }
   }
 

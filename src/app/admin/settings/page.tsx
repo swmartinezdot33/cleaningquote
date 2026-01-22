@@ -41,6 +41,10 @@ export default function SettingsPage() {
   const [isSavingTracking, setIsSavingTracking] = useState(false);
   const [trackingMessage, setTrackingMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Google Ads Conversion Tracking State
+  const [googleAdsConversionId, setGoogleAdsConversionId] = useState('');
+  const [googleAdsConversionLabel, setGoogleAdsConversionLabel] = useState('');
+
   // Form Settings State
   const [firstNameParam, setFirstNameParam] = useState('');
   const [lastNameParam, setLastNameParam] = useState('');
@@ -926,6 +930,8 @@ export default function SettingsPage() {
         setGoogleTagManagerId(data.trackingCodes.googleTagManagerId || '');
         setMetaPixelId(data.trackingCodes.metaPixelId || '');
         setCustomHeadCode(data.trackingCodes.customHeadCode || '');
+        setGoogleAdsConversionId(data.trackingCodes.googleAdsConversionId || '');
+        setGoogleAdsConversionLabel(data.trackingCodes.googleAdsConversionLabel || '');
       }
     } catch (error) {
       console.error('Error loading tracking codes:', error);
@@ -974,6 +980,8 @@ export default function SettingsPage() {
           googleTagManagerId,
           metaPixelId,
           customHeadCode,
+          googleAdsConversionId,
+          googleAdsConversionLabel,
         }),
       });
 
@@ -2634,20 +2642,60 @@ export default function SettingsPage() {
                   </p>
                 </div>
 
-                <div>
-                  <Label htmlFor="custom-code" className="text-base font-semibold">
-                    Custom Head Code
-                  </Label>
-                  <textarea
-                    id="custom-code"
-                    value={customHeadCode}
-                    onChange={(e) => setCustomHeadCode(e.target.value)}
-                    placeholder="&lt;script&gt;...&lt;/script&gt;"
-                    className="mt-2 w-full h-32 px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"
-                  />
-                  <p className="text-sm text-gray-600 mt-1">
-                    Any additional tracking or custom scripts to add to the page head
-                  </p>
+                <div className="pt-4 border-t border-gray-200">
+                  <h4 className="font-semibold text-gray-900 mb-4 text-lg">Google Ads Conversion Tracking</h4>
+                  
+                  <div>
+                    <Label htmlFor="google-ads-conversion-id" className="text-base font-semibold">
+                      Google Ads Conversion ID
+                    </Label>
+                    <Input
+                      id="google-ads-conversion-id"
+                      value={googleAdsConversionId}
+                      onChange={(e) => setGoogleAdsConversionId(e.target.value)}
+                      placeholder="AW-123456789"
+                      className="mt-3"
+                    />
+                    <p className="text-sm text-gray-600 mt-1">
+                      Your Google Ads conversion ID (found in Google Ads conversion tracking setup)
+                    </p>
+                  </div>
+
+                  <div className="mt-4">
+                    <Label htmlFor="google-ads-conversion-label" className="text-base font-semibold">
+                      Google Ads Conversion Label
+                    </Label>
+                    <Input
+                      id="google-ads-conversion-label"
+                      value={googleAdsConversionLabel}
+                      onChange={(e) => setGoogleAdsConversionLabel(e.target.value)}
+                      placeholder="abCdEfGhIjKlMnOpQrSt"
+                      className="mt-3"
+                    />
+                    <p className="text-sm text-gray-600 mt-1">
+                      Your Google Ads conversion label for tracking quote submissions and appointments
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-gray-200">
+                  <h4 className="font-semibold text-gray-900 mb-4 text-lg">Additional Tracking</h4>
+
+                  <div>
+                    <Label htmlFor="custom-code" className="text-base font-semibold">
+                      Custom Head Code
+                    </Label>
+                    <textarea
+                      id="custom-code"
+                      value={customHeadCode}
+                      onChange={(e) => setCustomHeadCode(e.target.value)}
+                      placeholder="&lt;script&gt;...&lt;/script&gt;"
+                      className="mt-2 w-full h-32 px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"
+                    />
+                    <p className="text-sm text-gray-600 mt-1">
+                      Any additional tracking or custom scripts to add to the page head
+                    </p>
+                  </div>
                 </div>
 
                 <Button

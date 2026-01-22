@@ -23,6 +23,8 @@ interface TrackingCodes {
   facebookPixelId?: string;
   metaPixelId?: string;
   customHeadCode?: string;
+  googleAdsConversionId?: string;
+  googleAdsConversionLabel?: string;
 }
 
 export default async function RootLayout({
@@ -94,6 +96,18 @@ export default async function RootLayout({
                 'https://connect.facebook.net/en_US/fbevents.js');
                 fbq('init', '${trackingCodes.metaPixelId}');
                 fbq('track', 'PageView');
+              `,
+            }}
+          />
+        )}
+
+        {/* Google Ads Conversion Tracking Setup */}
+        {trackingCodes.googleAdsConversionId && trackingCodes.googleAdsConversionLabel && (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                window.__GOOGLE_ADS_CONVERSION_ID = '${trackingCodes.googleAdsConversionId}';
+                window.__GOOGLE_ADS_CONVERSION_LABEL = '${trackingCodes.googleAdsConversionLabel}';
               `,
             }}
           />
