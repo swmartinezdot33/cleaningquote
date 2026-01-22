@@ -147,8 +147,12 @@ export async function createOrUpdateContact(
       locationId: finalLocationId, // locationId must be in the request body, not URL path
       ...(contactData.email && { email: contactData.email }),
       ...(contactData.phone && { phone: contactData.phone }),
-      ...(contactData.source && { source: contactData.source }),
       ...(contactData.address1 && { address1: contactData.address1 }),
+      ...(contactData.city && { city: contactData.city }),
+      ...(contactData.state && { state: contactData.state }),
+      ...(contactData.postalCode && { postalCode: contactData.postalCode }),
+      ...(contactData.country && { country: contactData.country }),
+      ...(contactData.source && { source: contactData.source }),
       ...(allTags.length > 0 && { tags: allTags }),
       ...(customFieldsArray && customFieldsArray.length > 0 && {
         customFields: customFieldsArray,

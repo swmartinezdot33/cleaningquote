@@ -155,6 +155,23 @@ export async function POST(request: NextRequest) {
             customFields: {},
           };
 
+        // Add address information if provided
+        if (body.address) {
+          contactData.address1 = body.address;
+        }
+        if (body.city) {
+          contactData.city = body.city;
+        }
+        if (body.state) {
+          contactData.state = body.state;
+        }
+        if (body.postalCode) {
+          contactData.postalCode = body.postalCode;
+        }
+        if (body.country) {
+          contactData.country = body.country;
+        }
+
         // Build a map of field IDs (both original and sanitized) to their GHL custom field mappings
         // The form sanitizes field IDs (replaces dots with underscores), so we need to map both versions
         const fieldIdToMapping = new Map<string, string>();
@@ -224,10 +241,12 @@ export async function POST(request: NextRequest) {
             mapping,
           });
           
-          // Handle native fields (firstName, lastName, email, phone)
-          if (mapping === 'firstName' || mapping === 'lastName' || mapping === 'email' || mapping === 'phone') {
-            contactData[mapping] = String(fieldValue);
-            console.log(`✅ Mapped to native field: ${mapping} = ${fieldValue}`);
+          // Handle native fields (firstName, lastName, email, phone, address1, city, state, postalCode, country)
+          if (mapping === 'firstName' || mapping === 'lastName' || mapping === 'email' || mapping === 'phone' || mapping === 'address1' || mapping === 'address' || mapping === 'city' || mapping === 'state' || mapping === 'postalCode' || mapping === 'country') {
+            // Map address -> address1 for consistency with GHL API
+            const nativeFieldName = mapping === 'address' ? 'address1' : mapping;
+            contactData[nativeFieldName] = String(fieldValue);
+            console.log(`✅ Mapped to native field: ${nativeFieldName} = ${fieldValue}`);
           } else {
             // Custom field with explicit mapping - use the mapped GHL custom field key
             contactData.customFields![mapping] = String(fieldValue);
