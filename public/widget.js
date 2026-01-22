@@ -83,14 +83,72 @@
     container.innerHTML = '';
     container.appendChild(iframe);
 
-    // Handle postMessage communication for responsive sizing
+    // Handle postMessage communication for responsive sizing and tracking events
     window.addEventListener('message', function (event) {
       if (event.origin !== baseUrl) return;
 
       if (event.data.type === 'widget:resize') {
         iframe.style.minHeight = event.data.height + 'px';
       }
+      
+      // Handle tracking events
+      if (event.data.type === 'widget:tracking') {
+        handleTrackingEvent(event.data.eventType, event.data.eventData);
+      }
     });
+  }
+  
+  // Function to fire tracking events in parent window
+  function handleTrackingEvent(eventType, eventData) {
+    // Google Analytics / gtag
+    if (typeof gtag !== 'undefined') {
+      if (eventType === 'quote_submitted') {
+        gtag('event', 'quote_submitted', {
+          event_category: 'Quote',
+          event_label: eventData.serviceType || 'unknown',
+          value: 1,
+        });
+      } else if (eventType === 'appointment_booked') {
+        gtag('event', 'appointment_booked', {
+          event_category: 'Booking',
+          event_label: eventData.serviceType || 'unknown',
+          value: 1,
+        });
+      }
+    }
+    
+    // Google Tag Manager dataLayer
+    if (typeof dataLayer !== 'undefined') {
+      dataLayer.push({
+        event: eventType,
+        eventCategory: eventType === 'quote_submitted' ? 'Quote' : 'Booking',
+        eventLabel: eventData.serviceType || 'unknown',
+        ...eventData,
+      });
+    }
+    
+    // Meta Pixel / Facebook Pixel
+    if (typeof fbq !== 'undefined') {
+      if (eventType === 'quote_submitted') {
+        fbq('track', 'Lead', {
+          content_name: 'Quote Request',
+          content_category: eventData.serviceType || 'unknown',
+        });
+      } else if (eventType === 'appointment_booked') {
+        fbq('track', 'Schedule', {
+          content_name: 'Appointment Booked',
+          content_category: eventData.serviceType || 'unknown',
+        });
+      }
+    }
+    
+    // Google Ads conversion tracking (if configured)
+    if (eventType === 'quote_submitted' && typeof gtag !== 'undefined') {
+      // Fire conversion event - conversion ID should be configured in parent page
+      gtag('event', 'conversion', {
+        'send_to': 'AW-CONVERSION_ID/CONVERSION_LABEL', // These need to be configured
+      });
+    }
   }
 
   // Initialize when DOM is ready

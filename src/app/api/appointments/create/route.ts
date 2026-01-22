@@ -58,11 +58,19 @@ export async function POST(request: NextRequest) {
       const locationId = await getGHLLocationId();
       // Try with locationId in query string (for location-level tokens)
       const endpoint = locationId ? `/contacts/${contactId}?locationId=${locationId}` : `/contacts/${contactId}`;
-      const contactResponse = await makeGHLRequest<{ contact?: { firstName?: string; lastName?: string; name?: string } }>(
+      const contactResponse = await makeGHLRequest<{ contact?: { firstName?: string; lastName?: string; name?: string } } | { firstName?: string; lastName?: string; name?: string }>(
         endpoint,
         'GET'
       );
-      const contact = contactResponse.contact || contactResponse;
+      
+      // Handle both response formats: { contact: {...} } or direct contact object
+      let contact: { firstName?: string; lastName?: string; name?: string } | undefined;
+      if ('contact' in contactResponse && contactResponse.contact) {
+        contact = contactResponse.contact;
+      } else if ('firstName' in contactResponse || 'lastName' in contactResponse || 'name' in contactResponse) {
+        contact = contactResponse as { firstName?: string; lastName?: string; name?: string };
+      }
+      
       if (contact) {
         if (contact.firstName || contact.lastName) {
           contactName = [contact.firstName, contact.lastName].filter(Boolean).join(' ').trim();

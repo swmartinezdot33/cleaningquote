@@ -802,6 +802,25 @@ export default function Home() {
     }
   };
 
+  // Helper function to send tracking events to parent window
+  const sendTrackingEvent = (eventType: 'quote_submitted' | 'appointment_booked', eventData?: Record<string, any>) => {
+    // Only send if we're in an iframe
+    if (window.self !== window.top) {
+      try {
+        // Get the origin from the current URL to ensure security
+        const origin = window.location.origin;
+        window.parent.postMessage({
+          type: 'widget:tracking',
+          eventType,
+          eventData: eventData || {},
+          timestamp: Date.now(),
+        }, origin);
+      } catch (error) {
+        console.warn('Failed to send tracking event:', error);
+      }
+    }
+  };
+
   const handleFormSubmit = async () => {
     setIsLoading(true);
     setQuoteResult(null);
@@ -863,6 +882,18 @@ export default function Home() {
 
       const result = await response.json();
       setQuoteResult(result);
+      
+      // Send tracking event for quote submission
+      if (result && !result.outOfLimits) {
+        sendTrackingEvent('quote_submitted', {
+          serviceType: formData.serviceType,
+          frequency: formData.frequency,
+          squareFeet: formData.squareFeet,
+          people: formData.people,
+          pets: formData.sheddingPets,
+        });
+      }
+      
       // Store the selected service type and frequency for display
       // Always set serviceType - it's required in the form
       setSelectedServiceType(formData.serviceType || '');
@@ -953,6 +984,14 @@ export default function Home() {
       const data = await response.json();
 
       if (response.ok) {
+        // Send tracking event for appointment booking
+        sendTrackingEvent('appointment_booked', {
+          serviceType: selectedServiceType,
+          frequency: selectedFrequency,
+          date: finalDate,
+          time: finalTime,
+        });
+        
         setBookingMessage({ type: 'success', text: 'Appointment booked successfully!' });
         setAppointmentConfirmed(true);
         setShowAppointmentForm(false);
