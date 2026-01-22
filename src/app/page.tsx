@@ -1752,10 +1752,12 @@ export default function Home() {
                           <CalendarBooking
                             type="appointment"
                             onConfirm={(date, time, notes) => {
+                              // Update state for display
                               setAppointmentDate(date);
                               setAppointmentTime(time);
                               setAppointmentNotes(notes);
-                              handleBookAppointment();
+                              // Pass values directly to avoid async state update issue
+                              handleBookAppointment(date, time, notes);
                             }}
                             onCancel={() => {
                               setShowAppointmentForm(false);
@@ -2334,6 +2336,8 @@ export default function Home() {
                                     transition-all duration-300 border-2 shadow-lg
                                     flex flex-col items-center justify-center px-3 py-4
                                     text-center leading-tight
+                                    overflow-hidden break-words whitespace-normal
+                                    min-w-0 w-full
                                     ${isSelected 
                                       ? 'shadow-2xl' 
                                       : 'hover:shadow-xl bg-gradient-to-br from-gray-50 to-white'
@@ -2351,20 +2355,20 @@ export default function Home() {
                                       initial={{ scale: 0.8, opacity: 0 }}
                                       animate={{ scale: 1, opacity: 1 }}
                                       transition={{ type: 'spring', bounce: 0.3, duration: 0.4 }}
-                                      className="relative z-10 flex flex-col items-center justify-center gap-1"
+                                      className="relative z-10 flex flex-col items-center justify-center gap-1 w-full px-1 overflow-hidden"
                                     >
-                                      <span className="text-xs sm:text-sm md:text-sm font-semibold leading-tight">{mainText}</span>
+                                      <span className="text-xs sm:text-sm md:text-sm font-semibold leading-tight break-words whitespace-normal w-full">{mainText}</span>
                                       {detailsText && (
-                                        <span className="text-[10px] sm:text-[11px] md:text-xs opacity-90 font-normal leading-tight text-center px-1">
+                                        <span className="text-[10px] sm:text-[11px] md:text-xs opacity-90 font-normal leading-tight text-center px-1 break-words whitespace-normal w-full">
                                           {detailsText}
                                         </span>
                                       )}
                                     </motion.div>
                                   ) : (
-                                    <span className="relative z-10 flex flex-col items-center justify-center gap-1">
-                                      <span className="text-xs sm:text-sm md:text-sm font-semibold leading-tight">{mainText}</span>
+                                    <span className="relative z-10 flex flex-col items-center justify-center gap-1 w-full px-1 overflow-hidden">
+                                      <span className="text-xs sm:text-sm md:text-sm font-semibold leading-tight break-words whitespace-normal w-full">{mainText}</span>
                                       {detailsText && (
-                                        <span className="text-[10px] sm:text-[11px] md:text-xs opacity-75 font-normal leading-tight text-center px-1">
+                                        <span className="text-[10px] sm:text-[11px] md:text-xs opacity-75 font-normal leading-tight text-center px-1 break-words whitespace-normal w-full">
                                           {detailsText}
                                         </span>
                                       )}

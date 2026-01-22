@@ -307,9 +307,24 @@ export function CalendarBooking({
   };
 
   const handleConfirm = () => {
-    if (selectedDate && selectedTime) {
-      onConfirm(selectedDate, selectedTime, notes);
+    // Validate that both date and time are selected and not empty
+    if (!selectedDate || !selectedTime || selectedDate.trim() === '' || selectedTime.trim() === '') {
+      console.error('[CalendarBooking] Cannot confirm - missing date or time:', {
+        selectedDate,
+        selectedTime,
+        hasDate: !!selectedDate,
+        hasTime: !!selectedTime,
+      });
+      return;
     }
+    
+    console.log('[CalendarBooking] Confirming appointment:', {
+      date: selectedDate,
+      time: selectedTime,
+      notes: notes || '(none)',
+    });
+    
+    onConfirm(selectedDate, selectedTime, notes || '');
   };
 
   const handlePreviousMonth = () => {
