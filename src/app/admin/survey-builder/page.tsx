@@ -559,35 +559,70 @@ export default function SurveyBuilderPage() {
                       <Label>Options</Label>
                       <div className="space-y-2">
                         {(editingQuestion.options || []).map((option, idx) => (
-                          <div key={idx} className="flex gap-2">
-                            <Input
-                              value={option.value}
-                              onChange={(e) => {
-                                const newOptions = [...(editingQuestion.options || [])];
-                                newOptions[idx].value = e.target.value;
-                                setEditingQuestion({ ...editingQuestion, options: newOptions });
-                              }}
-                              placeholder="Value"
-                            />
-                            <Input
-                              value={option.label}
-                              onChange={(e) => {
-                                const newOptions = [...(editingQuestion.options || [])];
-                                newOptions[idx].label = e.target.value;
-                                setEditingQuestion({ ...editingQuestion, options: newOptions });
-                              }}
-                              placeholder="Label"
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                const newOptions = (editingQuestion.options || []).filter((_, i) => i !== idx);
-                                setEditingQuestion({ ...editingQuestion, options: newOptions });
-                              }}
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
+                          <div key={idx} className="flex flex-col gap-2 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                            <div className="flex gap-2">
+                              <Input
+                                value={option.value}
+                                onChange={(e) => {
+                                  const newOptions = [...(editingQuestion.options || [])];
+                                  newOptions[idx].value = e.target.value;
+                                  setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                }}
+                                placeholder="Value"
+                              />
+                              <Input
+                                value={option.label}
+                                onChange={(e) => {
+                                  const newOptions = [...(editingQuestion.options || [])];
+                                  newOptions[idx].label = e.target.value;
+                                  setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                }}
+                                placeholder="Label"
+                              />
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const newOptions = (editingQuestion.options || []).filter((_, i) => i !== idx);
+                                  setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                }}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                            <div>
+                              <Label className="text-xs">Skip to question (optional):</Label>
+                              <Select
+                                value={option.skipToQuestionId || ''}
+                                onValueChange={(value) => {
+                                  const newOptions = [...(editingQuestion.options || [])];
+                                  newOptions[idx].skipToQuestionId = value === 'next' ? undefined : value;
+                                  setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                }}
+                              >
+                                <SelectTrigger className="mt-1">
+                                  <SelectValue placeholder="Select question to skip to" />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-[200px]">
+                                  <SelectItem value="next">
+                                    <span className="text-sm">→ Next Question</span>
+                                  </SelectItem>
+                                  {questions
+                                    .filter(q => q.order > (editingQuestion.order || 0))
+                                    .sort((a, b) => a.order - b.order)
+                                    .map((q) => (
+                                      <SelectItem key={q.id} value={q.id}>
+                                        <span className="text-sm">Q{q.order + 1}: {q.label.substring(0, 40)}</span>
+                                      </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                              {option.skipToQuestionId && (
+                                <p className="text-xs text-blue-600 mt-1">
+                                  ✓ Will skip to: {questions.find(q => q.id === option.skipToQuestionId)?.label}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         ))}
                         <Button

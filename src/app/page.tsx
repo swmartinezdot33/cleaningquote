@@ -456,6 +456,67 @@ export default function Home() {
     return `${h} ${s}% ${l}%`;
   };
 
+  // Helper function to determine the next question index based on skip rules
+  const getNextQuestionIndex = (currentIndex: number, fieldName: string): number => {
+    if (currentIndex >= questions.length - 1) {
+      return questions.length - 1; // Already at last question
+    }
+
+    const currentQuestion = questions[currentIndex];
+    
+    // Only select-type questions can have skip rules
+    if (currentQuestion.type !== 'select') {
+      return currentIndex + 1; // Go to next question
+    }
+
+    // Get the current answer value
+    const currentValue = getValues(fieldName);
+    if (!currentValue) {
+      return currentIndex + 1; // No answer yet, go to next
+    }
+
+    // Find the option that matches the current value
+    const selectedOption = currentQuestion.options?.find(opt => opt.value === currentValue);
+    
+    // If option has a skipToQuestionId, find that question's index
+    if (selectedOption?.skipToQuestionId) {
+      const skipToIndex = questions.findIndex(q => q.id === selectedOption.skipToQuestionId);
+      if (skipToIndex !== -1) {
+        return skipToIndex;
+      }
+    }
+
+    // Default: go to next question
+    return currentIndex + 1;
+  };
+
+  // Helper function to get the previous question index, respecting skip rules
+  const getPreviousQuestionIndex = (currentIndex: number): number => {
+    if (currentIndex <= 0) {
+      return 0;
+    }
+    
+    // Simply go to previous question (backwards skip logic is not needed)
+    return currentIndex - 1;
+  };
+
+  // Helper function to check if a question should be visible/required
+  // A question is visible if we reach it following the skip path from the beginning
+  const isQuestionVisible = (questionIndex: number): boolean => {
+    let currentIndex = 0;
+    
+    while (currentIndex < questionIndex) {
+      const nextIndex = getNextQuestionIndex(currentIndex, getFormFieldName(questions[currentIndex].id));
+      if (nextIndex === currentIndex) {
+        // Prevent infinite loop
+        return false;
+      }
+      currentIndex = nextIndex;
+    }
+    
+    return currentIndex === questionIndex;
+  };
+
   // Generate default values from questions
   // Never preselect values - all fields start empty/undefined so users must make a choice
   const getDefaultValues = () => {
@@ -731,8 +792,14 @@ export default function Home() {
           console.warn('Invalid coordinates (0,0) - skipping service area check. Address may need to be geocoded.');
           setServiceAreaChecked(true);
           setDirection(1);
-          if (currentStep < questions.length - 1) {
-            setCurrentStep(currentStep + 1);
+          
+          // Calculate next step based on skip rules
+          const nextIndex = getNextQuestionIndex(currentStep, fieldName);
+          
+          if (nextIndex >= questions.length) {
+            handleFormSubmit();
+          } else {
+            setCurrentStep(nextIndex);
           }
           return;
         }
@@ -770,19 +837,13 @@ export default function Home() {
                   address: addressValue,
                 }),
               });
-            } catch (error) {
-              console.error('Error creating out-of-service contact:', error);
+            } catch (contactError) {
+              console.error('Error creating out-of-service contact:', contactError);
             }
 
             // Redirect to out-of-service page
             const params = new URLSearchParams({
-              data: JSON.stringify({
-                firstName: data.firstName || '',
-                lastName: data.lastName || '',
-                email: data.email || '',
-                phone: data.phone || '',
-                address: addressValue,
-              }),
+              address: addressValue,
             });
             window.location.href = `/out-of-service?${params.toString()}`;
             return;
@@ -799,18 +860,24 @@ export default function Home() {
       }
 
       setDirection(1);
-      if (currentStep < questions.length - 1) {
-        setCurrentStep(currentStep + 1);
-      } else {
+      
+      // Calculate next step based on skip rules
+      const nextIndex = getNextQuestionIndex(currentStep, fieldName);
+      
+      if (nextIndex >= questions.length) {
+        // Reached end, submit form
         handleFormSubmit();
+      } else {
+        setCurrentStep(nextIndex);
       }
     }
   };
 
   const prevStep = () => {
     setDirection(-1);
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
+    const prevIndex = getPreviousQuestionIndex(currentStep);
+    if (prevIndex >= 0) {
+      setCurrentStep(prevIndex);
     }
   };
 

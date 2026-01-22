@@ -7,6 +7,7 @@
 export interface SurveyQuestionOption {
   value: string;
   label: string;
+  skipToQuestionId?: string; // If this option selected, skip to this question ID
 }
 
 export interface SurveyQuestion {
@@ -20,6 +21,8 @@ export interface SurveyQuestion {
   ghlFieldMapping?: string;
   // Track if this is a core field that shouldn't be deleted
   isCoreField?: boolean;
+  // Skip logic: if no option has skipToQuestionId, go to next question by default
+  // Only applies to select type questions
 }
 
 /**
