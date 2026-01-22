@@ -130,24 +130,31 @@ export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges 
   // Always show General Clean price
   summary += `✨ General Clean: ${formatPriceRange(ranges.general)}\n\n`;
   
-  // Show the selected recurring service if one was picked
+  // Add header for recurring service option
+  summary += `RECURRING SERVICE OPTION\n\n`;
+  
+  // Show the selected recurring service if one was picked, otherwise default to bi-weekly
+  let recurringService = 'bi-weekly';
+  let recurringRange = ranges.biWeekly;
+  
   if (serviceType && frequency && frequency !== 'one-time') {
     const selectedRange = getSelectedQuoteRange(ranges, serviceType, frequency);
     if (selectedRange) {
-      const serviceName = getServiceName(frequency);
-      summary += `📅 ${serviceName}: ${formatPriceRange(selectedRange)}\n\n`;
+      recurringService = frequency;
+      recurringRange = selectedRange;
     }
   } else if (frequency && frequency !== 'one-time') {
     // If only frequency provided (recurring service)
     const selectedRange = getSelectedQuoteRange(ranges, 'recurring', frequency);
     if (selectedRange) {
-      const serviceName = getServiceName(frequency);
-      summary += `📅 ${serviceName}: ${formatPriceRange(selectedRange)}\n\n`;
+      recurringService = frequency;
+      recurringRange = selectedRange;
     }
-  } else {
-    // Default to bi-weekly if no recurring service selected
-    summary += `📅 Bi-Weekly Cleaning: ${formatPriceRange(ranges.biWeekly)}\n\n`;
   }
+  
+  // Always show bi-weekly (or selected recurring service) with most popular indicator
+  const serviceName = getServiceName(recurringService);
+  summary += `⭐ ${serviceName}: ${formatPriceRange(recurringRange)} (Most Popular)\n\n`;
   
   // Add Initial Cleaning messaging if applicable
   if (initialCleaningRequired && serviceType !== 'initial') {

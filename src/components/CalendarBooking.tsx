@@ -300,7 +300,10 @@ export function CalendarBooking({
                     }
                     ${day.isToday ? 'ring-2 ring-offset-2' : ''}
                   `}
-                  style={day.isToday ? { ringColor: primaryColor } : {}}
+                  style={day.isToday ? { 
+                    '--tw-ring-color': primaryColor,
+                    boxShadow: `0 0 0 2px ${primaryColor}40`
+                  } as React.CSSProperties & { '--tw-ring-color'?: string } : {}}
                 >
                   <div className="flex flex-col items-center justify-center h-full">
                     <span className={`text-sm font-semibold ${isAvailable ? 'text-gray-900' : 'text-gray-400'}`}>

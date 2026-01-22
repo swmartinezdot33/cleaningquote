@@ -193,6 +193,7 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
+  const [selectedFrequency, setSelectedFrequency] = useState<string>('bi-weekly'); // Track selected frequency
   const [isLoading, setIsLoading] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const [direction, setDirection] = useState(1); // 1 for forward, -1 for backward
@@ -760,6 +761,12 @@ export default function Home() {
 
       const result = await response.json();
       setQuoteResult(result);
+      // Store the selected frequency for display
+      if (formData.frequency && formData.frequency !== 'one-time') {
+        setSelectedFrequency(formData.frequency);
+      } else {
+        setSelectedFrequency('bi-weekly'); // Default to bi-weekly
+      }
     } catch (error) {
       console.error('Error fetching quote:', error);
       alert(error instanceof Error ? error.message : 'Failed to calculate quote. Please try again.');
@@ -1113,23 +1120,32 @@ export default function Home() {
 
                     {/* Quote Content with enhanced styling */}
                     <CardContent className="pt-10 pb-10 bg-gradient-to-b from-gray-50 to-white">
-                      {/* Parse and display quote content nicely */}
+                      {/* Custom service options display */}
                       <div className="space-y-6">
-                        {(quoteResult.summaryText || '').split('\n').filter(line => line.trim()).map((line, idx) => {
-                          const isPrice = line.includes('$') || line.includes('to');
-                          const isHeader = !line.startsWith(' ') && line.length < 50;
-                          
-                          return (
+                        {/* Home Size */}
+                        {(quoteResult.summaryText || '').split('\n').filter(line => line.trim() && line.includes('Home Size:')).map((line, idx) => (
+                          <motion.div
+                            key={idx}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.1 }}
+                            className="text-gray-700 text-base"
+                          >
+                            {line}
+                          </motion.div>
+                        ))}
+
+                        {/* Deep Clean and General Clean at the top */}
+                        {quoteResult.ranges && (
+                          <>
                             <motion.div
-                              key={idx}
                               initial={{ opacity: 0, x: -10 }}
                               animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.15 + idx * 0.05 }}
-                              className={`${isPrice ? 'bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-4 rounded-r-xl shadow-md' : ''} ${
-                                isHeader ? 'font-bold text-xl text-gray-900 pt-2' : 'text-gray-700 text-base'
-                              }`}
+                              transition={{ delay: 0.15 }}
+                              className="space-y-3"
                             >
-                              {isPrice ? (
+                              {/* Deep Clean */}
+                              <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-4 rounded-r-xl shadow-md">
                                 <div className="flex items-center gap-3">
                                   <motion.div
                                     animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
@@ -1139,15 +1155,95 @@ export default function Home() {
                                     💰
                                   </motion.div>
                                   <span className="font-black text-2xl md:text-3xl bg-gradient-to-r from-blue-700 via-cyan-600 to-blue-700 bg-clip-text text-transparent tracking-wide">
-                                    {line}
+                                    🧹 Deep Clean: ${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}
                                   </span>
                                 </div>
-                              ) : (
-                                line
-                              )}
+                              </div>
+
+                              {/* General Clean */}
+                              <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-4 rounded-r-xl shadow-md">
+                                <div className="flex items-center gap-3">
+                                  <motion.div
+                                    animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
+                                    transition={{ duration: 2, repeat: Infinity }}
+                                    className="text-2xl"
+                                  >
+                                    💰
+                                  </motion.div>
+                                  <span className="font-black text-2xl md:text-3xl bg-gradient-to-r from-blue-700 via-cyan-600 to-blue-700 bg-clip-text text-transparent tracking-wide">
+                                    ✨ General Clean: ${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}
+                                  </span>
+                                </div>
+                              </div>
                             </motion.div>
-                          );
-                        })}
+
+                            {/* Recurring Service Option Header */}
+                            <motion.div
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.2 }}
+                              className="pt-4"
+                            >
+                              <h4 className="font-bold text-xl text-gray-900 border-b-2 border-gray-300 pb-2">
+                                Recurring Service Option
+                              </h4>
+                            </motion.div>
+
+                            {/* Bi-Weekly - Always shown, highlighted in yellow with star */}
+                            <motion.div
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.25 }}
+                              className="bg-gradient-to-r from-yellow-100 via-amber-100 to-yellow-100 border-l-4 border-yellow-500 pl-6 py-4 rounded-r-xl shadow-lg"
+                              style={{
+                                boxShadow: '0 4px 6px -1px rgba(251, 191, 36, 0.3), 0 2px 4px -1px rgba(251, 191, 36, 0.2)'
+                              }}
+                            >
+                              <div className="flex items-center gap-3">
+                                <motion.div
+                                  animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
+                                  transition={{ duration: 2, repeat: Infinity }}
+                                  className="text-2xl"
+                                >
+                                  💰
+                                </motion.div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <motion.span
+                                      animate={{ rotate: [0, 15, -15, 0] }}
+                                      transition={{ duration: 2, repeat: Infinity }}
+                                      className="text-yellow-600 text-2xl"
+                                    >
+                                      ⭐
+                                    </motion.span>
+                                    <span className="font-black text-2xl md:text-3xl text-yellow-800 tracking-wide">
+                                      📅 Bi-Weekly Cleaning: ${quoteResult.ranges.biWeekly.low} to ${quoteResult.ranges.biWeekly.high}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-yellow-700 font-bold text-base flex items-center gap-1">
+                                      <span>⭐</span>
+                                      <span>Most Popular</span>
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+                          </>
+                        )}
+
+                        {/* Initial Cleaning Note if applicable */}
+                        {quoteResult.initialCleaningRequired && (
+                          <motion.div
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.3 }}
+                            className="text-gray-600 text-sm pt-2"
+                          >
+                            <p className="font-semibold">📌 Note: An initial cleaning is required as your first service.</p>
+                            <p>This gets your home to our maintenance standards.</p>
+                          </motion.div>
+                        )}
                       </div>
 
                       {/* Decorative footer */}
