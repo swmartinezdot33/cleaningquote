@@ -103,14 +103,18 @@ export async function POST(request: NextRequest) {
 
     // Parse date and time
     // date format: YYYY-MM-DD, time format: HH:MM
-    const dateTimeString = `${date}T${time}:00`;
+    // Ensure time has seconds (HH:MM:00)
+    const timeWithSeconds = time.includes(':') && time.split(':').length === 2 ? `${time}:00` : time;
+    const dateTimeString = `${date}T${timeWithSeconds}`;
     const startDateTime = new Date(dateTimeString);
 
-    console.log('Parsing date/time:', {
+    console.log('Parsing date/time for appointment:', {
       date,
       time,
+      timeWithSeconds,
       dateTimeString,
       parsed: startDateTime.toISOString(),
+      local: startDateTime.toLocaleString(),
       isValid: !isNaN(startDateTime.getTime()),
     });
 

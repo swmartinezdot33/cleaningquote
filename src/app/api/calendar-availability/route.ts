@@ -48,13 +48,27 @@ export async function GET(request: NextRequest) {
     }
 
     // Parse date and time to create timestamps
-    const dateTime = new Date(`${date}T${time}`);
+    // Time format is HH:MM (e.g., "09:30"), need to append ":00" for seconds
+    const timeWithSeconds = time.includes(':') && time.split(':').length === 2 ? `${time}:00` : time;
+    const dateTimeString = `${date}T${timeWithSeconds}`;
+    
+    // Create date in local timezone (GHL slots are in calendar's timezone)
+    const dateTime = new Date(dateTimeString);
     if (isNaN(dateTime.getTime())) {
+      console.error('[calendar-availability] Invalid date/time:', { date, time, dateTimeString });
       return NextResponse.json(
         { error: 'Invalid date or time format' },
         { status: 400 }
       );
     }
+    
+    console.log('[calendar-availability] Checking availability for:', {
+      date,
+      time,
+      dateTimeString,
+      parsed: dateTime.toISOString(),
+      local: dateTime.toLocaleString(),
+    });
 
     // Get free slots from GHL calendar API
     // GHL expects timestamps in milliseconds (13 digits)
@@ -140,12 +154,34 @@ export async function GET(request: NextRequest) {
     }
 
     const freeSlotsData = await freeSlotsResponse.json();
+    console.log('[calendar-availability] GHL response for date', date, ':', JSON.stringify(freeSlotsData).substring(0, 500));
     
-    // GHL free-slots API returns data in format: { "YYYY-MM-DD": [{ start: timestamp, end: timestamp }, ...] }
-    // or sometimes: { slots: { "YYYY-MM-DD": [...] } }
-    const slotsByDate = freeSlotsData[date] || freeSlotsData.slots?.[date] || freeSlotsData.data?.[date] || [];
+    // GHL free-slots API returns data in format: { "YYYY-MM-DD": { slots: ["ISO-string", ...] } }
+    // or sometimes: { "YYYY-MM-DD": [{ start: timestamp, end: timestamp }, ...] }
+    let slotsByDate: any[] = [];
+    
+    // Handle nested format: { "2026-01-22": { slots: [...] } }
+    if (freeSlotsData[date]) {
+      const dateData = freeSlotsData[date];
+      if (Array.isArray(dateData)) {
+        // Direct array format
+        slotsByDate = dateData;
+      } else if (dateData && typeof dateData === 'object' && dateData.slots && Array.isArray(dateData.slots)) {
+        // Nested format with slots property - convert ISO strings to {start, end} objects
+        slotsByDate = dateData.slots.map((slotStr: string) => {
+          const start = new Date(slotStr).getTime();
+          return { start, end: start + (30 * 60 * 1000) }; // 30 minute duration
+        });
+        console.log('[calendar-availability] Extracted', slotsByDate.length, 'slots from nested format');
+      }
+    } else if (freeSlotsData.slots?.[date]) {
+      slotsByDate = freeSlotsData.slots[date];
+    } else if (freeSlotsData.data?.[date]) {
+      slotsByDate = freeSlotsData.data[date];
+    }
     
     if (!Array.isArray(slotsByDate) || slotsByDate.length === 0) {
+      console.log('[calendar-availability] No slots found for date', date);
       return NextResponse.json({
         available: false,
         message: 'No available time slots for this date',
@@ -153,14 +189,35 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    console.log('[calendar-availability] Checking availability for', dateTime.toISOString(), 'against', slotsByDate.length, 'slots');
+    
     // Check if the selected time falls within any free slot
     const selectedTimeMs = dateTime.getTime();
     const isAvailable = slotsByDate.some((slot: any) => {
-      const slotStart = typeof slot.start === 'number' ? slot.start : new Date(slot.start).getTime();
-      const slotEnd = typeof slot.end === 'number' ? slot.end : new Date(slot.end).getTime();
+      let slotStart: number;
+      let slotEnd: number;
+      
+      if (typeof slot === 'string') {
+        // Slot is an ISO date string
+        slotStart = new Date(slot).getTime();
+        slotEnd = slotStart + (30 * 60 * 1000); // 30 minute duration
+      } else if (typeof slot === 'object' && slot !== null) {
+        // Slot is an object with start/end properties
+        slotStart = typeof slot.start === 'number' ? slot.start : new Date(slot.start).getTime();
+        slotEnd = typeof slot.end === 'number' ? slot.end : (slot.end ? new Date(slot.end).getTime() : slotStart + (30 * 60 * 1000));
+      } else {
+        return false;
+      }
       
       // Check if selected time is within the slot (with 1 minute tolerance)
-      return selectedTimeMs >= slotStart && selectedTimeMs <= slotEnd;
+      const isWithinSlot = selectedTimeMs >= slotStart && selectedTimeMs <= slotEnd;
+      console.log('[calendar-availability] Slot check:', {
+        selected: new Date(selectedTimeMs).toISOString(),
+        slotStart: new Date(slotStart).toISOString(),
+        slotEnd: new Date(slotEnd).toISOString(),
+        isWithinSlot,
+      });
+      return isWithinSlot;
     });
 
     if (isAvailable) {
@@ -175,7 +232,16 @@ export async function GET(request: NextRequest) {
       let minDiff = Infinity;
       
       slotsByDate.forEach((slot: any) => {
-        const slotStart = typeof slot.start === 'number' ? slot.start : new Date(slot.start).getTime();
+        let slotStart: number;
+        
+        if (typeof slot === 'string') {
+          slotStart = new Date(slot).getTime();
+        } else if (typeof slot === 'object' && slot !== null) {
+          slotStart = typeof slot.start === 'number' ? slot.start : new Date(slot.start).getTime();
+        } else {
+          return;
+        }
+        
         const diff = Math.abs(slotStart - selectedTimeMs);
         if (diff < minDiff) {
           minDiff = diff;
@@ -183,9 +249,18 @@ export async function GET(request: NextRequest) {
         }
       });
 
-      const nearestTime = nearestSlot 
-        ? new Date(typeof nearestSlot.start === 'number' ? nearestSlot.start : nearestSlot.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-        : null;
+      let nearestTime: string | null = null;
+      if (nearestSlot) {
+        let nearestStart: number;
+        if (typeof nearestSlot === 'string') {
+          nearestStart = new Date(nearestSlot).getTime();
+        } else if (typeof nearestSlot === 'object' && nearestSlot !== null) {
+          nearestStart = typeof nearestSlot.start === 'number' ? nearestSlot.start : new Date(nearestSlot.start).getTime();
+        } else {
+          nearestStart = 0;
+        }
+        nearestTime = new Date(nearestStart).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      }
 
       return NextResponse.json({
         available: false,

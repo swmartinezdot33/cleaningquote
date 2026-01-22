@@ -1248,102 +1248,51 @@ export default function Home() {
                           </motion.div>
                         )}
 
-                        {/* Deep Clean and General Clean at the top */}
-                        {quoteResult.ranges && (
-                          <>
-                            <motion.div
-                              initial={{ opacity: 0, x: -10 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.15 }}
-                              className="space-y-3"
-                            >
-                              {/* Deep Clean */}
-                              <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-4 rounded-r-xl shadow-md">
-                                <div className="flex items-center gap-3">
-                                  <motion.div
-                                    animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
-                                    transition={{ duration: 2, repeat: Infinity }}
-                                    className="text-2xl"
-                                  >
-                                    💰
-                                  </motion.div>
-                                  <span className="font-black text-2xl md:text-3xl bg-gradient-to-r from-blue-700 via-cyan-600 to-blue-700 bg-clip-text text-transparent tracking-wide">
-                                    🧹 Deep Clean: ${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* General Clean */}
-                              <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-4 rounded-r-xl shadow-md">
-                                <div className="flex items-center gap-3">
-                                  <motion.div
-                                    animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
-                                    transition={{ duration: 2, repeat: Infinity }}
-                                    className="text-2xl"
-                                  >
-                                    💰
-                                  </motion.div>
-                                  <span className="font-black text-2xl md:text-3xl bg-gradient-to-r from-blue-700 via-cyan-600 to-blue-700 bg-clip-text text-transparent tracking-wide">
-                                    ✨ General Clean: ${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}
-                                  </span>
-                                </div>
-                              </div>
-                            </motion.div>
-
-                            {/* Recurring Service Option Header */}
-                            <motion.div
-                              initial={{ opacity: 0, x: -10 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.2 }}
-                              className="pt-4"
-                            >
-                              <h4 className="font-bold text-xl text-gray-900 border-b-2 border-gray-300 pb-2">
-                                Recurring Service Option
-                              </h4>
-                            </motion.div>
-
-                            {/* Helper function to get frequency display info */}
-                            {(() => {
-                              // Ensure ranges exist before accessing
-                              if (!quoteResult.ranges) {
-                                return null;
+                        {/* Display quote based on user selection */}
+                        {quoteResult.ranges && (() => {
+                          // Helper function to get frequency display info
+                          const getFrequencyInfo = (freq: string) => {
+                            if (freq === 'weekly') {
+                              return { name: 'Weekly Cleaning', range: quoteResult.ranges!.weekly, icon: '📅' };
+                            } else if (freq === 'bi-weekly') {
+                              return { name: 'Bi-Weekly Cleaning', range: quoteResult.ranges!.biWeekly, icon: '📅' };
+                            } else if (freq === 'monthly' || freq === 'four-week') {
+                              return { name: 'Monthly Cleaning (Every 4 Weeks)', range: quoteResult.ranges!.fourWeek, icon: '📅' };
+                            }
+                            return null;
+                          };
+                          
+                          // Get service type info for one-time services
+                          // Check if service type indicates one-time (move-in, move-out, initial, deep, general)
+                          const isOneTimeService = (serviceType: string) => {
+                            return ['move-in', 'move-out', 'initial', 'deep', 'general'].includes(serviceType);
+                          };
+                          
+                          const getServiceTypeInfo = (serviceType: string, freq: string) => {
+                            // If frequency is one-time OR service type is a one-time service type, treat as one-time
+                            if (freq === 'one-time' || isOneTimeService(serviceType)) {
+                              if (serviceType === 'move-in') {
+                                return { name: 'Move-In Clean', range: quoteResult.ranges!.moveInOutBasic, icon: '🚚' };
+                              } else if (serviceType === 'move-out') {
+                                return { name: 'Move-Out Clean', range: quoteResult.ranges!.moveInOutFull, icon: '🚚' };
+                              } else if (serviceType === 'initial') {
+                                return { name: 'Initial Cleaning', range: quoteResult.ranges!.initial, icon: '✨' };
+                              } else if (serviceType === 'deep') {
+                                return { name: 'Deep Clean', range: quoteResult.ranges!.deep, icon: '🧹' };
+                              } else if (serviceType === 'general') {
+                                return { name: 'General Clean', range: quoteResult.ranges!.general, icon: '✨' };
                               }
+                            }
+                            return null;
+                          };
 
-                              // Get the selected recurring option
-                              const getFrequencyInfo = (freq: string) => {
-                                if (freq === 'weekly') {
-                                  return { name: 'Weekly Cleaning', range: quoteResult.ranges!.weekly, icon: '📅' };
-                                } else if (freq === 'bi-weekly') {
-                                  return { name: 'Bi-Weekly Cleaning', range: quoteResult.ranges!.biWeekly, icon: '📅' };
-                                } else if (freq === 'monthly' || freq === 'four-week') {
-                                  return { name: 'Monthly Cleaning (Every 4 Weeks)', range: quoteResult.ranges!.fourWeek, icon: '📅' };
-                                }
-                                return null;
-                              };
-                              
-                              // Get service type info for one-time services
-                              const getServiceTypeInfo = (serviceType: string, freq: string) => {
-                                if (freq === 'one-time' || !freq) {
-                                  if (serviceType === 'move-in') {
-                                    return { name: 'Move-In Clean', range: quoteResult.ranges!.moveInOutBasic, icon: '🚚' };
-                                  } else if (serviceType === 'move-out') {
-                                    return { name: 'Move-Out Clean', range: quoteResult.ranges!.moveInOutFull, icon: '🚚' };
-                                  } else if (serviceType === 'initial') {
-                                    return { name: 'Initial Cleaning', range: quoteResult.ranges!.initial, icon: '✨' };
-                                  } else if (serviceType === 'deep') {
-                                    return { name: 'Deep Clean', range: quoteResult.ranges!.deep, icon: '🧹' };
-                                  } else if (serviceType === 'general') {
-                                    return { name: 'General Clean', range: quoteResult.ranges!.general, icon: '✨' };
-                                  }
-                                }
-                                return null;
-                              };
-
-                              const selectedFreqInfo = getFrequencyInfo(selectedFrequency);
-                              const selectedServiceInfo = getServiceTypeInfo(selectedServiceType, selectedFrequency);
-                              // Show selected option if it's a recurring service (not one-time) or a one-time service
-                              const showSelectedRecurring = selectedFreqInfo && selectedFrequency !== 'one-time';
-                              const showSelectedOneTime = selectedServiceInfo && (selectedFrequency === 'one-time' || !selectedFrequency);
+                          const selectedFreqInfo = getFrequencyInfo(selectedFrequency);
+                          const selectedServiceInfo = getServiceTypeInfo(selectedServiceType, selectedFrequency);
+                          
+                          // Determine if this is a one-time service
+                          const isOneTime = isOneTimeService(selectedServiceType) || selectedFrequency === 'one-time';
+                          const showSelectedRecurring = selectedFreqInfo && !isOneTime && selectedFrequency !== 'one-time';
+                          const showSelectedOneTime = selectedServiceInfo && isOneTime;
 
                               return (
                                 <>
