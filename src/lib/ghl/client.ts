@@ -560,6 +560,9 @@ async function testEndpoint(
     } else if (response.status === 400) {
       message = `✅ Working - HTTP 400 - Endpoint accessible (bad request is expected for test)`;
       return { name, success: true, status: 400, message, endpoint };
+    } else if (response.status === 422) {
+      message = `✅ Working - HTTP 422 - Endpoint accessible (validation error expected for test data)`;
+      return { name, success: true, status: 422, message, endpoint };
     } else {
       message = `❌ Error - HTTP ${response.status}`;
       return { name, success: false, status: response.status, message, endpoint };
@@ -635,7 +638,15 @@ export async function testGHLConnectionComprehensive(token?: string): Promise<GH
         name: 'Opportunities - Create Endpoint (dry-run)',
         endpoint: `/opportunities/`,
         method: 'POST' as const,
-        body: { locationId, contactId: 'test-contact-id', name: 'Test Opportunity' }, // Dry-run test payload
+        body: { 
+          locationId, 
+          contactId: 'test-contact-id', 
+          name: 'Test Opportunity - Deep Clean',
+          value: 250,
+          status: 'open',
+          pipelineId: 'test-pipeline-id',
+          pipelineStageId: 'test-stage-id',
+        }, // Dry-run test payload
       },
       // Pipelines - List (actual endpoint we use)
       {
@@ -663,9 +674,11 @@ export async function testGHLConnectionComprehensive(token?: string): Promise<GH
         body: { 
           locationId, 
           contactId: 'test-contact-id', 
-          title: 'Test Appointment',
+          calendarId: 'test-calendar-id',
+          title: 'Deep Clean - Test Contact',
           startTime: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
           endTime: new Date(Date.now() + 86400000 + 3600000).toISOString(), // Tomorrow + 1 hour
+          assignedTo: 'test-user-id',
         }, // Dry-run test payload
       },
       // Custom Fields - List (actual endpoint we use)
