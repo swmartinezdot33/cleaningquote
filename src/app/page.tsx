@@ -252,6 +252,9 @@ export default function Home() {
   // Availability checking state
   const [appointmentAvailability, setAppointmentAvailability] = useState<{ available: boolean; message: string; checking: boolean; fallback?: boolean; warning?: string } | null>(null);
   const [callAvailability, setCallAvailability] = useState<{ available: boolean; message: string; checking: boolean; fallback?: boolean; warning?: string } | null>(null);
+  // Redirect settings from admin
+  const [redirectAfterAppointment, setRedirectAfterAppointment] = useState<boolean>(false);
+  const [appointmentRedirectUrl, setAppointmentRedirectUrl] = useState<string>('');
   const [widgetTitle, setWidgetTitle] = useState('Raleigh Cleaning Company');
   const [widgetSubtitle, setWidgetSubtitle] = useState("Let's get your professional cleaning price!");
   const [primaryColor, setPrimaryColor] = useState('#f61590');
@@ -269,6 +272,7 @@ export default function Home() {
     loadWidgetSettings();
     loadSurveyQuestions();
     loadFormSettings();
+    loadRedirectSettings();
   }, []);
 
   // Auto-scroll when appointment form opens
@@ -389,6 +393,23 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Failed to load widget settings:', error);
+    }
+  };
+
+  // Load redirect settings from GHL config
+  const loadRedirectSettings = async () => {
+    try {
+      const response = await fetch('/api/admin/ghl-config');
+      if (response.ok) {
+        const data = await response.json();
+        const config = data.config;
+        if (config) {
+          setRedirectAfterAppointment(config.redirectAfterAppointment === true);
+          setAppointmentRedirectUrl(config.appointmentRedirectUrl || '');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load redirect settings:', error);
     }
   };
 
@@ -1084,6 +1105,13 @@ export default function Home() {
           setAppointmentTime(finalTime);
           setAppointmentNotes(finalNotes);
         }, 1000);
+        
+        // If redirect is enabled, redirect after 5 seconds
+        if (redirectAfterAppointment && appointmentRedirectUrl) {
+          setTimeout(() => {
+            window.location.href = appointmentRedirectUrl;
+          }, 5000);
+        }
       } else {
         // Use user-friendly message if available, otherwise use error message
         const errorMessage = data.userMessage || data.error || data.details || 'Failed to book appointment';

@@ -102,6 +102,10 @@ export default function SettingsPage() {
   const [callCalendarAvailability, setCallCalendarAvailability] = useState<{ available: boolean; message: string; checking: boolean } | null>(null);
   const [outOfServiceTagSearch, setOutOfServiceTagSearch] = useState<string>('');
 
+  // Post-Appointment Redirect Settings
+  const [redirectAfterAppointment, setRedirectAfterAppointment] = useState<boolean>(false);
+  const [appointmentRedirectUrl, setAppointmentRedirectUrl] = useState<string>('');
+
   // Google Maps API Key State
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState('');
   const [googleMapsApiKeyDisplay, setGoogleMapsApiKeyDisplay] = useState('');
@@ -394,6 +398,10 @@ export default function SettingsPage() {
         setSelectedCallUserId(config.callUserId || '');
         setQuotedAmountField(config.quotedAmountField || '');
         
+        // Load redirect settings
+        setRedirectAfterAppointment(config.redirectAfterAppointment === true);
+        setAppointmentRedirectUrl(config.appointmentRedirectUrl || '');
+        
         // Load saved tags
         if (config.inServiceTags && Array.isArray(config.inServiceTags)) {
           setSelectedInServiceTags(new Set(config.inServiceTags));
@@ -490,6 +498,16 @@ export default function SettingsPage() {
       setConfigMessage({ type: 'error', text: 'Please select a pipeline and stage for opportunities' });
       return;
     }
+    
+    if (redirectAfterAppointment && !appointmentRedirectUrl) {
+      setConfigMessage({ type: 'error', text: 'Please enter a redirect URL if redirection is enabled' });
+      return;
+    }
+    
+    if (redirectAfterAppointment && !appointmentRedirectUrl.startsWith('http')) {
+      setConfigMessage({ type: 'error', text: 'Redirect URL must start with http:// or https://' });
+      return;
+    }
 
     setIsSavingConfig(true);
     setConfigMessage(null);
@@ -516,6 +534,8 @@ export default function SettingsPage() {
           appointmentUserId: selectedAppointmentUserId || undefined,
           callUserId: selectedCallUserId || undefined,
           quotedAmountField: quotedAmountField || undefined,
+          redirectAfterAppointment,
+          appointmentRedirectUrl: appointmentRedirectUrl || undefined,
         }),
       });
 
@@ -2205,6 +2225,48 @@ export default function SettingsPage() {
                           <p className="text-sm text-gray-600 mt-2">
                             Select a GHL custom field where the quoted amount will be stored. Leave empty to skip.
                           </p>
+                        </div>
+
+                        {/* Post-Appointment Redirect Settings */}
+                        <div className="mt-8 pt-8 border-t border-gray-200">
+                          <h4 className="font-semibold text-gray-900 mb-4 text-lg">Post-Appointment Settings</h4>
+                          
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg">
+                              <input
+                                type="checkbox"
+                                id="redirect-after-appointment"
+                                checked={redirectAfterAppointment}
+                                onChange={(e) => setRedirectAfterAppointment(e.target.checked)}
+                                className="w-5 h-5 rounded border-gray-300 cursor-pointer"
+                              />
+                              <label htmlFor="redirect-after-appointment" className="flex-1 cursor-pointer">
+                                <p className="font-semibold text-gray-900">Redirect user after appointment booking</p>
+                                <p className="text-sm text-gray-600 mt-1">
+                                  After showing the appointment confirmation for 5 seconds, redirect the user to a custom URL
+                                </p>
+                              </label>
+                            </div>
+
+                            {redirectAfterAppointment && (
+                              <div className="ml-1 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                <Label htmlFor="redirect-url" className="text-base font-semibold block mb-2">
+                                  Redirect URL
+                                </Label>
+                                <Input
+                                  id="redirect-url"
+                                  type="url"
+                                  placeholder="https://example.com/thank-you"
+                                  value={appointmentRedirectUrl}
+                                  onChange={(e) => setAppointmentRedirectUrl(e.target.value)}
+                                  className="h-10"
+                                />
+                                <p className="text-sm text-gray-600 mt-2">
+                                  Enter the full URL (including https://) where users should be redirected
+                                </p>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
 

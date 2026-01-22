@@ -66,6 +66,8 @@ export async function POST(request: NextRequest) {
       appointmentUserId,
       callUserId,
       quotedAmountField,
+      redirectAfterAppointment,
+      appointmentRedirectUrl,
     } = body;
 
     await storeGHLConfig({
@@ -84,6 +86,8 @@ export async function POST(request: NextRequest) {
       appointmentUserId: appointmentUserId || undefined,
       callUserId: callUserId || undefined,
       quotedAmountField: quotedAmountField || undefined,
+      redirectAfterAppointment: Boolean(redirectAfterAppointment),
+      appointmentRedirectUrl: appointmentRedirectUrl || undefined,
     });
 
     return NextResponse.json({
