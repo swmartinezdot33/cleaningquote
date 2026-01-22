@@ -2,6 +2,12 @@
  * Raleigh Cleaning Company Quote Widget
  * Embed this script on your website to display the cleaning quote form
  * 
+ * Customization options via data attributes:
+ * data-base-url="https://yoursite.com" - Base URL of your site
+ * data-widget-id="my-widget" - Custom widget container ID
+ * data-mobile-height="800" - Height in pixels for mobile (default: 900px)
+ * data-desktop-height="600" - Min height in pixels for desktop (default: 600px)
+ * 
  * Supports GHL contact variable placeholders:
  * data-first-name="{{contact.firstName}}"
  * data-last-name="{{contact.lastName}}"
@@ -19,6 +25,8 @@
   const baseUrl = scriptTag?.dataset.baseUrl || window.location.origin;
   const widgetId = scriptTag?.dataset.widgetId || 'cleaning-quote-widget';
   const containerId = scriptTag?.dataset.containerId || widgetId;
+  const mobileHeight = parseInt(scriptTag?.dataset.mobileHeight || '900', 10);
+  const desktopHeight = parseInt(scriptTag?.dataset.desktopHeight || '600', 10);
 
   // Build query parameters from data attributes
   function buildQueryString() {
@@ -47,6 +55,12 @@
     return params.toString();
   }
 
+  // Detect if device is mobile
+  function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+           window.innerWidth <= 768;
+  }
+
   // Create iframe container
   function initializeWidget() {
     // Find or create container
@@ -64,13 +78,17 @@
       iframeUrl += `&${queryString}`;
     }
 
+    // Determine initial height based on device type
+    const isMobile = isMobileDevice();
+    const initialHeight = isMobile ? mobileHeight : desktopHeight;
+
     // Create iframe
     const iframe = document.createElement('iframe');
     iframe.src = iframeUrl;
     iframe.style.cssText = `
       width: 100%;
       max-width: 800px;
-      min-height: 600px;
+      min-height: ${initialHeight}px;
       border: none;
       border-radius: 8px;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -95,6 +113,17 @@
       if (event.data.type === 'widget:tracking') {
         handleTrackingEvent(event.data.eventType, event.data.eventData);
       }
+    });
+
+    // Handle window resize to adjust height for responsive changes
+    let resizeTimeout;
+    window.addEventListener('resize', function() {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(function() {
+        const nowMobile = isMobileDevice();
+        const newHeight = nowMobile ? mobileHeight : desktopHeight;
+        iframe.style.minHeight = newHeight + 'px';
+      }, 250);
     });
   }
   
