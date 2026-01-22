@@ -97,6 +97,9 @@ export default function SettingsPage() {
   const [newOutOfServiceTagName, setNewOutOfServiceTagName] = useState<string>('');
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [inServiceTagSearch, setInServiceTagSearch] = useState<string>('');
+  // Calendar availability state
+  const [appointmentCalendarAvailability, setAppointmentCalendarAvailability] = useState<{ available: boolean; message: string; checking: boolean } | null>(null);
+  const [callCalendarAvailability, setCallCalendarAvailability] = useState<{ available: boolean; message: string; checking: boolean } | null>(null);
   const [outOfServiceTagSearch, setOutOfServiceTagSearch] = useState<string>('');
 
   // Google Maps API Key State
@@ -383,10 +386,19 @@ export default function SettingsPage() {
         setQuotedAmountField(config.quotedAmountField || '');
         setGhlConfigLoaded(true);
 
-        // Load pipelines and users if token is connected
+        // Load pipelines, users, and calendars if token is connected
         if (connectionStatus === 'connected') {
           await loadPipelines();
           await loadUsers();
+          await loadCalendars();
+          
+          // Check availability for selected calendars
+          if (config.appointmentCalendarId) {
+            checkCalendarAvailability(config.appointmentCalendarId, 'appointment');
+          }
+          if (config.callCalendarId) {
+            checkCalendarAvailability(config.callCalendarId, 'call');
+          }
         }
       }
     } catch (error) {
@@ -432,13 +444,21 @@ export default function SettingsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setUsers(data.users || []);
+        const loadedUsers = data.users || [];
+        setUsers(loadedUsers);
+        
+        // Ensure selected user IDs are still valid after reload
+        // If selected user is not in the list, keep the selection but it will show as invalid
+        // This preserves the selection even if the user list changes
+        return loadedUsers;
       } else {
         const data = await response.json();
         console.error('Failed to load users:', data.error || 'Unknown error');
+        return [];
       }
     } catch (error) {
       console.error('Failed to load users:', error);
+      return [];
     } finally {
       setIsLoadingUsers(false);
     }
@@ -572,6 +592,86 @@ export default function SettingsPage() {
       console.error('Error loading calendars:', error);
     } finally {
       setIsLoadingCalendars(false);
+    }
+  };
+
+  // Check calendar availability using GHL free-slots API
+  const checkCalendarAvailability = async (calendarId: string, type: 'appointment' | 'call') => {
+    if (!calendarId) return;
+
+    // Set checking state
+    if (type === 'appointment') {
+      setAppointmentCalendarAvailability({ available: false, message: 'Checking calendar configuration and availability...', checking: true });
+    } else {
+      setCallCalendarAvailability({ available: false, message: 'Checking calendar configuration and availability...', checking: true });
+    }
+
+    try {
+      // Check availability for next 7 days using GHL's free-slots API
+      // This uses the actual calendar configuration (office hours, availability rules, etc.)
+      const now = new Date();
+      const startTime = now.toISOString();
+      const endTime = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      const response = await fetch(
+        `/api/admin/ghl-calendar-availability?calendarId=${calendarId}&startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}`,
+        {
+          headers: {
+            'x-admin-password': password,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        if (type === 'appointment') {
+          setAppointmentCalendarAvailability({
+            available: data.available,
+            message: data.message || (data.available 
+              ? `Calendar configured and has ${data.slotCount || 0} available slot(s) in next 7 days` 
+              : 'Calendar has no available slots. Check calendar configuration, assigned users, and availability settings.'),
+            checking: false,
+          });
+        } else {
+          setCallCalendarAvailability({
+            available: data.available,
+            message: data.message || (data.available 
+              ? `Calendar configured and has ${data.slotCount || 0} available slot(s) in next 7 days` 
+              : 'Calendar has no available slots. Check calendar configuration, assigned users, and availability settings.'),
+            checking: false,
+          });
+        }
+      } else {
+        const error = await response.json();
+        if (type === 'appointment') {
+          setAppointmentCalendarAvailability({
+            available: false,
+            message: error.error || 'Unable to check calendar availability. Ensure calendar has assigned users and availability configured.',
+            checking: false,
+          });
+        } else {
+          setCallCalendarAvailability({
+            available: false,
+            message: error.error || 'Unable to check calendar availability. Ensure calendar has assigned users and availability configured.',
+            checking: false,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error checking calendar availability:', error);
+      if (type === 'appointment') {
+        setAppointmentCalendarAvailability({
+          available: false,
+          message: 'Failed to check availability. Verify calendar is properly configured in GHL.',
+          checking: false,
+        });
+      } else {
+        setCallCalendarAvailability({
+          available: false,
+          message: 'Failed to check availability. Verify calendar is properly configured in GHL.',
+          checking: false,
+        });
+      }
     }
   };
 
@@ -1788,7 +1888,20 @@ export default function SettingsPage() {
                               <select
                                 id="appointment-calendar-select"
                                 value={selectedAppointmentCalendarId}
-                                onChange={(e) => setSelectedAppointmentCalendarId(e.target.value)}
+                                onChange={async (e) => {
+                                  const newCalendarId = e.target.value;
+                                  setSelectedAppointmentCalendarId(newCalendarId);
+                                  // Reset user selection when calendar changes
+                                  setSelectedAppointmentUserId('');
+                                  // Load users when calendar is selected
+                                  if (newCalendarId) {
+                                    await loadUsers();
+                                    // Check availability
+                                    checkCalendarAvailability(newCalendarId, 'appointment');
+                                  } else {
+                                    setAppointmentCalendarAvailability(null);
+                                  }
+                                }}
                                 className="flex-1 h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
                               >
                                 <option value="">-- Select a calendar --</option>
@@ -1811,6 +1924,32 @@ export default function SettingsPage() {
                             <p className="text-sm text-gray-600 mt-2">
                               Calendar for users to book cleaning appointments
                             </p>
+                            {appointmentCalendarAvailability && (
+                              <div className={`mt-2 text-xs flex items-center gap-2 ${
+                                appointmentCalendarAvailability.checking 
+                                  ? 'text-gray-500' 
+                                  : appointmentCalendarAvailability.available 
+                                    ? 'text-green-600' 
+                                    : 'text-amber-600'
+                              }`}>
+                                {appointmentCalendarAvailability.checking ? (
+                                  <>
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    <span>{appointmentCalendarAvailability.message}</span>
+                                  </>
+                                ) : appointmentCalendarAvailability.available ? (
+                                  <>
+                                    <CheckCircle className="h-3 w-3" />
+                                    <span>{appointmentCalendarAvailability.message}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <AlertCircle className="h-3 w-3" />
+                                    <span>{appointmentCalendarAvailability.message}</span>
+                                  </>
+                                )}
+                              </div>
+                            )}
                             {selectedAppointmentCalendarId && (
                               <div className="mt-3">
                                 <Label htmlFor="appointment-user-select" className="text-sm font-semibold text-gray-700">
@@ -1829,12 +1968,28 @@ export default function SettingsPage() {
                                         {user.name} {user.email ? `(${user.email})` : ''}
                                       </option>
                                     ))}
+                                    {/* Show selected user even if not in current list */}
+                                    {selectedAppointmentUserId && !users.find(u => u.id === selectedAppointmentUserId) && (
+                                      <option value={selectedAppointmentUserId} disabled>
+                                        (Selected user not in list - refresh to update)
+                                      </option>
+                                    )}
                                   </select>
                                   <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    onClick={loadUsers}
+                                    onClick={async () => {
+                                      await loadUsers();
+                                      // Re-validate selected user after reload
+                                      if (selectedAppointmentUserId && users.length > 0) {
+                                        const userExists = users.find(u => u.id === selectedAppointmentUserId);
+                                        if (!userExists) {
+                                          // User no longer exists, but keep selection for now
+                                          console.warn('Selected user not found in updated list');
+                                        }
+                                      }
+                                    }}
                                     disabled={isLoadingUsers}
                                   >
                                     <RotateCw className={`h-4 w-4 ${isLoadingUsers ? 'animate-spin' : ''}`} />
@@ -1855,7 +2010,20 @@ export default function SettingsPage() {
                               <select
                                 id="call-calendar-select"
                                 value={selectedCallCalendarId}
-                                onChange={(e) => setSelectedCallCalendarId(e.target.value)}
+                                onChange={async (e) => {
+                                  const newCalendarId = e.target.value;
+                                  setSelectedCallCalendarId(newCalendarId);
+                                  // Reset user selection when calendar changes
+                                  setSelectedCallUserId('');
+                                  // Load users when calendar is selected
+                                  if (newCalendarId) {
+                                    await loadUsers();
+                                    // Check availability
+                                    checkCalendarAvailability(newCalendarId, 'call');
+                                  } else {
+                                    setCallCalendarAvailability(null);
+                                  }
+                                }}
                                 className="flex-1 h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
                               >
                                 <option value="">-- Select a calendar --</option>
@@ -1878,6 +2046,32 @@ export default function SettingsPage() {
                             <p className="text-sm text-gray-600 mt-2">
                               Calendar for users to schedule consultation calls
                             </p>
+                            {callCalendarAvailability && (
+                              <div className={`mt-2 text-xs flex items-center gap-2 ${
+                                callCalendarAvailability.checking 
+                                  ? 'text-gray-500' 
+                                  : callCalendarAvailability.available 
+                                    ? 'text-green-600' 
+                                    : 'text-amber-600'
+                              }`}>
+                                {callCalendarAvailability.checking ? (
+                                  <>
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    <span>{callCalendarAvailability.message}</span>
+                                  </>
+                                ) : callCalendarAvailability.available ? (
+                                  <>
+                                    <CheckCircle className="h-3 w-3" />
+                                    <span>{callCalendarAvailability.message}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <AlertCircle className="h-3 w-3" />
+                                    <span>{callCalendarAvailability.message}</span>
+                                  </>
+                                )}
+                              </div>
+                            )}
                             {selectedCallCalendarId && (
                               <div className="mt-3">
                                 <Label htmlFor="call-user-select" className="text-sm font-semibold text-gray-700">
@@ -1896,12 +2090,28 @@ export default function SettingsPage() {
                                         {user.name} {user.email ? `(${user.email})` : ''}
                                       </option>
                                     ))}
+                                    {/* Show selected user even if not in current list */}
+                                    {selectedCallUserId && !users.find(u => u.id === selectedCallUserId) && (
+                                      <option value={selectedCallUserId} disabled>
+                                        (Selected user not in list - refresh to update)
+                                      </option>
+                                    )}
                                   </select>
                                   <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    onClick={loadUsers}
+                                    onClick={async () => {
+                                      await loadUsers();
+                                      // Re-validate selected user after reload
+                                      if (selectedCallUserId && users.length > 0) {
+                                        const userExists = users.find(u => u.id === selectedCallUserId);
+                                        if (!userExists) {
+                                          // User no longer exists, but keep selection for now
+                                          console.warn('Selected user not found in updated list');
+                                        }
+                                      }
+                                    }}
                                     disabled={isLoadingUsers}
                                   >
                                     <RotateCw className={`h-4 w-4 ${isLoadingUsers ? 'animate-spin' : ''}`} />

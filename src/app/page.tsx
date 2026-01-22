@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Copy, ChevronLeft, ChevronRight, Sparkles, Calendar, Clock, Loader2, Check } from 'lucide-react';
+import { Copy, ChevronLeft, ChevronRight, Sparkles, Calendar, Clock, Loader2, Check, AlertCircle } from 'lucide-react';
 import { SurveyQuestion } from '@/lib/survey/schema';
 import { GooglePlacesAutocomplete, PlaceDetails } from '@/components/GooglePlacesAutocomplete';
 
@@ -208,6 +208,9 @@ export default function Home() {
   const [bookingMessage, setBookingMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
   const [callConfirmed, setCallConfirmed] = useState(false);
+  // Availability checking state
+  const [appointmentAvailability, setAppointmentAvailability] = useState<{ available: boolean; message: string; checking: boolean } | null>(null);
+  const [callAvailability, setCallAvailability] = useState<{ available: boolean; message: string; checking: boolean } | null>(null);
   const [widgetTitle, setWidgetTitle] = useState('Raleigh Cleaning Company');
   const [widgetSubtitle, setWidgetSubtitle] = useState("Let's get your professional cleaning price!");
   const [primaryColor, setPrimaryColor] = useState('#f61590');
@@ -841,6 +844,84 @@ export default function Home() {
     }
   };
 
+  // Check appointment availability
+  const checkAppointmentAvailability = async (date: string, time: string) => {
+    if (!date || !time) {
+      setAppointmentAvailability(null);
+      return;
+    }
+
+    setAppointmentAvailability({ available: false, message: 'Checking availability...', checking: true });
+
+    try {
+      const response = await fetch(
+        `/api/calendar-availability?type=appointment&date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setAppointmentAvailability({
+          available: data.available,
+          message: data.message || (data.available ? 'Time slot is available' : 'Time slot is not available'),
+          checking: false,
+        });
+      } else {
+        const error = await response.json();
+        setAppointmentAvailability({
+          available: false,
+          message: error.error || 'Unable to check availability',
+          checking: false,
+        });
+      }
+    } catch (error) {
+      console.error('Error checking appointment availability:', error);
+      setAppointmentAvailability({
+        available: false,
+        message: 'Failed to check availability',
+        checking: false,
+      });
+    }
+  };
+
+  // Check call availability
+  const checkCallAvailability = async (date: string, time: string) => {
+    if (!date || !time) {
+      setCallAvailability(null);
+      return;
+    }
+
+    setCallAvailability({ available: false, message: 'Checking availability...', checking: true });
+
+    try {
+      const response = await fetch(
+        `/api/calendar-availability?type=call&date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setCallAvailability({
+          available: data.available,
+          message: data.message || (data.available ? 'Time slot is available' : 'Time slot is not available'),
+          checking: false,
+        });
+      } else {
+        const error = await response.json();
+        setCallAvailability({
+          available: false,
+          message: error.error || 'Unable to check availability',
+          checking: false,
+        });
+      }
+    } catch (error) {
+      console.error('Error checking call availability:', error);
+      setCallAvailability({
+        available: false,
+        message: 'Failed to check availability',
+        checking: false,
+      });
+    }
+  };
+
   const handleBookCall = async () => {
     if (!callDate || !callTime) {
       setBookingMessage({ type: 'error', text: 'Please select a date and time' });
@@ -1295,7 +1376,15 @@ export default function Home() {
                                 id="appt-date"
                                 type="date"
                                 value={appointmentDate}
-                                onChange={(e) => setAppointmentDate(e.target.value)}
+                                onChange={(e) => {
+                                  setAppointmentDate(e.target.value);
+                                  // Check availability when date changes (if time is also set)
+                                  if (e.target.value && appointmentTime) {
+                                    checkAppointmentAvailability(e.target.value, appointmentTime);
+                                  } else {
+                                    setAppointmentAvailability(null);
+                                  }
+                                }}
                                 className="h-12 text-base"
                                 min={new Date().toISOString().split('T')[0]}
                               />
@@ -1309,9 +1398,43 @@ export default function Home() {
                                 id="appt-time"
                                 type="time"
                                 value={appointmentTime}
-                                onChange={(e) => setAppointmentTime(e.target.value)}
+                                onChange={(e) => {
+                                  setAppointmentTime(e.target.value);
+                                  // Check availability when time changes (if date is also set)
+                                  if (e.target.value && appointmentDate) {
+                                    checkAppointmentAvailability(appointmentDate, e.target.value);
+                                  } else {
+                                    setAppointmentAvailability(null);
+                                  }
+                                }}
                                 className="h-12 text-base"
                               />
+                              {appointmentAvailability && (
+                                <div className={`mt-2 text-sm flex items-center gap-2 ${
+                                  appointmentAvailability.checking 
+                                    ? 'text-gray-500' 
+                                    : appointmentAvailability.available 
+                                      ? 'text-green-600' 
+                                      : 'text-red-600'
+                                }`}>
+                                  {appointmentAvailability.checking ? (
+                                    <>
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                      <span>{appointmentAvailability.message}</span>
+                                    </>
+                                  ) : appointmentAvailability.available ? (
+                                    <>
+                                      <Check className="h-4 w-4" />
+                                      <span>{appointmentAvailability.message}</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <AlertCircle className="h-4 w-4" />
+                                      <span>{appointmentAvailability.message}</span>
+                                    </>
+                                  )}
+                                </div>
+                              )}
                             </div>
 
                             <div>
@@ -1451,7 +1574,15 @@ export default function Home() {
                                 id="call-date"
                                 type="date"
                                 value={callDate}
-                                onChange={(e) => setCallDate(e.target.value)}
+                                onChange={(e) => {
+                                  setCallDate(e.target.value);
+                                  // Check availability when date changes (if time is also set)
+                                  if (e.target.value && callTime) {
+                                    checkCallAvailability(e.target.value, callTime);
+                                  } else {
+                                    setCallAvailability(null);
+                                  }
+                                }}
                                 className="h-12 text-base"
                                 min={new Date().toISOString().split('T')[0]}
                               />
@@ -1465,9 +1596,43 @@ export default function Home() {
                                 id="call-time"
                                 type="time"
                                 value={callTime}
-                                onChange={(e) => setCallTime(e.target.value)}
+                                onChange={(e) => {
+                                  setCallTime(e.target.value);
+                                  // Check availability when time changes (if date is also set)
+                                  if (e.target.value && callDate) {
+                                    checkCallAvailability(callDate, e.target.value);
+                                  } else {
+                                    setCallAvailability(null);
+                                  }
+                                }}
                                 className="h-12 text-base"
                               />
+                              {callAvailability && (
+                                <div className={`mt-2 text-sm flex items-center gap-2 ${
+                                  callAvailability.checking 
+                                    ? 'text-gray-500' 
+                                    : callAvailability.available 
+                                      ? 'text-green-600' 
+                                      : 'text-red-600'
+                                }`}>
+                                  {callAvailability.checking ? (
+                                    <>
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                      <span>{callAvailability.message}</span>
+                                    </>
+                                  ) : callAvailability.available ? (
+                                    <>
+                                      <Check className="h-4 w-4" />
+                                      <span>{callAvailability.message}</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <AlertCircle className="h-4 w-4" />
+                                      <span>{callAvailability.message}</span>
+                                    </>
+                                  )}
+                                </div>
+                              )}
                             </div>
 
                             <div>
