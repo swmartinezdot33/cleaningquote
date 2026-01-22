@@ -15,6 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { Copy, ChevronLeft, ChevronRight, Sparkles, Calendar, Clock, Loader2, Check, AlertCircle } from 'lucide-react';
 import { SurveyQuestion } from '@/lib/survey/schema';
 import { GooglePlacesAutocomplete, PlaceDetails } from '@/components/GooglePlacesAutocomplete';
+import { CalendarBooking } from '@/components/CalendarBooking';
 
 /**
  * Convert a select value (including "5+") to a number
@@ -209,8 +210,8 @@ export default function Home() {
   const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
   const [callConfirmed, setCallConfirmed] = useState(false);
   // Availability checking state
-  const [appointmentAvailability, setAppointmentAvailability] = useState<{ available: boolean; message: string; checking: boolean } | null>(null);
-  const [callAvailability, setCallAvailability] = useState<{ available: boolean; message: string; checking: boolean } | null>(null);
+  const [appointmentAvailability, setAppointmentAvailability] = useState<{ available: boolean; message: string; checking: boolean; fallback?: boolean; warning?: string } | null>(null);
+  const [callAvailability, setCallAvailability] = useState<{ available: boolean; message: string; checking: boolean; fallback?: boolean; warning?: string } | null>(null);
   const [widgetTitle, setWidgetTitle] = useState('Raleigh Cleaning Company');
   const [widgetSubtitle, setWidgetSubtitle] = useState("Let's get your professional cleaning price!");
   const [primaryColor, setPrimaryColor] = useState('#f61590');
@@ -780,8 +781,12 @@ export default function Home() {
     }
   };
 
-  const handleBookAppointment = async () => {
-    if (!appointmentDate || !appointmentTime) {
+  const handleBookAppointment = async (date?: string, time?: string, notes?: string) => {
+    const finalDate = date || appointmentDate;
+    const finalTime = time || appointmentTime;
+    const finalNotes = notes || appointmentNotes;
+
+    if (!finalDate || !finalTime) {
       setBookingMessage({ type: 'error', text: 'Please select a date and time' });
       return;
     }
@@ -807,9 +812,9 @@ export default function Home() {
         },
         body: JSON.stringify({
           contactId: quoteResult.ghlContactId,
-          date: appointmentDate,
-          time: appointmentTime,
-          notes: appointmentNotes || 'Appointment booked through quote form',
+          date: finalDate,
+          time: finalTime,
+          notes: finalNotes || 'Appointment booked through quote form',
           type: 'appointment',
         }),
       });
@@ -821,13 +826,19 @@ export default function Home() {
         setAppointmentConfirmed(true);
         setShowAppointmentForm(false);
         setTimeout(() => {
-          setAppointmentDate('');
-          setAppointmentTime('');
-          setAppointmentNotes('');
+          setAppointmentDate(finalDate);
+          setAppointmentTime(finalTime);
+          setAppointmentNotes(finalNotes);
         }, 1000);
       } else {
         // Use user-friendly message if available, otherwise use error message
-        const errorMessage = data.userMessage || data.error || 'Failed to book appointment';
+        const errorMessage = data.userMessage || data.error || data.details || 'Failed to book appointment';
+        console.error('Appointment booking failed:', {
+          status: response.status,
+          error: data.error,
+          details: data.details,
+          userMessage: data.userMessage,
+        });
         setBookingMessage({
           type: 'error',
           text: errorMessage,
@@ -864,6 +875,8 @@ export default function Home() {
           available: data.available,
           message: data.message || (data.available ? 'Time slot is available' : 'Time slot is not available'),
           checking: false,
+          fallback: data.fallback || false,
+          warning: data.warning,
         });
       } else {
         const error = await response.json();
@@ -903,6 +916,8 @@ export default function Home() {
           available: data.available,
           message: data.message || (data.available ? 'Time slot is available' : 'Time slot is not available'),
           checking: false,
+          fallback: data.fallback || false,
+          warning: data.warning,
         });
       } else {
         const error = await response.json();
@@ -922,8 +937,12 @@ export default function Home() {
     }
   };
 
-  const handleBookCall = async () => {
-    if (!callDate || !callTime) {
+  const handleBookCall = async (date?: string, time?: string, notes?: string) => {
+    const finalDate = date || callDate;
+    const finalTime = time || callTime;
+    const finalNotes = notes || callNotes;
+
+    if (!finalDate || !finalTime) {
       setBookingMessage({ type: 'error', text: 'Please select a date and time' });
       return;
     }
@@ -949,9 +968,9 @@ export default function Home() {
         },
         body: JSON.stringify({
           contactId: quoteResult.ghlContactId,
-          date: callDate,
-          time: callTime,
-          notes: callNotes || 'Call scheduled through quote form',
+          date: finalDate,
+          time: finalTime,
+          notes: finalNotes || 'Call scheduled through quote form',
           type: 'call',
         }),
       });
@@ -963,13 +982,19 @@ export default function Home() {
         setCallConfirmed(true);
         setShowCallForm(false);
         setTimeout(() => {
-          setCallDate('');
-          setCallTime('');
-          setCallNotes('');
+          setCallDate(finalDate);
+          setCallTime(finalTime);
+          setCallNotes(finalNotes);
         }, 1000);
       } else {
         // Use user-friendly message if available, otherwise use error message
-        const errorMessage = data.userMessage || data.error || 'Failed to schedule call';
+        const errorMessage = data.userMessage || data.error || data.details || 'Failed to schedule call';
+        console.error('Call booking failed:', {
+          status: response.status,
+          error: data.error,
+          details: data.details,
+          userMessage: data.userMessage,
+        });
         setBookingMessage({
           type: 'error',
           text: errorMessage,
@@ -1363,124 +1388,24 @@ export default function Home() {
                             </motion.div>
                           )}
 
-                          <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="space-y-5"
-                          >
-                            <div>
-                              <Label htmlFor="appt-date" className="text-base font-semibold block mb-2">
-                                📅 Select Date
-                              </Label>
-                              <Input
-                                id="appt-date"
-                                type="date"
-                                value={appointmentDate}
-                                onChange={(e) => {
-                                  setAppointmentDate(e.target.value);
-                                  // Check availability when date changes (if time is also set)
-                                  if (e.target.value && appointmentTime) {
-                                    checkAppointmentAvailability(e.target.value, appointmentTime);
-                                  } else {
-                                    setAppointmentAvailability(null);
-                                  }
-                                }}
-                                className="h-12 text-base"
-                                min={new Date().toISOString().split('T')[0]}
-                              />
-                            </div>
-
-                            <div>
-                              <Label htmlFor="appt-time" className="text-base font-semibold block mb-2">
-                                🕐 Select Time
-                              </Label>
-                              <Input
-                                id="appt-time"
-                                type="time"
-                                value={appointmentTime}
-                                onChange={(e) => {
-                                  setAppointmentTime(e.target.value);
-                                  // Check availability when time changes (if date is also set)
-                                  if (e.target.value && appointmentDate) {
-                                    checkAppointmentAvailability(appointmentDate, e.target.value);
-                                  } else {
-                                    setAppointmentAvailability(null);
-                                  }
-                                }}
-                                className="h-12 text-base"
-                              />
-                              {appointmentAvailability && (
-                                <div className={`mt-2 text-sm flex items-center gap-2 ${
-                                  appointmentAvailability.checking 
-                                    ? 'text-gray-500' 
-                                    : appointmentAvailability.available 
-                                      ? 'text-green-600' 
-                                      : 'text-red-600'
-                                }`}>
-                                  {appointmentAvailability.checking ? (
-                                    <>
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                      <span>{appointmentAvailability.message}</span>
-                                    </>
-                                  ) : appointmentAvailability.available ? (
-                                    <>
-                                      <Check className="h-4 w-4" />
-                                      <span>{appointmentAvailability.message}</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <AlertCircle className="h-4 w-4" />
-                                      <span>{appointmentAvailability.message}</span>
-                                    </>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-
-                            <div>
-                              <Label htmlFor="appt-notes" className="text-base font-semibold block mb-2">
-                                💬 Notes (Optional)
-                              </Label>
-                              <Input
-                                id="appt-notes"
-                                type="text"
-                                placeholder="Any special requests or instructions..."
-                                value={appointmentNotes}
-                                onChange={(e) => setAppointmentNotes(e.target.value)}
-                                className="h-12 text-base"
-                              />
-                            </div>
-
-                            <div className="flex gap-3 pt-4">
-                              <Button
-                                onClick={handleBookAppointment}
-                                disabled={isBookingAppointment || !appointmentDate || !appointmentTime}
-                                className="flex-1 h-12 font-bold text-base"
-                              >
-                                {isBookingAppointment ? (
-                                  <>
-                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                    Booking...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Check className="mr-2 h-5 w-5" />
-                                    Confirm Appointment
-                                  </>
-                                )}
-                              </Button>
-                              <Button
-                                onClick={() => {
-                                  setShowAppointmentForm(false);
-                                  setBookingMessage(null);
-                                }}
-                                variant="outline"
-                                className="h-12 font-bold text-base"
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </motion.div>
+                          <CalendarBooking
+                            type="appointment"
+                            onConfirm={(date, time, notes) => {
+                              setAppointmentDate(date);
+                              setAppointmentTime(time);
+                              setAppointmentNotes(notes);
+                              handleBookAppointment();
+                            }}
+                            onCancel={() => {
+                              setShowAppointmentForm(false);
+                              setBookingMessage(null);
+                              setAppointmentDate('');
+                              setAppointmentTime('');
+                              setAppointmentNotes('');
+                            }}
+                            isBooking={isBookingAppointment}
+                            primaryColor={primaryColor}
+                          />
                         </CardContent>
                         </Card>
                       </div>
@@ -1561,124 +1486,24 @@ export default function Home() {
                             </motion.div>
                           )}
 
-                          <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="space-y-5"
-                          >
-                            <div>
-                              <Label htmlFor="call-date" className="text-base font-semibold block mb-2">
-                                📅 Select Date
-                              </Label>
-                              <Input
-                                id="call-date"
-                                type="date"
-                                value={callDate}
-                                onChange={(e) => {
-                                  setCallDate(e.target.value);
-                                  // Check availability when date changes (if time is also set)
-                                  if (e.target.value && callTime) {
-                                    checkCallAvailability(e.target.value, callTime);
-                                  } else {
-                                    setCallAvailability(null);
-                                  }
-                                }}
-                                className="h-12 text-base"
-                                min={new Date().toISOString().split('T')[0]}
-                              />
-                            </div>
-
-                            <div>
-                              <Label htmlFor="call-time" className="text-base font-semibold block mb-2">
-                                🕐 Select Time
-                              </Label>
-                              <Input
-                                id="call-time"
-                                type="time"
-                                value={callTime}
-                                onChange={(e) => {
-                                  setCallTime(e.target.value);
-                                  // Check availability when time changes (if date is also set)
-                                  if (e.target.value && callDate) {
-                                    checkCallAvailability(callDate, e.target.value);
-                                  } else {
-                                    setCallAvailability(null);
-                                  }
-                                }}
-                                className="h-12 text-base"
-                              />
-                              {callAvailability && (
-                                <div className={`mt-2 text-sm flex items-center gap-2 ${
-                                  callAvailability.checking 
-                                    ? 'text-gray-500' 
-                                    : callAvailability.available 
-                                      ? 'text-green-600' 
-                                      : 'text-red-600'
-                                }`}>
-                                  {callAvailability.checking ? (
-                                    <>
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                      <span>{callAvailability.message}</span>
-                                    </>
-                                  ) : callAvailability.available ? (
-                                    <>
-                                      <Check className="h-4 w-4" />
-                                      <span>{callAvailability.message}</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <AlertCircle className="h-4 w-4" />
-                                      <span>{callAvailability.message}</span>
-                                    </>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-
-                            <div>
-                              <Label htmlFor="call-notes" className="text-base font-semibold block mb-2">
-                                💬 Notes (Optional)
-                              </Label>
-                              <Input
-                                id="call-notes"
-                                type="text"
-                                placeholder="Any questions or topics to discuss..."
-                                value={callNotes}
-                                onChange={(e) => setCallNotes(e.target.value)}
-                                className="h-12 text-base"
-                              />
-                            </div>
-
-                            <div className="flex gap-3 pt-4">
-                              <Button
-                                onClick={handleBookCall}
-                                disabled={isBookingCall || !callDate || !callTime}
-                                className="flex-1 h-12 font-bold text-base"
-                              >
-                                {isBookingCall ? (
-                                  <>
-                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                    Scheduling...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Check className="mr-2 h-5 w-5" />
-                                    Confirm Call
-                                  </>
-                                )}
-                              </Button>
-                              <Button
-                                onClick={() => {
-                                  setShowCallForm(false);
-                                  setBookingMessage(null);
-                                }}
-                                variant="outline"
-                                className="h-12 font-bold text-base"
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </motion.div>
+                          <CalendarBooking
+                            type="call"
+                            onConfirm={(date, time, notes) => {
+                              setCallDate(date);
+                              setCallTime(time);
+                              setCallNotes(notes);
+                              handleBookCall(date, time, notes);
+                            }}
+                            onCancel={() => {
+                              setShowCallForm(false);
+                              setBookingMessage(null);
+                              setCallDate('');
+                              setCallTime('');
+                              setCallNotes('');
+                            }}
+                            isBooking={isBookingCall}
+                            primaryColor={primaryColor}
+                          />
                         </CardContent>
                         </Card>
                       </div>

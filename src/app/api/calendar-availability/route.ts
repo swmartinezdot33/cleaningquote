@@ -102,7 +102,11 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      // Log the error for debugging
+      console.error(`GHL free-slots API failed (${freeSlotsResponse.status}):`, errorText);
+      
       // Fallback: try checking events as backup
+      // But mark it as unreliable since free-slots API failed
       return checkAvailabilityViaEvents(token, locationId, calendarId, dateTime);
     }
 
@@ -213,13 +217,18 @@ async function checkAvailabilityViaEvents(
         return dateTime.getTime() >= eventStart && dateTime.getTime() <= eventEnd;
       });
 
+      // When using fallback, be more conservative - only say available if no events found
+      // and warn that this is not as reliable as free-slots API
       return NextResponse.json({
-        available: !hasConflict,
+        available: !hasConflict && eventsArray.length === 0,
         message: hasConflict 
           ? `Time slot conflicts with existing event(s)` 
-          : 'Time slot appears available (fallback check)',
+          : eventsArray.length === 0
+            ? 'Time slot appears available (limited check - calendar configuration may affect availability)'
+            : 'Unable to fully verify availability - calendar configuration check unavailable',
         eventCount: eventsArray.length,
         fallback: true,
+        warning: 'Free-slots API unavailable - using limited event-based check',
       });
     }
   } catch (error) {

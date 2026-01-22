@@ -7,10 +7,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { contactId, date, time, notes, type = 'appointment' } = body;
 
+    console.log('Appointment creation request:', {
+      type,
+      hasContactId: !!contactId,
+      date,
+      time,
+      hasNotes: !!notes,
+    });
+
     // Validate required fields
     if (!contactId || !date || !time) {
+      console.error('Missing required fields:', { contactId: !!contactId, date: !!date, time: !!time });
       return NextResponse.json(
-        { error: 'Missing required fields: contactId, date, time' },
+        { 
+          error: 'Missing required fields: contactId, date, time',
+          userMessage: 'Please ensure all required fields are filled.',
+        },
         { status: 400 }
       );
     }
@@ -31,6 +43,14 @@ export async function POST(request: NextRequest) {
     // Get GHL config to retrieve calendar IDs
     const ghlConfig = await getGHLConfig();
 
+    console.log('GHL Config:', {
+      hasConfig: !!ghlConfig,
+      appointmentCalendarId: ghlConfig?.appointmentCalendarId,
+      callCalendarId: ghlConfig?.callCalendarId,
+      appointmentUserId: ghlConfig?.appointmentUserId,
+      callUserId: ghlConfig?.callUserId,
+    });
+
     // Determine which calendar and user to use based on booking type
     let calendarId: string | undefined;
     let assignedTo: string | undefined;
@@ -50,6 +70,11 @@ export async function POST(request: NextRequest) {
       defaultNotes = 'Appointment booked through website quote form';
     }
 
+    console.log(`Selected ${type} configuration:`, {
+      calendarId,
+      assignedTo,
+    });
+
     // Ensure calendar ID is configured
     if (!calendarId) {
       const fieldName = type === 'call' ? 'callCalendarId' : 'appointmentCalendarId';
@@ -57,6 +82,7 @@ export async function POST(request: NextRequest) {
         {
           error: `GHL calendar not configured. Please set up the ${type === 'call' ? 'call' : 'appointment'} calendar in admin settings.`,
           missingField: fieldName,
+          userMessage: `The ${type === 'call' ? 'call' : 'appointment'} calendar is not configured. Please contact support or try again later.`,
         },
         { status: 400 }
       );
@@ -69,6 +95,7 @@ export async function POST(request: NextRequest) {
         {
           error: `GHL user not configured for ${type === 'call' ? 'call' : 'appointment'} calendar. Please select a user in admin settings.`,
           missingField: fieldName,
+          userMessage: `The ${type === 'call' ? 'call' : 'appointment'} calendar is not properly configured. Please contact support.`,
         },
         { status: 400 }
       );
@@ -76,14 +103,36 @@ export async function POST(request: NextRequest) {
 
     // Parse date and time
     // date format: YYYY-MM-DD, time format: HH:MM
-    const startDateTime = new Date(`${date}T${time}:00`);
+    const dateTimeString = `${date}T${time}:00`;
+    const startDateTime = new Date(dateTimeString);
+
+    console.log('Parsing date/time:', {
+      date,
+      time,
+      dateTimeString,
+      parsed: startDateTime.toISOString(),
+      isValid: !isNaN(startDateTime.getTime()),
+    });
 
     if (isNaN(startDateTime.getTime())) {
-      return NextResponse.json({ error: 'Invalid date or time format' }, { status: 400 });
+      console.error('Invalid date/time format:', { date, time, dateTimeString });
+      return NextResponse.json({ 
+        error: 'Invalid date or time format',
+        userMessage: 'The selected date or time format is invalid. Please try again.',
+      }, { status: 400 });
     }
 
     // End time is 1 hour after start time
     const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
+
+    console.log('Creating appointment:', {
+      contactId,
+      calendarId,
+      assignedTo,
+      startTime: startDateTime.toISOString(),
+      endTime: endDateTime.toISOString(),
+      title,
+    });
 
     // Create appointment in GHL with appropriate calendar ID and assigned user
     const appointment = await createAppointment({
