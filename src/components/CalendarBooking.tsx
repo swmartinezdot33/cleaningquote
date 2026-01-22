@@ -124,19 +124,30 @@ export function CalendarBooking({
             console.log(`[CalendarBooking] Date ${dateKey}:`, Array.isArray(slots) ? `${slots.length} slots` : `type: ${typeof slots}`, slots);
             
             if (Array.isArray(slots) && slots.length > 0) {
-              const mappedSlots = slots.map((slot: any) => {
-                const start = typeof slot.start === 'number' ? slot.start : new Date(slot.start).getTime();
-                const end = typeof slot.end === 'number' ? slot.end : new Date(slot.end).getTime();
-                console.log(`[CalendarBooking] Slot:`, { start, end, original: slot });
-                return { start, end };
-              });
+              const now = new Date().getTime();
+              const minimumBookingTime = now + (30 * 60 * 1000); // At least 30 minutes in the future
               
-              daysMap.set(dateKey, {
-                date: dateKey,
-                slots: mappedSlots,
-                hasAvailability: true,
-              });
-              console.log(`[CalendarBooking] Added ${dateKey} with ${mappedSlots.length} slots`);
+              const mappedSlots = slots
+                .map((slot: any) => {
+                  const start = typeof slot.start === 'number' ? slot.start : new Date(slot.start).getTime();
+                  const end = typeof slot.end === 'number' ? slot.end : new Date(slot.end).getTime();
+                  return { start, end };
+                })
+                .filter((slot: AvailableSlot) => {
+                  // Only include slots that are in the future (at least 30 minutes away)
+                  return slot.start > minimumBookingTime;
+                });
+              
+              if (mappedSlots.length > 0) {
+                daysMap.set(dateKey, {
+                  date: dateKey,
+                  slots: mappedSlots,
+                  hasAvailability: true,
+                });
+                console.log(`[CalendarBooking] Added ${dateKey} with ${mappedSlots.length} available slots (filtered from ${slots.length} total)`);
+              } else {
+                console.log(`[CalendarBooking] Date ${dateKey} has no available slots after filtering (all past or too soon)`);
+              }
             } else {
               console.warn(`[CalendarBooking] Date ${dateKey} has no valid slots array`);
             }
@@ -178,8 +189,19 @@ export function CalendarBooking({
       if (dayData && dayData.slots && dayData.slots.length > 0) {
         console.log('[CalendarBooking] Using cached slots for', date, '-', dayData.slots.length, 'slots');
         
+        // Filter out past slots
+        const now = new Date().getTime();
+        const minimumBookingTime = now + (30 * 60 * 1000); // At least 30 minutes in the future
+        
+        const availableSlots = dayData.slots.filter((slot: AvailableSlot) => {
+          // Only show slots that are in the future (at least 30 minutes away)
+          return slot.start > minimumBookingTime;
+        });
+        
+        console.log('[CalendarBooking] Filtered', availableSlots.length, 'available slots (removed', dayData.slots.length - availableSlots.length, 'past/too-soon slots)');
+        
         // Convert slots to time strings (HH:MM format)
-        const timeSlots = dayData.slots
+        const timeSlots = availableSlots
           .map((slot: AvailableSlot) => {
             const dateObj = new Date(slot.start);
             const hours = dateObj.getHours().toString().padStart(2, '0');
@@ -233,8 +255,20 @@ export function CalendarBooking({
           }
         }
         
+        // Filter out past slots
+        const now = new Date().getTime();
+        const minimumBookingTime = now + (30 * 60 * 1000); // At least 30 minutes in the future
+        
+        const availableSlots = slots.filter((slot: any) => {
+          const start = typeof slot.start === 'number' ? slot.start : new Date(slot.start).getTime();
+          // Only show slots that are in the future (at least 30 minutes away)
+          return start > minimumBookingTime;
+        });
+        
+        console.log('[CalendarBooking] Filtered', availableSlots.length, 'available slots from', slots.length, 'total slots');
+        
         // Convert slots to time strings (HH:MM format)
-        const timeSlots = slots
+        const timeSlots = availableSlots
           .map((slot: any) => {
             const start = typeof slot.start === 'number' ? slot.start : new Date(slot.start).getTime();
             const dateObj = new Date(start);

@@ -847,12 +847,23 @@ export default function Home() {
       const result = await response.json();
       setQuoteResult(result);
       // Store the selected service type and frequency for display
+      // Always set serviceType - it's required in the form
       setSelectedServiceType(formData.serviceType || '');
-      if (formData.frequency && formData.frequency !== 'one-time') {
+      
+      // Set frequency - if it's one-time or if service type is a one-time service, set to one-time
+      const serviceType = formData.serviceType || '';
+      const isOneTimeServiceType = ['move-in', 'move-out', 'initial', 'deep', 'general'].includes(serviceType);
+      
+      if (formData.frequency === 'one-time' || isOneTimeServiceType) {
+        setSelectedFrequency('one-time');
+      } else if (formData.frequency) {
         setSelectedFrequency(formData.frequency);
       } else {
-        setSelectedFrequency(formData.frequency || 'bi-weekly'); // Use selected frequency or default to bi-weekly
+        // Default to bi-weekly only if no frequency specified and not a one-time service
+        setSelectedFrequency('bi-weekly');
       }
+      
+      console.log('Quote result - Service Type:', formData.serviceType, 'Frequency:', formData.frequency, 'Is One-Time Service:', isOneTimeServiceType);
       // Store house details for display
       setHouseDetails({
         squareFeet: formData.squareFeet || '',
@@ -1294,118 +1305,189 @@ export default function Home() {
                           const showSelectedRecurring = selectedFreqInfo && !isOneTime && selectedFrequency !== 'one-time';
                           const showSelectedOneTime = selectedServiceInfo && isOneTime;
 
-                              return (
-                                <>
-                                  {/* Show selected one-time service (move-in, move-out, etc.) */}
-                                  {showSelectedOneTime && selectedServiceInfo && (
+                          return (
+                            <>
+                              {/* Show selected service FIRST and prominently */}
+                              {showSelectedOneTime && selectedServiceInfo && (
+                                <motion.div
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: 0.15 }}
+                                  className="bg-gradient-to-r from-green-50 via-emerald-50 to-green-50 border-l-4 border-green-600 pl-6 py-5 rounded-r-xl shadow-lg mb-4"
+                                >
+                                  <div className="flex items-center gap-3">
                                     <motion.div
-                                      initial={{ opacity: 0, x: -10 }}
-                                      animate={{ opacity: 1, x: 0 }}
-                                      transition={{ delay: 0.25 }}
-                                      className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-4 rounded-r-xl shadow-md"
+                                      animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
+                                      transition={{ duration: 2, repeat: Infinity }}
+                                      className="text-3xl"
                                     >
-                                      <div className="flex items-center gap-3">
-                                        <motion.div
-                                          animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
-                                          transition={{ duration: 2, repeat: Infinity }}
-                                          className="text-2xl"
-                                        >
-                                          💰
-                                        </motion.div>
-                                        <span className="font-black text-2xl md:text-3xl bg-gradient-to-r from-blue-700 via-cyan-600 to-blue-700 bg-clip-text text-transparent tracking-wide">
-                                          {selectedServiceInfo.icon} {selectedServiceInfo.name}: ${selectedServiceInfo.range.low} to ${selectedServiceInfo.range.high}
-                                        </span>
-                                      </div>
+                                      🎯
                                     </motion.div>
-                                  )}
-                                  
-                                  {/* Show selected recurring option (always show if it's recurring) */}
-                                  {showSelectedRecurring && selectedFreqInfo && (
+                                    <div>
+                                      <div className="text-sm font-semibold text-green-700 mb-1">YOUR SELECTED SERVICE</div>
+                                      <span className="font-black text-2xl md:text-3xl bg-gradient-to-r from-green-700 via-emerald-600 to-green-700 bg-clip-text text-transparent tracking-wide">
+                                        {selectedServiceInfo.icon} {selectedServiceInfo.name}: ${selectedServiceInfo.range.low} to ${selectedServiceInfo.range.high}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              )}
+                              
+                              {showSelectedRecurring && selectedFreqInfo && (
+                                <motion.div
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: 0.15 }}
+                                  className="bg-gradient-to-r from-green-50 via-emerald-50 to-green-50 border-l-4 border-green-600 pl-6 py-5 rounded-r-xl shadow-lg mb-4"
+                                >
+                                  <div className="flex items-center gap-3">
                                     <motion.div
-                                      initial={{ opacity: 0, x: -10 }}
-                                      animate={{ opacity: 1, x: 0 }}
-                                      transition={{ delay: showSelectedOneTime ? 0.3 : 0.25 }}
-                                      className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-4 rounded-r-xl shadow-md"
+                                      animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
+                                      transition={{ duration: 2, repeat: Infinity }}
+                                      className="text-3xl"
                                     >
-                                      <div className="flex items-center gap-3">
-                                        <motion.div
-                                          animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
-                                          transition={{ duration: 2, repeat: Infinity }}
-                                          className="text-2xl"
-                                        >
-                                          💰
-                                        </motion.div>
-                                        <span className="font-black text-2xl md:text-3xl bg-gradient-to-r from-blue-700 via-cyan-600 to-blue-700 bg-clip-text text-transparent tracking-wide">
-                                          {selectedFreqInfo.icon} {selectedFreqInfo.name}: ${selectedFreqInfo.range.low} to ${selectedFreqInfo.range.high}
-                                        </span>
-                                      </div>
+                                      🎯
                                     </motion.div>
-                                  )}
+                                    <div>
+                                      <div className="text-sm font-semibold text-green-700 mb-1">YOUR SELECTED SERVICE</div>
+                                      <span className="font-black text-2xl md:text-3xl bg-gradient-to-r from-green-700 via-emerald-600 to-green-700 bg-clip-text text-transparent tracking-wide">
+                                        {selectedFreqInfo.icon} {selectedFreqInfo.name}: ${selectedFreqInfo.range.low} to ${selectedFreqInfo.range.high}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              )}
 
-                                  {/* Bi-Weekly - Always shown at bottom as "Most Popular" to encourage bi-weekly sales (only for recurring services) */}
-                                  {(!showSelectedOneTime) && (
-                                  <motion.div
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: showSelectedRecurring ? 0.35 : 0.25 }}
-                                    className="bg-gradient-to-r from-yellow-100 via-amber-100 to-yellow-100 border-l-4 border-yellow-500 pl-6 py-4 rounded-r-xl shadow-lg"
-                                    style={{
-                                      boxShadow: '0 4px 6px -1px rgba(251, 191, 36, 0.3), 0 2px 4px -1px rgba(251, 191, 36, 0.2)'
-                                    }}
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <motion.div
-                                        animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
-                                        transition={{ duration: 2, repeat: Infinity }}
-                                        className="text-2xl"
-                                      >
-                                        ⭐
-                                      </motion.div>
-                                      <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-1">
-                                          <motion.span
-                                            animate={{ rotate: [0, 15, -15, 0] }}
-                                            transition={{ duration: 2, repeat: Infinity }}
-                                            className="text-yellow-600 text-2xl"
-                                          >
-                                            ⭐
-                                          </motion.span>
-                                          <span className="font-black text-2xl md:text-3xl text-yellow-800 tracking-wide">
-                                            📅 Bi-Weekly Cleaning: ${quoteResult.ranges.biWeekly.low} to ${quoteResult.ranges.biWeekly.high}
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center gap-2 mt-1">
-                                          <span className="text-yellow-700 font-bold text-base flex items-center gap-1">
-                                            <span>🏆</span>
-                                            <span>Most Popular</span>
-                                          </span>
-                                        </div>
+                              {/* Show other options only if they're not the selected service */}
+                              {!showSelectedOneTime && (
+                                <motion.div
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: 0.2 }}
+                                  className="space-y-3 mb-4"
+                                >
+                                  {/* Deep Clean - only show if not selected */}
+                                  {selectedServiceType !== 'deep' && (
+                                    <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-4 rounded-r-xl shadow-md">
+                                      <div className="flex items-center gap-3">
+                                        <span className="text-2xl">🧹</span>
+                                        <span className="font-black text-xl md:text-2xl bg-gradient-to-r from-blue-700 via-cyan-600 to-blue-700 bg-clip-text text-transparent tracking-wide">
+                                          Deep Clean: ${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}
+                                        </span>
                                       </div>
                                     </div>
-                                  </motion.div>
                                   )}
-                                  
-                                  {/* Show other recurring options if monthly was selected */}
-                                  {selectedFrequency === 'monthly' && (
-                                    <>
-                                      <motion.div
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: 0.4 }}
-                                        className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm mt-2"
-                                      >
-                                        <div className="flex items-center gap-3">
-                                          <span className="text-xl">📅</span>
-                                          <span className="font-bold text-lg text-gray-700">
-                                            Weekly Cleaning: ${quoteResult.ranges.weekly.low} to ${quoteResult.ranges.weekly.high}
-                                          </span>
-                                        </div>
-                                      </motion.div>
-                                    </>
+
+                                  {/* General Clean - only show if not selected */}
+                                  {selectedServiceType !== 'general' && (
+                                    <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-4 rounded-r-xl shadow-md">
+                                      <div className="flex items-center gap-3">
+                                        <span className="text-2xl">✨</span>
+                                        <span className="font-black text-xl md:text-2xl bg-gradient-to-r from-blue-700 via-cyan-600 to-blue-700 bg-clip-text text-transparent tracking-wide">
+                                          General Clean: ${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}
+                                        </span>
+                                      </div>
+                                    </div>
                                   )}
-                                </>
-                              );
-                            })()}
+                                </motion.div>
+                              )}
+
+                              {/* Show other recurring options if a recurring service was selected */}
+                              {showSelectedRecurring && (
+                                <motion.div
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: 0.25 }}
+                                  className="space-y-2"
+                                >
+                                  <div className="text-sm font-semibold text-gray-600 mb-2">OTHER RECURRING OPTIONS:</div>
+                                  {selectedFrequency !== 'weekly' && (
+                                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
+                                      <div className="flex items-center gap-3">
+                                        <span className="text-xl">📅</span>
+                                        <span className="font-bold text-lg text-gray-700">
+                                          Weekly Cleaning: ${quoteResult.ranges.weekly.low} to ${quoteResult.ranges.weekly.high}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {selectedFrequency !== 'bi-weekly' && (
+                                    <div className="bg-gradient-to-r from-yellow-100 via-amber-100 to-yellow-100 border-l-4 border-yellow-500 pl-6 py-3 rounded-r-xl shadow-sm">
+                                      <div className="flex items-center gap-3">
+                                        <span className="text-xl">⭐</span>
+                                        <span className="font-bold text-lg text-yellow-800">
+                                          Bi-Weekly Cleaning: ${quoteResult.ranges.biWeekly.low} to ${quoteResult.ranges.biWeekly.high} (Most Popular)
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {selectedFrequency !== 'monthly' && (
+                                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
+                                      <div className="flex items-center gap-3">
+                                        <span className="text-xl">📅</span>
+                                        <span className="font-bold text-lg text-gray-700">
+                                          Monthly Cleaning (Every 4 Weeks): ${quoteResult.ranges.fourWeek.low} to ${quoteResult.ranges.fourWeek.high}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </motion.div>
+                              )}
+
+                              {/* Show one-time service options if a one-time service was selected */}
+                              {showSelectedOneTime && (
+                                <motion.div
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: 0.25 }}
+                                  className="space-y-2 mt-4"
+                                >
+                                  <div className="text-sm font-semibold text-gray-600 mb-2">OTHER ONE-TIME OPTIONS:</div>
+                                  {selectedServiceType !== 'deep' && (
+                                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
+                                      <div className="flex items-center gap-3">
+                                        <span className="text-xl">🧹</span>
+                                        <span className="font-bold text-lg text-gray-700">
+                                          Deep Clean: ${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {selectedServiceType !== 'general' && (
+                                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
+                                      <div className="flex items-center gap-3">
+                                        <span className="text-xl">✨</span>
+                                        <span className="font-bold text-lg text-gray-700">
+                                          General Clean: ${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {selectedServiceType !== 'move-in' && (
+                                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
+                                      <div className="flex items-center gap-3">
+                                        <span className="text-xl">🚚</span>
+                                        <span className="font-bold text-lg text-gray-700">
+                                          Move-In Clean: ${quoteResult.ranges.moveInOutBasic.low} to ${quoteResult.ranges.moveInOutBasic.high}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {selectedServiceType !== 'move-out' && (
+                                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
+                                      <div className="flex items-center gap-3">
+                                        <span className="text-xl">🚚</span>
+                                        <span className="font-bold text-lg text-gray-700">
+                                          Move-Out Clean: ${quoteResult.ranges.moveInOutFull.low} to ${quoteResult.ranges.moveInOutFull.high}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </motion.div>
+                              )}
+                            </>
+                          );
+                        })()}
                           </>
                         )}
 
