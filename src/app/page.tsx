@@ -1366,14 +1366,17 @@ export default function Home() {
                                 </motion.div>
                               )}
 
-                              {/* Show other options only if they're not the selected service */}
-                              {!showSelectedOneTime && (
+                              {/* Show one-time service options (Deep/General) only if:
+                                  1. No one-time service was selected, AND
+                                  2. No recurring service was selected (so we show them as alternatives) */}
+                              {!showSelectedOneTime && !showSelectedRecurring && (
                                 <motion.div
                                   initial={{ opacity: 0, x: -10 }}
                                   animate={{ opacity: 1, x: 0 }}
                                   transition={{ delay: 0.2 }}
                                   className="space-y-3 mb-4"
                                 >
+                                  <div className="text-sm font-semibold text-gray-600 mb-2">ONE-TIME SERVICE OPTIONS:</div>
                                   {/* Deep Clean - only show if not selected */}
                                   {selectedServiceType !== 'deep' && (
                                     <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-4 rounded-r-xl shadow-md">
@@ -1429,7 +1432,7 @@ export default function Home() {
                                       </div>
                                     </div>
                                   )}
-                                  {selectedFrequency !== 'monthly' && (
+                                  {(selectedFrequency !== 'monthly' && selectedFrequency !== 'four-week' && selectedFrequency !== 'every-4-weeks') && (
                                     <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
                                       <div className="flex items-center gap-3">
                                         <span className="text-xl">📅</span>
@@ -2297,10 +2300,10 @@ export default function Home() {
 
                       // Determine grid columns based on number of options
                       const getGridCols = (count: number) => {
-                        // Use fewer columns to make boxes wider, max 3 columns on desktop
+                        // Use fewer columns to make boxes wider and prevent text cutoff
                         if (count <= 2) return 'grid-cols-2';
                         if (count <= 3) return 'grid-cols-3';
-                        if (count <= 4) return 'grid-cols-2 sm:grid-cols-4';
+                        if (count <= 4) return 'grid-cols-2'; // Always 2 columns for 4 options to make buttons wider
                         if (count <= 5) return 'grid-cols-2 sm:grid-cols-3';
                         if (count <= 6) return 'grid-cols-2 sm:grid-cols-3';
                         return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4';
@@ -2308,7 +2311,7 @@ export default function Home() {
 
                       return (
                         <div className="space-y-4">
-                          <div className={`grid ${getGridCols(selectOptions.length)} gap-3 sm:gap-4 max-w-4xl mx-auto`}>
+                          <div className={`grid ${getGridCols(selectOptions.length)} gap-4 sm:gap-5 max-w-5xl mx-auto`}>
                             {selectOptions.map((option) => {
                               const isSelected = currentValue === option.value;
                               const { mainText, detailsText } = parseOptionLabel(option.label);
@@ -2334,10 +2337,10 @@ export default function Home() {
                                     }
                                   }}
                                   className={`
-                                    relative h-28 sm:h-32 md:h-36 lg:h-40 rounded-2xl sm:rounded-3xl font-medium 
-                                    text-xs sm:text-sm md:text-sm
+                                    relative h-32 sm:h-40 md:h-44 lg:h-48 rounded-2xl sm:rounded-3xl font-medium 
+                                    text-sm sm:text-base md:text-base
                                     transition-all duration-300 border-2 shadow-lg
-                                    flex flex-col items-center justify-center px-4 py-5 sm:px-5 sm:py-6
+                                    flex flex-col items-center justify-center px-5 py-6 sm:px-6 sm:py-8
                                     text-center leading-tight
                                     overflow-hidden break-words whitespace-normal
                                     min-w-0 w-full
@@ -2358,20 +2361,20 @@ export default function Home() {
                                       initial={{ scale: 0.8, opacity: 0 }}
                                       animate={{ scale: 1, opacity: 1 }}
                                       transition={{ type: 'spring', bounce: 0.3, duration: 0.4 }}
-                                      className="relative z-10 flex flex-col items-center justify-center gap-1 w-full px-1 overflow-hidden"
+                                      className="relative z-10 flex flex-col items-center justify-center gap-2 w-full px-2 overflow-hidden"
                                     >
-                                      <span className="text-xs sm:text-sm md:text-sm font-semibold leading-tight break-words whitespace-normal w-full">{mainText}</span>
+                                      <span className="text-sm sm:text-base md:text-base font-semibold leading-tight break-words whitespace-normal w-full">{mainText}</span>
                                       {detailsText && (
-                                        <span className="text-[10px] sm:text-[11px] md:text-xs opacity-90 font-normal leading-tight text-center px-1 break-words whitespace-normal w-full">
+                                        <span className="text-xs sm:text-sm md:text-sm opacity-90 font-normal leading-tight text-center px-2 break-words whitespace-normal w-full">
                                           {detailsText}
                                         </span>
                                       )}
                                     </motion.div>
                                   ) : (
-                                    <span className="relative z-10 flex flex-col items-center justify-center gap-1 w-full px-1 overflow-hidden">
-                                      <span className="text-xs sm:text-sm md:text-sm font-semibold leading-tight break-words whitespace-normal w-full">{mainText}</span>
+                                    <span className="relative z-10 flex flex-col items-center justify-center gap-2 w-full px-2 overflow-hidden">
+                                      <span className="text-sm sm:text-base md:text-base font-semibold leading-tight break-words whitespace-normal w-full">{mainText}</span>
                                       {detailsText && (
-                                        <span className="text-[10px] sm:text-[11px] md:text-xs opacity-75 font-normal leading-tight text-center px-1 break-words whitespace-normal w-full">
+                                        <span className="text-xs sm:text-sm md:text-sm opacity-75 font-normal leading-tight text-center px-2 break-words whitespace-normal w-full">
                                           {detailsText}
                                         </span>
                                       )}
