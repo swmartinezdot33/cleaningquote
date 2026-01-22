@@ -5,7 +5,7 @@ import { ghlTokenExists, getGHLConfig } from '@/lib/kv';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { contactId, date, time, notes, type = 'appointment' } = body;
+    const { contactId, date, time, timestamp, notes, type = 'appointment' } = body;
 
     console.log('Appointment creation request:', {
       type,
@@ -102,29 +102,45 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse date and time
-    // date format: YYYY-MM-DD, time format: HH:MM
-    // The date/time comes from a UTC timestamp, so we need to parse it as UTC
-    // Ensure time has seconds (HH:MM:00)
-    const timeWithSeconds = time.includes(':') && time.split(':').length === 2 ? `${time}:00` : time;
+    // If timestamp is provided, use it directly (most accurate - matches availability API)
+    // Otherwise, parse from date/time strings
+    let startDateTime: Date;
     
-    // Parse as UTC to avoid timezone conversion issues
-    // Format: YYYY-MM-DDTHH:MM:SSZ (explicitly UTC)
-    const dateTimeString = `${date}T${timeWithSeconds}Z`;
-    const startDateTime = new Date(dateTimeString);
+    if (timestamp && typeof timestamp === 'number') {
+      // Use the exact timestamp from the availability API - this ensures perfect match
+      startDateTime = new Date(timestamp);
+      console.log('Using provided timestamp for appointment:', {
+        timestamp,
+        isoString: startDateTime.toISOString(),
+        local: startDateTime.toLocaleString(),
+        utc: startDateTime.toUTCString(),
+      });
+    } else {
+      // Fallback to parsing date/time strings (for backwards compatibility)
+      // date format: YYYY-MM-DD, time format: HH:MM
+      // The date/time comes from a UTC timestamp, so we need to parse it as UTC
+      // Ensure time has seconds (HH:MM:00)
+      const timeWithSeconds = time.includes(':') && time.split(':').length === 2 ? `${time}:00` : time;
+      
+      // Parse as UTC to avoid timezone conversion issues
+      // Format: YYYY-MM-DDTHH:MM:SSZ (explicitly UTC)
+      const dateTimeString = `${date}T${timeWithSeconds}Z`;
+      startDateTime = new Date(dateTimeString);
 
-    console.log('Parsing date/time for appointment:', {
-      date,
-      time,
-      timeWithSeconds,
-      dateTimeString,
-      parsed: startDateTime.toISOString(),
-      local: startDateTime.toLocaleString(),
-      utc: startDateTime.toUTCString(),
-      isValid: !isNaN(startDateTime.getTime()),
-    });
+      console.log('Parsing date/time strings for appointment:', {
+        date,
+        time,
+        timeWithSeconds,
+        dateTimeString,
+        parsed: startDateTime.toISOString(),
+        local: startDateTime.toLocaleString(),
+        utc: startDateTime.toUTCString(),
+        isValid: !isNaN(startDateTime.getTime()),
+      });
+    }
 
     if (isNaN(startDateTime.getTime())) {
-      console.error('Invalid date/time format:', { date, time, dateTimeString });
+      console.error('Invalid date/time format:', { date, time, timestamp });
       return NextResponse.json({ 
         error: 'Invalid date or time format',
         userMessage: 'The selected date or time format is invalid. Please try again.',

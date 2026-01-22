@@ -400,6 +400,23 @@ export default function Home() {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
 
+  // Helper function to convert 24-hour time to 12-hour format
+  const formatTime12Hour = (time24: string): string => {
+    if (!time24) return '';
+    
+    // Handle formats like "13:00" or "07:00"
+    const [hours, minutes] = time24.split(':');
+    if (!hours || !minutes) return time24; // Return as-is if invalid format
+    
+    const hour24 = parseInt(hours, 10);
+    if (isNaN(hour24)) return time24;
+    
+    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+    const ampm = hour24 < 12 ? 'AM' : 'PM';
+    
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
   // Helper function to convert hex to HSL for Tailwind CSS variables
   const hexToHsl = (hex: string): string => {
     const r = parseInt(hex.slice(1, 3), 16) / 255;
@@ -892,7 +909,7 @@ export default function Home() {
     }
   };
 
-  const handleBookAppointment = async (date?: string, time?: string, notes?: string) => {
+  const handleBookAppointment = async (date?: string, time?: string, notes?: string, timestamp?: number) => {
     const finalDate = date || appointmentDate;
     const finalTime = time || appointmentTime;
     const finalNotes = notes || appointmentNotes;
@@ -925,6 +942,7 @@ export default function Home() {
           contactId: quoteResult.ghlContactId,
           date: finalDate,
           time: finalTime,
+          timestamp: timestamp, // Send the exact timestamp from availability API
           notes: finalNotes || 'Appointment booked through quote form',
           type: 'appointment',
         }),
@@ -1048,7 +1066,7 @@ export default function Home() {
     }
   };
 
-  const handleBookCall = async (date?: string, time?: string, notes?: string) => {
+  const handleBookCall = async (date?: string, time?: string, notes?: string, timestamp?: number) => {
     const finalDate = date || callDate;
     const finalTime = time || callTime;
     const finalNotes = notes || callNotes;
@@ -1081,6 +1099,7 @@ export default function Home() {
           contactId: quoteResult.ghlContactId,
           date: finalDate,
           time: finalTime,
+          timestamp: timestamp, // Send the exact timestamp from availability API
           notes: finalNotes || 'Call scheduled through quote form',
           type: 'call',
         }),
@@ -1711,7 +1730,7 @@ export default function Home() {
                             </div>
                             <div>
                               <p className="text-sm text-gray-600 mb-1">Appointment Time</p>
-                              <p className="text-2xl font-bold text-gray-900">{appointmentTime}</p>
+                              <p className="text-2xl font-bold text-gray-900">{formatTime12Hour(appointmentTime)}</p>
                             </div>
                             <div className="pt-4 border-t">
                               <p className="text-sm text-gray-600">
@@ -1754,13 +1773,13 @@ export default function Home() {
 
                           <CalendarBooking
                             type="appointment"
-                            onConfirm={(date, time, notes) => {
+                            onConfirm={(date, time, notes, timestamp) => {
                               // Update state for display
                               setAppointmentDate(date);
                               setAppointmentTime(time);
                               setAppointmentNotes(notes);
-                              // Pass values directly to avoid async state update issue
-                              handleBookAppointment(date, time, notes);
+                              // Pass values directly to avoid async state update issue, including timestamp
+                              handleBookAppointment(date, time, notes, timestamp);
                             }}
                             onCancel={() => {
                               setShowAppointmentForm(false);
@@ -1812,7 +1831,7 @@ export default function Home() {
                             </div>
                             <div>
                               <p className="text-sm text-gray-600 mb-1">Call Time</p>
-                              <p className="text-2xl font-bold text-gray-900">{callTime}</p>
+                              <p className="text-2xl font-bold text-gray-900">{formatTime12Hour(callTime)}</p>
                             </div>
                             <div className="pt-4 border-t">
                               <p className="text-sm text-gray-600">
@@ -1854,11 +1873,11 @@ export default function Home() {
 
                           <CalendarBooking
                             type="call"
-                            onConfirm={(date, time, notes) => {
+                            onConfirm={(date, time, notes, timestamp) => {
                               setCallDate(date);
                               setCallTime(time);
                               setCallNotes(notes);
-                              handleBookCall(date, time, notes);
+                              handleBookCall(date, time, notes, timestamp);
                             }}
                             onCancel={() => {
                               setShowCallForm(false);

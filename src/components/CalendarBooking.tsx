@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 
 interface CalendarBookingProps {
   type: 'appointment' | 'call';
-  onConfirm: (date: string, time: string, notes: string) => void;
+  onConfirm: (date: string, time: string, notes: string, timestamp?: number) => void;
   onCancel: () => void;
   isBooking: boolean;
   primaryColor?: string;
@@ -352,8 +352,9 @@ export function CalendarBooking({
     });
     
     // Pass the UTC date/time extracted from the actual timestamp
+    // Also pass the raw timestamp to ensure exact match with GHL's availability
     // This ensures the server receives the exact time that was shown as available
-    onConfirm(dateStr, timeStr.substring(0, 5), notes || '');
+    onConfirm(dateStr, timeStr.substring(0, 5), notes || '', selectedTimestamp);
   };
 
   const handlePreviousMonth = () => {
