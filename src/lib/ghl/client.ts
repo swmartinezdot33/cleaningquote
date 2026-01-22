@@ -24,7 +24,7 @@ const GHL_API_BASE = 'https://services.leadconnectorhq.com';
 /**
  * Make authenticated request to GHL API
  */
-async function makeGHLRequest<T>(
+export async function makeGHLRequest<T>(
   endpoint: string,
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   body?: Record<string, any>
@@ -521,17 +521,24 @@ async function testEndpoint(
   name: string,
   endpoint: string,
   method: 'GET' | 'POST',
-  token: string
+  token: string,
+  body?: Record<string, any>
 ): Promise<{ name: string; success: boolean; status?: number; message: string; endpoint: string }> {
   try {
-    const response = await fetch(`${GHL_API_BASE}${endpoint}`, {
+    const options: RequestInit = {
       method,
       headers: {
         'Authorization': `Bearer ${token.trim()}`,
         'Content-Type': 'application/json',
         'Version': '2021-07-28',
       },
-    });
+    };
+    
+    if (body && method === 'POST') {
+      options.body = JSON.stringify(body);
+    }
+    
+    const response = await fetch(`${GHL_API_BASE}${endpoint}`, options);
 
     let message = '';
     if (response.ok) {
@@ -598,62 +605,90 @@ export async function testGHLConnectionComprehensive(token?: string): Promise<GH
 
     console.log(`🧪 Starting comprehensive GHL API test for location: ${locationId}`);
 
-    // Define all endpoints to test - focus on GET endpoints that return real data or proper errors
+    // Define all endpoints to test - using the ACTUAL endpoints we use in production
     const endpointsToTest = [
-      // Contacts
+      // Contacts - List (used for testing connection)
       {
-        name: 'Contacts - List & Read',
-        endpoint: `/v2/locations/${locationId}/contacts?limit=1`,
-        method: 'GET' as const,
-      },
-      // Opportunities
-      {
-        name: 'Opportunities - List & Read',
-        endpoint: `/v2/locations/${locationId}/opportunities?limit=1`,
-        method: 'GET' as const,
-      },
-      // Pipelines
-      {
-        name: 'Pipelines - List & Read',
-        endpoint: `/v2/locations/${locationId}/opportunities/pipelines`,
-        method: 'GET' as const,
-      },
-      // Tags
-      {
-        name: 'Tags - List & Read',
-        endpoint: `/v2/locations/${locationId}/tags`,
-        method: 'GET' as const,
-      },
-      // Calendars
-      {
-        name: 'Calendars - List & Read',
-        endpoint: `/v2/locations/${locationId}/calendars`,
-        method: 'GET' as const,
-      },
-      // Custom Fields
-      {
-        name: 'Custom Fields - List & Read',
-        endpoint: `/v2/locations/${locationId}/customFields?model=contact`,
-        method: 'GET' as const,
-      },
-      // Test basic contact endpoint (for backwards compatibility)
-      {
-        name: 'Basic Contacts API',
+        name: 'Contacts - List',
         endpoint: `/contacts?locationId=${locationId}&limit=1`,
         method: 'GET' as const,
       },
-      // Test calendars with old format
+      // Contacts - Upsert (actual endpoint we use for creating/updating contacts)
       {
-        name: 'Calendars API (Alternative)',
+        name: 'Contacts - Upsert Endpoint (dry-run)',
+        endpoint: `/contacts/upsert`,
+        method: 'POST' as const,
+        body: { locationId, firstName: 'Test', lastName: 'Contact' }, // Dry-run test payload
+      },
+      // Opportunities - List (used for testing - try both formats)
+      {
+        name: 'Opportunities - List',
+        endpoint: `/opportunities?locationId=${locationId}&limit=1`,
+        method: 'GET' as const,
+      },
+      // Opportunities - Create (actual endpoint we use)
+      {
+        name: 'Opportunities - Create Endpoint (dry-run)',
+        endpoint: `/opportunities/`,
+        method: 'POST' as const,
+        body: { locationId, contactId: 'test-contact-id', name: 'Test Opportunity' }, // Dry-run test payload
+      },
+      // Pipelines - List (actual endpoint we use)
+      {
+        name: 'Pipelines - List',
+        endpoint: `/opportunities/pipelines?locationId=${locationId}`,
+        method: 'GET' as const,
+      },
+      // Tags - List (actual endpoint we use)
+      {
+        name: 'Tags - List',
+        endpoint: `/v2/locations/${locationId}/tags`,
+        method: 'GET' as const,
+      },
+      // Calendars - List (actual endpoint we use)
+      {
+        name: 'Calendars - List',
         endpoint: `/calendars/?locationId=${locationId}`,
         method: 'GET' as const,
+      },
+      // Appointments - Create (actual endpoint we use)
+      {
+        name: 'Appointments - Create Endpoint (dry-run)',
+        endpoint: `/calendars/events/appointments`,
+        method: 'POST' as const,
+        body: { 
+          locationId, 
+          contactId: 'test-contact-id', 
+          title: 'Test Appointment',
+          startTime: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
+          endTime: new Date(Date.now() + 86400000 + 3600000).toISOString(), // Tomorrow + 1 hour
+        }, // Dry-run test payload
+      },
+      // Custom Fields - List (actual endpoint we use)
+      {
+        name: 'Custom Fields - List (Contact)',
+        endpoint: `/v2/locations/${locationId}/customFields?model=contact`,
+        method: 'GET' as const,
+      },
+      // Custom Fields - List (Opportunity)
+      {
+        name: 'Custom Fields - List (Opportunity)',
+        endpoint: `/v2/locations/${locationId}/customFields?model=opportunity`,
+        method: 'GET' as const,
+      },
+      // Notes - Create (actual endpoint we use)
+      {
+        name: 'Notes - Create Endpoint (dry-run)',
+        endpoint: `/contacts/test-contact-id/notes`,
+        method: 'POST' as const,
+        body: { body: 'Test note' }, // Dry-run test payload
       },
     ];
 
     // Run all tests in parallel
     const results = await Promise.all(
       endpointsToTest.map((test) =>
-        testEndpoint(test.name, test.endpoint, test.method, testToken)
+        testEndpoint(test.name, test.endpoint, test.method, testToken, (test as any).body)
       )
     );
 

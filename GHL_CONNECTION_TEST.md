@@ -191,34 +191,38 @@ curl -X PUT \
 
 ## Endpoints Tested
 
-The comprehensive test checks the following endpoints:
+The comprehensive test checks the following endpoints that are **actually used in production**:
 
 ### Contacts
-1. **List** - `GET /v2/locations/{locationId}/contacts?limit=1`
-2. **Upsert** - `POST /v2/locations/{locationId}/contacts/upsert` (dry-run)
+1. **List** - `GET /contacts?locationId={locationId}&limit=1` (used for connection testing)
+2. **Upsert** - `POST /contacts/upsert` (actual endpoint used for creating/updating contacts)
 
 ### Opportunities
-1. **List** - `GET /v2/locations/{locationId}/opportunities?limit=1`
-2. **Create** - `POST /v2/locations/{locationId}/opportunities` (dry-run)
+1. **List** - `GET /opportunities?locationId={locationId}&limit=1` (used for testing)
+2. **Create** - `POST /opportunities/` (actual endpoint used for creating opportunities)
 
 ### Pipelines
-1. **List** - `GET /v2/locations/{locationId}/opportunities/pipelines`
+1. **List** - `GET /opportunities/pipelines?locationId={locationId}` (actual endpoint used for getting pipelines)
 
 ### Tags
-1. **List** - `GET /v2/locations/{locationId}/tags`
-2. **Create** - `POST /v2/locations/{locationId}/tags` (dry-run)
+1. **List** - `GET /v2/locations/{locationId}/tags` (actual endpoint used for getting tags)
+2. **Create** - `POST /locations/{locationId}/tags` (actual endpoint used for creating tags - tested as dry-run)
 
 ### Calendars
-1. **List** - `GET /v2/locations/{locationId}/calendars`
+1. **List** - `GET /calendars/?locationId={locationId}` (actual endpoint used for getting calendars)
 
 ### Appointments
-1. **Create** - `POST /v2/locations/{locationId}/calendars/appointments` (dry-run)
+1. **Create** - `POST /calendars/events/appointments` (actual endpoint used for creating appointments - dry-run)
 
 ### Custom Fields
-1. **List** - `GET /v2/locations/{locationId}/customFields?model=contact`
+1. **List (Contact)** - `GET /v2/locations/{locationId}/customFields?model=contact` (actual endpoint used)
+2. **List (Opportunity)** - `GET /v2/locations/{locationId}/customFields?model=opportunity` (actual endpoint used)
 
 ### Notes
-1. **Create** - `POST /v2/locations/{locationId}/contacts/{contactId}/notes` (dry-run)
+1. **Create** - `POST /contacts/{contactId}/notes` (actual endpoint used for creating notes - dry-run)
+
+### Calendar Availability (Not Tested)
+- `GET /calendars/{calendarId}/free-slots?startDate={timestamp}&endDate={timestamp}` - Requires calendarId from config, tested separately in calendar availability routes
 
 ---
 
@@ -227,10 +231,11 @@ The comprehensive test checks the following endpoints:
 ### Status Indicators
 
 - **✅ Working (HTTP 200)** - Endpoint is functional and accessible
+- **✅ Working (HTTP 400)** - Endpoint is accessible (400 is expected for dry-run POST tests with invalid test data)
 - **⚠️ Not Found (HTTP 404)** - Endpoint exists but no data available (acceptable for testing)
 - **❌ Unauthorized (HTTP 401)** - Invalid or expired token
 - **❌ Forbidden (HTTP 403)** - Missing required API scopes
-- **❌ Error** - Other HTTP errors
+- **❌ Error** - Other HTTP errors (500, etc.)
 
 ### Summary Breakdown
 

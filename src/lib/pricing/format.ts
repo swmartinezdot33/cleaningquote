@@ -10,7 +10,7 @@ function formatPriceRange(range: { low: number; high: number }): string {
 /**
  * Get service name from frequency
  */
-function getServiceName(frequency: string): string {
+export function getServiceName(frequency: string): string {
   const frequencyMap: { [key: string]: string } = {
     'weekly': 'Weekly Cleaning',
     'bi-weekly': 'Bi-Weekly Cleaning',
@@ -25,7 +25,7 @@ function getServiceName(frequency: string): string {
 /**
  * Get service name from service type
  */
-function getServiceTypeDisplayName(serviceType: string): string {
+export function getServiceTypeDisplayName(serviceType: string): string {
   const typeMap: { [key: string]: string } = {
     'initial': 'Initial Cleaning',
     'general': 'General Clean',

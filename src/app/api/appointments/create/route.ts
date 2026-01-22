@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAppointment } from '@/lib/ghl/client';
-import { ghlTokenExists, getGHLConfig } from '@/lib/kv';
+import { createAppointment, makeGHLRequest } from '@/lib/ghl/client';
+import { ghlTokenExists, getGHLConfig, getGHLLocationId } from '@/lib/kv';
+import { getServiceName, getServiceTypeDisplayName } from '@/lib/pricing/format';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { contactId, date, time, timestamp, notes, type = 'appointment' } = body;
+    const { contactId, date, time, timestamp, notes, type = 'appointment', serviceType, frequency } = body;
 
     console.log('Appointment creation request:', {
       type,
@@ -51,6 +52,45 @@ export async function POST(request: NextRequest) {
       callUserId: ghlConfig?.callUserId,
     });
 
+    // Fetch contact information to get the contact name
+    let contactName = '';
+    try {
+      const locationId = await getGHLLocationId();
+      // Try with locationId in query string (for location-level tokens)
+      const endpoint = locationId ? `/contacts/${contactId}?locationId=${locationId}` : `/contacts/${contactId}`;
+      const contactResponse = await makeGHLRequest<{ contact?: { firstName?: string; lastName?: string; name?: string } }>(
+        endpoint,
+        'GET'
+      );
+      const contact = contactResponse.contact || contactResponse;
+      if (contact) {
+        if (contact.firstName || contact.lastName) {
+          contactName = [contact.firstName, contact.lastName].filter(Boolean).join(' ').trim();
+        } else if (contact.name) {
+          contactName = contact.name;
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to fetch contact name for appointment title:', error);
+      // Continue without contact name - we'll use a generic title
+    }
+
+    // Determine service name from serviceType and frequency
+    let serviceName = 'Cleaning Service';
+    if (type === 'appointment' && (serviceType || frequency)) {
+      if (frequency === 'one-time' || !frequency) {
+        // One-time service
+        if (serviceType) {
+          serviceName = getServiceTypeDisplayName(serviceType);
+        } else {
+          serviceName = 'One-Time Service';
+        }
+      } else {
+        // Recurring service
+        serviceName = getServiceName(frequency);
+      }
+    }
+
     // Determine which calendar and user to use based on booking type
     let calendarId: string | undefined;
     let assignedTo: string | undefined;
@@ -60,13 +100,13 @@ export async function POST(request: NextRequest) {
     if (type === 'call') {
       calendarId = ghlConfig?.callCalendarId;
       assignedTo = ghlConfig?.callUserId;
-      title = 'Consultation Call';
+      title = contactName ? `Consultation Call - ${contactName}` : 'Consultation Call';
       defaultNotes = 'Consultation call scheduled through website quote form';
     } else {
       // default to appointment
       calendarId = ghlConfig?.appointmentCalendarId;
       assignedTo = ghlConfig?.appointmentUserId;
-      title = 'Cleaning Service Appointment';
+      title = contactName ? `${serviceName} - ${contactName}` : serviceName;
       defaultNotes = 'Appointment booked through website quote form';
     }
 

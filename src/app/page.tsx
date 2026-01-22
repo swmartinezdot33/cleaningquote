@@ -945,6 +945,8 @@ export default function Home() {
           timestamp: timestamp, // Send the exact timestamp from availability API
           notes: finalNotes || 'Appointment booked through quote form',
           type: 'appointment',
+          serviceType: selectedServiceType, // Pass the selected service type
+          frequency: selectedFrequency, // Pass the selected frequency
         }),
       });
 
