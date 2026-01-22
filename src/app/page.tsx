@@ -126,18 +126,34 @@ function generateSchemaFromQuestions(questions: SurveyQuestion[]): z.ZodObject<a
     
     if (question.type === 'number') {
       if (question.required) {
-        // For required number fields, use union to explicitly handle undefined/null/empty
-        // This ensures validation fails when no value is selected
+        // For required number fields, reject undefined/null/empty
+        // Also reject 0 if it's not a valid option for this question (e.g., people question starts at 1)
+        const questionId = question.id.toLowerCase();
+        const allowsZero = questionId.includes('bath') || questionId.includes('pets') || questionId.includes('shedding');
+        
         schemaShape[fieldId] = z.union([
           z.number()
             .int({ message: `${question.label} must be a whole number` })
-            .min(0, `${question.label} must be 0 or greater`),
+            .min(allowsZero ? 0 : 1, `${question.label} must be ${allowsZero ? '0' : '1'} or greater`),
           z.undefined(),
           z.null(),
           z.literal(''),
         ]).refine((val) => {
-          // Only accept actual numbers
-          return typeof val === 'number' && !isNaN(val);
+          // Reject undefined, null, and empty string
+          if (val === undefined || val === null || val === '') {
+            return false;
+          }
+          
+          // If it's a number, ensure it's valid
+          if (typeof val === 'number') {
+            // Reject 0 if this question doesn't allow it (e.g., people question)
+            if (val === 0 && !allowsZero) {
+              return false;
+            }
+            return !isNaN(val);
+          }
+          
+          return false;
         }, {
           message: `${question.label} is required`
         });
@@ -210,6 +226,12 @@ export default function Home() {
   const [currentStep, setCurrentStep] = useState(0);
   const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
   const [selectedFrequency, setSelectedFrequency] = useState<string>('bi-weekly'); // Track selected frequency
+  const [houseDetails, setHouseDetails] = useState<{
+    squareFeet: string;
+    bedrooms: number;
+    fullBaths: number;
+    halfBaths: number;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const [direction, setDirection] = useState(1); // 1 for forward, -1 for backward
@@ -405,12 +427,14 @@ export default function Home() {
   };
 
   // Generate default values from questions
+  // Never preselect values - all fields start empty/undefined so users must make a choice
   const getDefaultValues = () => {
     const defaults: Record<string, any> = {};
     questions.forEach((q) => {
       const fieldName = getFormFieldName(q.id);
+      // Always start with undefined/empty - never preselect
       if (q.type === 'number') {
-        defaults[fieldName] = 0;
+        defaults[fieldName] = undefined; // Changed from 0 to undefined
       } else {
         defaults[fieldName] = '';
       }
@@ -616,10 +640,44 @@ export default function Home() {
     
     // Use sanitized field name for validation
     const fieldName = getFormFieldName(currentQuestion.id);
+    const currentValue = getValues(fieldName as any);
+    
+    // For required questions, explicitly check if value is empty/undefined before validation
+    if (currentQuestion.required) {
+      // Check for empty values based on field type
+      let isEmpty = false;
+      if (currentQuestion.type === 'number') {
+        // For number fields, undefined, null, or 0 (if not allowed) means empty
+        const questionId = currentQuestion.id.toLowerCase();
+        const allowsZero = questionId.includes('bath') || questionId.includes('pets') || questionId.includes('shedding');
+        isEmpty = currentValue === undefined || currentValue === null || currentValue === '' || (currentValue === 0 && !allowsZero);
+      } else {
+        // For other fields, empty string, undefined, or null means empty
+        isEmpty = !currentValue || currentValue === '' || currentValue === undefined || currentValue === null;
+      }
+      
+      if (isEmpty) {
+        // Trigger validation to show error message
+        await trigger(fieldName as any);
+        const fieldError = (errors as any)[fieldName]?.message;
+        console.warn('Validation failed - empty value for required field:', fieldName, 'Current value:', currentValue);
+        
+        // Scroll to the error message to make it more visible
+        setTimeout(() => {
+          const errorElement = document.querySelector(`[data-field-error="${fieldName}"]`);
+          if (errorElement) {
+            errorElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }, 100);
+        
+        return;
+      }
+    }
+    
+    // Run full validation
     const isValid = await trigger(fieldName as any);
     
     if (!isValid) {
-      const currentValue = getValues(fieldName as any);
       const fieldError = (errors as any)[fieldName]?.message;
       console.warn('Validation failed for:', fieldName, '(original ID:', currentQuestion.id + ')', 'Current value:', currentValue);
       console.warn('Field error:', fieldError);
@@ -729,6 +787,7 @@ export default function Home() {
   const handleFormSubmit = async () => {
     setIsLoading(true);
     setQuoteResult(null);
+    setHouseDetails(null);
     setCopySuccess(false);
 
     try {
@@ -792,6 +851,13 @@ export default function Home() {
       } else {
         setSelectedFrequency('bi-weekly'); // Default to bi-weekly
       }
+      // Store house details for display
+      setHouseDetails({
+        squareFeet: formData.squareFeet || '',
+        bedrooms: Number(formData.bedrooms) || 0,
+        fullBaths: Number(formData.fullBaths) || 0,
+        halfBaths: convertSelectToNumber(formData.halfBaths) || 0,
+      });
     } catch (error) {
       console.error('Error fetching quote:', error);
       alert(error instanceof Error ? error.message : 'Failed to calculate quote. Please try again.');
@@ -1088,7 +1154,10 @@ export default function Home() {
                   <div className="text-center py-8">
                     <h2 className="text-2xl font-bold text-red-600 mb-4">Out of Limits</h2>
                     <p className="text-gray-700 mb-6">{quoteResult.message}</p>
-                    <Button onClick={() => setQuoteResult(null)}>Go Back and Edit</Button>
+                    <Button onClick={() => {
+                      setQuoteResult(null);
+                      setHouseDetails(null);
+                    }}>Go Back and Edit</Button>
                   </div>
                 </CardContent>
               </Card>
@@ -1147,18 +1216,35 @@ export default function Home() {
                     <CardContent className="pt-10 pb-10 bg-gradient-to-b from-gray-50 to-white">
                       {/* Custom service options display */}
                       <div className="space-y-6">
-                        {/* Home Size */}
-                        {(quoteResult.summaryText || '').split('\n').filter(line => line.trim() && line.includes('Home Size:')).map((line, idx) => (
+                        {/* House Details */}
+                        {houseDetails && (
                           <motion.div
-                            key={idx}
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.1 }}
-                            className="text-gray-700 text-base"
+                            transition={{ delay: 0.05 }}
+                            className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-4 rounded-r-xl shadow-sm"
                           >
-                            {line}
+                            <h4 className="font-bold text-lg text-gray-900 mb-3">House Details</h4>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-gray-700">
+                              <div>
+                                <span className="font-semibold">SqFt:</span>{' '}
+                                <span className="text-gray-900">{houseDetails.squareFeet}</span>
+                              </div>
+                              <div>
+                                <span className="font-semibold">Rooms:</span>{' '}
+                                <span className="text-gray-900">{houseDetails.bedrooms}</span>
+                              </div>
+                              <div>
+                                <span className="font-semibold">Full Baths:</span>{' '}
+                                <span className="text-gray-900">{houseDetails.fullBaths}</span>
+                              </div>
+                              <div>
+                                <span className="font-semibold">Half Baths:</span>{' '}
+                                <span className="text-gray-900">{houseDetails.halfBaths}</span>
+                              </div>
+                            </div>
                           </motion.div>
-                        ))}
+                        )}
 
                         {/* Deep Clean and General Clean at the top */}
                         {quoteResult.ranges && (
@@ -1693,6 +1779,7 @@ export default function Home() {
                   <Button
                     onClick={() => {
                       setQuoteResult(null);
+                      setHouseDetails(null);
                       setCurrentStep(0);
                       setAppointmentConfirmed(false);
                       setCallConfirmed(false);
