@@ -417,6 +417,18 @@ export default function Home() {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
+  // Helper function to format date as DD/MM/YYYY
+  const formatDateDDMMYYYY = (date: string): string => {
+    if (!date) return '';
+    
+    // Handle formats like "2026-01-29" (YYYY-MM-DD)
+    const parts = date.split('-');
+    if (parts.length !== 3) return date; // Return as-is if invalid format
+    
+    const [year, month, day] = parts;
+    return `${day}/${month}/${year}`;
+  };
+
   // Helper function to convert hex to HSL for Tailwind CSS variables
   const hexToHsl = (hex: string): string => {
     const r = parseInt(hex.slice(1, 3), 16) / 255;
@@ -1767,7 +1779,7 @@ export default function Home() {
                           <div className="space-y-4">
                             <div>
                               <p className="text-sm text-gray-600 mb-1">Appointment Date</p>
-                              <p className="text-2xl font-bold text-gray-900">{appointmentDate}</p>
+                              <p className="text-2xl font-bold text-gray-900">{formatDateDDMMYYYY(appointmentDate)}</p>
                             </div>
                             <div>
                               <p className="text-sm text-gray-600 mb-1">Appointment Time</p>
@@ -1868,7 +1880,7 @@ export default function Home() {
                           <div className="space-y-4">
                             <div>
                               <p className="text-sm text-gray-600 mb-1">Call Date</p>
-                              <p className="text-2xl font-bold text-gray-900">{callDate}</p>
+                              <p className="text-2xl font-bold text-gray-900">{formatDateDDMMYYYY(callDate)}</p>
                             </div>
                             <div>
                               <p className="text-sm text-gray-600 mb-1">Call Time</p>
