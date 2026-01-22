@@ -1216,14 +1216,19 @@ export default function Home() {
 
                             {/* Helper function to get frequency display info */}
                             {(() => {
+                              // Ensure ranges exist before accessing
+                              if (!quoteResult.ranges) {
+                                return null;
+                              }
+
                               // Get the selected recurring option
                               const getFrequencyInfo = (freq: string) => {
                                 if (freq === 'weekly') {
-                                  return { name: 'Weekly Cleaning', range: quoteResult.ranges.weekly, icon: '📅' };
+                                  return { name: 'Weekly Cleaning', range: quoteResult.ranges!.weekly, icon: '📅' };
                                 } else if (freq === 'bi-weekly') {
-                                  return { name: 'Bi-Weekly Cleaning', range: quoteResult.ranges.biWeekly, icon: '📅' };
+                                  return { name: 'Bi-Weekly Cleaning', range: quoteResult.ranges!.biWeekly, icon: '📅' };
                                 } else if (freq === 'monthly' || freq === 'four-week') {
-                                  return { name: 'Monthly Cleaning', range: quoteResult.ranges.fourWeek, icon: '📅' };
+                                  return { name: 'Monthly Cleaning', range: quoteResult.ranges!.fourWeek, icon: '📅' };
                                 }
                                 return null;
                               };
