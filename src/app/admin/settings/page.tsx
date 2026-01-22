@@ -393,6 +393,15 @@ export default function SettingsPage() {
         setSelectedAppointmentUserId(config.appointmentUserId || '');
         setSelectedCallUserId(config.callUserId || '');
         setQuotedAmountField(config.quotedAmountField || '');
+        
+        // Load saved tags
+        if (config.inServiceTags && Array.isArray(config.inServiceTags)) {
+          setSelectedInServiceTags(new Set(config.inServiceTags));
+        }
+        if (config.outOfServiceTags && Array.isArray(config.outOfServiceTags)) {
+          setSelectedOutOfServiceTags(new Set(config.outOfServiceTags));
+        }
+        
         setGhlConfigLoaded(true);
 
         // Load pipelines, users, and calendars if token is connected
