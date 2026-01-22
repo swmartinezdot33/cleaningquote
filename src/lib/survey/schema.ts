@@ -114,7 +114,7 @@ export const DEFAULT_SURVEY_QUESTIONS: SurveyQuestion[] = [
     options: [
       { value: 'weekly', label: 'Weekly' },
       { value: 'bi-weekly', label: 'Bi-Weekly (Every 2 Weeks)' },
-      { value: 'monthly', label: 'Monthly (Every 4 Weeks)' },
+      { value: 'monthly', label: 'Every 4 Weeks' },
       { value: 'one-time', label: 'One-Time' },
     ],
     required: true,

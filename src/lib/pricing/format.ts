@@ -14,7 +14,9 @@ function getServiceName(frequency: string): string {
   const frequencyMap: { [key: string]: string } = {
     'weekly': 'Weekly Cleaning',
     'bi-weekly': 'Bi-Weekly Cleaning',
-    'monthly': 'Monthly Cleaning (Every 4 Weeks)',
+    'monthly': 'Every 4 Weeks Cleaning',
+    'four-week': 'Every 4 Weeks Cleaning',
+    'every-4-weeks': 'Every 4 Weeks Cleaning',
     'one-time': 'One-Time Service',
   };
   return frequencyMap[frequency] || frequency;
@@ -158,7 +160,7 @@ export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges 
     summary += `ALL RECURRING OPTIONS\n\n`;
     summary += `📅 Weekly Cleaning: ${formatPriceRange(ranges.weekly)}\n`;
     summary += `⭐ Bi-Weekly Cleaning: ${formatPriceRange(ranges.biWeekly)} (Most Popular)\n`;
-    summary += `📅 Monthly Cleaning (Every 4 Weeks): ${formatPriceRange(ranges.fourWeek)}\n\n`;
+    summary += `📅 Every 4 Weeks Cleaning: ${formatPriceRange(ranges.fourWeek)}\n\n`;
     
     // Also show one-time service options
     summary += `ONE-TIME SERVICE OPTIONS\n\n`;

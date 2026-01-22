@@ -237,22 +237,25 @@ export async function POST(request: NextRequest) {
           contactData.phone = body.phone;
         }
 
-        // Add quoted amount to contact custom fields if configured
+        // Add quoted amount to contact custom fields if configured - store the range
         if (ghlConfig?.quotedAmountField && result.ranges) {
-          // Calculate the quoted amount (same logic as opportunity)
-          let quotedAmount: number | undefined = ghlConfig.opportunityMonetaryValue;
+          // Get the selected price range
+          const selectedRange = getSelectedQuoteRange(result.ranges, body.serviceType, body.frequency);
           
-          // If using dynamic pricing, calculate from selected service
-          if (ghlConfig.useDynamicPricingForValue !== false) {
-            quotedAmount = getSelectedQuotePrice(result.ranges, body.serviceType, body.frequency);
-          }
-          
-          // Only add if we have a valid amount
-          if (quotedAmount !== undefined && quotedAmount !== null && quotedAmount > 0) {
-            // Extract just the field key (remove "contact." prefix if present)
-            const fieldKey = ghlConfig.quotedAmountField.replace(/^contact\./, '');
-            contactData.customFields![fieldKey] = String(quotedAmount);
-            console.log(`✅ Added quoted amount to contact custom field: ${fieldKey} = ${quotedAmount}`);
+          // Only add if we have a valid range
+          if (selectedRange && selectedRange.low > 0 && selectedRange.high > 0) {
+            // Extract just the field key (remove "contact." or "opportunity." prefix if present)
+            // GHL custom fields use just the field key, not prefixed versions
+            const fieldKey = ghlConfig.quotedAmountField.replace(/^(contact|opportunity)\./, '');
+            // Store the range as a string like "$150 - $200"
+            contactData.customFields![fieldKey] = `$${selectedRange.low} - $${selectedRange.high}`;
+            console.log(`✅ Added quoted amount range to contact custom field:`, {
+              originalField: ghlConfig.quotedAmountField,
+              cleanedFieldKey: fieldKey,
+              range: `$${selectedRange.low} - $${selectedRange.high}`,
+              low: selectedRange.low,
+              high: selectedRange.high,
+            });
           }
         }
 
@@ -298,18 +301,82 @@ export async function POST(request: NextRequest) {
 
         // Create opportunity if enabled
         if (ghlConfig?.createOpportunity && ghlContactId) {
-          // Calculate opportunity value
+          // Get the selected price range first
+          const selectedRange = getSelectedQuoteRange(result.ranges, body.serviceType, body.frequency);
+          
+          // Calculate opportunity value - use high end of range to show maximum potential value
           let opportunityValue = ghlConfig.opportunityMonetaryValue;
           
-          // If using dynamic pricing, calculate from selected service
+          // If using dynamic pricing, use the high end of the selected range
           if (ghlConfig.useDynamicPricingForValue !== false) {
-            opportunityValue = getSelectedQuotePrice(result.ranges, body.serviceType, body.frequency);
+            if (selectedRange) {
+              // Use high end of range for opportunity value (shows maximum potential)
+              opportunityValue = selectedRange.high;
+            } else {
+              // Fallback to calculated price if range not found
+              opportunityValue = getSelectedQuotePrice(result.ranges, body.serviceType, body.frequency);
+            }
           }
 
-          const opportunityName = `Cleaning Quote - ${body.serviceType || 'General'} - ${body.frequency || 'TBD'}`;
+          // Use contact's name for opportunity name, fallback to service type if name not available
+          const contactFirstName = contactData.firstName && contactData.firstName !== 'Unknown' ? contactData.firstName : '';
+          const contactLastName = contactData.lastName && contactData.lastName !== 'Customer' ? contactData.lastName : '';
+          const contactName = [contactFirstName, contactLastName].filter(Boolean).join(' ').trim();
+          
+          // Build opportunity name: Use contact name with price range if available
+          let opportunityName: string;
+          if (contactName) {
+            // Include price range in the name for visibility
+            if (selectedRange) {
+              opportunityName = `Cleaning Quote - ${contactName} ($${selectedRange.low}-$${selectedRange.high})`;
+            } else {
+              opportunityName = `Cleaning Quote - ${contactName}`;
+            }
+          } else {
+            // Fallback to service details with range
+            if (selectedRange) {
+              opportunityName = `Cleaning Quote - ${body.serviceType || 'General'} - ${body.frequency || 'TBD'} ($${selectedRange.low}-$${selectedRange.high})`;
+            } else {
+              opportunityName = `Cleaning Quote - ${body.serviceType || 'General'} - ${body.frequency || 'TBD'}`;
+            }
+          }
 
-          // Get the selected price range for storing
-          const selectedRange = getSelectedQuoteRange(result.ranges, body.serviceType, body.frequency);
+          // Build opportunity custom fields
+          const opportunityCustomFields: Record<string, string> = {
+            // Home details
+            squareFeet: String(body.squareFeet),
+            beds: String(body.bedrooms || 0),
+            baths: String((body.fullBaths || 0) + (body.halfBaths || 0) * 0.5),
+            people: String(body.people || 0),
+            sheddingPets: String(body.sheddingPets || 0),
+            condition: body.condition || 'Unknown',
+            
+            // Service details
+            serviceType: body.serviceType || 'Not specified',
+            frequency: body.frequency || 'Not specified',
+            
+            // Quote pricing - store the full range
+            quoteMin: String(selectedRange?.low || 0),
+            quoteMax: String(selectedRange?.high || 0),
+            quoteRange: selectedRange ? `$${selectedRange.low} - $${selectedRange.high}` : 'N/A',
+            quotePriceMiddle: String(opportunityValue || 0),
+          };
+
+          // Add quoted amount field if configured - store the range, not just a single value
+          if (ghlConfig.quotedAmountField && selectedRange) {
+            // Extract just the field key (remove "opportunity." or "contact." prefix if present)
+            // GHL custom fields use just the field key, not prefixed versions
+            const fieldKey = ghlConfig.quotedAmountField.replace(/^(opportunity|contact)\./, '');
+            // Store the range as a string like "$150 - $200"
+            opportunityCustomFields[fieldKey] = `$${selectedRange.low} - $${selectedRange.high}`;
+            console.log(`✅ Added quoted amount range to opportunity custom field:`, {
+              originalField: ghlConfig.quotedAmountField,
+              cleanedFieldKey: fieldKey,
+              range: `$${selectedRange.low} - $${selectedRange.high}`,
+              low: selectedRange.low,
+              high: selectedRange.high,
+            });
+          }
 
           await createOpportunity({
             contactId: ghlContactId,
@@ -318,27 +385,7 @@ export async function POST(request: NextRequest) {
             pipelineId: ghlConfig.pipelineId,
             pipelineStageId: ghlConfig.pipelineStageId,
             status: (ghlConfig.opportunityStatus as 'open' | 'won' | 'lost' | 'abandoned') || 'open',
-            customFields: {
-              // Home details
-              squareFeet: String(body.squareFeet),
-              beds: String(body.bedrooms || 0),
-              baths: String((body.fullBaths || 0) + (body.halfBaths || 0) * 0.5),
-              people: String(body.people || 0),
-              sheddingPets: String(body.sheddingPets || 0),
-              condition: body.condition || 'Unknown',
-              
-              // Service details
-              serviceType: body.serviceType || 'Not specified',
-              frequency: body.frequency || 'Not specified',
-              
-              // Quote pricing
-              quoteMin: String(selectedRange?.low || 0),
-              quoteMax: String(selectedRange?.high || 0),
-              quotePriceMiddle: String(opportunityValue || 0),
-              ...(ghlConfig.quotedAmountField ? {
-                [ghlConfig.quotedAmountField]: String(opportunityValue || 0),
-              } : {}),
-            },
+            customFields: opportunityCustomFields,
           });
         }
 

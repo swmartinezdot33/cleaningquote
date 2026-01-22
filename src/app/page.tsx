@@ -1267,8 +1267,8 @@ export default function Home() {
                               return { name: 'Weekly Cleaning', range: quoteResult.ranges!.weekly, icon: '📅' };
                             } else if (freq === 'bi-weekly') {
                               return { name: 'Bi-Weekly Cleaning', range: quoteResult.ranges!.biWeekly, icon: '📅' };
-                            } else if (freq === 'monthly' || freq === 'four-week') {
-                              return { name: 'Monthly Cleaning (Every 4 Weeks)', range: quoteResult.ranges!.fourWeek, icon: '📅' };
+                            } else if (freq === 'monthly' || freq === 'four-week' || freq === 'every-4-weeks') {
+                              return { name: 'Every 4 Weeks Cleaning', range: quoteResult.ranges!.fourWeek, icon: '📅' };
                             }
                             return null;
                           };
@@ -1299,6 +1299,14 @@ export default function Home() {
 
                           const selectedFreqInfo = getFrequencyInfo(selectedFrequency);
                           const selectedServiceInfo = getServiceTypeInfo(selectedServiceType, selectedFrequency);
+                          
+                          // Debug logging for frequency detection
+                          console.log('🔍 Frequency display debug:', {
+                            selectedFrequency,
+                            selectedServiceType,
+                            selectedFreqInfo: selectedFreqInfo ? { name: selectedFreqInfo.name, hasRange: !!selectedFreqInfo.range } : null,
+                            selectedServiceInfo: selectedServiceInfo ? { name: selectedServiceInfo.name } : null,
+                          });
                           
                           // Determine if this is a one-time service
                           const isOneTime = isOneTimeService(selectedServiceType) || selectedFrequency === 'one-time';
@@ -1426,7 +1434,7 @@ export default function Home() {
                                       <div className="flex items-center gap-3">
                                         <span className="text-xl">📅</span>
                                         <span className="font-bold text-lg text-gray-700">
-                                          Monthly Cleaning (Every 4 Weeks): ${quoteResult.ranges.fourWeek.low} to ${quoteResult.ranges.fourWeek.high}
+                                          Every 4 Weeks Cleaning: ${quoteResult.ranges.fourWeek.low} to ${quoteResult.ranges.fourWeek.high}
                                         </span>
                                       </div>
                                     </div>
