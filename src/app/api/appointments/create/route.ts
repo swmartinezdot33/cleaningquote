@@ -119,6 +119,18 @@ export async function POST(request: NextRequest) {
         );
       }
       
+      // Handle unavailable time slot error
+      if (errorMessage.includes('no longer available') || errorMessage.includes('slot') && errorMessage.includes('available')) {
+        return NextResponse.json(
+          {
+            error: 'Time Slot Unavailable',
+            details: 'The selected time slot has been booked by another customer or is no longer available.',
+            userMessage: 'Sorry, the time slot you selected is no longer available. Please choose a different date and time.',
+          },
+          { status: 400 }
+        );
+      }
+      
       return NextResponse.json(
         {
           error: 'Failed to create appointment in GHL',
