@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { storeSurveyQuestions, getSurveyQuestions, SurveyQuestion } from '@/lib/kv';
+import { storeSurveyQuestions } from '@/lib/kv';
+import { getSurveyQuestions, saveSurveyQuestions } from '@/lib/survey/manager';
+import { SurveyQuestion } from '@/lib/survey/schema';
 
 /**
  * Authenticate request with admin password
@@ -101,8 +103,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Store questions
-    await storeSurveyQuestions(questions as SurveyQuestion[]);
+    // Store questions using survey manager
+    await saveSurveyQuestions(questions as SurveyQuestion[]);
 
     return NextResponse.json({
       success: true,

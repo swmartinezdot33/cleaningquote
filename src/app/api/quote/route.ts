@@ -3,7 +3,9 @@ import { calcQuote } from '@/lib/pricing/calcQuote';
 import { generateSummaryText, generateSmsText } from '@/lib/pricing/format';
 import { QuoteInputs, QuoteRanges } from '@/lib/pricing/types';
 import { createOrUpdateContact, createOpportunity, createNote } from '@/lib/ghl/client';
-import { ghlTokenExists, getGHLConfig, getSurveyQuestions, SurveyQuestion } from '@/lib/kv';
+import { ghlTokenExists, getGHLConfig } from '@/lib/kv';
+import { getSurveyQuestions } from '@/lib/survey/manager';
+import { SurveyQuestion } from '@/lib/survey/schema';
 
 /**
  * Helper to get the selected quote range based on service type and frequency

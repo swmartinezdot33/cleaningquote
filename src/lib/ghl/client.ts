@@ -313,26 +313,21 @@ export async function createOpportunity(
 
 /**
  * Add a note to a contact in GHL
- * Always uses stored locationId for sub-account (location-level) API calls
+ * Note: When using a location-level token, locationId is implicit and should NOT be included
  */
 export async function createNote(noteData: GHLNote, locationId?: string): Promise<GHLNoteResponse> {
   try {
-    // Always use locationId - required for sub-account (location-level) API calls
-    // Use provided locationId, or get from stored settings (required)
-    let finalLocationId = locationId || (await getGHLLocationId());
-    
-    if (!finalLocationId) {
-      throw new Error('Location ID is required. Please configure it in the admin settings.');
-    }
-
     const payload = {
       body: noteData.body,
-      locationId: finalLocationId, // locationId must be in the request body
+      // Note: locationId should NOT be included for notes endpoint when using location-level token
+      // The location is determined from the token itself
     };
 
-    // GHL 2.0 API: Use contacts notes endpoint - locationId is in the request body
+    // GHL 2.0 API: Use contacts notes endpoint
+    // When using location-level token, locationId is implicit and should not be in URL or body
+    const endpoint = `/contacts/${noteData.contactId}/notes`;
     const response = await makeGHLRequest<{ note: GHLNoteResponse }>(
-      `/contacts/${noteData.contactId}/notes`,
+      endpoint,
       'POST',
       payload
     );
