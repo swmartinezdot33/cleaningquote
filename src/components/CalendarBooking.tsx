@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Clock, ChevronLeft, ChevronRight, Loader2, Check, X } from 'lucide-react';
+import { Calendar, Clock, ChevronLeft, ChevronRight, Loader2, Check, X, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,9 +43,11 @@ export function CalendarBooking({
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
   const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
   const [isLoadingTimes, setIsLoadingTimes] = useState(false);
+  const [calendarError, setCalendarError] = useState<string | null>(null);
 
   // Fetch available dates for the current month
   useEffect(() => {
+    console.log('[CalendarBooking] useEffect triggered - type:', type, 'month:', currentMonth.toISOString());
     fetchAvailableDates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentMonth, type]);
@@ -72,34 +74,94 @@ export function CalendarBooking({
       const startTime = firstDay.getTime();
       const endTime = lastDay.getTime() + 24 * 60 * 60 * 1000 - 1; // End of last day
 
-      const response = await fetch(
-        `/api/calendar-availability/month?type=${type}&from=${startTime}&to=${endTime}`
-      );
+      const apiUrl = `/api/calendar-availability/month?type=${type}&from=${startTime}&to=${endTime}`;
+      console.log('========================================');
+      console.log('[CalendarBooking] FETCHING AVAILABILITY');
+      console.log('[CalendarBooking] URL:', apiUrl);
+      console.log('[CalendarBooking] Type:', type);
+      console.log('[CalendarBooking] Start:', new Date(startTime).toISOString(), `(${startTime})`);
+      console.log('[CalendarBooking] End:', new Date(endTime).toISOString(), `(${endTime})`);
+      console.log('========================================');
+
+      const response = await fetch(apiUrl);
+      console.log('[CalendarBooking] Response status:', response.status, response.statusText);
+      console.log('[CalendarBooking] Response ok?', response.ok);
+
+      console.log('[CalendarBooking] Response headers:', Object.fromEntries(response.headers.entries()));
+      const data = await response.json();
+      console.log('[CalendarBooking] Response data:', data);
+      console.log('[CalendarBooking] Response data keys:', Object.keys(data));
+      console.log('[CalendarBooking] Response has error?', !!data.error);
+      console.log('[CalendarBooking] Response has slots?', !!data.slots);
+      console.log('[CalendarBooking] Slots type:', typeof data.slots);
+      console.log('[CalendarBooking] Slots keys:', data.slots ? Object.keys(data.slots) : 'N/A');
+      
+      // Check for errors in response (even if status is 200)
+      if (data.error) {
+        console.error('[CalendarBooking] API returned error:', data.error, data.message);
+        setAvailableDays(new Map()); // Clear availability on error
+        setCalendarError(data.message || data.error || 'Unable to load calendar availability');
+        return;
+      }
+      
+      // Clear any previous errors
+      setCalendarError(null);
 
       if (response.ok) {
-        const data = await response.json();
         const daysMap = new Map<string, DayAvailability>();
         
+        console.log('[CalendarBooking] Processing response - data.slots exists?', !!data.slots);
+        console.log('[CalendarBooking] data.slots type:', typeof data.slots);
+        console.log('[CalendarBooking] data.slots value:', data.slots);
+        
         // Process the slots by date
-        if (data.slots) {
-          Object.keys(data.slots).forEach((dateKey: string) => {
+        if (data.slots && typeof data.slots === 'object') {
+          const slotKeys = Object.keys(data.slots);
+          console.log('[CalendarBooking] Found', slotKeys.length, 'date keys in slots');
+          
+          slotKeys.forEach((dateKey: string) => {
             const slots = data.slots[dateKey];
+            console.log(`[CalendarBooking] Date ${dateKey}:`, Array.isArray(slots) ? `${slots.length} slots` : `type: ${typeof slots}`, slots);
+            
             if (Array.isArray(slots) && slots.length > 0) {
+              const mappedSlots = slots.map((slot: any) => {
+                const start = typeof slot.start === 'number' ? slot.start : new Date(slot.start).getTime();
+                const end = typeof slot.end === 'number' ? slot.end : new Date(slot.end).getTime();
+                console.log(`[CalendarBooking] Slot:`, { start, end, original: slot });
+                return { start, end };
+              });
+              
               daysMap.set(dateKey, {
                 date: dateKey,
-                slots: slots.map((slot: any) => ({
-                  start: typeof slot.start === 'number' ? slot.start : new Date(slot.start).getTime(),
-                  end: typeof slot.end === 'number' ? slot.end : new Date(slot.end).getTime(),
-                })),
+                slots: mappedSlots,
                 hasAvailability: true,
               });
+              console.log(`[CalendarBooking] Added ${dateKey} with ${mappedSlots.length} slots`);
+            } else {
+              console.warn(`[CalendarBooking] Date ${dateKey} has no valid slots array`);
             }
           });
+        } else {
+          console.warn('[CalendarBooking] data.slots is not an object or is missing:', data.slots);
+          console.warn('[CalendarBooking] Full response data:', JSON.stringify(data, null, 2));
+        }
+        
+        console.log('[CalendarBooking] Final daysMap size:', daysMap.size);
+        console.log('[CalendarBooking] Days with availability:', Array.from(daysMap.keys()));
+        
+        if (daysMap.size === 0) {
+          console.warn('[CalendarBooking] NO AVAILABLE DATES FOUND');
+          console.warn('[CalendarBooking] Response data:', JSON.stringify(data, null, 2));
+          if (data.warning || data.message) {
+            console.warn('[CalendarBooking] API warning:', data.warning || data.message);
+            setCalendarError(data.message || data.warning || 'No available time slots found. Please check calendar configuration in GHL.');
+          }
         }
         
         setAvailableDays(daysMap);
       } else {
-        console.error('Failed to fetch available dates');
+        console.error('[CalendarBooking] Failed to fetch available dates:', response.status, data);
+        setAvailableDays(new Map());
       }
     } catch (error) {
       console.error('Error fetching available dates:', error);
@@ -120,8 +182,16 @@ export function CalendarBooking({
         `/api/calendar-availability/month?type=${type}&from=${dayStart.getTime()}&to=${dayEnd.getTime()}`
       );
 
+      const data = await response.json();
+      
+      // Check for errors in response
+      if (data.error) {
+        console.error('[CalendarBooking] API returned error for time slots:', data.error, data.message);
+        setAvailableTimeSlots([]);
+        return;
+      }
+
       if (response.ok) {
-        const data = await response.json();
         const slots = data.slots?.[date] || [];
         
         // Convert slots to time strings (HH:MM format)
@@ -135,9 +205,10 @@ export function CalendarBooking({
           })
           .sort();
 
+        console.log('[CalendarBooking] Loaded', timeSlots.length, 'time slots for', date);
         setAvailableTimeSlots(timeSlots);
       } else {
-        console.error('Failed to fetch available time slots');
+        console.error('[CalendarBooking] Failed to fetch available time slots:', response.status, data);
         setAvailableTimeSlots([]);
       }
     } catch (error) {
@@ -263,6 +334,23 @@ export function CalendarBooking({
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin" style={{ color: primaryColor }} />
               <span className="ml-2 text-gray-600">Loading available dates...</span>
+            </div>
+          )}
+
+          {calendarError && !isLoadingCalendar && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-amber-900 mb-1">Unable to Load Calendar</p>
+                  <p className="text-sm text-amber-800">{calendarError}</p>
+                  {calendarError.includes('No users assigned') && (
+                    <p className="text-xs text-amber-700 mt-2">
+                      Please assign users to the calendar in GHL Calendar settings to enable booking.
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

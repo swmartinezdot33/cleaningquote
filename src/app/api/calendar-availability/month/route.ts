@@ -7,14 +7,26 @@ import { getGHLToken, getGHLLocationId, getGHLConfig } from '@/lib/kv';
  * Returns available slots grouped by date
  */
 export async function GET(request: NextRequest) {
+  // Log immediately - this should always appear
+  console.log('========================================');
+  console.log('[calendar-availability/month] ROUTE CALLED');
+  console.log('[calendar-availability/month] Timestamp:', new Date().toISOString());
+  console.log('[calendar-availability/month] URL:', request.url);
+  console.log('========================================');
+  
   try {
     const token = await getGHLToken();
     const locationId = await getGHLLocationId();
     
+    console.log('[calendar-availability/month] Starting request');
+    console.log('[calendar-availability/month] Token exists:', !!token);
+    console.log('[calendar-availability/month] LocationId exists:', !!locationId);
+    
     if (!token || !locationId) {
+      console.error('[calendar-availability/month] GHL not configured - token:', !!token, 'locationId:', !!locationId);
       return NextResponse.json(
-        { error: 'GHL not configured' },
-        { status: 400 }
+        { error: 'GHL not configured', slots: {} },
+        { status: 200 } // Return 200 with error so client can handle it
       );
     }
 
@@ -23,10 +35,13 @@ export async function GET(request: NextRequest) {
     const fromParam = url.searchParams.get('from');
     const toParam = url.searchParams.get('to');
 
+    console.log('[calendar-availability/month] Request params:', { type, fromParam, toParam });
+
     if (!type || !fromParam || !toParam) {
+      console.error('[calendar-availability/month] Missing required params');
       return NextResponse.json(
-        { error: 'type, from, and to are required' },
-        { status: 400 }
+        { error: 'type, from, and to are required', slots: {} },
+        { status: 200 }
       );
     }
 
@@ -34,9 +49,10 @@ export async function GET(request: NextRequest) {
     const toTime = parseInt(toParam, 10);
 
     if (isNaN(fromTime) || isNaN(toTime)) {
+      console.error('[calendar-availability/month] Invalid timestamps');
       return NextResponse.json(
-        { error: 'from and to must be valid timestamps in milliseconds' },
-        { status: 400 }
+        { error: 'from and to must be valid timestamps in milliseconds', slots: {} },
+        { status: 200 }
       );
     }
 
@@ -50,26 +66,31 @@ export async function GET(request: NextRequest) {
       calendarId = ghlConfig?.appointmentCalendarId;
     }
 
+    console.log('[calendar-availability/month] Calendar ID:', calendarId, 'for type:', type);
+
     if (!calendarId) {
+      console.error('[calendar-availability/month] Calendar not configured for type:', type);
       return NextResponse.json(
-        { error: `Calendar not configured for ${type}` },
-        { status: 400 }
+        { error: `Calendar not configured for ${type}`, slots: {} },
+        { status: 200 }
       );
     }
 
     // Use GHL's free-slots endpoint
     // GHL API expects startDate and endDate (not from and to)
-    const freeSlotsResponse = await fetch(
-      `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${fromTime}&endDate=${toTime}`,
-      {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Version': '2021-07-28',
-        },
-      }
-    );
+    const ghlUrl = `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${fromTime}&endDate=${toTime}`;
+    console.log('[calendar-availability/month] Calling GHL API:', ghlUrl);
+    
+    const freeSlotsResponse = await fetch(ghlUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Version': '2021-07-28',
+      },
+    });
+
+    console.log('[calendar-availability/month] GHL API response status:', freeSlotsResponse.status);
 
     if (!freeSlotsResponse.ok) {
       const errorText = await freeSlotsResponse.text();
@@ -93,18 +114,20 @@ export async function GET(request: NextRequest) {
       if (freeSlotsResponse.status === 422) {
         // Check for specific 422 errors
         const errorMessage = errorData.message || errorText || '';
-        if (typeof errorMessage === 'string' && errorMessage.includes('No users found')) {
+        const errorMessageStr = typeof errorMessage === 'string' ? errorMessage : (Array.isArray(errorMessage) ? errorMessage.join(', ') : JSON.stringify(errorMessage));
+        
+        if (errorMessageStr.includes('No users found') || errorMessageStr.includes('no users')) {
           return NextResponse.json({
             slots: {},
-            error: 'Calendar has no users assigned. Please assign users to this calendar in GHL.',
-            message: 'Calendar configuration error: No users assigned',
+            error: 'Calendar has no users assigned in GHL. Users must be assigned to the calendar in GHL Calendar settings.',
+            message: 'Calendar configuration error: No users assigned to calendar in GHL',
           });
         }
         // Generic 422 error
         return NextResponse.json({
           slots: {},
-          error: errorData.message || 'Calendar configuration error',
-          message: errorData.message || 'Please check calendar settings in GHL',
+          error: errorMessageStr || 'Calendar configuration error',
+          message: errorMessageStr || 'Please check calendar settings in GHL',
         });
       }
 
@@ -122,27 +145,121 @@ export async function GET(request: NextRequest) {
     }
 
     const freeSlotsData = await freeSlotsResponse.json();
+    console.log('[calendar-availability/month] GHL API response data keys:', Object.keys(freeSlotsData));
+    console.log('[calendar-availability/month] GHL API response full data:', JSON.stringify(freeSlotsData));
     
     // GHL free-slots API returns data in format: { "YYYY-MM-DD": [{ start: timestamp, end: timestamp }, ...] }
     // or sometimes: { slots: { "YYYY-MM-DD": [...] } }
-    const slots = freeSlotsData.slots || freeSlotsData.data || freeSlotsData || {};
+    // The response might be directly an object with date keys, or wrapped in a slots/data property
+    let slots: any = {};
+    
+    // Check if response is already in date-keyed format
+    if (freeSlotsData && typeof freeSlotsData === 'object' && !Array.isArray(freeSlotsData)) {
+      // Check if it has date-like keys (YYYY-MM-DD format)
+      const hasDateKeys = Object.keys(freeSlotsData).some(key => /^\d{4}-\d{2}-\d{2}$/.test(key));
+      
+      if (hasDateKeys) {
+        // Response is already in { "YYYY-MM-DD": [...] } format
+        slots = freeSlotsData;
+        console.log('[calendar-availability/month] Response is in date-keyed format');
+      } else if (freeSlotsData.slots) {
+        // Response has a slots property
+        slots = freeSlotsData.slots;
+        console.log('[calendar-availability/month] Response has slots property');
+      } else if (freeSlotsData.data) {
+        // Response has a data property
+        slots = freeSlotsData.data;
+        console.log('[calendar-availability/month] Response has data property');
+      } else {
+        // Try the response itself
+        slots = freeSlotsData;
+        console.log('[calendar-availability/month] Using response directly');
+      }
+    }
+    
+    console.log('[calendar-availability/month] Processed slots object keys:', Object.keys(slots));
+    console.log('[calendar-availability/month] Processed slots sample:', JSON.stringify(slots).substring(0, 1000));
 
     // Normalize the response format
     const normalizedSlots: Record<string, Array<{ start: number; end: number }>> = {};
     
-    Object.keys(slots).forEach((dateKey) => {
-      const dateSlots = slots[dateKey];
-      if (Array.isArray(dateSlots) && dateSlots.length > 0) {
-        normalizedSlots[dateKey] = dateSlots.map((slot: any) => ({
-          start: typeof slot.start === 'number' ? slot.start : new Date(slot.start).getTime(),
-          end: typeof slot.end === 'number' ? slot.end : new Date(slot.end).getTime(),
-        }));
-      }
-    });
+    if (slots && typeof slots === 'object') {
+      Object.keys(slots).forEach((dateKey) => {
+        const dateSlots = slots[dateKey];
+        console.log(`[calendar-availability/month] Processing date ${dateKey}:`, Array.isArray(dateSlots) ? `${dateSlots.length} slots` : typeof dateSlots);
+        
+        if (Array.isArray(dateSlots) && dateSlots.length > 0) {
+          normalizedSlots[dateKey] = dateSlots.map((slot: any) => {
+            // Handle different slot formats
+            let start: number;
+            let end: number;
+            
+            if (typeof slot === 'object' && slot !== null) {
+              // Slot is an object with start/end properties
+              start = typeof slot.start === 'number' ? slot.start : new Date(slot.start).getTime();
+              end = typeof slot.end === 'number' ? slot.end : new Date(slot.end).getTime();
+            } else if (Array.isArray(slot) && slot.length >= 2) {
+              // Slot might be [start, end] array
+              start = typeof slot[0] === 'number' ? slot[0] : new Date(slot[0]).getTime();
+              end = typeof slot[1] === 'number' ? slot[1] : new Date(slot[1]).getTime();
+            } else {
+              console.warn(`[calendar-availability/month] Unexpected slot format for ${dateKey}:`, slot);
+              return null;
+            }
+            
+            return { start, end };
+          }).filter((slot: any) => slot !== null) as Array<{ start: number; end: number }>;
+        } else if (dateSlots && !Array.isArray(dateSlots)) {
+          console.warn(`[calendar-availability/month] Date ${dateKey} has non-array value:`, typeof dateSlots, dateSlots);
+        }
+      });
+    } else {
+      console.warn('[calendar-availability/month] Slots is not an object:', typeof slots, slots);
+    }
+
+    const totalCount = Object.values(normalizedSlots).reduce((sum, arr) => sum + arr.length, 0);
+    console.log('[calendar-availability/month] Returning slots:', Object.keys(normalizedSlots).length, 'dates with', totalCount, 'total slots');
+    
+    if (totalCount === 0) {
+      // Log extensively when no slots found
+      console.error('========================================');
+      console.error('[calendar-availability/month] NO SLOTS FOUND');
+      console.error('[calendar-availability/month] Calendar ID:', calendarId);
+      console.error('[calendar-availability/month] Type:', type);
+      console.error('[calendar-availability/month] Date range:', new Date(fromTime).toISOString(), 'to', new Date(toTime).toISOString());
+      console.error('[calendar-availability/month] GHL API URL:', ghlUrl);
+      console.error('[calendar-availability/month] GHL response status:', freeSlotsResponse.status);
+      console.error('[calendar-availability/month] Original GHL response:', JSON.stringify(freeSlotsData, null, 2));
+      console.error('[calendar-availability/month] Processed slots:', JSON.stringify(slots, null, 2));
+      console.error('[calendar-availability/month] Normalized slots:', JSON.stringify(normalizedSlots, null, 2));
+      console.error('[calendar-availability/month] This usually means:');
+      console.error('  1. Calendar has no availability/office hours configured for assigned users');
+      console.error('  2. Calendar has no users assigned (even if selected in admin)');
+      console.error('  3. No slots available in the requested date range');
+      console.error('  4. Calendar settings in GHL need to be configured');
+      console.error('========================================');
+      
+      // Return empty slots but with a helpful message
+      return NextResponse.json({
+        slots: {},
+        count: 0,
+        message: 'No available time slots found. Ensure the calendar has users assigned AND availability/office hours configured in GHL.',
+        warning: 'Calendar may need availability configuration',
+        debug: {
+          calendarId,
+          type,
+          dateRange: {
+            from: new Date(fromTime).toISOString(),
+            to: new Date(toTime).toISOString(),
+          },
+          ghlResponseStatus: freeSlotsResponse.status,
+        },
+      });
+    }
 
     return NextResponse.json({
       slots: normalizedSlots,
-      count: Object.values(normalizedSlots).reduce((sum, arr) => sum + arr.length, 0),
+      count: totalCount,
     });
   } catch (error) {
     console.error('Error fetching calendar slots:', error);

@@ -106,18 +106,19 @@ export async function GET(request: NextRequest) {
       if (freeSlotsResponse.status === 422) {
         // Check for specific 422 errors
         const errorMessage = errorData.message || errorText || '';
-        if (typeof errorMessage === 'string' && (errorMessage.includes('No users found') || 
-            (Array.isArray(errorData.message) && errorData.message.some((msg: string) => msg.includes('No users found'))))) {
+        const errorMessageStr = typeof errorMessage === 'string' ? errorMessage : (Array.isArray(errorMessage) ? errorMessage.join(', ') : JSON.stringify(errorMessage));
+        
+        if (errorMessageStr.includes('No users found') || errorMessageStr.includes('no users')) {
           return NextResponse.json({
             available: false,
-            message: 'Calendar has no users assigned. Please assign users to this calendar in GHL to enable booking.',
-            error: 'No users assigned to calendar',
+            message: 'Calendar has no users assigned in GHL. Users must be assigned to the calendar in GHL Calendar settings to enable booking.',
+            error: 'No users assigned to calendar in GHL',
           });
         }
         // Generic 422 error
         return NextResponse.json({
           available: false,
-          message: errorData.message || 'Calendar configuration error. Please check calendar settings in GHL.',
+          message: errorMessageStr || 'Calendar configuration error. Please check calendar settings in GHL.',
           error: errorData.error || 'Calendar configuration error',
         });
       }

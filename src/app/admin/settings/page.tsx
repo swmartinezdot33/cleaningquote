@@ -1995,6 +1995,10 @@ export default function SettingsPage() {
                                 <p className="text-xs text-gray-500 mt-1">
                                   Select which team member should be assigned appointments from this calendar
                                 </p>
+                                <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+                                  <p className="font-semibold mb-1">⚠️ Important:</p>
+                                  <p>You must also assign users to this calendar in GHL Calendar settings. This selection only sets who receives the appointment - the calendar itself needs users assigned in GHL to generate available time slots.</p>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -2103,6 +2107,10 @@ export default function SettingsPage() {
                                 <p className="text-xs text-gray-500 mt-1">
                                   Select which team member should be assigned calls from this calendar
                                 </p>
+                                <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+                                  <p className="font-semibold mb-1">⚠️ Important:</p>
+                                  <p>You must also assign users to this calendar in GHL Calendar settings. This selection only sets who receives the call - the calendar itself needs users assigned in GHL to generate available time slots.</p>
+                                </div>
                               </div>
                             )}
                           </div>

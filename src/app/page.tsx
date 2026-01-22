@@ -2310,14 +2310,14 @@ export default function Home() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="flex justify-between items-center mt-8 gap-4"
+          className="flex justify-center items-center mt-8 gap-6 md:gap-12 lg:gap-16"
         >
           <Button
             onClick={prevStep}
             disabled={currentStep === 0}
             variant="outline"
             size="lg"
-            className="flex items-center gap-2 disabled:opacity-50"
+            className="flex items-center gap-2 disabled:opacity-50 min-w-[140px]"
           >
             <ChevronLeft className="h-5 w-5" />
             Previous

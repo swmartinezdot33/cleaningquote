@@ -100,18 +100,21 @@ export async function GET(request: NextRequest) {
       if (freeSlotsResponse.status === 422) {
         // Check for specific 422 errors
         const errorMessage = errorData.message || errorText || '';
-        if (typeof errorMessage === 'string' && errorMessage.includes('No users found')) {
+        const errorMessageStr = typeof errorMessage === 'string' ? errorMessage : (Array.isArray(errorMessage) ? errorMessage.join(', ') : JSON.stringify(errorMessage));
+        
+        if (errorMessageStr.includes('No users found') || errorMessageStr.includes('no users')) {
           return NextResponse.json({
             available: false,
-            message: 'Calendar has no users assigned. Please assign users to this calendar in GHL to enable availability checking.',
+            message: 'Calendar has no users assigned in GHL. Even if you assigned users here, you must also:\n1. Go to GHL → Calendar settings\n2. Open the calendar\n3. Assign users to the calendar\n4. Configure availability/office hours for those users\n\nThe calendar needs users assigned AND availability configured to generate time slots.',
             slots: [],
-            error: 'No users assigned to calendar',
+            error: 'No users assigned to calendar in GHL',
+            helpUrl: 'https://help.gohighlevel.com/support/solutions/articles/48001181963-how-to-assign-users-to-a-calendar',
           });
         }
         // Generic 422 error
         return NextResponse.json({
           available: false,
-          message: errorData.message || 'Calendar configuration error. Please check calendar settings in GHL.',
+          message: errorMessageStr || 'Calendar configuration error. Please check calendar settings in GHL.',
           slots: [],
           error: errorData.error || 'Calendar configuration error',
         });
