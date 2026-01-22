@@ -58,8 +58,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Use GHL's free-slots endpoint
+    // GHL API expects startDate and endDate (not from and to)
     const freeSlotsResponse = await fetch(
-      `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?from=${fromTime}&to=${toTime}`,
+      `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${fromTime}&endDate=${toTime}`,
       {
         method: 'GET',
         headers: {

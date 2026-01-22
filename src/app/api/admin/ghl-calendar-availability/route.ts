@@ -62,9 +62,10 @@ export async function GET(request: NextRequest) {
     const toTime = new Date(endTime).getTime();
 
     // Use GHL's free-slots endpoint which respects calendar configuration
-    // GET /calendars/:calendarId/free-slots?from={timestamp}&to={timestamp}
+    // GET /calendars/:calendarId/free-slots?startDate={timestamp}&endDate={timestamp}
+    // GHL API expects startDate and endDate (not from and to)
     const freeSlotsResponse = await fetch(
-      `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?from=${fromTime}&to=${toTime}`,
+      `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${fromTime}&endDate=${toTime}`,
       {
         method: 'GET',
         headers: {

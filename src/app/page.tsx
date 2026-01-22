@@ -1205,7 +1205,7 @@ export default function Home() {
                                   transition={{ duration: 2, repeat: Infinity }}
                                   className="text-2xl"
                                 >
-                                  💰
+                                  ⭐
                                 </motion.div>
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2 mb-1">
@@ -1222,7 +1222,7 @@ export default function Home() {
                                   </div>
                                   <div className="flex items-center gap-2 mt-1">
                                     <span className="text-yellow-700 font-bold text-base flex items-center gap-1">
-                                      <span>⭐</span>
+                                      <span>🏆</span>
                                       <span>Most Popular</span>
                                     </span>
                                   </div>
