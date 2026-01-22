@@ -108,7 +108,7 @@ function getSquareFootageRangeDisplay(squareFeet: number): string {
 }
 
 /**
- * Generate pricing summary text - always shows deep clean, general clean, and selected recurring service
+ * Generate pricing summary text - shows selected service type and frequency correctly
  */
 export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges }, serviceType?: string, frequency?: string, squareFeetRange?: string): string {
   const { inputs, ranges, initialCleaningRequired } = result;
@@ -120,41 +120,66 @@ export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges 
   // Get square footage range for display (use provided range or calculate from number)
   const squareFeetDisplay = squareFeetRange || getSquareFootageRangeDisplay(inputs.squareFeet);
   
-  // Build summary with always-visible prices
+  // Build summary
   let summary = `✨ YOUR QUOTE\n\n`;
   summary += `Home Size: ${squareFeetDisplay} sq ft\n\n`;
   
-  // Always show Deep Clean price
-  summary += `🧹 Deep Clean: ${formatPriceRange(ranges.deep)}\n`;
-  
-  // Always show General Clean price
-  summary += `✨ General Clean: ${formatPriceRange(ranges.general)}\n\n`;
-  
-  // Add header for recurring service option
-  summary += `RECURRING SERVICE OPTION\n\n`;
-  
-  // Show the selected recurring service if one was picked, otherwise default to bi-weekly
-  let recurringService = 'bi-weekly';
-  let recurringRange = ranges.biWeekly;
-  
-  if (serviceType && frequency && frequency !== 'one-time') {
-    const selectedRange = getSelectedQuoteRange(ranges, serviceType, frequency);
+  // Handle one-time services (move-in, move-out, initial, deep, general)
+  if (serviceType && (frequency === 'one-time' || !frequency)) {
+    const selectedRange = getSelectedQuoteRange(ranges, serviceType, frequency || 'one-time');
+    
     if (selectedRange) {
-      recurringService = frequency;
-      recurringRange = selectedRange;
+      const serviceName = getServiceTypeDisplayName(serviceType);
+      summary += `🎯 ${serviceName}: ${formatPriceRange(selectedRange)}\n\n`;
+      
+      // For one-time services, also show other relevant options
+      if (serviceType === 'move-in' || serviceType === 'move-out') {
+        summary += `OTHER SERVICE OPTIONS\n\n`;
+        summary += `🧹 Deep Clean: ${formatPriceRange(ranges.deep)}\n`;
+        summary += `✨ General Clean: ${formatPriceRange(ranges.general)}\n\n`;
+      } else {
+        summary += `RECURRING SERVICE OPTIONS\n\n`;
+        summary += `📅 Weekly Cleaning: ${formatPriceRange(ranges.weekly)}\n`;
+        summary += `⭐ Bi-Weekly Cleaning: ${formatPriceRange(ranges.biWeekly)} (Most Popular)\n`;
+        summary += `📅 Monthly Cleaning (Every 4 Weeks): ${formatPriceRange(ranges.fourWeek)}\n\n`;
+      }
     }
-  } else if (frequency && frequency !== 'one-time') {
-    // If only frequency provided (recurring service)
-    const selectedRange = getSelectedQuoteRange(ranges, 'recurring', frequency);
+  } 
+  // Handle recurring services (weekly, bi-weekly, monthly)
+  else if (frequency && frequency !== 'one-time') {
+    const selectedRange = getSelectedQuoteRange(ranges, serviceType || 'recurring', frequency);
+    
     if (selectedRange) {
-      recurringService = frequency;
-      recurringRange = selectedRange;
+      const serviceName = getServiceName(frequency);
+      summary += `🎯 ${serviceName}: ${formatPriceRange(selectedRange)}\n\n`;
     }
+    
+    // Always show all recurring options for comparison
+    summary += `ALL RECURRING OPTIONS\n\n`;
+    summary += `📅 Weekly Cleaning: ${formatPriceRange(ranges.weekly)}\n`;
+    summary += `⭐ Bi-Weekly Cleaning: ${formatPriceRange(ranges.biWeekly)} (Most Popular)\n`;
+    summary += `📅 Monthly Cleaning (Every 4 Weeks): ${formatPriceRange(ranges.fourWeek)}\n\n`;
+    
+    // Also show one-time service options
+    summary += `ONE-TIME SERVICE OPTIONS\n\n`;
+    summary += `🧹 Deep Clean: ${formatPriceRange(ranges.deep)}\n`;
+    summary += `✨ General Clean: ${formatPriceRange(ranges.general)}\n`;
+    summary += `🚚 Move-In Clean: ${formatPriceRange(ranges.moveInOutBasic)}\n`;
+    summary += `🚚 Move-Out Clean: ${formatPriceRange(ranges.moveInOutFull)}\n\n`;
   }
-  
-  // Always show bi-weekly (or selected recurring service) with most popular indicator
-  const serviceName = getServiceName(recurringService);
-  summary += `⭐ ${serviceName}: ${formatPriceRange(recurringRange)} (Most Popular)\n\n`;
+  // Default: show all options
+  else {
+    summary += `RECURRING SERVICE OPTIONS\n\n`;
+    summary += `📅 Weekly Cleaning: ${formatPriceRange(ranges.weekly)}\n`;
+    summary += `⭐ Bi-Weekly Cleaning: ${formatPriceRange(ranges.biWeekly)} (Most Popular)\n`;
+    summary += `📅 Monthly Cleaning (Every 4 Weeks): ${formatPriceRange(ranges.fourWeek)}\n\n`;
+    
+    summary += `ONE-TIME SERVICE OPTIONS\n\n`;
+    summary += `🧹 Deep Clean: ${formatPriceRange(ranges.deep)}\n`;
+    summary += `✨ General Clean: ${formatPriceRange(ranges.general)}\n`;
+    summary += `🚚 Move-In Clean: ${formatPriceRange(ranges.moveInOutBasic)}\n`;
+    summary += `🚚 Move-Out Clean: ${formatPriceRange(ranges.moveInOutFull)}\n\n`;
+  }
   
   // Add Initial Cleaning messaging if applicable
   if (initialCleaningRequired && serviceType !== 'initial') {

@@ -105,6 +105,8 @@ export async function POST(request: NextRequest) {
       pets: Number(body.pets),
       sheddingPets: Number(body.sheddingPets),
       condition: body.condition,
+      hasPreviousService: body.hasPreviousService,
+      cleanedWithin3Months: body.cleanedWithin3Months,
     };
 
     const result = await calcQuote(inputs);

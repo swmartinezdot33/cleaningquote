@@ -173,6 +173,29 @@ export function CalendarBooking({
   const fetchAvailableTimeSlots = async (date: string) => {
     setIsLoadingTimes(true);
     try {
+      // First, try to use slots from availableDays (already fetched)
+      const dayData = availableDays.get(date);
+      if (dayData && dayData.slots && dayData.slots.length > 0) {
+        console.log('[CalendarBooking] Using cached slots for', date, '-', dayData.slots.length, 'slots');
+        
+        // Convert slots to time strings (HH:MM format)
+        const timeSlots = dayData.slots
+          .map((slot: AvailableSlot) => {
+            const dateObj = new Date(slot.start);
+            const hours = dateObj.getHours().toString().padStart(2, '0');
+            const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+            return `${hours}:${minutes}`;
+          })
+          .sort();
+
+        console.log('[CalendarBooking] Loaded', timeSlots.length, 'time slots for', date);
+        setAvailableTimeSlots(timeSlots);
+        setIsLoadingTimes(false);
+        return;
+      }
+
+      // If not in cache, fetch from API
+      console.log('[CalendarBooking] Slots not in cache, fetching from API for', date);
       const dayStart = new Date(date);
       dayStart.setHours(0, 0, 0, 0);
       const dayEnd = new Date(date);
@@ -192,7 +215,23 @@ export function CalendarBooking({
       }
 
       if (response.ok) {
-        const slots = data.slots?.[date] || [];
+        // Handle nested slots format: {"2026-01-22": {"slots": [...]}} or {"2026-01-22": [{start, end}, ...]}
+        let slots: any[] = [];
+        
+        if (data.slots?.[date]) {
+          const dateSlots = data.slots[date];
+          if (Array.isArray(dateSlots)) {
+            // Direct array format
+            slots = dateSlots;
+          } else if (dateSlots && typeof dateSlots === 'object' && dateSlots.slots && Array.isArray(dateSlots.slots)) {
+            // Nested format with slots property
+            slots = dateSlots.slots.map((slotStr: string) => {
+              // Convert ISO string to {start, end} format
+              const start = new Date(slotStr).getTime();
+              return { start, end: start + (30 * 60 * 1000) }; // 30 minute duration
+            });
+          }
+        }
         
         // Convert slots to time strings (HH:MM format)
         const timeSlots = slots
@@ -205,7 +244,7 @@ export function CalendarBooking({
           })
           .sort();
 
-        console.log('[CalendarBooking] Loaded', timeSlots.length, 'time slots for', date);
+        console.log('[CalendarBooking] Loaded', timeSlots.length, 'time slots for', date, 'from API');
         setAvailableTimeSlots(timeSlots);
       } else {
         console.error('[CalendarBooking] Failed to fetch available time slots:', response.status, data);

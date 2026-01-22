@@ -226,6 +226,7 @@ export default function Home() {
   const [currentStep, setCurrentStep] = useState(0);
   const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
   const [selectedFrequency, setSelectedFrequency] = useState<string>('bi-weekly'); // Track selected frequency
+  const [selectedServiceType, setSelectedServiceType] = useState<string>(''); // Track selected service type
   const [houseDetails, setHouseDetails] = useState<{
     squareFeet: string;
     bedrooms: number;
@@ -845,11 +846,12 @@ export default function Home() {
 
       const result = await response.json();
       setQuoteResult(result);
-      // Store the selected frequency for display
+      // Store the selected service type and frequency for display
+      setSelectedServiceType(formData.serviceType || '');
       if (formData.frequency && formData.frequency !== 'one-time') {
         setSelectedFrequency(formData.frequency);
       } else {
-        setSelectedFrequency('bi-weekly'); // Default to bi-weekly
+        setSelectedFrequency(formData.frequency || 'bi-weekly'); // Use selected frequency or default to bi-weekly
       }
       // Store house details for display
       setHouseDetails({
@@ -1314,23 +1316,66 @@ export default function Home() {
                                 } else if (freq === 'bi-weekly') {
                                   return { name: 'Bi-Weekly Cleaning', range: quoteResult.ranges!.biWeekly, icon: '📅' };
                                 } else if (freq === 'monthly' || freq === 'four-week') {
-                                  return { name: 'Monthly Cleaning', range: quoteResult.ranges!.fourWeek, icon: '📅' };
+                                  return { name: 'Monthly Cleaning (Every 4 Weeks)', range: quoteResult.ranges!.fourWeek, icon: '📅' };
+                                }
+                                return null;
+                              };
+                              
+                              // Get service type info for one-time services
+                              const getServiceTypeInfo = (serviceType: string, freq: string) => {
+                                if (freq === 'one-time' || !freq) {
+                                  if (serviceType === 'move-in') {
+                                    return { name: 'Move-In Clean', range: quoteResult.ranges!.moveInOutBasic, icon: '🚚' };
+                                  } else if (serviceType === 'move-out') {
+                                    return { name: 'Move-Out Clean', range: quoteResult.ranges!.moveInOutFull, icon: '🚚' };
+                                  } else if (serviceType === 'initial') {
+                                    return { name: 'Initial Cleaning', range: quoteResult.ranges!.initial, icon: '✨' };
+                                  } else if (serviceType === 'deep') {
+                                    return { name: 'Deep Clean', range: quoteResult.ranges!.deep, icon: '🧹' };
+                                  } else if (serviceType === 'general') {
+                                    return { name: 'General Clean', range: quoteResult.ranges!.general, icon: '✨' };
+                                  }
                                 }
                                 return null;
                               };
 
                               const selectedFreqInfo = getFrequencyInfo(selectedFrequency);
-                              // Show selected option if it's a recurring service (not one-time)
-                              const showSelected = selectedFreqInfo && selectedFrequency !== 'one-time';
+                              const selectedServiceInfo = getServiceTypeInfo(selectedServiceType, selectedFrequency);
+                              // Show selected option if it's a recurring service (not one-time) or a one-time service
+                              const showSelectedRecurring = selectedFreqInfo && selectedFrequency !== 'one-time';
+                              const showSelectedOneTime = selectedServiceInfo && (selectedFrequency === 'one-time' || !selectedFrequency);
 
                               return (
                                 <>
-                                  {/* Show selected recurring option (always show if it's recurring) */}
-                                  {showSelected && selectedFreqInfo && (
+                                  {/* Show selected one-time service (move-in, move-out, etc.) */}
+                                  {showSelectedOneTime && selectedServiceInfo && (
                                     <motion.div
                                       initial={{ opacity: 0, x: -10 }}
                                       animate={{ opacity: 1, x: 0 }}
                                       transition={{ delay: 0.25 }}
+                                      className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-4 rounded-r-xl shadow-md"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <motion.div
+                                          animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
+                                          transition={{ duration: 2, repeat: Infinity }}
+                                          className="text-2xl"
+                                        >
+                                          💰
+                                        </motion.div>
+                                        <span className="font-black text-2xl md:text-3xl bg-gradient-to-r from-blue-700 via-cyan-600 to-blue-700 bg-clip-text text-transparent tracking-wide">
+                                          {selectedServiceInfo.icon} {selectedServiceInfo.name}: ${selectedServiceInfo.range.low} to ${selectedServiceInfo.range.high}
+                                        </span>
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                  
+                                  {/* Show selected recurring option (always show if it's recurring) */}
+                                  {showSelectedRecurring && selectedFreqInfo && (
+                                    <motion.div
+                                      initial={{ opacity: 0, x: -10 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      transition={{ delay: showSelectedOneTime ? 0.3 : 0.25 }}
                                       className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-4 rounded-r-xl shadow-md"
                                     >
                                       <div className="flex items-center gap-3">
@@ -1348,11 +1393,12 @@ export default function Home() {
                                     </motion.div>
                                   )}
 
-                                  {/* Bi-Weekly - Always shown at bottom as "Most Popular" to encourage bi-weekly sales */}
+                                  {/* Bi-Weekly - Always shown at bottom as "Most Popular" to encourage bi-weekly sales (only for recurring services) */}
+                                  {(!showSelectedOneTime) && (
                                   <motion.div
                                     initial={{ opacity: 0, x: -10 }}
                                     animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: showSelected ? 0.3 : 0.25 }}
+                                    transition={{ delay: showSelectedRecurring ? 0.35 : 0.25 }}
                                     className="bg-gradient-to-r from-yellow-100 via-amber-100 to-yellow-100 border-l-4 border-yellow-500 pl-6 py-4 rounded-r-xl shadow-lg"
                                     style={{
                                       boxShadow: '0 4px 6px -1px rgba(251, 191, 36, 0.3), 0 2px 4px -1px rgba(251, 191, 36, 0.2)'
@@ -1388,6 +1434,26 @@ export default function Home() {
                                       </div>
                                     </div>
                                   </motion.div>
+                                  )}
+                                  
+                                  {/* Show other recurring options if monthly was selected */}
+                                  {selectedFrequency === 'monthly' && (
+                                    <>
+                                      <motion.div
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: 0.4 }}
+                                        className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm mt-2"
+                                      >
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-xl">📅</span>
+                                          <span className="font-bold text-lg text-gray-700">
+                                            Weekly Cleaning: ${quoteResult.ranges.weekly.low} to ${quoteResult.ranges.weekly.high}
+                                          </span>
+                                        </div>
+                                      </motion.div>
+                                    </>
+                                  )}
                                 </>
                               );
                             })()}
