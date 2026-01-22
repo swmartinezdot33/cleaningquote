@@ -75,10 +75,36 @@ export async function GET(request: NextRequest) {
       const errorText = await freeSlotsResponse.text();
       console.error(`GHL free-slots API error (${freeSlotsResponse.status}):`, errorText);
 
+      // Try to parse error message for specific issues
+      let errorData: any = {};
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        // Not JSON, use text as is
+      }
+
       if (freeSlotsResponse.status === 404) {
         return NextResponse.json({
           slots: {},
           message: 'No available time slots found for this calendar',
+        });
+      }
+
+      if (freeSlotsResponse.status === 422) {
+        // Check for specific 422 errors
+        const errorMessage = errorData.message || errorText || '';
+        if (typeof errorMessage === 'string' && errorMessage.includes('No users found')) {
+          return NextResponse.json({
+            slots: {},
+            error: 'Calendar has no users assigned. Please assign users to this calendar in GHL.',
+            message: 'Calendar configuration error: No users assigned',
+          });
+        }
+        // Generic 422 error
+        return NextResponse.json({
+          slots: {},
+          error: errorData.message || 'Calendar configuration error',
+          message: errorData.message || 'Please check calendar settings in GHL',
         });
       }
 

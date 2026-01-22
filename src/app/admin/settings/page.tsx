@@ -150,6 +150,15 @@ export default function SettingsPage() {
     }
   }, [connectionStatus, createOpportunity, isAuthenticated]);
 
+  // Load users and calendars automatically when connection is established
+  useEffect(() => {
+    if (isAuthenticated && connectionStatus === 'connected') {
+      // Load users and calendars automatically - no refresh button needed
+      loadUsers();
+      loadCalendars();
+    }
+  }, [connectionStatus, isAuthenticated]);
+
   useEffect(() => {
     if (isAuthenticated) {
       loadCustomFields();
@@ -387,6 +396,8 @@ export default function SettingsPage() {
         setGhlConfigLoaded(true);
 
         // Load pipelines, users, and calendars if token is connected
+        // Note: Users and calendars will also be loaded automatically via useEffect when connectionStatus becomes 'connected'
+        // But we load them here too in case connectionStatus is already 'connected' when this runs
         if (connectionStatus === 'connected') {
           await loadPipelines();
           await loadUsers();
@@ -1968,32 +1979,18 @@ export default function SettingsPage() {
                                         {user.name} {user.email ? `(${user.email})` : ''}
                                       </option>
                                     ))}
-                                    {/* Show selected user even if not in current list */}
-                                    {selectedAppointmentUserId && !users.find(u => u.id === selectedAppointmentUserId) && (
+                                    {/* Show selected user even if not in current list (will update when users load) */}
+                                    {selectedAppointmentUserId && !users.find(u => u.id === selectedAppointmentUserId) && isLoadingUsers && (
                                       <option value={selectedAppointmentUserId} disabled>
-                                        (Selected user not in list - refresh to update)
+                                        Loading users...
+                                      </option>
+                                    )}
+                                    {selectedAppointmentUserId && !users.find(u => u.id === selectedAppointmentUserId) && !isLoadingUsers && (
+                                      <option value={selectedAppointmentUserId} disabled>
+                                        (Selected user not found - may have been removed)
                                       </option>
                                     )}
                                   </select>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={async () => {
-                                      await loadUsers();
-                                      // Re-validate selected user after reload
-                                      if (selectedAppointmentUserId && users.length > 0) {
-                                        const userExists = users.find(u => u.id === selectedAppointmentUserId);
-                                        if (!userExists) {
-                                          // User no longer exists, but keep selection for now
-                                          console.warn('Selected user not found in updated list');
-                                        }
-                                      }
-                                    }}
-                                    disabled={isLoadingUsers}
-                                  >
-                                    <RotateCw className={`h-4 w-4 ${isLoadingUsers ? 'animate-spin' : ''}`} />
-                                  </Button>
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1">
                                   Select which team member should be assigned appointments from this calendar
@@ -2090,32 +2087,18 @@ export default function SettingsPage() {
                                         {user.name} {user.email ? `(${user.email})` : ''}
                                       </option>
                                     ))}
-                                    {/* Show selected user even if not in current list */}
-                                    {selectedCallUserId && !users.find(u => u.id === selectedCallUserId) && (
+                                    {/* Show selected user even if not in current list (will update when users load) */}
+                                    {selectedCallUserId && !users.find(u => u.id === selectedCallUserId) && isLoadingUsers && (
                                       <option value={selectedCallUserId} disabled>
-                                        (Selected user not in list - refresh to update)
+                                        Loading users...
+                                      </option>
+                                    )}
+                                    {selectedCallUserId && !users.find(u => u.id === selectedCallUserId) && !isLoadingUsers && (
+                                      <option value={selectedCallUserId} disabled>
+                                        (Selected user not found - may have been removed)
                                       </option>
                                     )}
                                   </select>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={async () => {
-                                      await loadUsers();
-                                      // Re-validate selected user after reload
-                                      if (selectedCallUserId && users.length > 0) {
-                                        const userExists = users.find(u => u.id === selectedCallUserId);
-                                        if (!userExists) {
-                                          // User no longer exists, but keep selection for now
-                                          console.warn('Selected user not found in updated list');
-                                        }
-                                      }
-                                    }}
-                                    disabled={isLoadingUsers}
-                                  >
-                                    <RotateCw className={`h-4 w-4 ${isLoadingUsers ? 'animate-spin' : ''}`} />
-                                  </Button>
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1">
                                   Select which team member should be assigned calls from this calendar

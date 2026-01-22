@@ -125,9 +125,25 @@ function generateSchemaFromQuestions(questions: SurveyQuestion[]): z.ZodObject<a
     const fieldId = getFormFieldName(question.id);
     
     if (question.type === 'number') {
-      schemaShape[fieldId] = question.required
-        ? z.number({ required_error: `${question.label} is required` }).int().min(0, `${question.label} must be 0 or greater`)
-        : z.number().int().min(0).optional();
+      if (question.required) {
+        // For required number fields, use union to explicitly handle undefined/null/empty
+        // This ensures validation fails when no value is selected
+        schemaShape[fieldId] = z.union([
+          z.number()
+            .int({ message: `${question.label} must be a whole number` })
+            .min(0, `${question.label} must be 0 or greater`),
+          z.undefined(),
+          z.null(),
+          z.literal(''),
+        ]).refine((val) => {
+          // Only accept actual numbers
+          return typeof val === 'number' && !isNaN(val);
+        }, {
+          message: `${question.label} is required`
+        });
+      } else {
+        schemaShape[fieldId] = z.number().int().min(0).optional();
+      }
     } else if (question.type === 'email') {
       schemaShape[fieldId] = question.required
         ? z.string().min(1, `${question.label} is required`).email('Valid email is required')
@@ -607,6 +623,15 @@ export default function Home() {
       const fieldError = (errors as any)[fieldName]?.message;
       console.warn('Validation failed for:', fieldName, '(original ID:', currentQuestion.id + ')', 'Current value:', currentValue);
       console.warn('Field error:', fieldError);
+      
+      // Scroll to the error message to make it more visible
+      setTimeout(() => {
+        const errorElement = document.querySelector(`[data-field-error="${fieldName}"]`);
+        if (errorElement) {
+          errorElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 100);
+      
       return;
     }
     
@@ -1189,46 +1214,92 @@ export default function Home() {
                               </h4>
                             </motion.div>
 
-                            {/* Bi-Weekly - Always shown, highlighted in yellow with star */}
-                            <motion.div
-                              initial={{ opacity: 0, x: -10 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.25 }}
-                              className="bg-gradient-to-r from-yellow-100 via-amber-100 to-yellow-100 border-l-4 border-yellow-500 pl-6 py-4 rounded-r-xl shadow-lg"
-                              style={{
-                                boxShadow: '0 4px 6px -1px rgba(251, 191, 36, 0.3), 0 2px 4px -1px rgba(251, 191, 36, 0.2)'
-                              }}
-                            >
-                              <div className="flex items-center gap-3">
-                                <motion.div
-                                  animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
-                                  transition={{ duration: 2, repeat: Infinity }}
-                                  className="text-2xl"
-                                >
-                                  ⭐
-                                </motion.div>
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <motion.span
-                                      animate={{ rotate: [0, 15, -15, 0] }}
-                                      transition={{ duration: 2, repeat: Infinity }}
-                                      className="text-yellow-600 text-2xl"
+                            {/* Helper function to get frequency display info */}
+                            {(() => {
+                              // Get the selected recurring option
+                              const getFrequencyInfo = (freq: string) => {
+                                if (freq === 'weekly') {
+                                  return { name: 'Weekly Cleaning', range: quoteResult.ranges.weekly, icon: '📅' };
+                                } else if (freq === 'bi-weekly') {
+                                  return { name: 'Bi-Weekly Cleaning', range: quoteResult.ranges.biWeekly, icon: '📅' };
+                                } else if (freq === 'monthly' || freq === 'four-week') {
+                                  return { name: 'Monthly Cleaning', range: quoteResult.ranges.fourWeek, icon: '📅' };
+                                }
+                                return null;
+                              };
+
+                              const selectedFreqInfo = getFrequencyInfo(selectedFrequency);
+                              // Show selected option if it's a recurring service (not one-time)
+                              const showSelected = selectedFreqInfo && selectedFrequency !== 'one-time';
+
+                              return (
+                                <>
+                                  {/* Show selected recurring option (always show if it's recurring) */}
+                                  {showSelected && selectedFreqInfo && (
+                                    <motion.div
+                                      initial={{ opacity: 0, x: -10 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      transition={{ delay: 0.25 }}
+                                      className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-4 rounded-r-xl shadow-md"
                                     >
-                                      ⭐
-                                    </motion.span>
-                                    <span className="font-black text-2xl md:text-3xl text-yellow-800 tracking-wide">
-                                      📅 Bi-Weekly Cleaning: ${quoteResult.ranges.biWeekly.low} to ${quoteResult.ranges.biWeekly.high}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-yellow-700 font-bold text-base flex items-center gap-1">
-                                      <span>🏆</span>
-                                      <span>Most Popular</span>
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            </motion.div>
+                                      <div className="flex items-center gap-3">
+                                        <motion.div
+                                          animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
+                                          transition={{ duration: 2, repeat: Infinity }}
+                                          className="text-2xl"
+                                        >
+                                          💰
+                                        </motion.div>
+                                        <span className="font-black text-2xl md:text-3xl bg-gradient-to-r from-blue-700 via-cyan-600 to-blue-700 bg-clip-text text-transparent tracking-wide">
+                                          {selectedFreqInfo.icon} {selectedFreqInfo.name}: ${selectedFreqInfo.range.low} to ${selectedFreqInfo.range.high}
+                                        </span>
+                                      </div>
+                                    </motion.div>
+                                  )}
+
+                                  {/* Bi-Weekly - Always shown at bottom as "Most Popular" to encourage bi-weekly sales */}
+                                  <motion.div
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: showSelected ? 0.3 : 0.25 }}
+                                    className="bg-gradient-to-r from-yellow-100 via-amber-100 to-yellow-100 border-l-4 border-yellow-500 pl-6 py-4 rounded-r-xl shadow-lg"
+                                    style={{
+                                      boxShadow: '0 4px 6px -1px rgba(251, 191, 36, 0.3), 0 2px 4px -1px rgba(251, 191, 36, 0.2)'
+                                    }}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <motion.div
+                                        animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
+                                        transition={{ duration: 2, repeat: Infinity }}
+                                        className="text-2xl"
+                                      >
+                                        ⭐
+                                      </motion.div>
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <motion.span
+                                            animate={{ rotate: [0, 15, -15, 0] }}
+                                            transition={{ duration: 2, repeat: Infinity }}
+                                            className="text-yellow-600 text-2xl"
+                                          >
+                                            ⭐
+                                          </motion.span>
+                                          <span className="font-black text-2xl md:text-3xl text-yellow-800 tracking-wide">
+                                            📅 Bi-Weekly Cleaning: ${quoteResult.ranges.biWeekly.low} to ${quoteResult.ranges.biWeekly.high}
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-1">
+                                          <span className="text-yellow-700 font-bold text-base flex items-center gap-1">
+                                            <span>🏆</span>
+                                            <span>Most Popular</span>
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </motion.div>
+                                </>
+                              );
+                            })()}
                           </>
                         )}
 
@@ -2129,7 +2200,8 @@ export default function Home() {
                       <motion.p
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="text-sm text-red-500 mt-2"
+                        className="text-sm text-red-500 mt-2 font-medium"
+                        data-field-error={getFormFieldName(currentQuestion.id)}
                       >
                         {(errors[getFormFieldName(currentQuestion.id) as any] as any)?.message}
                       </motion.p>
