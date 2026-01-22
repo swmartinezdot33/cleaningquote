@@ -459,7 +459,7 @@ export default function Home() {
   // Helper function to determine the next question index based on skip rules
   const getNextQuestionIndex = (currentIndex: number, fieldName: string): number => {
     if (currentIndex >= questions.length - 1) {
-      return questions.length - 1; // Already at last question
+      return questions.length; // Return length to trigger form submission
     }
 
     const currentQuestion = questions[currentIndex];
