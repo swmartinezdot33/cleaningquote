@@ -1201,7 +1201,26 @@ export default function Home() {
         
         // Redirect to quote page with UTM parameters
         const quoteUrl = `/quote/${result.quoteId}${utmParams.toString() ? `?${utmParams.toString()}` : ''}`;
-        window.location.href = quoteUrl;
+        
+        // If embedded in iframe, notify parent and update iframe src
+        if (window.location.search.includes('embedded=true') || window.self !== window.top) {
+          // Notify parent widget of navigation
+          if (window.parent && window.parent !== window) {
+            try {
+              window.parent.postMessage({
+                type: 'widget:navigate',
+                url: `${window.location.origin}${quoteUrl}`,
+              }, '*'); // Use '*' for cross-origin iframe support
+            } catch (e) {
+              console.log('Could not notify parent of navigation:', e);
+            }
+          }
+          // Update iframe location
+          window.location.href = quoteUrl;
+        } else {
+          // Normal redirect for non-embedded pages
+          window.location.href = quoteUrl;
+        }
         return;
       }
       

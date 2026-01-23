@@ -273,7 +273,26 @@ export default function QuotePage() {
         // Redirect to confirmation page with UTM parameters preserved
         const utmParams = getUTMParams();
         const confirmationUrl = `/quote/${quoteId}/appointment-confirmed${utmParams ? `?${utmParams}` : ''}`;
-        window.location.href = confirmationUrl;
+        
+        // If embedded in iframe, notify parent and update iframe src
+        if (window.location.search.includes('embedded=true') || window.self !== window.top) {
+          // Notify parent widget of navigation
+          if (window.parent && window.parent !== window) {
+            try {
+              window.parent.postMessage({
+                type: 'widget:navigate',
+                url: `${window.location.origin}${confirmationUrl}`,
+              }, '*'); // Use '*' for cross-origin iframe support
+            } catch (e) {
+              console.log('Could not notify parent of navigation:', e);
+            }
+          }
+          // Update iframe location
+          window.location.href = confirmationUrl;
+        } else {
+          // Normal redirect for non-embedded pages
+          window.location.href = confirmationUrl;
+        }
         return;
       } else {
         setBookingMessage({
@@ -324,7 +343,26 @@ export default function QuotePage() {
         // Redirect to confirmation page with UTM parameters preserved
         const utmParams = getUTMParams();
         const confirmationUrl = `/quote/${quoteId}/callback-confirmed${utmParams ? `?${utmParams}` : ''}`;
-        window.location.href = confirmationUrl;
+        
+        // If embedded in iframe, notify parent and update iframe src
+        if (window.location.search.includes('embedded=true') || window.self !== window.top) {
+          // Notify parent widget of navigation
+          if (window.parent && window.parent !== window) {
+            try {
+              window.parent.postMessage({
+                type: 'widget:navigate',
+                url: `${window.location.origin}${confirmationUrl}`,
+              }, '*'); // Use '*' for cross-origin iframe support
+            } catch (e) {
+              console.log('Could not notify parent of navigation:', e);
+            }
+          }
+          // Update iframe location
+          window.location.href = confirmationUrl;
+        } else {
+          // Normal redirect for non-embedded pages
+          window.location.href = confirmationUrl;
+        }
         return;
       } else {
         setCallMessage({

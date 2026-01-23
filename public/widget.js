@@ -83,9 +83,27 @@
   // Max width configuration
   const maxWidth = parseInt(scriptTag?.dataset.maxWidth || '800', 10);
 
+  // Extract UTM parameters from parent page URL
+  function extractUTMParams() {
+    const params = new URLSearchParams();
+    const parentParams = new URLSearchParams(window.location.search);
+    
+    // UTM parameters to preserve
+    const utmParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid'];
+    
+    utmParams.forEach(param => {
+      const value = parentParams.get(param);
+      if (value) {
+        params.append(param, value);
+      }
+    });
+    
+    return params;
+  }
+
   // Build query parameters from data attributes
   function buildQueryString() {
-    const params = new URLSearchParams();
+    const params = extractUTMParams(); // Start with UTM params from parent page
     
     // Map of data attributes to query parameter names
     const attributeMap = {
@@ -179,7 +197,7 @@
     container.innerHTML = '';
     container.appendChild(iframe);
 
-    // Handle postMessage communication for responsive sizing and tracking events
+    // Handle postMessage communication for responsive sizing, tracking events, and navigation
     window.addEventListener('message', function (event) {
       if (event.origin !== baseUrl) return;
 
@@ -190,6 +208,15 @@
       // Handle tracking events
       if (event.data.type === 'widget:tracking') {
         handleTrackingEvent(event.data.eventType, event.data.eventData);
+      }
+      
+      // Handle iframe navigation (for redirects that preserve UTM params)
+      if (event.data.type === 'widget:navigate') {
+        const newUrl = event.data.url;
+        if (newUrl && newUrl.startsWith(baseUrl)) {
+          // Update iframe src to new URL (preserves UTM params)
+          iframe.src = newUrl;
+        }
       }
     });
 
