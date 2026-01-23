@@ -986,6 +986,7 @@ export default function Home() {
           }
 
           // In-service area - check if we should open survey in new tab
+          console.log('Service area check - in-service. openSurveyInNewTab:', openSurveyInNewTab, 'createdContactId:', createdContactId);
           if (openSurveyInNewTab && createdContactId) {
             console.log('Opening survey continuation in new tab with contactId:', createdContactId);
             window.open(`/?contactId=${createdContactId}`, '_blank');
