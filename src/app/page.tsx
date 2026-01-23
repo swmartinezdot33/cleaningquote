@@ -267,6 +267,7 @@ export default function Home() {
   const [formSettings, setFormSettings] = useState<any>({});
   const appointmentFormRef = useRef<HTMLDivElement>(null);
   const callFormRef = useRef<HTMLDivElement>(null);
+  const calendarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -1802,10 +1803,10 @@ export default function Home() {
                           if (willShow) {
                             setShowCallForm(false);
                           }
-                          // Scroll to appointment form after a brief delay to allow it to render
+                          // Scroll to calendar after a brief delay to allow it to render
                           if (willShow) {
                             setTimeout(() => {
-                              appointmentFormRef.current?.scrollIntoView({ 
+                              calendarRef.current?.scrollIntoView({ 
                                 behavior: 'smooth', 
                                 block: 'start',
                                 inline: 'nearest'
@@ -1868,10 +1869,10 @@ export default function Home() {
                           if (willShow) {
                             setShowAppointmentForm(false);
                           }
-                          // Scroll to call form after a brief delay to allow it to render
+                          // Scroll to calendar after a brief delay to allow it to render
                           if (willShow) {
                             setTimeout(() => {
-                              callFormRef.current?.scrollIntoView({ 
+                              calendarRef.current?.scrollIntoView({ 
                                 behavior: 'smooth', 
                                 block: 'start',
                                 inline: 'nearest'
@@ -1993,26 +1994,28 @@ export default function Home() {
                             </motion.div>
                           )}
 
-                          <CalendarBooking
-                            type="appointment"
-                            onConfirm={(date, time, notes, timestamp) => {
-                              // Update state for display
-                              setAppointmentDate(date);
-                              setAppointmentTime(time);
-                              setAppointmentNotes(notes);
-                              // Pass values directly to avoid async state update issue, including timestamp
-                              handleBookAppointment(date, time, notes, timestamp);
-                            }}
-                            onCancel={() => {
-                              setShowAppointmentForm(false);
-                              setBookingMessage(null);
-                              setAppointmentDate('');
-                              setAppointmentTime('');
-                              setAppointmentNotes('');
-                            }}
-                            isBooking={isBookingAppointment}
-                            primaryColor={primaryColor}
-                          />
+                          <div ref={calendarRef}>
+                            <CalendarBooking
+                              type="appointment"
+                              onConfirm={(date, time, notes, timestamp) => {
+                                // Update state for display
+                                setAppointmentDate(date);
+                                setAppointmentTime(time);
+                                setAppointmentNotes(notes);
+                                // Pass values directly to avoid async state update issue, including timestamp
+                                handleBookAppointment(date, time, notes, timestamp);
+                              }}
+                              onCancel={() => {
+                                setShowAppointmentForm(false);
+                                setBookingMessage(null);
+                                setAppointmentDate('');
+                                setAppointmentTime('');
+                                setAppointmentNotes('');
+                              }}
+                              isBooking={isBookingAppointment}
+                              primaryColor={primaryColor}
+                            />
+                          </div>
                         </CardContent>
                         </Card>
                       </div>
@@ -2093,24 +2096,26 @@ export default function Home() {
                             </motion.div>
                           )}
 
-                          <CalendarBooking
-                            type="call"
-                            onConfirm={(date, time, notes, timestamp) => {
-                              setCallDate(date);
-                              setCallTime(time);
-                              setCallNotes(notes);
-                              handleBookCall(date, time, notes, timestamp);
-                            }}
-                            onCancel={() => {
-                              setShowCallForm(false);
-                              setBookingMessage(null);
-                              setCallDate('');
-                              setCallTime('');
-                              setCallNotes('');
-                            }}
-                            isBooking={isBookingCall}
-                            primaryColor={primaryColor}
-                          />
+                          <div ref={calendarRef}>
+                            <CalendarBooking
+                              type="call"
+                              onConfirm={(date, time, notes, timestamp) => {
+                                setCallDate(date);
+                                setCallTime(time);
+                                setCallNotes(notes);
+                                handleBookCall(date, time, notes, timestamp);
+                              }}
+                              onCancel={() => {
+                                setShowCallForm(false);
+                                setBookingMessage(null);
+                                setCallDate('');
+                                setCallTime('');
+                                setCallNotes('');
+                              }}
+                              isBooking={isBookingCall}
+                              primaryColor={primaryColor}
+                            />
+                          </div>
                         </CardContent>
                         </Card>
                       </div>
