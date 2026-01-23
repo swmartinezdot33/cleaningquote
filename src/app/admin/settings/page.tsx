@@ -2514,6 +2514,29 @@ export default function SettingsPage() {
                   )}
                   </div>
 
+                {/* Open Survey in New Tab Setting */}
+                <div className="border-t border-gray-200 pt-6 mt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <Label htmlFor="open-survey-new-tab" className="text-base font-semibold">
+                        Open Survey Continuation in New Tab
+                      </Label>
+                      <p className="text-sm text-gray-600 mt-2">
+                        When enabled, after the user enters their address and passes the service area check, a new tab will open to continue the survey. Their contact information will be pre-filled, and they'll skip directly to house detail questions.
+                      </p>
+                    </div>
+                    <div className="ml-4 flex items-center">
+                      <input
+                        type="checkbox"
+                        id="open-survey-new-tab"
+                        checked={openSurveyInNewTab}
+                        onChange={(e) => setOpenSurveyInNewTab(e.target.checked)}
+                        className="h-5 w-5 rounded border-gray-300 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </CardContent>
             )}
@@ -2919,28 +2942,6 @@ export default function SettingsPage() {
                   <p className="text-sm text-gray-600 mt-1">
                     The query parameter name to use for address (e.g., ?address=123+Main+St)
                   </p>
-                </div>
-
-                <div className="border-t border-gray-200 pt-6 mt-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <Label htmlFor="open-survey-new-tab" className="text-base font-semibold">
-                        Open Survey Continuation in New Tab
-                      </Label>
-                      <p className="text-sm text-gray-600 mt-2">
-                        When enabled, after the user enters their address and passes the service area check, a new tab will open to continue the survey. Their contact information will be pre-filled, and they'll skip directly to house detail questions.
-                      </p>
-                    </div>
-                    <div className="ml-4 flex items-center">
-                      <input
-                        type="checkbox"
-                        id="open-survey-new-tab"
-                        checked={openSurveyInNewTab}
-                        onChange={(e) => setOpenSurveyInNewTab(e.target.checked)}
-                        className="h-5 w-5 rounded border-gray-300 cursor-pointer"
-                      />
-                    </div>
-                  </div>
                 </div>
 
                 <Button
