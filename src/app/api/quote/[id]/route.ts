@@ -57,8 +57,42 @@ export async function GET(
       })(),
     ]);
 
-    const quoteDataFromKV = kvResult.status === 'fulfilled' ? kvResult.value : null;
+    let quoteDataFromKV = kvResult.status === 'fulfilled' ? kvResult.value : null;
     const quoteObject = ghlResult.status === 'fulfilled' ? ghlResult.value : null;
+    
+    // If KV lookup failed but we have GHL object, try to find KV entry using stored IDs
+    if (!quoteDataFromKV && quoteObject) {
+      const kv = getKV();
+      // Check if GHL object has stored IDs we can use
+      const ghlObjectId = quoteObject.id;
+      const quoteIdField = quoteObject.properties?.quote_id || quoteObject.customFields?.quote_id;
+      
+      // Try with GHL object ID
+      if (ghlObjectId && ghlObjectId !== quoteId) {
+        try {
+          const stored = await kv.get(`quote:${ghlObjectId}`);
+          if (stored && typeof stored === 'string') {
+            quoteDataFromKV = JSON.parse(stored);
+            console.log(`✅ Found quote data in KV storage with GHL object ID: ${ghlObjectId}`);
+          }
+        } catch (e) {
+          // Ignore
+        }
+      }
+      
+      // Try with generated UUID if available
+      if (!quoteDataFromKV && quoteIdField && quoteIdField !== quoteId) {
+        try {
+          const stored = await kv.get(`quote:${quoteIdField}`);
+          if (stored && typeof stored === 'string') {
+            quoteDataFromKV = JSON.parse(stored);
+            console.log(`✅ Found quote data in KV storage with generated UUID: ${quoteIdField}`);
+          }
+        } catch (e) {
+          // Ignore
+        }
+      }
+    }
 
     // If both failed, return error
     if (!quoteDataFromKV && !quoteObject) {
@@ -78,7 +112,15 @@ export async function GET(
       ghlContactId = quoteObject.contactId;
       console.log('✅ Found ghlContactId in GHL custom object:', ghlContactId);
     } else {
-      console.warn('⚠️ No ghlContactId found in KV or GHL object - buttons will be disabled');
+      // Debug: Log what we actually have
+      console.warn('⚠️ No ghlContactId found in KV or GHL object - buttons will be disabled', {
+        hasKVData: !!quoteDataFromKV,
+        kvHasContactId: !!quoteDataFromKV?.ghlContactId,
+        kvContactId: quoteDataFromKV?.ghlContactId,
+        hasGHLObject: !!quoteObject,
+        ghlObjectContactId: quoteObject?.contactId,
+        quoteId,
+      });
     }
 
     // If we have KV data but no GHL object, use KV data directly

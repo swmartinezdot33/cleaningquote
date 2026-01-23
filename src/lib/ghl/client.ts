@@ -53,7 +53,10 @@ export async function makeGHLRequest<T>(
     };
     
     // Some endpoints may require locationId in header instead of query
-    if (locationId && !endpoint.includes('locationId=')) {
+    // For associations endpoint, always use header (query string causes 422 error)
+    if (locationId) {
+      // Always add Location-Id header if locationId is provided
+      // Some endpoints (like associations) require it in header, not query string
       headers['Location-Id'] = locationId;
     }
     
@@ -1192,10 +1195,11 @@ async function associateCustomObjectWithContact(
   // Step 2: Create the relation using the correct format
   // Endpoint: POST /associations/relations
   // Payload: { associationId, firstRecordId, secondRecordId }
-  // Note: locationId may be inferred from token, try both with and without
+  // Note: locationId must be in header (Location-Id), not query string or body
+  // The associations endpoint doesn't accept locationId in query string (422 error)
+  // And requires it in header (400 error if missing)
   const endpointsToTry = [
-    `/associations/relations?locationId=${locationId}`,
-    `/associations/relations`,
+    `/associations/relations`, // Always use header for locationId
   ];
   
   // Try with and without associationId (some setups might auto-detect)

@@ -612,9 +612,33 @@ export async function POST(request: NextRequest) {
               'current_condition': mappedCondition,
               'cleaning_service_prior': mappedCleaningServicePrior,
               'cleaned_in_last_3_months': mappedCleanedInLast3Months,
-              // Add UTM parameters for tracking
-              ...utmParams,
             };
+            
+            // Add UTM parameters for tracking (map to schema field names)
+            // The schema has fields: utm_source, utm_medium, utm_campaign, utm_term, utm_content, gclid
+            if (utmParams.utm_source) {
+              quoteCustomFields['utm_source'] = utmParams.utm_source;
+            }
+            if (utmParams.utm_medium) {
+              quoteCustomFields['utm_medium'] = utmParams.utm_medium;
+            }
+            if (utmParams.utm_campaign) {
+              quoteCustomFields['utm_campaign'] = utmParams.utm_campaign;
+            }
+            if (utmParams.utm_term) {
+              quoteCustomFields['utm_term'] = utmParams.utm_term;
+            }
+            if (utmParams.utm_content) {
+              quoteCustomFields['utm_content'] = utmParams.utm_content;
+            }
+            if (utmParams.gclid) {
+              quoteCustomFields['gclid'] = utmParams.gclid;
+            }
+            
+            // Log UTM parameters being added to quote
+            if (Object.keys(utmParams).length > 0) {
+              console.log('📊 Adding UTM parameters to quote custom object:', utmParams);
+            }
             
             // Note: quote_range_low and quote_range_high are not in the schema
             // If you want to store these, you'll need to add them as fields in GHL first
@@ -676,13 +700,48 @@ export async function POST(request: NextRequest) {
             : null;
           
           if (quoteResult && quoteResult.status === 'fulfilled' && quoteResult.value?.id) {
-            quoteId = quoteResult.value.id;
+            const ghlObjectId = quoteResult.value.id;
+            quoteId = ghlObjectId; // Use GHL object ID as primary quoteId
             ghlQuoteCreated = true;
             console.log('✅ Quote custom object created in GHL:', {
-              objectId: quoteResult.value.id,
+              objectId: ghlObjectId,
               quoteIdField: generatedQuoteId,
               contactId: ghlContactId,
             });
+            
+            // Store quote in KV with BOTH IDs for reliable retrieval
+            // Frontend redirects with generatedQuoteId, but GHL uses ghlObjectId
+            try {
+              const kv = getKV();
+              const kvData = {
+                outOfLimits: false,
+                multiplier: result.multiplier,
+                inputs: result.inputs,
+                ranges: result.ranges,
+                initialCleaningRequired: result.initialCleaningRequired,
+                initialCleaningRecommended: result.initialCleaningRecommended,
+                summaryText,
+                smsText,
+                ghlContactId,
+                serviceType: body.serviceType,
+                frequency: body.frequency,
+                createdAt: new Date().toISOString(),
+                ghlQuoteCreated: true,
+                ghlObjectId: ghlObjectId, // Store GHL object ID for reference
+                generatedQuoteId: generatedQuoteId, // Store original UUID for reference
+                quoteCustomFields: Object.keys(quoteCustomFields).length > 0 ? quoteCustomFields : undefined,
+              };
+              
+              // Store with generated UUID (for frontend redirect)
+              await kv.setex(`quote:${generatedQuoteId}`, 60 * 60 * 24 * 30, JSON.stringify(kvData));
+              console.log(`✅ Stored quote data in KV with generated UUID: ${generatedQuoteId}`);
+              
+              // Also store with GHL object ID (for GHL-based retrieval)
+              await kv.setex(`quote:${ghlObjectId}`, 60 * 60 * 24 * 30, JSON.stringify(kvData));
+              console.log(`✅ Stored quote data in KV with GHL object ID: ${ghlObjectId}`);
+            } catch (kvError) {
+              console.error('⚠️ Failed to store quote in KV with both IDs:', kvError);
+            }
           } else if (quoteObjectPromise) {
             // Custom object creation failed - log detailed error
             const error = quoteResult?.status === 'rejected' ? quoteResult.reason : null;
@@ -730,39 +789,42 @@ export async function POST(request: NextRequest) {
 
     // ALWAYS store quote data in KV (required for API access)
     // This ensures quotes are always accessible via the API endpoint, even if GHL creation fails
-    // The quoteId is always generated, so this will always execute
-    try {
-      const kv = getKV();
-      const quoteData = {
-        outOfLimits: false,
-        multiplier: result.multiplier,
-        inputs: result.inputs,
-        ranges: result.ranges,
-        initialCleaningRequired: result.initialCleaningRequired,
-        initialCleaningRecommended: result.initialCleaningRecommended,
-        summaryText,
-        smsText,
-        ghlContactId,
-        serviceType: body.serviceType,
-        frequency: body.frequency,
-        createdAt: new Date().toISOString(),
-        // Store GHL quote creation status for debugging
-        ghlQuoteCreated: ghlQuoteCreated || false,
-        // Store the original quote custom fields for potential retry
-        quoteCustomFields: Object.keys(quoteCustomFields).length > 0 ? quoteCustomFields : undefined,
-      };
-      // Store with 30 day expiration (for tracking purposes)
-      await kv.setex(`quote:${quoteId}`, 60 * 60 * 24 * 30, JSON.stringify(quoteData));
-      console.log(`✅ Stored quote data in KV (always accessible via API): ${quoteId}`);
-      
-      // If GHL creation failed but we have the data, log for potential retry
-      if (!ghlQuoteCreated && ghlContactId && Object.keys(quoteCustomFields).length > 0) {
-        console.warn(`⚠️ Quote ${quoteId} stored in KV but not in GHL - may need manual retry`);
+    // Only store here if we haven't already stored it above (when GHL creation succeeded)
+    if (!ghlQuoteCreated) {
+      try {
+        const kv = getKV();
+        const quoteData = {
+          outOfLimits: false,
+          multiplier: result.multiplier,
+          inputs: result.inputs,
+          ranges: result.ranges,
+          initialCleaningRequired: result.initialCleaningRequired,
+          initialCleaningRecommended: result.initialCleaningRecommended,
+          summaryText,
+          smsText,
+          ghlContactId,
+          serviceType: body.serviceType,
+          frequency: body.frequency,
+          createdAt: new Date().toISOString(),
+          // Store GHL quote creation status for debugging
+          ghlQuoteCreated: false,
+          generatedQuoteId: generatedQuoteId, // Store original UUID for reference
+          // Store the original quote custom fields for potential retry
+          quoteCustomFields: Object.keys(quoteCustomFields).length > 0 ? quoteCustomFields : undefined,
+        };
+        // Store with generated UUID (for frontend redirect)
+        await kv.setex(`quote:${generatedQuoteId}`, 60 * 60 * 24 * 30, JSON.stringify(quoteData));
+        console.log(`✅ Stored quote data in KV (always accessible via API): ${generatedQuoteId}`);
+        
+        // If GHL creation failed but we have the data, log for potential retry
+        if (ghlContactId && Object.keys(quoteCustomFields).length > 0) {
+          console.warn(`⚠️ Quote ${generatedQuoteId} stored in KV but not in GHL - may need manual retry`);
+        }
+      } catch (kvError) {
+        // KV storage failure is critical - log as error but don't block response
+        console.error('❌ CRITICAL: Failed to store quote in KV - quote may not be accessible via API:', kvError);
+        // Still return the quoteId so redirect can happen, but user should be aware
       }
-    } catch (kvError) {
-      // KV storage failure is critical - log as error but don't block response
-      console.error('❌ CRITICAL: Failed to store quote in KV - quote may not be accessible via API:', kvError);
-      // Still return the quoteId so redirect can happen, but user should be aware
     }
 
     return NextResponse.json({
@@ -775,7 +837,9 @@ export async function POST(request: NextRequest) {
       summaryText,
       smsText,
       ghlContactId,
-      quoteId, // Always include quoteId (generated UUID, or GHL object ID if available)
+      quoteId: generatedQuoteId, // Always use generated UUID for frontend redirect (stored in KV with this ID)
+      // Also include GHL object ID if available (for reference/debugging)
+      ...(quoteId !== generatedQuoteId && { ghlObjectId: quoteId }),
     });
   } catch (error) {
     console.error('Error calculating quote:', error);
