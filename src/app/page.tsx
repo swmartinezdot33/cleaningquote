@@ -225,6 +225,7 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
+  const [ghlContactId, setGHLContactId] = useState<string | null>(null);
   const [selectedFrequency, setSelectedFrequency] = useState<string>('bi-weekly'); // Track selected frequency
   const [selectedServiceType, setSelectedServiceType] = useState<string>(''); // Track selected service type
   const [houseDetails, setHouseDetails] = useState<{
@@ -885,6 +886,41 @@ export default function Home() {
         }
       }
 
+      // If this is an address question and we've passed validation, create the contact in GHL
+      if (currentQuestion.type === 'address') {
+        const data = getValues();
+        try {
+          console.log('Creating contact in GHL after address validation...');
+          const response = await fetch('/api/contacts/create-or-update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              firstName: data.firstName || '',
+              lastName: data.lastName || '',
+              email: data.email || '',
+              phone: data.phone || '',
+              address: data.address || '',
+              city: data.city || '',
+              state: data.state || '',
+              postalCode: data.postalCode || '',
+              country: data.country || 'US',
+            }),
+          });
+
+          const result = await response.json();
+          if (result.success && result.ghlContactId) {
+            console.log('Contact created in GHL:', result.ghlContactId);
+            // Store the contact ID for later use
+            setGHLContactId(result.ghlContactId);
+          } else {
+            console.warn('Failed to create contact in GHL:', result.message);
+          }
+        } catch (contactError) {
+          console.error('Error creating contact:', contactError);
+          // Continue anyway - contact creation is not blocking
+        }
+      }
+
       setDirection(1);
       
       // Calculate next step based on skip rules
@@ -946,6 +982,7 @@ export default function Home() {
 
       // Build the API payload, mapping sanitized fields back to original IDs
       const apiPayload: any = {
+        ghlContactId, // Pass the contact ID if we created one after address
         firstName: formData.firstName || formData.first_name,
         lastName: formData.lastName || formData.last_name,
         email: formData.email,

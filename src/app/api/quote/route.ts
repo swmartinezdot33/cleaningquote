@@ -92,6 +92,7 @@ function convertSquareFootageRange(range: string): number {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const { ghlContactId: providedContactId } = body;
     
     // Convert square footage range to midpoint if it's a range string
     let squareFootage = Number(body.squareFeet);
@@ -129,7 +130,8 @@ export async function POST(request: NextRequest) {
     const smsText = generateSmsText({ ...result, ranges: result.ranges });
 
     // Attempt GHL integration (non-blocking)
-    let ghlContactId: string | undefined;
+    // If a contact was already created after address step, use that ID; otherwise create/update
+    let ghlContactId: string | undefined = providedContactId;
     const hasGHLToken = await ghlTokenExists().catch(() => false);
     
     if (hasGHLToken) {
