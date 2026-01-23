@@ -36,7 +36,6 @@ export async function GET(request: NextRequest) {
           title: 'Raleigh Cleaning Company',
           subtitle: "Let's get your professional cleaning price!",
           primaryColor: '#f61590',
-          googleAdsConversionId: '',
         });
       }
 
@@ -47,7 +46,6 @@ export async function GET(request: NextRequest) {
         title: 'Raleigh Cleaning Company',
         subtitle: "Let's get your professional cleaning price!",
         primaryColor: '#f61590',
-        googleAdsConversionId: '',
       });
     }
   } catch (error) {
@@ -71,7 +69,7 @@ export async function POST(request: NextRequest) {
     if (authResponse) return authResponse;
 
     const body = await request.json();
-    const { title, subtitle, primaryColor, googleAdsConversionId } = body;
+    const { title, subtitle, primaryColor } = body;
 
     if (!title || typeof title !== 'string') {
       return NextResponse.json({ error: 'Title is required and must be a string' }, { status: 400 });
@@ -94,37 +92,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate Google Ads Conversion ID if provided (format: AW-123456789)
-    if (googleAdsConversionId && typeof googleAdsConversionId === 'string') {
-      const conversionIdRegex = /^AW-\d{10}$/;
-      if (!conversionIdRegex.test(googleAdsConversionId.trim())) {
-        return NextResponse.json(
-          { error: 'Google Ads Conversion ID must be in format AW-1234567890' },
-          { status: 400 }
-        );
-      }
-    }
-
     try {
       const kv = getKV();
-      await kv.set(WIDGET_SETTINGS_KEY, { 
-        title, 
-        subtitle, 
-        primaryColor: colorToUse,
-        googleAdsConversionId: googleAdsConversionId || '',
-      });
+      await kv.set(WIDGET_SETTINGS_KEY, { title, subtitle, primaryColor: colorToUse });
 
       return NextResponse.json({
         success: true,
         message: 'Widget settings saved successfully',
-        settings: { title, subtitle, primaryColor: colorToUse, googleAdsConversionId: googleAdsConversionId || '' },
+        settings: { title, subtitle, primaryColor: colorToUse },
       });
     } catch (kvError) {
       console.warn('KV not configured, settings not persisted:', kvError);
       return NextResponse.json({
         success: true,
         message: 'Widget settings updated (not persisted - KV not configured)',
-        settings: { title, subtitle, primaryColor: colorToUse, googleAdsConversionId: googleAdsConversionId || '' },
+        settings: { title, subtitle, primaryColor: colorToUse },
       });
     }
   } catch (error) {

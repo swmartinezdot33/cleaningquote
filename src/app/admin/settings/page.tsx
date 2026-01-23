@@ -28,7 +28,6 @@ export default function SettingsPage() {
   const [widgetTitle, setWidgetTitle] = useState('Raleigh Cleaning Company');
   const [widgetSubtitle, setWidgetSubtitle] = useState("Let's get your professional cleaning price!");
   const [widgetPrimaryColor, setWidgetPrimaryColor] = useState('#f61590');
-  const [widgetGoogleAdsConversionId, setWidgetGoogleAdsConversionId] = useState('');
   const [isSavingWidget, setIsSavingWidget] = useState(false);
   const [widgetMessage, setWidgetMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
@@ -328,7 +327,6 @@ export default function SettingsPage() {
         setWidgetTitle(data.title || 'Raleigh Cleaning Company');
         setWidgetSubtitle(data.subtitle || "Let's get your professional cleaning price!");
         setWidgetPrimaryColor(data.primaryColor || '#f61590');
-        setWidgetGoogleAdsConversionId(data.googleAdsConversionId || '');
       }
     } catch (error) {
       console.error('Failed to load widget settings:', error);
@@ -349,7 +347,6 @@ export default function SettingsPage() {
           title: widgetTitle,
           subtitle: widgetSubtitle,
           primaryColor: widgetPrimaryColor,
-          googleAdsConversionId: widgetGoogleAdsConversionId,
         }),
       });
 
@@ -3127,22 +3124,6 @@ export default function SettingsPage() {
                   </div>
                   <p className="text-sm text-gray-600 mt-2">
                     This color is used for buttons, headers, accents, and branding elements throughout the entire site.
-                  </p>
-                </div>
-
-                <div>
-                  <Label htmlFor="google-ads-conversion-id" className="text-base font-semibold">
-                    Google Ads Conversion ID
-                  </Label>
-                  <Input
-                    id="google-ads-conversion-id"
-                    value={widgetGoogleAdsConversionId}
-                    onChange={(e) => setWidgetGoogleAdsConversionId(e.target.value)}
-                    placeholder="e.g., AW-1234567890"
-                    className="mt-3 font-mono"
-                  />
-                  <p className="text-sm text-gray-600 mt-1">
-                    Enter your Google Ads Conversion ID in the format AW-1234567890. This will track when contacts enter your service area as a conversion in Google Ads.
                   </p>
                 </div>
 
