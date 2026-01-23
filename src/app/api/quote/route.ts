@@ -148,6 +148,10 @@ export async function POST(request: NextRequest) {
     const generatedQuoteId = randomUUID();
     let quoteId: string | undefined = generatedQuoteId; // Use generated ID as default
     
+    // Track whether GHL quote creation succeeded (for KV storage metadata)
+    let ghlQuoteCreated = false;
+    let quoteCustomFields: Record<string, string> = {};
+    
     // Attempt GHL integration (non-blocking)
     // If a contact was already created after address step, use that ID; otherwise create/update
     let ghlContactId: string | undefined = providedContactId;
@@ -455,9 +459,6 @@ export async function POST(request: NextRequest) {
 
         // Create Quote custom object in GHL
         // IMPORTANT: Always attempt to create quote in GHL, even if it fails we'll store in KV
-        let quoteCustomFields: Record<string, string> = {};
-        let ghlQuoteCreated = false;
-        
         if (ghlContactId) {
           try {
             // Use the already-generated quoteId for the quote_id field
