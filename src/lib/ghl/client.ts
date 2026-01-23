@@ -415,15 +415,56 @@ export async function listObjectSchemas(locationId?: string): Promise<any[]> {
       throw new Error('Location ID is required. Please configure it in the admin settings.');
     }
 
-    // GHL API: GET /objects?locationId={locationId}
-    const endpoint = `/objects?locationId=${finalLocationId}`;
-    const response = await makeGHLRequest<{ objects?: any[]; data?: any[] }>(
-      endpoint,
-      'GET'
-    );
+    // Try multiple endpoint formats for GET /objects
+    const endpointsToTry = [
+      `/objects?locationId=${finalLocationId}`,  // With query param
+      `/objects/${finalLocationId}`,              // With path param
+      `/objects`,                                 // Without locationId (might work with token)
+    ];
 
-    // GHL may return { objects: [...] } or { data: [...] } or array directly
-    const schemas = response.objects || response.data || (Array.isArray(response) ? response : []);
+    let lastError: Error | null = null;
+    let response: any = null;
+
+    for (const endpoint of endpointsToTry) {
+      try {
+        console.log(`Attempting to list object schemas at: ${endpoint}`);
+        response = await makeGHLRequest<{ objects?: any[]; data?: any[]; schemas?: any[] }>(
+          endpoint,
+          'GET'
+        );
+        console.log(`✅ Successfully retrieved object schemas from: ${endpoint}`);
+        console.log('Response structure:', {
+          hasObjects: !!response.objects,
+          hasData: !!response.data,
+          hasSchemas: !!response.schemas,
+          isArray: Array.isArray(response),
+          keys: Object.keys(response || {}),
+        });
+        break; // Success, exit loop
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        console.log(`❌ Failed at ${endpoint}:`, lastError.message);
+        // Continue to next endpoint
+      }
+    }
+
+    if (!response) {
+      console.error('All endpoint attempts failed. Last error:', lastError);
+      throw lastError || new Error('Failed to list object schemas - all endpoint variations failed');
+    }
+
+    // GHL may return { objects: [...] } or { data: [...] } or { schemas: [...] } or array directly
+    const schemas = response.objects || response.data || response.schemas || (Array.isArray(response) ? response : []);
+    
+    console.log(`Found ${schemas.length} object schemas`);
+    if (schemas.length > 0) {
+      console.log('Schema keys/names:', schemas.map((s: any) => ({
+        key: s.key || s.schemaKey || s.name,
+        name: s.name,
+        id: s.id,
+      })));
+    }
+    
     return schemas;
   } catch (error) {
     console.error('Failed to list object schemas:', error);
