@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Sparkles, Loader2, AlertCircle } from 'lucide-react';
+import { Sparkles, Loader2, AlertCircle, Calendar, Clock } from 'lucide-react';
 import { CalendarBooking } from '@/components/CalendarBooking';
 
 interface QuoteResponse {
@@ -417,223 +417,259 @@ export default function QuotePage() {
               >
               </motion.div>
 
-              {/* Beautiful Quote Card */}
+              {/* Beautiful Quote Card - Matching Screenshot Design */}
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.1 }}
               >
-                <Card className="shadow-2xl border-0 overflow-hidden relative">
-                  {/* Animated background gradient */}
+                <Card className="shadow-2xl border-0 overflow-hidden relative bg-white rounded-2xl">
+                  {/* Pink Header - Matching Screenshot */}
                   <div
-                    className="p-8 text-white relative overflow-hidden"
+                    className="px-6 py-5 text-white relative overflow-hidden rounded-t-2xl"
                     style={{
-                      background: `linear-gradient(135deg, ${primaryColor}, ${hexToRgba(primaryColor, 0.7)})`,
+                      background: primaryColor,
                     }}
                   >
-                    {/* Decorative animated elements */}
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-                      className="absolute top-2 right-4 opacity-20"
-                    >
-                      <Sparkles className="h-12 w-12" />
-                    </motion.div>
-
-                    <div className="flex items-center justify-between mb-2 relative z-10">
+                    <div className="flex items-center justify-between relative z-10">
                       <div>
-                        <p className="text-white/80 text-sm font-semibold tracking-widest mb-1">✨ YOUR QUOTE ✨</p>
-                        <h3 className="text-3xl md:text-4xl font-black">Your Perfect Quote</h3>
+                        <p className="text-white/90 text-xs font-semibold tracking-wider mb-1 uppercase">YOUR QUOTE</p>
+                        <h3 className="text-2xl md:text-3xl font-bold">Your Perfect Quote</h3>
                       </div>
-                      <motion.div
-                        animate={{ y: [0, -8, 0] }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                      >
-                        <Sparkles className="h-10 w-10 opacity-90" />
-                      </motion.div>
+                      <div className="text-white opacity-90">
+                        <Sparkles className="h-8 w-8" />
+                      </div>
                     </div>
                   </div>
 
-                  {/* Quote Content */}
-                  <CardContent className="pt-10 pb-10 bg-gradient-to-b from-gray-50 to-white">
-                    <div className="space-y-6">
-                      {/* House Details */}
+                  {/* Quote Content - White Background */}
+                  <CardContent className="p-6 bg-white">
+                    <div className="space-y-5">
+                      {/* House Details - Light Gray Background */}
                       {quoteResult.inputs && (
                         <motion.div
                           initial={{ opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: 0.05 }}
-                          className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-4 rounded-r-xl shadow-sm"
+                          className="bg-gray-100 px-4 py-3 rounded-lg"
                         >
-                          <h4 className="font-bold text-lg text-gray-900 mb-3">House Details</h4>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-gray-700">
+                          <h4 className="font-semibold text-base text-gray-900 mb-2">House Details</h4>
+                          <div className="flex flex-wrap gap-4 text-sm text-gray-700">
                             <div>
-                              <span className="font-semibold">SqFt:</span>{' '}
-                              <span className="text-gray-900">{quoteResult.inputs.squareFeet}</span>
+                              <span className="font-medium">SqFt:</span>{' '}
+                              <span className="text-gray-900">
+                                {typeof quoteResult.inputs.squareFeet === 'number' 
+                                  ? quoteResult.inputs.squareFeet 
+                                  : quoteResult.inputs.squareFeet || '0-1500'}
+                              </span>
                             </div>
                             <div>
-                              <span className="font-semibold">Rooms:</span>{' '}
-                              <span className="text-gray-900">{quoteResult.inputs.bedrooms}</span>
+                              <span className="font-medium">Rooms:</span>{' '}
+                              <span className="text-gray-900">{quoteResult.inputs.bedrooms || 0}</span>
                             </div>
                             <div>
-                              <span className="font-semibold">Full Baths:</span>{' '}
-                              <span className="text-gray-900">{quoteResult.inputs.fullBaths}</span>
+                              <span className="font-medium">Full Baths:</span>{' '}
+                              <span className="text-gray-900">{quoteResult.inputs.fullBaths || 0}</span>
                             </div>
                             <div>
-                              <span className="font-semibold">Half Baths:</span>{' '}
-                              <span className="text-gray-900">{quoteResult.inputs.halfBaths}</span>
+                              <span className="font-medium">Half Baths:</span>{' '}
+                              <span className="text-gray-900">{quoteResult.inputs.halfBaths || 0}</span>
                             </div>
                           </div>
                         </motion.div>
                       )}
 
-                      {/* Display ALL pricing options - DAZZLED UP VERSION */}
+                      {/* YOUR SELECTED SERVICE - Green Background */}
                       {quoteResult.ranges && (() => {
                         const serviceType = quoteResult.serviceType || '';
                         const frequency = quoteResult.frequency || '';
-
-                        // Helper function to get frequency display info
-                        const getFrequencyInfo = (freq: string) => {
-                          if (freq === 'weekly') {
-                            return { name: 'Weekly Cleaning', range: quoteResult.ranges!.weekly, icon: '📅' };
-                          } else if (freq === 'bi-weekly') {
-                            return { name: 'Bi-Weekly Cleaning', range: quoteResult.ranges!.biWeekly, icon: '📅' };
-                          } else if (freq === 'monthly' || freq === 'four-week' || freq === 'every-4-weeks') {
-                            return { name: 'Every 4 Weeks Cleaning', range: quoteResult.ranges!.fourWeek, icon: '📅' };
-                          }
-                          return null;
-                        };
-
-                        // Get service type info for one-time services
-                        const isOneTimeService = (serviceType: string) => {
-                          return ['move-in', 'move-out', 'deep', 'general'].includes(serviceType);
-                        };
-
-                        const selectedFreqInfo = getFrequencyInfo(frequency);
-                        const isOneTime = isOneTimeService(serviceType) || frequency === 'one-time';
-                        const showSelectedRecurring = selectedFreqInfo && !isOneTime && frequency !== 'one-time';
+                        
+                        // Determine selected service and price range
+                        // Priority: frequency-based services first, then one-time services
+                        let selectedServiceName = '';
+                        let selectedRange: { low: number; high: number } | null = null;
+                        
+                        // Check for recurring services first
+                        if (frequency === 'weekly') {
+                          selectedServiceName = 'Weekly Cleaning';
+                          selectedRange = quoteResult.ranges.weekly;
+                        } else if (frequency === 'bi-weekly') {
+                          selectedServiceName = 'Bi-Weekly Cleaning';
+                          selectedRange = quoteResult.ranges.biWeekly;
+                        } else if (frequency === 'four-week' || frequency === 'monthly') {
+                          selectedServiceName = 'Every 4 Weeks Cleaning';
+                          selectedRange = quoteResult.ranges.fourWeek;
+                        } 
+                        // Then check for one-time services
+                        else if (serviceType === 'general') {
+                          selectedServiceName = 'General Clean';
+                          selectedRange = quoteResult.ranges.general;
+                        } else if (serviceType === 'deep') {
+                          selectedServiceName = 'Deep Clean';
+                          selectedRange = quoteResult.ranges.deep;
+                        } else if (serviceType === 'move-in') {
+                          selectedServiceName = 'Move-In Clean';
+                          selectedRange = quoteResult.ranges.moveInOutBasic;
+                        } else if (serviceType === 'move-out') {
+                          selectedServiceName = 'Move-Out Clean';
+                          selectedRange = quoteResult.ranges.moveInOutFull;
+                        } else {
+                          // Default to general if nothing matches
+                          selectedServiceName = 'General Clean';
+                          selectedRange = quoteResult.ranges.general;
+                        }
 
                         return (
                           <>
-                            {/* ALL RECURRING OPTIONS */}
-                            <motion.div
-                              initial={{ opacity: 0, x: -10 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.15 }}
-                              className="space-y-2"
-                            >
-                              <div className="text-sm font-semibold text-gray-600 mb-2">ALL RECURRING OPTIONS:</div>
-                              <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
-                                <div className="flex items-center gap-3">
-                                  <span className="text-xl">📅</span>
-                                  <span className="font-bold text-lg text-gray-700">
-                                    Weekly Cleaning: ${quoteResult.ranges.weekly.low} to ${quoteResult.ranges.weekly.high}
-                                  </span>
+                            {/* YOUR SELECTED SERVICE - Green Background */}
+                            {selectedRange && (
+                              <motion.div
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.1 }}
+                                className="bg-green-50 px-4 py-4 rounded-lg border border-green-200"
+                              >
+                                <div className="flex items-center gap-3 mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+                                      <span className="text-white text-xs font-bold">✓</span>
+                                    </div>
+                                    <span className="text-xs text-green-600">+</span>
+                                  </div>
+                                  <p className="text-xs font-semibold text-green-800 uppercase tracking-wide">YOUR SELECTED SERVICE</p>
                                 </div>
-                              </div>
-                              <div className={`border-l-4 pl-6 py-3 rounded-r-xl shadow-sm ${frequency === 'bi-weekly' ? 'bg-gradient-to-r from-yellow-100 via-amber-100 to-yellow-100 border-yellow-500' : 'bg-gradient-to-r from-gray-50 to-gray-100 border-gray-400'}`}>
-                                <div className="flex items-center gap-3">
-                                  <span className="text-xl">{frequency === 'bi-weekly' ? '⭐' : '📅'}</span>
-                                  <span className={`font-bold text-lg ${frequency === 'bi-weekly' ? 'text-yellow-800' : 'text-gray-700'}`}>
-                                    Bi-Weekly Cleaning: ${quoteResult.ranges.biWeekly.low} to ${quoteResult.ranges.biWeekly.high} {frequency === 'bi-weekly' ? '(Most Popular)' : ''}
-                                  </span>
+                                <div className="ml-8">
+                                  <p className="font-bold text-lg text-gray-900">
+                                    {selectedServiceName}: <span className="text-gray-700">${selectedRange.low} to ${selectedRange.high}</span>
+                                  </p>
                                 </div>
-                              </div>
-                              <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
-                                <div className="flex items-center gap-3">
-                                  <span className="text-xl">📅</span>
-                                  <span className="font-bold text-lg text-gray-700">
-                                    Every 4 Weeks Cleaning: ${quoteResult.ranges.fourWeek.low} to ${quoteResult.ranges.fourWeek.high}
-                                  </span>
-                                </div>
-                              </div>
-                            </motion.div>
+                              </motion.div>
+                            )}
 
-                            {/* ONE-TIME SERVICE OPTIONS */}
-                            <motion.div
-                              initial={{ opacity: 0, x: -10 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.2 }}
-                              className="space-y-2"
-                            >
-                              <div className="text-sm font-semibold text-gray-600 mb-2">ONE-TIME SERVICE OPTIONS:</div>
-                              <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-3 rounded-r-xl shadow-sm">
-                                <div className="flex items-center gap-3">
-                                  <span className="text-xl">🧹</span>
-                                  <span className="font-bold text-lg text-blue-700">
-                                    Deep Clean: ${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-3 rounded-r-xl shadow-sm">
-                                <div className="flex items-center gap-3">
-                                  <span className="text-xl">✨</span>
-                                  <span className="font-bold text-lg text-blue-700">
-                                    General Clean: ${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-3 rounded-r-xl shadow-sm">
-                                <div className="flex items-center gap-3">
-                                  <span className="text-xl">🚚</span>
-                                  <span className="font-bold text-lg text-blue-700">
-                                    Move-In Clean: ${quoteResult.ranges.moveInOutBasic.low} to ${quoteResult.ranges.moveInOutBasic.high}
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-3 rounded-r-xl shadow-sm">
-                                <div className="flex items-center gap-3">
-                                  <span className="text-xl">🚚</span>
-                                  <span className="font-bold text-lg text-blue-700">
-                                    Move-Out Clean: ${quoteResult.ranges.moveInOutFull.low} to ${quoteResult.ranges.moveInOutFull.high}
-                                  </span>
-                                </div>
-                              </div>
-                            </motion.div>
+                            {/* OTHER ONE-TIME OPTIONS - Only show if selected service is NOT one-time */}
+                            {(!serviceType || !['general', 'deep', 'move-in', 'move-out'].includes(serviceType) || frequency) && (
+                              <motion.div
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.15 }}
+                                className="space-y-2"
+                              >
+                                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">OTHER ONE-TIME OPTIONS:</p>
+                                
+                                {/* Deep Clean - Only show if not selected */}
+                                {selectedServiceName !== 'Deep Clean' && (
+                                  <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
+                                    <div className="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center">
+                                      <span className="text-gray-400 text-xs">✓</span>
+                                    </div>
+                                    <span className="text-sm text-gray-400 mr-2">🧹</span>
+                                    <div className="flex-1">
+                                      <span className="font-semibold text-gray-900">Deep Clean:</span>{' '}
+                                      <span className="text-gray-700">${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}</span>
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* General Clean - Only show if not selected */}
+                                {selectedServiceName !== 'General Clean' && (
+                                  <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
+                                    <div className="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center">
+                                      <span className="text-gray-400 text-xs">✓</span>
+                                    </div>
+                                    <span className="text-sm text-gray-400 mr-2">✨</span>
+                                    <div className="flex-1">
+                                      <span className="font-semibold text-gray-900">General Clean:</span>{' '}
+                                      <span className="text-gray-700">${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}</span>
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* Move-In Clean - Only show if not selected */}
+                                {selectedServiceName !== 'Move-In Clean' && (
+                                  <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
+                                    <span className="text-sm text-gray-400">🧹</span>
+                                    <div className="flex-1">
+                                      <span className="font-semibold text-gray-900">Move-In Clean:</span>{' '}
+                                      <span className="text-gray-700">${quoteResult.ranges.moveInOutBasic.low} to ${quoteResult.ranges.moveInOutBasic.high}</span>
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* Move-Out Clean - Only show if not selected */}
+                                {selectedServiceName !== 'Move-Out Clean' && (
+                                  <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
+                                    <span className="text-sm text-gray-400">🧹</span>
+                                    <div className="flex-1">
+                                      <span className="font-semibold text-gray-900">Move-Out Clean:</span>{' '}
+                                      <span className="text-gray-700">${quoteResult.ranges.moveInOutFull.low} to ${quoteResult.ranges.moveInOutFull.high}</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </motion.div>
+                            )}
+
+                            {/* Professional Pricing Disclaimer */}
+                            <div className="text-xs text-gray-500 flex items-center gap-1 pt-2">
+                              <span className="text-red-500">*</span>
+                              <span>Professional pricing * Customized for your needs</span>
+                            </div>
                           </>
                         );
                       })()}
 
-                      {/* Action Buttons - FANCY BOOKING CTAs - ALWAYS SHOW */}
+                      {/* Action Buttons - Matching Screenshot - ALWAYS SHOW */}
                       {quoteResult && !isLoading && (
                         <motion.div
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.3 }}
-                          className="pt-6 border-t border-gray-200"
+                          transition={{ delay: 0.2 }}
+                          className="pt-4"
                         >
                           {!appointmentConfirmed && !callConfirmed ? (
-                            <div className="flex flex-col sm:flex-row gap-4">
-                              {quoteResult.ghlContactId ? (
-                                <>
-                                  <Button
-                                    onClick={() => {
-                                      setShowAppointmentForm(true);
-                                      setShowCallForm(false);
-                                    }}
-                                    className="flex-1 h-16 text-lg font-bold primary-bg hover:opacity-90 text-white shadow-lg hover:shadow-xl transition-all"
-                                    style={{ backgroundColor: primaryColor }}
-                                  >
-                                    <span className="tracking-wide">📅 Book an Appointment</span>
-                                  </Button>
-                                  <Button
-                                    onClick={() => {
-                                      setShowCallForm(true);
-                                      setShowAppointmentForm(false);
-                                    }}
-                                    className="flex-1 h-16 text-lg font-bold border-2 primary-border bg-white hover:bg-gray-50 shadow-lg hover:shadow-xl transition-all"
-                                    style={{ borderColor: primaryColor, color: primaryColor }}
-                                  >
-                                    <span className="tracking-wide">📞 Schedule a Callback</span>
-                                  </Button>
-                                </>
-                              ) : (
-                                <div className="w-full p-4 bg-amber-50 border border-amber-200 rounded-lg text-center">
-                                  <p className="text-amber-800 text-sm">
-                                    Contact information is being processed. Booking options will appear shortly.
-                                  </p>
+                            <div className="flex flex-col sm:flex-row gap-3">
+                              {/* Book an Appointment - Blue Button */}
+                              <Button
+                                onClick={() => {
+                                  if (quoteResult.ghlContactId) {
+                                    setShowAppointmentForm(true);
+                                    setShowCallForm(false);
+                                  } else {
+                                    setBookingMessage({
+                                      type: 'error',
+                                      text: 'Contact information is being processed. Please try again in a moment.',
+                                    });
+                                  }
+                                }}
+                                disabled={!quoteResult.ghlContactId}
+                                className="flex-1 h-14 text-base font-semibold bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                              >
+                                <Calendar className="h-5 w-5" />
+                                <span>Book an Appointment</span>
+                              </Button>
+                              
+                              {/* Schedule a Callback - Pink Button */}
+                              <Button
+                                onClick={() => {
+                                  if (quoteResult.ghlContactId) {
+                                    setShowCallForm(true);
+                                    setShowAppointmentForm(false);
+                                  } else {
+                                    setCallMessage({
+                                      type: 'error',
+                                      text: 'Contact information is being processed. Please try again in a moment.',
+                                    });
+                                  }
+                                }}
+                                disabled={!quoteResult.ghlContactId}
+                                className="flex-1 h-14 text-base font-semibold border-0 text-white rounded-lg shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                                style={{ backgroundColor: primaryColor }}
+                              >
+                                <Clock className="h-5 w-5" />
+                                <div className="flex flex-col items-start">
+                                  <span>Schedule a Callback</span>
+                                  <span className="text-xs opacity-90">We'll call you to discuss your needs</span>
                                 </div>
-                              )}
+                              </Button>
                             </div>
                           ) : (
                             <div className="w-full p-4 bg-green-50 border border-green-200 rounded-lg text-center">
@@ -644,6 +680,18 @@ export default function QuotePage() {
                           )}
                         </motion.div>
                       )}
+
+                      {/* Get Another Quote Link - Footer */}
+                      <div className="pt-4 text-center">
+                        <button
+                          onClick={() => router.push('/')}
+                          className="text-sm font-medium primary-text hover:opacity-80 transition-opacity inline-flex items-center gap-1"
+                          style={{ color: primaryColor }}
+                        >
+                          <span>⮑</span>
+                          <span>Get Another Quote</span>
+                        </button>
+                      </div>
 
                       {/* Booking Messages */}
                       {bookingMessage && (
