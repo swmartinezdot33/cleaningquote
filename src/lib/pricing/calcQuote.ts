@@ -275,6 +275,9 @@ export async function calcQuote(inputs: QuoteInputs): Promise<QuoteResult> {
 
   // Determine if Initial Cleaning is required (consider both condition and cleaning history)
   const initialCleaningRequired = isInitialCleaningRequired(inputs.condition, inputs.cleanedWithin3Months, config);
+  
+  // Determine if Initial Cleaning is recommended
+  const initialCleaningRecommended = isInitialCleaningRecommended(inputs.condition, inputs.cleanedWithin3Months, config);
 
   const ranges: QuoteRanges = {
     initial: initialRange,
@@ -293,5 +296,6 @@ export async function calcQuote(inputs: QuoteInputs): Promise<QuoteResult> {
     inputs,
     ranges,
     initialCleaningRequired,
+    initialCleaningRecommended,
   };
 }

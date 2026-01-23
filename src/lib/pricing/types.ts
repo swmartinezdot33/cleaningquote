@@ -50,6 +50,7 @@ export interface QuoteResult {
   inputs?: QuoteInputs;
   ranges?: QuoteRanges;
   initialCleaningRequired?: boolean;
+  initialCleaningRecommended?: boolean;
   summaryText?: string;
   smsText?: string;
 }

@@ -197,11 +197,14 @@ interface QuoteResponse {
   message?: string;
   multiplier?: number;
   initialCleaningRequired?: boolean;
+  initialCleaningRecommended?: boolean;
   inputs?: {
     squareFeet: number;
     people: number;
     pets: number;
     sheddingPets: number;
+    condition?: string;
+    cleanedWithin3Months?: boolean;
   };
   ranges?: {
     initial: { low: number; high: number };
@@ -1783,49 +1786,52 @@ export default function Home() {
                                     )}
                                   </motion.div>
 
-                                  {/* Show initial cleaning options when recurring service is selected */}
-                                  <motion.div
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: 0.3 }}
-                                    className="space-y-2 mt-4"
-                                  >
-                                    <div className="text-sm font-semibold text-gray-600 mb-2">INITIAL CLEANING OPTIONS:</div>
-                                    {/* Initial Cleaning - show if required or as option */}
-                                    {(quoteResult.initialCleaningRequired || selectedServiceType !== 'initial') && (
-                                      <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 border-l-4 border-purple-600 pl-6 py-3 rounded-r-xl shadow-sm">
-                                        <div className="flex items-center gap-3">
-                                          <span className="text-xl">✨</span>
-                                          <span className="font-bold text-lg text-purple-700">
-                                            Initial Cleaning: ${quoteResult.ranges.initial.low} to ${quoteResult.ranges.initial.high}
-                                            {quoteResult.initialCleaningRequired && ' (Required)'}
-                                          </span>
+                                  {/* Show initial cleaning options when recurring service is selected - only if required or recommended based on configuration */}
+                                  {(quoteResult.initialCleaningRequired || quoteResult.initialCleaningRecommended) && (
+                                    <motion.div
+                                      initial={{ opacity: 0, x: -10 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      transition={{ delay: 0.3 }}
+                                      className="space-y-2 mt-4"
+                                    >
+                                      <div className="text-sm font-semibold text-gray-600 mb-2">INITIAL CLEANING OPTIONS:</div>
+                                      {/* Initial Cleaning - show if required or recommended */}
+                                      {selectedServiceType !== 'initial' && (
+                                        <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 border-l-4 border-purple-600 pl-6 py-3 rounded-r-xl shadow-sm">
+                                          <div className="flex items-center gap-3">
+                                            <span className="text-xl">✨</span>
+                                            <span className="font-bold text-lg text-purple-700">
+                                              Initial Cleaning: ${quoteResult.ranges.initial.low} to ${quoteResult.ranges.initial.high}
+                                              {quoteResult.initialCleaningRequired && ' (Required)'}
+                                              {quoteResult.initialCleaningRecommended && !quoteResult.initialCleaningRequired && ' (Recommended)'}
+                                            </span>
+                                          </div>
                                         </div>
-                                      </div>
-                                    )}
-                                    {/* Deep Clean */}
-                                    {selectedServiceType !== 'deep' && (
-                                      <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-3 rounded-r-xl shadow-sm">
-                                        <div className="flex items-center gap-3">
-                                          <span className="text-xl">🧹</span>
-                                          <span className="font-bold text-lg text-blue-700">
-                                            Deep Clean: ${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}
-                                          </span>
+                                      )}
+                                      {/* Deep Clean - show if initial cleaning is required or recommended */}
+                                      {selectedServiceType !== 'deep' && (
+                                        <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-3 rounded-r-xl shadow-sm">
+                                          <div className="flex items-center gap-3">
+                                            <span className="text-xl">🧹</span>
+                                            <span className="font-bold text-lg text-blue-700">
+                                              Deep Clean: ${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}
+                                            </span>
+                                          </div>
                                         </div>
-                                      </div>
-                                    )}
-                                    {/* General Clean */}
-                                    {selectedServiceType !== 'general' && (
-                                      <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-3 rounded-r-xl shadow-sm">
-                                        <div className="flex items-center gap-3">
-                                          <span className="text-xl">✨</span>
-                                          <span className="font-bold text-lg text-blue-700">
-                                            General Clean: ${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}
-                                          </span>
+                                      )}
+                                      {/* General Clean - show if initial cleaning is required or recommended */}
+                                      {selectedServiceType !== 'general' && (
+                                        <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-3 rounded-r-xl shadow-sm">
+                                          <div className="flex items-center gap-3">
+                                            <span className="text-xl">✨</span>
+                                            <span className="font-bold text-lg text-blue-700">
+                                              General Clean: ${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}
+                                            </span>
+                                          </div>
                                         </div>
-                                      </div>
-                                    )}
-                                  </motion.div>
+                                      )}
+                                    </motion.div>
+                                  )}
                                 </>
                               )}
 

@@ -462,6 +462,7 @@ export async function POST(request: NextRequest) {
       inputs: result.inputs,
       ranges: result.ranges,
       initialCleaningRequired: result.initialCleaningRequired,
+      initialCleaningRecommended: result.initialCleaningRecommended,
       summaryText,
       smsText,
       ghlContactId,

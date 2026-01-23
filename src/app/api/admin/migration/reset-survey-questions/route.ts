@@ -83,11 +83,10 @@ const CORRECTED_DEFAULT_QUESTIONS: SurveyQuestion[] = [
     type: 'select',
     options: [
       { value: 'initial', label: 'Initial Cleaning (First deep clean to reach maintenance standards)' },
-      { value: 'general', label: 'General Clean (For switching services - good condition homes)' },
-      { value: 'deep', label: 'Deep Clean (Very thorough - wet wipe everything)' },
+      { value: 'general', label: 'General Clean' },
+      { value: 'deep', label: 'Deep Clean' },
       { value: 'move-in', label: 'Move In Clean' },
       { value: 'move-out', label: 'Move Out Clean' },
-      { value: 'recurring', label: 'Recurring Clean' },
     ],
     required: true,
     order: 6,
