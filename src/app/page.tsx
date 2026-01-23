@@ -1159,6 +1159,25 @@ export default function Home() {
       }
 
       const result = await response.json();
+      
+      // If quoteId is returned, redirect to quote page
+      if (result.quoteId && !result.outOfLimits) {
+        // Send tracking event for quote submission before redirect
+        sendTrackingEvent('quote_submitted', {
+          serviceType: formData.serviceType,
+          frequency: formData.frequency,
+          squareFeet: formData.squareFeet,
+          people: formData.people,
+          pets: formData.sheddingPets,
+          quoteId: result.quoteId,
+        });
+        
+        // Redirect to quote page
+        window.location.href = `/quote/${result.quoteId}`;
+        return;
+      }
+      
+      // Fallback to inline display if no quoteId
       setQuoteResult(result);
       
       // Send tracking event for quote submission

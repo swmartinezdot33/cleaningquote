@@ -121,3 +121,15 @@ export interface GHLConnectionTestResult {
     warnings: number;
   };
 }
+
+export interface GHLCustomObject {
+  contactId?: string;
+  customFields?: Record<string, string>;
+}
+
+export interface GHLCustomObjectResponse {
+  id: string;
+  contactId?: string;
+  customFields?: Record<string, string>;
+  [key: string]: any; // Allow additional fields from GHL
+}

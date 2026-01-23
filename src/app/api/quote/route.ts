@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { calcQuote } from '@/lib/pricing/calcQuote';
 import { generateSummaryText, generateSmsText } from '@/lib/pricing/format';
 import { QuoteInputs, QuoteRanges } from '@/lib/pricing/types';
-import { createOrUpdateContact, createOpportunity, createNote } from '@/lib/ghl/client';
+import { createOrUpdateContact, createOpportunity, createNote, createCustomObject } from '@/lib/ghl/client';
 import { ghlTokenExists, getGHLConfig } from '@/lib/kv';
 import { getSurveyQuestions } from '@/lib/survey/manager';
 import { SurveyQuestion } from '@/lib/survey/schema';
+import { randomUUID } from 'crypto';
 
 /**
  * Helper to get the selected quote range based on service type and frequency
@@ -132,6 +133,7 @@ export async function POST(request: NextRequest) {
     // Attempt GHL integration (non-blocking)
     // If a contact was already created after address step, use that ID; otherwise create/update
     let ghlContactId: string | undefined = providedContactId;
+    let quoteId: string | undefined;
     const hasGHLToken = await ghlTokenExists().catch(() => false);
     
     if (hasGHLToken) {
@@ -434,6 +436,71 @@ export async function POST(request: NextRequest) {
           });
         }
 
+        // Create Quote custom object in GHL
+        if (ghlContactId) {
+          try {
+            // Generate unique quote_id
+            const generatedQuoteId = randomUUID();
+            
+            // Build service address string
+            const addressParts = [
+              body.address,
+              body.city,
+              body.state,
+              body.postalCode,
+              body.country,
+            ].filter(Boolean);
+            const serviceAddress = addressParts.join(', ') || '';
+
+            // Get selected quote range for storing price ranges
+            const selectedRange = getSelectedQuoteRange(result.ranges, body.serviceType, body.frequency);
+
+            // Map all fields to Quote custom object
+            const quoteCustomFields: Record<string, string> = {
+              quote_id: generatedQuoteId,
+              service_address: serviceAddress,
+              square_footage: String(body.squareFeet || ''),
+              type: body.serviceType || '',
+              frequency: body.frequency || '',
+              full_baths: String(body.fullBaths || 0),
+              half_baths: String(body.halfBaths || 0),
+              bedrooms: String(body.bedrooms || 0),
+              people_in_home: String(body.people || 0),
+              shedding_pets: String(body.sheddingPets || 0),
+              current_condition: body.condition || '',
+              cleaning_service_prior: body.hasPreviousService === 'true' || body.hasPreviousService === 'switching' ? 'Yes' : 'No',
+              cleaned_in_last_3_months: body.cleanedWithin3Months === 'yes' ? 'Yes' : 'No',
+            };
+
+            // Store quote ranges if available
+            if (selectedRange) {
+              quoteCustomFields['quote_range_low'] = String(selectedRange.low);
+              quoteCustomFields['quote_range_high'] = String(selectedRange.high);
+            }
+
+            // Create Quote custom object
+            const quoteObject = await createCustomObject(
+              'quotes',
+              {
+                contactId: ghlContactId,
+                customFields: quoteCustomFields,
+              }
+            );
+
+            // Use the ID returned from GHL as the quote ID for the URL
+            // The quote_id field in customFields is for reference, but the object ID is what we use for the URL
+            quoteId = quoteObject.id;
+            console.log('✅ Quote custom object created in GHL:', {
+              objectId: quoteObject.id,
+              quoteIdField: generatedQuoteId,
+              contactId: ghlContactId,
+            });
+          } catch (quoteError) {
+            console.error('Failed to create Quote custom object (quote still delivered):', quoteError);
+            // Don't throw - quote should still be delivered even if custom object creation fails
+          }
+        }
+
         // Create note if enabled
         if (ghlConfig?.createNote !== false && ghlContactId) {
           const noteBody = `Quote Generated from Website Form\n\n${summaryText}`;
@@ -466,6 +533,7 @@ export async function POST(request: NextRequest) {
       summaryText,
       smsText,
       ghlContactId,
+      quoteId, // Include quoteId if it was created
     });
   } catch (error) {
     console.error('Error calculating quote:', error);

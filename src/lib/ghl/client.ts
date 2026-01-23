@@ -17,6 +17,8 @@ import {
   GHLPipeline,
   GHLAPIError,
   GHLConnectionTestResult,
+  GHLCustomObject,
+  GHLCustomObjectResponse,
 } from './types';
 
 const GHL_API_BASE = 'https://services.leadconnectorhq.com';
@@ -397,6 +399,95 @@ export async function createAppointment(
       contactId: appointmentData.contactId,
       calendarId: appointmentData.calendarId,
     });
+    throw error;
+  }
+}
+
+/**
+ * Create a custom object in GHL
+ * Always uses stored locationId for sub-account (location-level) API calls
+ */
+export async function createCustomObject(
+  objectType: string,
+  data: GHLCustomObject,
+  locationId?: string
+): Promise<GHLCustomObjectResponse> {
+  try {
+    // Always use locationId - required for sub-account (location-level) API calls
+    let finalLocationId = locationId || (await getGHLLocationId());
+    
+    if (!finalLocationId) {
+      throw new Error('Location ID is required. Please configure it in the admin settings.');
+    }
+
+    // Convert customFields object to array format required by GHL API
+    let customFieldsArray: Array<{ key: string; value: string }> | undefined;
+    if (data.customFields && Object.keys(data.customFields).length > 0) {
+      customFieldsArray = Object.entries(data.customFields).map(([key, value]) => ({
+        key,
+        value: String(value),
+      }));
+    }
+
+    const payload: Record<string, any> = {
+      locationId: finalLocationId,
+      ...(data.contactId && { contactId: data.contactId }),
+      ...(customFieldsArray && customFieldsArray.length > 0 && {
+        customFields: customFieldsArray,
+      }),
+    };
+
+    // GHL 2.0 API: Use custom-objects endpoint
+    // Endpoint format: /custom-objects/{objectType}
+    const response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
+      `/custom-objects/${objectType}`,
+      'POST',
+      payload
+    );
+
+    // GHL may return the object directly or wrapped in a key
+    // Try to find the object in the response
+    const customObject = response[objectType] || response[objectType.slice(0, -1)] || response;
+    
+    return customObject as GHLCustomObjectResponse;
+  } catch (error) {
+    console.error(`Failed to create custom object (${objectType}):`, error);
+    throw error;
+  }
+}
+
+/**
+ * Get a custom object by ID from GHL
+ * Always uses stored locationId for sub-account (location-level) API calls
+ */
+export async function getCustomObjectById(
+  objectType: string,
+  objectId: string,
+  locationId?: string
+): Promise<GHLCustomObjectResponse> {
+  try {
+    // Always use locationId - required for sub-account (location-level) API calls
+    let finalLocationId = locationId || (await getGHLLocationId());
+    
+    if (!finalLocationId) {
+      throw new Error('Location ID is required. Please configure it in the admin settings.');
+    }
+
+    // For GET requests, locationId should be in query string, not body
+    // GHL 2.0 API: Use custom-objects endpoint
+    // Endpoint format: /custom-objects/{objectType}/{id}?locationId={locationId}
+    const endpoint = `/custom-objects/${objectType}/${objectId}?locationId=${finalLocationId}`;
+    const response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
+      endpoint,
+      'GET'
+    );
+
+    // GHL may return the object directly or wrapped in a key
+    const customObject = response[objectType] || response[objectType.slice(0, -1)] || response;
+    
+    return customObject as GHLCustomObjectResponse;
+  } catch (error) {
+    console.error(`Failed to get custom object (${objectType}/${objectId}):`, error);
     throw error;
   }
 }
