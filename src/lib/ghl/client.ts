@@ -1045,22 +1045,41 @@ export async function createCustomObject(
     if (data.contactId) {
       try {
         const objectIdForAssociation = objectIdToUse || schemaFields?.object?.id || KNOWN_OBJECT_IDS.quotes;
+        // Get the schema key that was actually used (for association targetKey)
+        const schemaKeyForAssociation = actualSchemaKey || 'custom_objects.quotes';
+        
         if (objectIdForAssociation) {
-          console.log(`Associating custom object ${customObject.id} with contact ${data.contactId}...`);
+          console.log(`🔗 Associating custom object ${customObject.id} with contact ${data.contactId}...`, {
+            objectId: objectIdForAssociation,
+            schemaKey: schemaKeyForAssociation,
+            recordId: customObject.id,
+            contactId: data.contactId,
+          });
+          
           await associateCustomObjectWithContact(
             objectIdForAssociation,
             customObject.id,
             data.contactId,
-            finalLocationId
+            finalLocationId,
+            schemaKeyForAssociation // Pass the actual schema key used
           );
-          console.log(`✅ Successfully associated custom object with contact`);
+          
+          console.log(`✅ Successfully associated custom object ${customObject.id} with contact ${data.contactId}`);
           customObject.contactId = data.contactId;
         } else {
           console.warn(`⚠️ Cannot associate custom object - object ID not available`);
         }
       } catch (assocError) {
-        console.warn(`⚠️ Could not associate custom object with contact (non-blocking):`, assocError instanceof Error ? assocError.message : String(assocError));
+        // Log as error (not just warning) so it's more visible
+        console.error(`❌ Failed to associate custom object with contact:`, {
+          error: assocError instanceof Error ? assocError.message : String(assocError),
+          stack: assocError instanceof Error ? assocError.stack : undefined,
+          recordId: customObject.id,
+          contactId: data.contactId,
+          note: 'The quote was created but is not associated with the contact. Check GHL API logs for details.',
+        });
         // Don't throw - the object was created successfully, association is optional
+        // But log as error so it's visible in production logs
       }
     }
     
@@ -1079,7 +1098,8 @@ async function associateCustomObjectWithContact(
   objectId: string,
   recordId: string,
   contactId: string,
-  locationId: string
+  locationId: string,
+  schemaKey?: string // Optional: the actual schema key used (e.g., 'custom_objects.quotes')
 ): Promise<void> {
   if (!objectId) {
     throw new Error('Object ID is required for association');
@@ -1094,13 +1114,18 @@ async function associateCustomObjectWithContact(
   ];
   
   // Try different targetKey variations (GHL may use different naming)
-  // Priority: schema key format (custom_objects.quotes) > object name (quotes) > object ID
-  const targetKeyVariations = [
+  // Priority: use provided schema key > schema key format (custom_objects.quotes) > object name (quotes)
+  const targetKeyVariations = schemaKey 
+    ? [schemaKey] // Use the actual schema key first if provided
+    : [];
+  
+  // Add common variations as fallbacks
+  targetKeyVariations.push(
     'custom_objects.quotes', // Most common format for custom objects
     'quotes', // Simple plural form
     'Quote', // Capitalized singular
     'quote', // Lowercase singular
-  ];
+  );
   
   const errors: string[] = [];
   
