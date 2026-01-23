@@ -264,11 +264,8 @@ export async function calcQuote(inputs: QuoteInputs): Promise<QuoteResult> {
   const fourWeekRange = applyMultiplier(baseRow.fourWeek, finalMultiplier);
   const deepRange = applyMultiplier(baseRow.deep, finalMultiplier);
   
-  // Calculate average maintenance price for General Clean calculation
-  const maintenanceAvg = Math.round((weeklyRange.low + biWeeklyRange.low + fourWeekRange.low) / 3);
-  
-  // Calculate General Clean as between maintenance average and deep clean
-  const generalRange = calculateGeneralCleanPrice(maintenanceAvg, deepRange);
+  // Use General Clean price directly from pricing table (already has correct pricing structure)
+  const generalRange = applyMultiplier(baseRow.general, finalMultiplier);
   
   // Calculate Initial Cleaning as multiplier of General Clean using config multiplier
   const initialRange = calculateInitialCleaningPrice(generalRange, config.multiplier);
