@@ -93,7 +93,20 @@ export async function GET(
     // Extract data from custom fields
     // Handle type field - it's an array for MULTIPLE_OPTIONS
     const typeValue = customFields.type;
-    const serviceType = Array.isArray(typeValue) ? typeValue[0] || '' : typeValue || '';
+    let serviceType = Array.isArray(typeValue) ? typeValue[0] || '' : typeValue || '';
+    
+    // Reverse map serviceType from GHL schema format back to our format
+    const serviceTypeReverseMap: Record<string, string> = {
+      'general_cleaning': 'general',
+      'initial_cleaning': 'initial',
+      'deep_clean': 'deep',
+      'move_in': 'move-in',
+      'move_out': 'move-out',
+      'recurring_cleaning': 'recurring',
+    };
+    if (serviceType && serviceTypeReverseMap[serviceType]) {
+      serviceType = serviceTypeReverseMap[serviceType];
+    }
     
     const squareFeet = parseInt(customFields.square_footage || '0', 10) || 0;
     const people = parseInt(customFields.people_in_home || '0', 10) || 0;
@@ -104,7 +117,18 @@ export async function GET(
     const condition = customFields.current_condition || '';
     const hasPreviousService = customFields.cleaning_service_prior === 'yes' || customFields.cleaning_service_prior === 'Yes';
     const cleanedWithin3Months = customFields.cleaned_in_last_3_months === 'yes' || customFields.cleaned_in_last_3_months === 'Yes';
-    const frequency = customFields.frequency || '';
+    let frequency = customFields.frequency || '';
+    
+    // Reverse map frequency from GHL schema format back to our format
+    const frequencyReverseMap: Record<string, string> = {
+      'weekly': 'weekly',
+      'biweekly': 'bi-weekly',
+      'monthly': 'four-week',
+      'one_time': 'one-time',
+    };
+    if (frequency && frequencyReverseMap[frequency]) {
+      frequency = frequencyReverseMap[frequency];
+    }
 
     // Reconstruct quote inputs
     const inputs: QuoteInputs = {

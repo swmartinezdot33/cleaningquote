@@ -661,72 +661,80 @@ export default function Home() {
   useEffect(() => {
     reset(getDefaultValues());
     
-    // Handle contact pre-fill when opening with contactId parameter
-    if (mounted && questions.length > 0) {
-      // Check for contactId in URL parameters
-      const params = new URLSearchParams(window.location.search);
-      const contactId = params.get('contactId');
-      const fromOutOfService = params.get('fromOutOfService');
+      // Handle contact pre-fill when opening with contactId parameter
+      if (mounted && questions.length > 0) {
+        // Check for contactId in URL parameters
+        const params = new URLSearchParams(window.location.search);
+        const contactId = params.get('contactId');
+        const fromOutOfService = params.get('fromOutOfService');
+        const startAt = params.get('startAt'); // New parameter to specify starting step
 
-      if (contactId) {
-        console.log('Found contactId in URL:', contactId);
-        
-        // Fetch contact data
-        const fetchAndPreFillContact = async () => {
-          try {
-            const response = await fetch(`/api/contacts/get?contactId=${contactId}`);
-            const result = await response.json();
+        if (contactId) {
+          console.log('Found contactId in URL:', contactId);
+          
+          // Fetch contact data
+          const fetchAndPreFillContact = async () => {
+            try {
+              const response = await fetch(`/api/contacts/get?contactId=${contactId}`);
+              const result = await response.json();
 
-            if (result.success && result.contact) {
-              console.log('Fetched contact data:', result.contact);
-              const contact = result.contact;
+              if (result.success && result.contact) {
+                console.log('Fetched contact data:', result.contact);
+                const contact = result.contact;
 
-              // Pre-fill form fields using setValue
-              setValue('firstName', contact.firstName || '', { shouldValidate: false });
-              setValue('lastName', contact.lastName || '', { shouldValidate: false });
-              setValue('email', contact.email || '', { shouldValidate: false });
-              setValue('phone', contact.phone || '', { shouldValidate: false });
-              setValue('address', contact.address1 || '', { shouldValidate: false });
-              setValue('city', contact.city || '', { shouldValidate: false });
-              setValue('state', contact.state || '', { shouldValidate: false });
-              setValue('postalCode', contact.postalCode || '', { shouldValidate: false });
-              setValue('country', contact.country || 'US', { shouldValidate: false });
+                // Pre-fill form fields using setValue
+                setValue('firstName', contact.firstName || '', { shouldValidate: false });
+                setValue('lastName', contact.lastName || '', { shouldValidate: false });
+                setValue('email', contact.email || '', { shouldValidate: false });
+                setValue('phone', contact.phone || '', { shouldValidate: false });
+                setValue('address', contact.address1 || '', { shouldValidate: false });
+                setValue('city', contact.city || '', { shouldValidate: false });
+                setValue('state', contact.state || '', { shouldValidate: false });
+                setValue('postalCode', contact.postalCode || '', { shouldValidate: false });
+                setValue('country', contact.country || 'US', { shouldValidate: false });
 
-              // Set the contact ID
-              setGHLContactId(contactId);
+                // Set the contact ID
+                setGHLContactId(contactId);
 
-              // Find the address question index
-              const addressQuestionIndex = questions.findIndex(q => q.type === 'address');
-              
-              if (addressQuestionIndex !== -1) {
-                if (fromOutOfService) {
-                  // Coming from out-of-service: start AT the address question so they can try a new address
-                  console.log('Coming from out-of-service page, starting at address question');
-                  setCurrentStep(addressQuestionIndex);
-                  // Don't mark service area as checked - they need to check a new address
-                } else {
-                  // Coming from new tab feature: skip address question and go to next question
-                  console.log('Coming from new tab, skipping address question');
-                  setServiceAreaChecked(true);
-                  const nextIndex = addressQuestionIndex + 1;
-                  if (nextIndex < questions.length) {
-                    setCurrentStep(nextIndex);
+                // Find the address question index
+                const addressQuestionIndex = questions.findIndex(q => q.type === 'address');
+                
+                if (addressQuestionIndex !== -1) {
+                  if (fromOutOfService || startAt === 'address') {
+                    // Coming from out-of-service or "Get Another Quote": start AT the address question
+                    console.log('Starting at address question (fromOutOfService or startAt=address)');
+                    setCurrentStep(addressQuestionIndex);
+                    // Don't mark service area as checked - they need to check a new address
+                  } else {
+                    // Coming from new tab feature: skip address question and go to next question
+                    console.log('Coming from new tab, skipping address question');
+                    setServiceAreaChecked(true);
+                    const nextIndex = addressQuestionIndex + 1;
+                    if (nextIndex < questions.length) {
+                      setCurrentStep(nextIndex);
+                    }
                   }
                 }
+              } else {
+                console.warn('Failed to fetch contact:', result.message);
+                // Continue with normal flow
               }
-            } else {
-              console.warn('Failed to fetch contact:', result.message);
+            } catch (error) {
+              console.error('Error fetching contact for pre-fill:', error);
               // Continue with normal flow
             }
-          } catch (error) {
-            console.error('Error fetching contact for pre-fill:', error);
-            // Continue with normal flow
-          }
-        };
+          };
 
-        fetchAndPreFillContact();
+          fetchAndPreFillContact();
+        } else if (startAt === 'address') {
+          // Handle startAt=address even without contactId (just skip to address step)
+          const addressQuestionIndex = questions.findIndex(q => q.type === 'address');
+          if (addressQuestionIndex !== -1) {
+            console.log('Starting at address question (startAt=address without contactId)');
+            setCurrentStep(addressQuestionIndex);
+          }
+        }
       }
-    }
   }, [questions, formSettings, mounted, setValue, reset, setGHLContactId, setServiceAreaChecked, setCurrentStep]);
 
   // Detect browser autofill and auto-advance

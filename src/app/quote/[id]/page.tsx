@@ -88,7 +88,18 @@ const hexToHsl = (hex: string): string => {
 export default function QuotePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const quoteId = params.id as string;
+
+  // Helper function to extract UTM parameters from URL
+  const getUTMParams = (): string => {
+    const utmParams = new URLSearchParams();
+    ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid'].forEach(param => {
+      const value = searchParams.get(param);
+      if (value) utmParams.set(param, value);
+    });
+    return utmParams.toString();
+  };
   
   const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -525,13 +536,48 @@ export default function QuotePage() {
 
                       {/* YOUR SELECTED SERVICE - Green Background */}
                       {quoteResult.ranges && (() => {
-                        const serviceType = quoteResult.serviceType || '';
-                        const frequency = quoteResult.frequency || '';
+                        // Normalize serviceType and frequency values (handle both formats)
+                        let serviceType = (quoteResult.serviceType || '').toLowerCase();
+                        let frequency = (quoteResult.frequency || '').toLowerCase();
+                        
+                        // Normalize serviceType formats
+                        if (serviceType.includes('general') || serviceType === 'general_cleaning') {
+                          serviceType = 'general';
+                        } else if (serviceType.includes('deep')) {
+                          serviceType = 'deep';
+                        } else if (serviceType.includes('move-in') || serviceType === 'move_in') {
+                          serviceType = 'move-in';
+                        } else if (serviceType.includes('move-out') || serviceType === 'move_out') {
+                          serviceType = 'move-out';
+                        }
+                        
+                        // Normalize frequency formats
+                        if (frequency === 'biweekly' || frequency === 'bi-weekly') {
+                          frequency = 'bi-weekly';
+                        } else if (frequency === 'fourweek' || frequency === 'four-week' || frequency === 'monthly') {
+                          frequency = 'four-week';
+                        }
                         
                         // Determine selected service and price range
                         // Priority: frequency-based services first, then one-time services
                         let selectedServiceName = '';
                         let selectedRange: { low: number; high: number } | null = null;
+                        
+                        // Check if it's a one-time service (deep, move-in, move-out) WITHOUT frequency
+                        const isOneTimeService = ['deep', 'move-in', 'move-out'].includes(serviceType) && !frequency;
+                        // Check if it's a recurring service (has frequency)
+                        const isRecurringService = !!frequency && (frequency === 'weekly' || frequency === 'bi-weekly' || frequency === 'four-week' || frequency === 'monthly');
+                        
+                        // Debug logging
+                        console.log('🔍 Quote Display Logic:', {
+                          originalServiceType: quoteResult.serviceType,
+                          originalFrequency: quoteResult.frequency,
+                          normalizedServiceType: serviceType,
+                          normalizedFrequency: frequency,
+                          isOneTimeService,
+                          isRecurringService,
+                          selectedServiceName,
+                        });
                         
                         // Check for recurring services first
                         if (frequency === 'weekly') {
@@ -540,25 +586,31 @@ export default function QuotePage() {
                         } else if (frequency === 'bi-weekly') {
                           selectedServiceName = 'Bi-Weekly Cleaning';
                           selectedRange = quoteResult.ranges.biWeekly;
-                        } else if (frequency === 'four-week' || frequency === 'monthly') {
+                        } else if (frequency === 'four-week') {
                           selectedServiceName = 'Every 4 Weeks Cleaning';
                           selectedRange = quoteResult.ranges.fourWeek;
                         } 
-                        // Then check for one-time services
-                        else if (serviceType === 'general') {
-                          selectedServiceName = 'General Clean';
-                          selectedRange = quoteResult.ranges.general;
-                        } else if (serviceType === 'deep') {
-                          selectedServiceName = 'Deep Clean';
-                          selectedRange = quoteResult.ranges.deep;
-                        } else if (serviceType === 'move-in') {
-                          selectedServiceName = 'Move-In Clean';
-                          selectedRange = quoteResult.ranges.moveInOutBasic;
-                        } else if (serviceType === 'move-out') {
-                          selectedServiceName = 'Move-Out Clean';
-                          selectedRange = quoteResult.ranges.moveInOutFull;
+                        // Then check for one-time services (only if no frequency)
+                        else if (!frequency) {
+                          if (serviceType === 'general') {
+                            selectedServiceName = 'General Clean';
+                            selectedRange = quoteResult.ranges.general;
+                          } else if (serviceType === 'deep') {
+                            selectedServiceName = 'Deep Clean';
+                            selectedRange = quoteResult.ranges.deep;
+                          } else if (serviceType === 'move-in') {
+                            selectedServiceName = 'Move-In Clean';
+                            selectedRange = quoteResult.ranges.moveInOutBasic;
+                          } else if (serviceType === 'move-out') {
+                            selectedServiceName = 'Move-Out Clean';
+                            selectedRange = quoteResult.ranges.moveInOutFull;
+                          } else {
+                            // Default to general if nothing matches
+                            selectedServiceName = 'General Clean';
+                            selectedRange = quoteResult.ranges.general;
+                          }
                         } else {
-                          // Default to general if nothing matches
+                          // Has frequency but not recognized - default to general
                           selectedServiceName = 'General Clean';
                           selectedRange = quoteResult.ranges.general;
                         }
@@ -590,37 +642,98 @@ export default function QuotePage() {
                               </motion.div>
                             )}
 
-                            {/* OTHER ONE-TIME OPTIONS - Only show if selected service is NOT one-time */}
-                            {(!serviceType || !['general', 'deep', 'move-in', 'move-out'].includes(serviceType) || frequency) && (
+                            {/* INITIAL CLEANING - Show prominently if REQUIRED (for recurring services) */}
+                            {quoteResult.initialCleaningRequired && isRecurringService && quoteResult.ranges?.initial && (
+                              <motion.div
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.12 }}
+                                className="space-y-2 mt-4"
+                              >
+                                <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-2">📌 REQUIRED FIRST SERVICE:</p>
+                                
+                                {/* Initial Deep Cleaning - Required (Orange highlight) */}
+                                <div className="bg-orange-50 border-2 border-orange-400 px-4 py-3 rounded-lg flex items-center gap-3">
+                                  <div className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center flex-shrink-0">
+                                    <span className="text-white text-xs font-bold">📌</span>
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="font-semibold text-gray-900">Initial Deep Cleaning:</span>
+                                      <span className="text-gray-700">${quoteResult.ranges.initial.low} to ${quoteResult.ranges.initial.high}</span>
+                                    </div>
+                                    <p className="text-xs text-orange-800 font-medium mt-1">📌 Required before your recurring service begins</p>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+
+                            {/* INITIAL CLEANING - Show as recommendation if RECOMMENDED (for recurring services) */}
+                            {quoteResult.initialCleaningRecommended && !quoteResult.initialCleaningRequired && isRecurringService && quoteResult.ranges?.general && (
+                              <motion.div
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.13 }}
+                                className="space-y-2 mt-4"
+                              >
+                                <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2">💡 RECOMMENDED FIRST SERVICE:</p>
+                                
+                                {/* Initial General Clean - Recommended (Blue highlight) */}
+                                <div className="bg-blue-50 border-2 border-blue-300 px-4 py-3 rounded-lg flex items-center gap-3">
+                                  <div className="w-5 h-5 rounded-full bg-blue-400 flex items-center justify-center flex-shrink-0">
+                                    <span className="text-blue-900 text-xs font-bold">💡</span>
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="font-semibold text-gray-900">Initial General Clean:</span>
+                                      <span className="text-gray-700">${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}</span>
+                                    </div>
+                                    <p className="text-xs text-blue-800 font-medium mt-1">💡 Recommended for best results before your recurring service</p>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+
+                            {/* ALWAYS show Bi-Weekly suggestion if not already selected */}
+                            {frequency !== 'bi-weekly' && quoteResult.ranges?.biWeekly && (
                               <motion.div
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: 0.15 }}
-                                className="space-y-2"
+                                className="space-y-2 mt-4"
                               >
-                                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">OTHER ONE-TIME OPTIONS:</p>
+                                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">⭐ MOST POPULAR RECURRING CHOICE:</p>
                                 
-                                {/* Deep Clean - Only show if not selected */}
-                                {selectedServiceName !== 'Deep Clean' && (
-                                  <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
-                                    <div className="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center">
-                                      <span className="text-gray-400 text-xs">✓</span>
-                                    </div>
-                                    <span className="text-sm text-gray-400 mr-2">🧹</span>
-                                    <div className="flex-1">
-                                      <span className="font-semibold text-gray-900">Deep Clean:</span>{' '}
-                                      <span className="text-gray-700">${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}</span>
-                                    </div>
+                                {/* Bi-Weekly as Most Popular - Always show with star if not selected */}
+                                <div className="bg-yellow-50 border-2 border-yellow-300 px-4 py-3 rounded-lg flex items-center gap-3">
+                                  <div className="w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center flex-shrink-0">
+                                    <span className="text-yellow-900 text-xs font-bold">⭐</span>
                                   </div>
-                                )}
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="font-semibold text-gray-900">Bi-Weekly Cleaning:</span>
+                                      <span className="text-gray-700">${quoteResult.ranges.biWeekly.low} to ${quoteResult.ranges.biWeekly.high}</span>
+                                    </div>
+                                    <p className="text-xs text-yellow-800 font-medium mt-1">⭐ Most Popular</p>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+
+                            {/* ALWAYS show other pricing options (Deep Clean and General Clean) */}
+                            {quoteResult.ranges && (
+                              <motion.div
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.2 }}
+                                className="space-y-2 mt-4"
+                              >
+                                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">OTHER SERVICE OPTIONS:</p>
                                 
-                                {/* General Clean - Only show if not selected */}
+                                {/* General Cleaning - Only show if not selected */}
                                 {selectedServiceName !== 'General Clean' && (
                                   <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
-                                    <div className="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center">
-                                      <span className="text-gray-400 text-xs">✓</span>
-                                    </div>
-                                    <span className="text-sm text-gray-400 mr-2">✨</span>
+                                    <span className="text-sm text-gray-400">✨</span>
                                     <div className="flex-1">
                                       <span className="font-semibold text-gray-900">General Clean:</span>{' '}
                                       <span className="text-gray-700">${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}</span>
@@ -628,6 +741,17 @@ export default function QuotePage() {
                                   </div>
                                 )}
                                 
+                                {/* Deep Cleaning - Only show if not selected */}
+                                {selectedServiceName !== 'Deep Clean' && (
+                                  <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
+                                    <span className="text-sm text-gray-400">🧹</span>
+                                    <div className="flex-1">
+                                      <span className="font-semibold text-gray-900">Deep Clean:</span>{' '}
+                                      <span className="text-gray-700">${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}</span>
+                                    </div>
+                                  </div>
+                                )}
+
                                 {/* Move-In Clean - Only show if not selected */}
                                 {selectedServiceName !== 'Move-In Clean' && (
                                   <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
@@ -638,7 +762,7 @@ export default function QuotePage() {
                                     </div>
                                   </div>
                                 )}
-                                
+
                                 {/* Move-Out Clean - Only show if not selected */}
                                 {selectedServiceName !== 'Move-Out Clean' && (
                                   <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
@@ -648,6 +772,31 @@ export default function QuotePage() {
                                       <span className="text-gray-700">${quoteResult.ranges.moveInOutFull.low} to ${quoteResult.ranges.moveInOutFull.high}</span>
                                     </div>
                                   </div>
+                                )}
+
+
+                                {/* Show other recurring options if they selected a one-time service */}
+                                {isOneTimeService && (
+                                  <>
+                                    {selectedServiceName !== 'Weekly Cleaning' && (
+                                      <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
+                                        <span className="text-sm text-gray-400">📅</span>
+                                        <div className="flex-1">
+                                          <span className="font-semibold text-gray-900">Weekly Cleaning:</span>{' '}
+                                          <span className="text-gray-700">${quoteResult.ranges.weekly.low} to ${quoteResult.ranges.weekly.high}</span>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {selectedServiceName !== 'Every 4 Weeks Cleaning' && (
+                                      <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
+                                        <span className="text-sm text-gray-400">📅</span>
+                                        <div className="flex-1">
+                                          <span className="font-semibold text-gray-900">Every 4 Weeks Cleaning:</span>{' '}
+                                          <span className="text-gray-700">${quoteResult.ranges.fourWeek.low} to ${quoteResult.ranges.fourWeek.high}</span>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </>
                                 )}
                               </motion.div>
                             )}
@@ -728,7 +877,17 @@ export default function QuotePage() {
                       {/* Get Another Quote Link - Footer */}
                       <div className="pt-4 text-center">
                         <button
-                          onClick={() => router.push('/')}
+                          onClick={() => {
+                            // Preserve UTM parameters
+                            const utmParams = getUTMParams();
+                            // Pass contactId and startAt=address to skip to address step
+                            const params = new URLSearchParams(utmParams);
+                            if (quoteResult?.ghlContactId) {
+                              params.set('contactId', quoteResult.ghlContactId);
+                            }
+                            params.set('startAt', 'address');
+                            router.push(`/?${params.toString()}`);
+                          }}
                           className="text-sm font-medium primary-text hover:opacity-80 transition-opacity inline-flex items-center gap-1"
                           style={{ color: primaryColor }}
                         >
