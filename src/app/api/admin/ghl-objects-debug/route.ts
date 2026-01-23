@@ -20,9 +20,8 @@ function authenticate(request: NextRequest): NextResponse | null {
  * This helps us see the exact structure and field keys
  */
 export async function GET(request: NextRequest) {
-  // Temporarily disable auth for debugging - remove this in production!
-  // const authResponse = authenticate(request);
-  // if (authResponse) return authResponse;
+  const authResponse = authenticate(request);
+  if (authResponse) return authResponse;
 
   try {
     const locationId = await getGHLLocationId();
