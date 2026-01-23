@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     if (allObjects.length === 0) {
       console.log('⚠️  Could not list objects. Trying to fetch "quotes" schema directly...');
       
-      const schemaKeysToTry = ['quotes', 'Quote', 'quote'];
+      const schemaKeysToTry = ['custom_objects.quotes', 'quotes', 'Quote', 'quote'];
       const directSchemas: any[] = [];
       const errors: any[] = [];
       

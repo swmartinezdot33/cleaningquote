@@ -671,6 +671,16 @@ export async function createCustomObject(
       }
       
       customFieldsArray = Object.entries(data.customFields).map(([ourKey, value]) => {
+        // If our key already includes the full fieldKey format (custom_objects.quotes.field_name),
+        // use it directly. Otherwise, try to map it.
+        if (ourKey.startsWith('custom_objects.')) {
+          // Already in the correct format
+          return {
+            key: ourKey,
+            value: String(value),
+          };
+        }
+        
         // Try to find matching schema field key
         const normalizedKey = ourKey.toLowerCase();
         const schemaFieldKey = fieldMap.get(normalizedKey) || fieldMap.get(normalizedKey.replace(/_/g, ''));
@@ -714,17 +724,18 @@ export async function createCustomObject(
     });
 
     // GHL 2.0 API: POST /objects/{schemaKey}/records
-    // Based on GHL UI template format {{ custom_objects.quotes.field }}, the schema key should be "quotes" (lowercase plural)
-    // However, GHL might use a different internal key. Try multiple variations.
-    // Note: The schema key might be case-sensitive or use a different format internally
+    // Based on GHL UI, the Internal Name is "custom_objects.quotes" (with the prefix)
+    // The API might accept either the full internal name or just the key part
+    // Try the full internal name first, then fallback to variations
     const schemaKeysToTry = actualSchemaKey 
       ? [actualSchemaKey] // Use found schemaKey first
       : [
-          'quotes',            // "quotes" (lowercase plural - matches GHL template format {{ custom_objects.quotes.field }})
-          'Quotes',            // "Quotes" (capitalized plural)
-          'Quote',              // "Quote" (capitalized singular)
-          'quote',              // "quote" (lowercase singular)
-          objectType,           // Use provided objectType
+          'custom_objects.quotes',  // Full internal name from GHL UI (most likely to work)
+          'quotes',                 // Just the key part (lowercase plural)
+          'Quotes',                 // Capitalized plural
+          'Quote',                  // Capitalized singular
+          'quote',                  // Lowercase singular
+          objectType,               // Use provided objectType
           objectType.toLowerCase(), // Ensure lowercase
           objectType.charAt(0).toUpperCase() + objectType.slice(1).toLowerCase(), // Capitalized version
         ];

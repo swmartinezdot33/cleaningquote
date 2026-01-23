@@ -470,46 +470,94 @@ export async function POST(request: NextRequest) {
             const selectedRange = getSelectedQuoteRange(result.ranges, body.serviceType, body.frequency);
 
             // Map all fields to Quote custom object
-            quoteCustomFields = {
-              quote_id: generatedQuoteId,
-              service_address: serviceAddress,
-              square_footage: String(body.squareFeet || ''),
-              type: body.serviceType || '',
-              frequency: body.frequency || '',
-              full_baths: String(body.fullBaths || 0),
-              half_baths: String(body.halfBaths || 0),
-              bedrooms: String(body.bedrooms || 0),
-              people_in_home: String(body.people || 0),
-              shedding_pets: String(body.sheddingPets || 0),
-              current_condition: body.condition || '',
-              cleaning_service_prior: body.hasPreviousService === 'true' || body.hasPreviousService === 'switching' ? 'Yes' : 'No',
-              cleaned_in_last_3_months: body.cleanedWithin3Months === 'yes' ? 'Yes' : 'No',
+            // IMPORTANT: Use full fieldKey format: custom_objects.quotes.field_name
+            // Also map values to match dropdown options from the schema
+            
+            // Map service type to schema options
+            const serviceTypeMap: Record<string, string> = {
+              'general': 'general_cleaning',
+              'initial': 'initial_cleaning',
+              'deep': 'deep_clean',
+              'move-in': 'move_in',
+              'move-out': 'move_out',
+              'recurring': 'recurring_cleaning',
             };
-
-            // Store quote ranges if available
-            if (selectedRange) {
-              quoteCustomFields['quote_range_low'] = String(selectedRange.low);
-              quoteCustomFields['quote_range_high'] = String(selectedRange.high);
+            const mappedServiceType = serviceTypeMap[body.serviceType || ''] || body.serviceType || '';
+            
+            // Map frequency to schema options
+            const frequencyMap: Record<string, string> = {
+              'weekly': 'weekly',
+              'bi-weekly': 'biweekly',
+              'four-week': 'monthly',
+              'monthly': 'monthly',
+              'one-time': 'one_time',
+            };
+            const mappedFrequency = frequencyMap[body.frequency || ''] || body.frequency || '';
+            
+            // Map condition to schema options
+            const conditionMap: Record<string, string> = {
+              'excellent': 'excellent',
+              'good': 'good',
+              'average': 'average',
+              'poor': 'poor',
+              'very-poor': 'very_poor',
+            };
+            const mappedCondition = conditionMap[body.condition || ''] || body.condition || '';
+            
+            // Map cleaning_service_prior
+            let mappedCleaningServicePrior = 'no';
+            if (body.hasPreviousService === 'true' || body.hasPreviousService === true) {
+              mappedCleaningServicePrior = 'yes';
+            } else if (body.hasPreviousService === 'switching') {
+              mappedCleaningServicePrior = 'yes_but_switching';
             }
+            
+            // Map cleaned_in_last_3_months
+            let mappedCleanedInLast3Months = 'no';
+            if (body.cleanedWithin3Months === 'yes' || body.cleanedWithin3Months === true) {
+              mappedCleanedInLast3Months = 'yes';
+            } else if (body.cleanedWithin3Months === 'not-sure' || body.cleanedWithin3Months === 'not sure') {
+              mappedCleanedInLast3Months = 'not_sure';
+            }
+            
+            quoteCustomFields = {
+              'custom_objects.quotes.quote_id': generatedQuoteId,
+              'custom_objects.quotes.service_address': serviceAddress,
+              'custom_objects.quotes.square_footage': String(body.squareFeet || ''),
+              'custom_objects.quotes.type': mappedServiceType,
+              'custom_objects.quotes.frequency': mappedFrequency,
+              'custom_objects.quotes.full_baths': String(body.fullBaths || 0),
+              'custom_objects.quotes.half_baths': String(body.halfBaths || 0),
+              'custom_objects.quotes.bedrooms': String(body.bedrooms || 0),
+              'custom_objects.quotes.people_in_home': String(body.people || 0),
+              'custom_objects.quotes.shedding_pets': String(body.sheddingPets || 0),
+              'custom_objects.quotes.current_condition': mappedCondition,
+              'custom_objects.quotes.cleaning_service_prior': mappedCleaningServicePrior,
+              'custom_objects.quotes.cleaned_in_last_3_months': mappedCleanedInLast3Months,
+            };
+            
+            // Note: quote_range_low and quote_range_high are not in the schema
+            // If you want to store these, you'll need to add them as fields in GHL first
 
             // Create Quote custom object
-            // Based on GHL UI, the schema key is "quotes" (lowercase plural)
+            // Based on GHL UI, the Internal Name is "custom_objects.quotes"
             // The createCustomObject function will try multiple schemaKey variations automatically
+            // It will try "custom_objects.quotes" first (the full internal name), then "quotes"
             let quoteObject;
             try {
               quoteObject = await createCustomObject(
-                'quotes', // Try "quotes" first (lowercase plural - matches GHL template format)
+                'custom_objects.quotes', // Try full internal name first (matches GHL UI Internal Name)
                 {
                   contactId: ghlContactId,
                   customFields: quoteCustomFields,
                 }
               );
             } catch (error) {
-              // If "quotes" fails, try "Quote" (capitalized singular) as fallback
-              console.log('⚠️ Failed with "quotes", trying "Quote"...');
+              // If full internal name fails, try just "quotes" (the key part)
+              console.log('⚠️ Failed with "custom_objects.quotes", trying "quotes"...');
               try {
                 quoteObject = await createCustomObject(
-                  'Quote',
+                  'quotes',
                   {
                     contactId: ghlContactId,
                     customFields: quoteCustomFields,
