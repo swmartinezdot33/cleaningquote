@@ -1298,11 +1298,9 @@ export default function Home() {
           setAppointmentNotes(finalNotes);
         }, 1000);
         
-        // If redirect is enabled, redirect after 5 seconds
+        // If redirect is enabled, redirect immediately
         if (redirectAfterAppointment && appointmentRedirectUrl) {
-          setTimeout(() => {
-            window.location.href = appointmentRedirectUrl;
-          }, 5000);
+          window.location.href = appointmentRedirectUrl;
         }
       } else {
         // Use user-friendly message if available, otherwise use error message
