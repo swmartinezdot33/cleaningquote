@@ -432,6 +432,32 @@ export async function listObjectSchemas(locationId?: string): Promise<any[]> {
 }
 
 /**
+ * Get a specific object schema by key to see field definitions
+ * Always uses stored locationId for sub-account (location-level) API calls
+ */
+export async function getObjectSchema(schemaKey: string, locationId?: string): Promise<any> {
+  try {
+    let finalLocationId = locationId || (await getGHLLocationId());
+    
+    if (!finalLocationId) {
+      throw new Error('Location ID is required. Please configure it in the admin settings.');
+    }
+
+    // GHL API: GET /objects/{schemaKey}?locationId={locationId}
+    const endpoint = `/objects/${schemaKey}?locationId=${finalLocationId}`;
+    const response = await makeGHLRequest<any>(
+      endpoint,
+      'GET'
+    );
+
+    return response;
+  } catch (error) {
+    console.error(`Failed to get object schema (${schemaKey}):`, error);
+    throw error;
+  }
+}
+
+/**
  * Create a custom object in GHL
  * Always uses stored locationId for sub-account (location-level) API calls
  * According to GHL API docs: POST /objects/{schemaKey}/records
@@ -449,8 +475,43 @@ export async function createCustomObject(
       throw new Error('Location ID is required. Please configure it in the admin settings.');
     }
 
+    // First, try to find the correct schemaKey by listing all schemas
+    let actualSchemaKey: string | null = null;
+    let schemaFields: any = null;
+    
+    try {
+      console.log('Attempting to list object schemas to find correct schemaKey...');
+      const schemas = await listObjectSchemas(finalLocationId);
+      console.log(`Found ${schemas.length} object schemas`);
+      
+      // Look for Quote-related schema (case-insensitive)
+      const quoteSchema = schemas.find((s: any) => 
+        s.name?.toLowerCase().includes('quote') || 
+        s.key?.toLowerCase().includes('quote') ||
+        s.schemaKey?.toLowerCase().includes('quote')
+      );
+      
+      if (quoteSchema) {
+        actualSchemaKey = quoteSchema.key || quoteSchema.schemaKey || quoteSchema.name;
+        console.log(`Found Quote schema with key: ${actualSchemaKey}`);
+        
+        // Try to get the full schema to see field definitions
+        if (actualSchemaKey) {
+          try {
+            schemaFields = await getObjectSchema(actualSchemaKey, finalLocationId);
+            console.log('Retrieved schema fields:', Object.keys(schemaFields.fields || schemaFields || {}));
+          } catch (schemaError) {
+            console.log('Could not fetch schema details, continuing with schemaKey only');
+          }
+        }
+      }
+    } catch (listError) {
+      console.log('Could not list schemas, will try common variations:', listError instanceof Error ? listError.message : String(listError));
+    }
+
     // Convert customFields object to array format required by GHL API
     // GHL expects customFields as array of { key: string, value: string }
+    // Note: The "key" might need to be the field ID or the exact field key from the schema
     let customFieldsArray: Array<{ key: string; value: string }> | undefined;
     if (data.customFields && Object.keys(data.customFields).length > 0) {
       customFieldsArray = Object.entries(data.customFields).map(([key, value]) => ({
@@ -461,7 +522,6 @@ export async function createCustomObject(
 
     // GHL API payload format for creating records
     // According to docs: POST /objects/{schemaKey}/records
-    // Note: customFields keys might need to match the exact field keys from the schema
     const payload: Record<string, any> = {
       locationId: finalLocationId,
       ...(data.contactId && { contactId: data.contactId }),
@@ -476,19 +536,20 @@ export async function createCustomObject(
       hasContactId: !!data.contactId,
       customFieldsCount: customFieldsArray?.length || 0,
       customFieldsKeys: customFieldsArray?.map(f => f.key) || [],
+      foundSchemaKey: actualSchemaKey,
     });
 
     // GHL 2.0 API: POST /objects/{schemaKey}/records
-    // The schemaKey must match exactly what's configured in GHL
-    // Based on the image showing "Quote" in the Object column, try that first
-    // Try different schemaKey variations to find the correct one
-    const schemaKeysToTry = [
-      'Quote',              // "Quote" (capitalized singular - matches Object column in image)
-      'quote',              // "quote" (lowercase singular)
-      objectType,           // "quotes" (lowercase plural - original)
-      objectType.toLowerCase(), // Ensure lowercase
-      objectType.charAt(0).toUpperCase() + objectType.slice(1).toLowerCase(), // Capitalized version
-    ];
+    // Try the found schemaKey first, then fallback to common variations
+    const schemaKeysToTry = actualSchemaKey 
+      ? [actualSchemaKey] // Use found schemaKey first
+      : [
+          'Quote',              // "Quote" (capitalized singular - matches Object column in image)
+          'quote',              // "quote" (lowercase singular)
+          objectType,           // "quotes" (lowercase plural - original)
+          objectType.toLowerCase(), // Ensure lowercase
+          objectType.charAt(0).toUpperCase() + objectType.slice(1).toLowerCase(), // Capitalized version
+        ];
     
     // Remove duplicates
     const uniqueSchemaKeys = [...new Set(schemaKeysToTry)];
@@ -513,8 +574,8 @@ export async function createCustomObject(
         console.log(`❌ Failed at ${endpoint}:`, errorMessage);
         
         // If we get 400 "Invalid Key Passed", it might be:
-        // - Wrong schemaKey
-        // - Wrong customFields keys (field keys don't match schema)
+        // - Wrong schemaKey (unlikely if we found it from list)
+        // - Wrong customFields keys (field keys don't match schema) - MOST LIKELY
         // - Wrong payload format
         // If we get 401, it means the endpoint exists but token lacks scope
         // If we get 404, the schemaKey doesn't exist
@@ -525,10 +586,18 @@ export async function createCustomObject(
     if (!response) {
       // If all attempts failed with 401, it's a scope issue
       // If all failed with 404, the schemaKey doesn't exist
+      // If all failed with 400 "Invalid Key Passed", it's likely the customFields keys
       const isScopeIssue = lastError?.message.includes('401') || lastError?.message.includes('not authorized');
-      const errorMsg = isScopeIssue
-        ? 'Failed to create custom object - token lacks required scope (objects/record.write). Please check your GHL API token permissions.'
-        : `Failed to create custom object - schemaKey "${objectType}" not found. Please verify the object type name in your GHL account.`;
+      const isInvalidKey = lastError?.message.includes('Invalid Key Passed') || lastError?.message.includes('400');
+      let errorMsg = '';
+      
+      if (isScopeIssue) {
+        errorMsg = 'Failed to create custom object - token lacks required scope (objects/record.write). Please check your GHL API token permissions.';
+      } else if (isInvalidKey) {
+        errorMsg = `Failed to create custom object - "Invalid Key Passed" error. This likely means the customFields keys don't match your GHL schema. Please verify the field keys in your Quote object schema match: ${customFieldsArray?.map(f => f.key).join(', ')}`;
+      } else {
+        errorMsg = `Failed to create custom object - schemaKey "${objectType}" not found. Please verify the object type name in your GHL account.`;
+      }
       
       console.error('All endpoint attempts failed. Last error:', lastError);
       throw new Error(errorMsg);
