@@ -94,7 +94,13 @@ export async function makeGHLRequest<T>(
 }
 
 /**
- * Create or update a contact in GHL
+ * Create or update a contact in GHL using the upsert endpoint
+ * The GHL /contacts/upsert endpoint automatically:
+ * - Checks if contact exists by email (primary) and phone (secondary)
+ * - Updates the contact if found
+ * - Creates a new contact if not found
+ * 
+ * This ensures contacts are deduplicated and never duplicated
  * Always uses stored locationId for sub-account (location-level) API calls
  */
 export async function createOrUpdateContact(

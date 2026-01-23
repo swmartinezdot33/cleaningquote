@@ -6,8 +6,16 @@ import { SurveyQuestion } from '@/lib/survey/schema';
 
 /**
  * POST /api/contacts/create-or-update
- * Creates or updates a contact in GHL with address information
+ * Creates or updates a contact in GHL with address information using the upsert endpoint
+ * GHL automatically deduplicates based on email/phone
  * Called after the address step is completed
+ * 
+ * The endpoint uses GHL's /contacts/upsert which:
+ * - Checks if contact exists by email/phone (GHL's deduplication logic)
+ * - Updates if found
+ * - Creates new if not found
+ * 
+ * This ensures every address submission is captured in GHL exactly once
  */
 export async function POST(request: NextRequest) {
   try {
