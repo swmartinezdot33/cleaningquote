@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -172,15 +172,23 @@ export default function QuotePage() {
     fetchQuote();
   }, [quoteId]);
 
-  // Fire tracking events on page load
+  // Fire tracking events on page load (quote completion)
   useEffect(() => {
     if (!isLoading && quoteResult && !quoteResult.outOfLimits) {
-      // Google Analytics - pageview or custom event
+      // Google Analytics - Quote Completed Event
       if (typeof window !== 'undefined' && (window as any).gtag) {
         (window as any).gtag('event', 'quote_completed', {
           quote_id: quoteId,
           service_type: quoteResult.serviceType || 'unknown',
           frequency: quoteResult.frequency || 'unknown',
+          event_category: 'Quote',
+          event_label: 'Quote Generated',
+        });
+
+        // Track pageview with quote completion URL
+        (window as any).gtag('config', 'GA_MEASUREMENT_ID', {
+          page_path: `/quote/${quoteId}`,
+          page_title: 'Quote Generated',
         });
       }
 
@@ -262,12 +270,11 @@ export default function QuotePage() {
       const data = await response.json();
 
       if (response.ok) {
-        setAppointmentConfirmed(true);
-        setBookingMessage({
-          type: 'success',
-          text: 'Appointment booked successfully!',
-        });
-        setShowAppointmentForm(false);
+        // Redirect to confirmation page with UTM parameters preserved
+        const utmParams = getUTMParams();
+        const confirmationUrl = `/quote/${quoteId}/appointment-confirmed${utmParams ? `?${utmParams}` : ''}`;
+        window.location.href = confirmationUrl;
+        return;
       } else {
         setBookingMessage({
           type: 'error',
@@ -314,12 +321,11 @@ export default function QuotePage() {
       const data = await response.json();
 
       if (response.ok) {
-        setCallConfirmed(true);
-        setCallMessage({
-          type: 'success',
-          text: 'Call scheduled successfully!',
-        });
-        setShowCallForm(false);
+        // Redirect to confirmation page with UTM parameters preserved
+        const utmParams = getUTMParams();
+        const confirmationUrl = `/quote/${quoteId}/callback-confirmed${utmParams ? `?${utmParams}` : ''}`;
+        window.location.href = confirmationUrl;
+        return;
       } else {
         setCallMessage({
           type: 'error',

@@ -1181,8 +1181,8 @@ export default function Home() {
       
       // If quoteId is returned, redirect to quote page
       if (result.quoteId && !result.outOfLimits) {
-        // Send tracking event for quote submission before redirect
-        sendTrackingEvent('quote_submitted', {
+        // Send tracking event for form submission (initial form fill)
+        sendTrackingEvent('form_submitted', {
           serviceType: formData.serviceType,
           frequency: formData.frequency,
           squareFeet: formData.squareFeet,
@@ -1190,9 +1190,18 @@ export default function Home() {
           pets: formData.sheddingPets,
           quoteId: result.quoteId,
         });
+
+        // Preserve UTM parameters for tracking through the journey
+        const params = new URLSearchParams(window.location.search);
+        const utmParams = new URLSearchParams();
+        ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid'].forEach(param => {
+          const value = params.get(param);
+          if (value) utmParams.set(param, value);
+        });
         
-        // Redirect to quote page
-        window.location.href = `/quote/${result.quoteId}`;
+        // Redirect to quote page with UTM parameters
+        const quoteUrl = `/quote/${result.quoteId}${utmParams.toString() ? `?${utmParams.toString()}` : ''}`;
+        window.location.href = quoteUrl;
         return;
       }
       
