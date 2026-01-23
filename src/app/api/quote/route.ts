@@ -155,6 +155,11 @@ export async function POST(request: NextRequest) {
             customFields: {},
           };
 
+        // Add configured quote completed tags if available
+        if (ghlConfig?.quoteCompletedTags && Array.isArray(ghlConfig.quoteCompletedTags) && ghlConfig.quoteCompletedTags.length > 0) {
+          contactData.tags.push(...ghlConfig.quoteCompletedTags);
+        }
+
         // Add address information if provided
         if (body.address) {
           contactData.address1 = body.address;

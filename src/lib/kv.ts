@@ -204,6 +204,8 @@ export async function storeGHLConfig(config: {
   quotedAmountField?: string; // GHL custom field key for the quoted amount
   redirectAfterAppointment?: boolean; // Whether to redirect after appointment booking
   appointmentRedirectUrl?: string; // URL to redirect to after appointment booking
+  appointmentBookedTags?: string[]; // Tags to add when appointment is booked
+  quoteCompletedTags?: string[]; // Tags to add when quote is completed
 }): Promise<void> {
   try {
     const kv = getKV();
@@ -235,6 +237,8 @@ export async function getGHLConfig(): Promise<{
   quotedAmountField?: string; // GHL custom field key for the quoted amount
   redirectAfterAppointment?: boolean; // Whether to redirect after appointment booking
   appointmentRedirectUrl?: string; // URL to redirect to after appointment booking
+  appointmentBookedTags?: string[]; // Tags to add when appointment is booked
+  quoteCompletedTags?: string[]; // Tags to add when quote is completed
 } | null> {
   try {
     const kv = getKV();

@@ -65,6 +65,8 @@ export async function POST(request: NextRequest) {
       quotedAmountField,
       redirectAfterAppointment,
       appointmentRedirectUrl,
+      appointmentBookedTags,
+      quoteCompletedTags,
     } = body;
 
     await storeGHLConfig({
@@ -85,6 +87,8 @@ export async function POST(request: NextRequest) {
       quotedAmountField: quotedAmountField || undefined,
       redirectAfterAppointment: Boolean(redirectAfterAppointment),
       appointmentRedirectUrl: appointmentRedirectUrl || undefined,
+      appointmentBookedTags: appointmentBookedTags || undefined,
+      quoteCompletedTags: quoteCompletedTags || undefined,
     });
 
     return NextResponse.json({

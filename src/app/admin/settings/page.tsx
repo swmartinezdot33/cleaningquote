@@ -109,6 +109,14 @@ export default function SettingsPage() {
   // Post-Appointment Redirect Settings
   const [redirectAfterAppointment, setRedirectAfterAppointment] = useState<boolean>(false);
   const [appointmentRedirectUrl, setAppointmentRedirectUrl] = useState<string>('');
+  
+  // Post-Appointment Tags Settings
+  const [appointmentBookedTags, setAppointmentBookedTags] = useState<Set<string>>(new Set());
+  const [appointmentTagsSearch, setAppointmentTagsSearch] = useState<string>('');
+  
+  // Quote Completed Tags Settings
+  const [quoteCompletedTags, setQuoteCompletedTags] = useState<Set<string>>(new Set());
+  const [quoteTagsSearch, setQuoteTagsSearch] = useState<string>('');
 
   // Google Maps API Key State
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState('');
@@ -406,6 +414,16 @@ export default function SettingsPage() {
         setRedirectAfterAppointment(config.redirectAfterAppointment === true);
         setAppointmentRedirectUrl(config.appointmentRedirectUrl || '');
         
+        // Load appointment booked tags
+        if (config.appointmentBookedTags && Array.isArray(config.appointmentBookedTags)) {
+          setAppointmentBookedTags(new Set(config.appointmentBookedTags));
+        }
+        
+        // Load quote completed tags
+        if (config.quoteCompletedTags && Array.isArray(config.quoteCompletedTags)) {
+          setQuoteCompletedTags(new Set(config.quoteCompletedTags));
+        }
+        
         // Load saved tags
         if (config.inServiceTags && Array.isArray(config.inServiceTags)) {
           setSelectedInServiceTags(new Set(config.inServiceTags));
@@ -540,6 +558,8 @@ export default function SettingsPage() {
           quotedAmountField: quotedAmountField || undefined,
           redirectAfterAppointment,
           appointmentRedirectUrl: appointmentRedirectUrl || undefined,
+          appointmentBookedTags: Array.from(appointmentBookedTags).length > 0 ? Array.from(appointmentBookedTags) : undefined,
+          quoteCompletedTags: Array.from(quoteCompletedTags).length > 0 ? Array.from(quoteCompletedTags) : undefined,
         }),
       });
 
@@ -2275,6 +2295,96 @@ export default function SettingsPage() {
                               </div>
                             )}
                           </div>
+                        </div>
+
+                        {/* Appointment Booked Tags */}
+                        <div className="mt-8 pt-8 border-t border-gray-200">
+                          <h4 className="font-semibold text-gray-900 mb-4 text-lg">Tags to Add on Appointment Booked</h4>
+                          <p className="text-sm text-gray-600 mb-4">Select tags to automatically add to the contact when they book an appointment</p>
+                          
+                          <div className="mb-4">
+                            <input
+                              type="text"
+                              placeholder="Search tags..."
+                              value={appointmentTagsSearch}
+                              onChange={(e) => setAppointmentTagsSearch(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-64 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-gray-50">
+                            {ghlTags
+                              .filter(tag => tag.name.toLowerCase().includes(appointmentTagsSearch.toLowerCase()))
+                              .map(tag => (
+                                <button
+                                  key={tag.id}
+                                  onClick={() => {
+                                    const newTags = new Set(appointmentBookedTags);
+                                    if (newTags.has(tag.id)) {
+                                      newTags.delete(tag.id);
+                                    } else {
+                                      newTags.add(tag.id);
+                                    }
+                                    setAppointmentBookedTags(newTags);
+                                  }}
+                                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                    appointmentBookedTags.has(tag.id)
+                                      ? 'bg-pink-500 text-white border border-pink-600'
+                                      : 'bg-white text-gray-700 border border-gray-300 hover:border-pink-400'
+                                  }`}
+                                >
+                                  {tag.name}
+                                </button>
+                              ))}
+                          </div>
+                          {appointmentBookedTags.size > 0 && (
+                            <p className="text-sm text-gray-600 mt-2">{appointmentBookedTags.size} tag(s) selected</p>
+                          )}
+                        </div>
+
+                        {/* Quote Completed Tags */}
+                        <div className="mt-8 pt-8 border-t border-gray-200">
+                          <h4 className="font-semibold text-gray-900 mb-4 text-lg">Tags to Add on Quote Completed</h4>
+                          <p className="text-sm text-gray-600 mb-4">Select tags to automatically add to the contact when a quote is completed (opportunity created)</p>
+                          
+                          <div className="mb-4">
+                            <input
+                              type="text"
+                              placeholder="Search tags..."
+                              value={quoteTagsSearch}
+                              onChange={(e) => setQuoteTagsSearch(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-64 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-gray-50">
+                            {ghlTags
+                              .filter(tag => tag.name.toLowerCase().includes(quoteTagsSearch.toLowerCase()))
+                              .map(tag => (
+                                <button
+                                  key={tag.id}
+                                  onClick={() => {
+                                    const newTags = new Set(quoteCompletedTags);
+                                    if (newTags.has(tag.id)) {
+                                      newTags.delete(tag.id);
+                                    } else {
+                                      newTags.add(tag.id);
+                                    }
+                                    setQuoteCompletedTags(newTags);
+                                  }}
+                                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                    quoteCompletedTags.has(tag.id)
+                                      ? 'bg-pink-500 text-white border border-pink-600'
+                                      : 'bg-white text-gray-700 border border-gray-300 hover:border-pink-400'
+                                  }`}
+                                >
+                                  {tag.name}
+                                </button>
+                              ))}
+                          </div>
+                          {quoteCompletedTags.size > 0 && (
+                            <p className="text-sm text-gray-600 mt-2">{quoteCompletedTags.size} tag(s) selected</p>
+                          )}
                         </div>
                       </div>
 

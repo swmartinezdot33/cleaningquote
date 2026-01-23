@@ -218,6 +218,45 @@ export async function POST(request: NextRequest) {
       assignedTo, // Assign to the configured user
     });
 
+    // Add appointment booked tags if configured
+    if (ghlConfig?.appointmentBookedTags && Array.isArray(ghlConfig.appointmentBookedTags) && ghlConfig.appointmentBookedTags.length > 0) {
+      try {
+        const locationId = await getGHLLocationId();
+        const endpoint = locationId ? `/contacts/${contactId}?locationId=${locationId}` : `/contacts/${contactId}`;
+        
+        // Fetch current contact to get existing tags
+        const contactResponse = await makeGHLRequest<{ contact?: { tags?: string[] } } | { tags?: string[] }>(
+          endpoint,
+          'GET'
+        );
+        
+        let currentTags: string[] = [];
+        let contact: any;
+        if ('contact' in contactResponse && contactResponse.contact) {
+          contact = contactResponse.contact;
+          currentTags = contact.tags || [];
+        } else if ('tags' in contactResponse) {
+          currentTags = (contactResponse as any).tags || [];
+          contact = contactResponse;
+        }
+        
+        // Combine current tags with appointment booked tags (remove duplicates)
+        const allTags = Array.from(new Set([...currentTags, ...ghlConfig.appointmentBookedTags]));
+        
+        // Update contact with new tags
+        await makeGHLRequest(
+          endpoint,
+          'PUT',
+          { tags: allTags }
+        );
+        
+        console.log('Added appointment booked tags to contact:', ghlConfig.appointmentBookedTags);
+      } catch (error) {
+        console.warn('Failed to add appointment booked tags:', error);
+        // Continue anyway - the appointment was still created successfully
+      }
+    }
+
     return NextResponse.json({
       success: true,
       appointment,
