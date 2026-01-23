@@ -2212,11 +2212,11 @@ export default function Home() {
           </p>
         </motion.div>
 
-        {/* Progress Bar */}
+        {/* Progress Bar - Sticky */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="mb-8"
+          className="sticky top-0 z-50 mb-8 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 bg-white/80 backdrop-blur-sm shadow-md"
         >
           <Progress 
             value={progress} 
