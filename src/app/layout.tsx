@@ -47,6 +47,16 @@ export default async function RootLayout({
   try {
     const codes = await kv.get<TrackingCodes>("admin:tracking-codes")
     trackingCodes = codes || {}
+    // Log for debugging (only in development)
+    if (process.env.NODE_ENV === 'development' && Object.keys(trackingCodes).length > 0) {
+      console.log('📊 Tracking codes loaded from KV:', {
+        hasGA: !!trackingCodes.googleAnalyticsId,
+        hasGTM: !!trackingCodes.googleTagManagerId,
+        hasMetaPixel: !!trackingCodes.metaPixelId,
+        hasGAds: !!trackingCodes.googleAdsConversionId,
+        hasCustomCode: !!trackingCodes.customHeadCode,
+      });
+    }
   } catch (error) {
     console.error("Failed to load tracking codes:", error)
   }
