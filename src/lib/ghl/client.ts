@@ -1190,12 +1190,12 @@ async function associateCustomObjectWithContact(
   }
   
   // Step 2: Create the relation using the correct format
-  // Try multiple endpoint formats - GHL API can be inconsistent
+  // Endpoint: POST /associations/relations
+  // Payload: { associationId, firstRecordId, secondRecordId }
+  // Note: locationId may be inferred from token, try both with and without
   const endpointsToTry = [
-    `/v2/associations/relations?locationId=${locationId}`, // v2 API
-    `/associations/relations?locationId=${locationId}`, // v1 API
-    `/v2/associations/relations`, // v2 without locationId
-    `/associations/relations`, // v1 without locationId
+    `/associations/relations?locationId=${locationId}`,
+    `/associations/relations`,
   ];
   
   // Try with and without associationId (some setups might auto-detect)
@@ -1209,6 +1209,7 @@ async function associateCustomObjectWithContact(
       ];
   
   // Try each endpoint with each payload variation
+  const errors: string[] = [];
   for (const endpoint of endpointsToTry) {
     for (const payload of payloadsToTry) {
       try {
@@ -1239,6 +1240,7 @@ async function associateCustomObjectWithContact(
         return; // Success
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
+        errors.push(errorMsg);
         console.log(`❌ Failed association attempt:`, {
           endpoint,
           payload,
@@ -1250,7 +1252,7 @@ async function associateCustomObjectWithContact(
   }
   
   // If all attempts failed
-  const errorMessage = `Failed to associate custom object with contact. Tried ${attempts.length} variation(s). Last error: ${attempts[attempts.length - 1]}`;
+  const errorMessage = `Failed to associate custom object with contact. Tried ${errors.length} variation(s). Last error: ${errors[errors.length - 1] || 'Unknown error'}`;
   console.error('❌ Association failed:', errorMessage);
   throw new Error(errorMessage);
 }

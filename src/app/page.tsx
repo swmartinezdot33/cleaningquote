@@ -1079,7 +1079,7 @@ export default function Home() {
   };
 
   // Helper function to send tracking events to parent window
-  const sendTrackingEvent = (eventType: 'quote_submitted' | 'appointment_booked', eventData?: Record<string, any>) => {
+  const sendTrackingEvent = (eventType: 'form_submitted' | 'quote_submitted' | 'appointment_booked', eventData?: Record<string, any>) => {
     // Only send if we're in an iframe
     if (window.self !== window.top) {
       try {

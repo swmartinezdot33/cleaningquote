@@ -30,6 +30,7 @@ export interface GHLContactResponse {
   country?: string;
   source?: string;
   tags?: string[];
+  customFields?: Record<string, any>;
 }
 
 export interface GHLOpportunity {
