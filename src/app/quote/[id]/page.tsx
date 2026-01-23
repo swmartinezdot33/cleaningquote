@@ -110,20 +110,22 @@ export default function QuotePage() {
   const [callConfirmed, setCallConfirmed] = useState(false);
   const calendarRef = React.useRef<HTMLDivElement>(null);
 
-  // Load widget settings and tracking codes
+  // Load widget settings and tracking codes in parallel
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        // Load widget settings
-        const widgetResponse = await fetch('/api/admin/widget-settings');
+        // Load widget settings and tracking codes in parallel for faster load
+        const [widgetResponse, trackingResponse] = await Promise.all([
+          fetch('/api/admin/widget-settings'),
+          fetch('/api/admin/tracking-codes'),
+        ]);
+
         if (widgetResponse.ok) {
           const widgetData = await widgetResponse.json();
           setWidgetTitle(widgetData.title || 'Raleigh Cleaning Company');
           setPrimaryColor(widgetData.primaryColor || '#f61590');
         }
 
-        // Load tracking codes
-        const trackingResponse = await fetch('/api/admin/tracking-codes');
         if (trackingResponse.ok) {
           const trackingData = await trackingResponse.json();
           if (trackingData.trackingCodes) {

@@ -566,10 +566,10 @@ export async function POST(request: NextRequest) {
             // Note: quote_range_low and quote_range_high are not in the schema
             // If you want to store these, you'll need to add them as fields in GHL first
 
-            // Create Quote custom object
+            // Prepare custom object creation (will parallelize with opportunity and note)
             // The schemaKey should be just "quotes" (not "custom_objects.quotes")
             // The customFields keys should be just the field names (not "custom_objects.quotes.field_name")
-            const quoteObject = await createCustomObject(
+            const quoteObjectPromise = createCustomObject(
               'quotes', // Schema key is just "quotes" (lowercase plural)
               {
                 contactId: ghlContactId,

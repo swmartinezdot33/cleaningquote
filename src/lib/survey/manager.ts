@@ -44,7 +44,7 @@ export async function getSurveyQuestions(): Promise<SurveyQuestion[]> {
       return await initializeSurvey();
     }
     
-    // Log questions with mappings for debugging
+    // Log questions with mappings for debugging (only when mappings exist)
     const questionsWithMappings = questions.filter(q => q.ghlFieldMapping && q.ghlFieldMapping.trim() !== '');
     if (questionsWithMappings.length > 0) {
       console.log('📋 Loaded survey questions with GHL mappings:', {
@@ -57,9 +57,8 @@ export async function getSurveyQuestions(): Promise<SurveyQuestion[]> {
           ghlFieldMapping: q.ghlFieldMapping,
         })),
       });
-    } else {
-      console.warn('⚠️ No GHL field mappings found in loaded questions!');
     }
+    // Note: No warning if mappings don't exist - this is expected and normal
     
     return questions.sort((a, b) => a.order - b.order);
   } catch (error) {
@@ -90,7 +89,7 @@ export async function saveSurveyQuestions(questions: SurveyQuestion[]): Promise<
     // Sort by order before saving
     const sorted = [...questions].sort((a, b) => a.order - b.order);
 
-    // Log questions with GHL mappings before saving
+    // Log questions with GHL mappings before saving (only when mappings exist)
     const questionsWithMappings = sorted.filter(q => q.ghlFieldMapping && q.ghlFieldMapping.trim() !== '');
     if (questionsWithMappings.length > 0) {
       console.log('💾 Saving survey questions with GHL mappings:', {
@@ -103,9 +102,8 @@ export async function saveSurveyQuestions(questions: SurveyQuestion[]): Promise<
           ghlFieldMapping: q.ghlFieldMapping,
         })),
       });
-    } else {
-      console.warn('⚠️ No GHL field mappings found in questions being saved!');
     }
+    // Note: No warning if mappings don't exist - this is expected and normal
 
     // Ensure all fields are preserved (including ghlFieldMapping)
     const questionsToSave = sorted.map(q => ({

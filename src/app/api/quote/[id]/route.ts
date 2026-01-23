@@ -23,38 +23,49 @@ export async function GET(
       );
     }
 
-    // First, try to fetch from KV (backup storage for tracking)
-    let quoteDataFromKV = null;
-    try {
-      const kv = getKV();
-      const stored = await kv.get(`quote:${quoteId}`);
-      if (stored && typeof stored === 'string') {
-        quoteDataFromKV = JSON.parse(stored);
-        console.log('✅ Found quote data in KV storage');
-      }
-    } catch (kvError) {
-      console.log('No quote data in KV (will try GHL):', kvError instanceof Error ? kvError.message : String(kvError));
-    }
-
-    // Try to fetch Quote custom object from GHL
-    // If GHL fetch fails but we have KV data, use that instead
-    let quoteObject = null;
-    try {
-      quoteObject = await getCustomObjectById('quotes', quoteId);
-    } catch (error) {
-      console.log('Failed with "quotes", trying "Quote" (capitalized)...');
-      try {
-        quoteObject = await getCustomObjectById('Quote', quoteId);
-      } catch (secondError) {
-        console.log('Failed to fetch quote object from GHL, will use KV data if available');
-        // Don't return error yet - check if we have KV data
-        if (!quoteDataFromKV) {
-          return NextResponse.json(
-            { error: 'Quote not found' },
-            { status: 404 }
-          );
+    // Fetch from KV and GHL in parallel for faster response
+    const [kvResult, ghlResult] = await Promise.allSettled([
+      // Try to fetch from KV (backup storage for tracking)
+      (async () => {
+        try {
+          const kv = getKV();
+          const stored = await kv.get(`quote:${quoteId}`);
+          if (stored && typeof stored === 'string') {
+            const parsed = JSON.parse(stored);
+            console.log('✅ Found quote data in KV storage');
+            return parsed;
+          }
+          return null;
+        } catch (kvError) {
+          console.log('No quote data in KV:', kvError instanceof Error ? kvError.message : String(kvError));
+          return null;
         }
-      }
+      })(),
+      // Try to fetch Quote custom object from GHL
+      (async () => {
+        try {
+          return await getCustomObjectById('quotes', quoteId);
+        } catch (error) {
+          console.log('Failed with "quotes", trying "Quote" (capitalized)...');
+          try {
+            return await getCustomObjectById('Quote', quoteId);
+          } catch (secondError) {
+            console.log('Failed to fetch quote object from GHL');
+            throw secondError;
+          }
+        }
+      })(),
+    ]);
+
+    const quoteDataFromKV = kvResult.status === 'fulfilled' ? kvResult.value : null;
+    const quoteObject = ghlResult.status === 'fulfilled' ? ghlResult.value : null;
+
+    // If both failed, return error
+    if (!quoteDataFromKV && !quoteObject) {
+      return NextResponse.json(
+        { error: 'Quote not found' },
+        { status: 404 }
+      );
     }
 
     // GHL returns custom fields in properties object, not customFields
@@ -109,50 +120,51 @@ export async function GET(
       cleanedWithin3Months,
     };
 
-    // Recalculate quote to get ranges
-    const result = await calcQuote(inputs);
+    // Recalculate quote and fetch contact data in parallel for faster response
+    const [result, contactResult] = await Promise.allSettled([
+      // Recalculate quote to get ranges
+      calcQuote(inputs),
+      // Fetch contact data if contactId is available
+      quoteObject?.contactId
+        ? getContactById(quoteObject.contactId).then(contact => ({
+            firstName: contact.firstName,
+            lastName: contact.lastName,
+            email: contact.email,
+            phone: contact.phone,
+            address: customFields.service_address || contact.address1,
+          })).catch(error => {
+            console.error('Failed to fetch contact data:', error);
+            return null;
+          })
+        : Promise.resolve(null),
+    ]);
 
-    if (result.outOfLimits || !result.ranges) {
+    const quoteResult = result.status === 'fulfilled' ? result.value : null;
+    const contactData = contactResult.status === 'fulfilled' ? contactResult.value : null;
+
+    if (!quoteResult || quoteResult.outOfLimits || !quoteResult.ranges) {
       return NextResponse.json({
         outOfLimits: true,
-        message: result.message || 'Unable to calculate quote.',
+        message: quoteResult?.message || 'Unable to calculate quote.',
       });
     }
 
     // Generate summary text
     const summaryText = generateSummaryText(
-      { ...result, ranges: result.ranges },
+      { ...quoteResult, ranges: quoteResult.ranges },
       serviceType,
       frequency,
       customFields.square_footage // Pass original square footage string if it was a range
     );
-    const smsText = generateSmsText({ ...result, ranges: result.ranges });
-
-    // Fetch contact data if contactId is available
-    let contactData = null;
-    if (quoteObject?.contactId) {
-      try {
-        const contact = await getContactById(quoteObject.contactId);
-        contactData = {
-          firstName: contact.firstName,
-          lastName: contact.lastName,
-          email: contact.email,
-          phone: contact.phone,
-          address: customFields.service_address || contact.address1,
-        };
-      } catch (error) {
-        console.error('Failed to fetch contact data:', error);
-        // Continue without contact data
-      }
-    }
+    const smsText = generateSmsText({ ...quoteResult, ranges: quoteResult.ranges });
 
     return NextResponse.json({
       outOfLimits: false,
-      multiplier: result.multiplier,
-      inputs: result.inputs,
-      ranges: result.ranges,
-      initialCleaningRequired: result.initialCleaningRequired,
-      initialCleaningRecommended: result.initialCleaningRecommended,
+      multiplier: quoteResult.multiplier,
+      inputs: quoteResult.inputs,
+      ranges: quoteResult.ranges,
+      initialCleaningRequired: quoteResult.initialCleaningRequired,
+      initialCleaningRecommended: quoteResult.initialCleaningRecommended,
       summaryText,
       smsText,
       ghlContactId: quoteObject?.contactId,
