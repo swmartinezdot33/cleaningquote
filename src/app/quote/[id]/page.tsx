@@ -594,46 +594,54 @@ export default function QuotePage() {
                         );
                       })()}
 
-                      {/* Action Buttons - FANCY BOOKING CTAs */}
-                      {!appointmentConfirmed && !callConfirmed && (
+                      {/* Action Buttons - FANCY BOOKING CTAs - ALWAYS SHOW */}
+                      {quoteResult && !isLoading && (
                         <motion.div
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.3 }}
                           className="pt-6 border-t border-gray-200"
                         >
-                          <div className="flex flex-col sm:flex-row gap-4">
-                            {quoteResult.ghlContactId ? (
-                              <>
-                                <Button
-                                  onClick={() => {
-                                    setShowAppointmentForm(true);
-                                    setShowCallForm(false);
-                                  }}
-                                  className="flex-1 h-16 text-lg font-bold primary-bg hover:opacity-90 text-white shadow-lg hover:shadow-xl transition-all"
-                                  style={{ backgroundColor: primaryColor }}
-                                >
-                                  <span className="tracking-wide">📅 Book an Appointment</span>
-                                </Button>
-                                <Button
-                                  onClick={() => {
-                                    setShowCallForm(true);
-                                    setShowAppointmentForm(false);
-                                  }}
-                                  className="flex-1 h-16 text-lg font-bold border-2 primary-border bg-white hover:bg-gray-50 shadow-lg hover:shadow-xl transition-all"
-                                  style={{ borderColor: primaryColor, color: primaryColor }}
-                                >
-                                  <span className="tracking-wide">📞 Schedule a Callback</span>
-                                </Button>
-                              </>
-                            ) : (
-                              <div className="w-full p-4 bg-amber-50 border border-amber-200 rounded-lg text-center">
-                                <p className="text-amber-800 text-sm">
-                                  Contact information is being processed. Booking options will appear shortly.
-                                </p>
-                              </div>
-                            )}
-                          </div>
+                          {!appointmentConfirmed && !callConfirmed ? (
+                            <div className="flex flex-col sm:flex-row gap-4">
+                              {quoteResult.ghlContactId ? (
+                                <>
+                                  <Button
+                                    onClick={() => {
+                                      setShowAppointmentForm(true);
+                                      setShowCallForm(false);
+                                    }}
+                                    className="flex-1 h-16 text-lg font-bold primary-bg hover:opacity-90 text-white shadow-lg hover:shadow-xl transition-all"
+                                    style={{ backgroundColor: primaryColor }}
+                                  >
+                                    <span className="tracking-wide">📅 Book an Appointment</span>
+                                  </Button>
+                                  <Button
+                                    onClick={() => {
+                                      setShowCallForm(true);
+                                      setShowAppointmentForm(false);
+                                    }}
+                                    className="flex-1 h-16 text-lg font-bold border-2 primary-border bg-white hover:bg-gray-50 shadow-lg hover:shadow-xl transition-all"
+                                    style={{ borderColor: primaryColor, color: primaryColor }}
+                                  >
+                                    <span className="tracking-wide">📞 Schedule a Callback</span>
+                                  </Button>
+                                </>
+                              ) : (
+                                <div className="w-full p-4 bg-amber-50 border border-amber-200 rounded-lg text-center">
+                                  <p className="text-amber-800 text-sm">
+                                    Contact information is being processed. Booking options will appear shortly.
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="w-full p-4 bg-green-50 border border-green-200 rounded-lg text-center">
+                              <p className="text-green-800 text-sm font-semibold">
+                                {appointmentConfirmed ? '✅ Appointment confirmed!' : '✅ Callback scheduled!'}
+                              </p>
+                            </div>
+                          )}
                         </motion.div>
                       )}
 
