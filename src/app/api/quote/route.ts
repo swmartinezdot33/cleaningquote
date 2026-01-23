@@ -493,27 +493,32 @@ export async function POST(request: NextRequest) {
             }
 
             // Create Quote custom object
-            // Try "Quote" first (capitalized, singular) as shown in GHL Object column
+            // Based on GHL UI, the schema key is "quotes" (lowercase plural)
             // The createCustomObject function will try multiple schemaKey variations automatically
             let quoteObject;
             try {
               quoteObject = await createCustomObject(
-                'Quote', // Try capitalized singular first (matches Object column in GHL)
+                'quotes', // Try "quotes" first (lowercase plural - matches GHL template format)
                 {
                   contactId: ghlContactId,
                   customFields: quoteCustomFields,
                 }
               );
             } catch (error) {
-              // If "Quote" fails, try "quotes" (lowercase plural)
-              console.log('Failed with "Quote", trying "quotes"...');
-              quoteObject = await createCustomObject(
-                'quotes',
-                {
-                  contactId: ghlContactId,
-                  customFields: quoteCustomFields,
-                }
-              );
+              // If "quotes" fails, try "Quote" (capitalized singular) as fallback
+              console.log('⚠️ Failed with "quotes", trying "Quote"...');
+              try {
+                quoteObject = await createCustomObject(
+                  'Quote',
+                  {
+                    contactId: ghlContactId,
+                    customFields: quoteCustomFields,
+                  }
+                );
+              } catch (secondError) {
+                // Both attempts failed, throw to be caught by outer catch
+                throw secondError;
+              }
             }
 
             // Use the ID returned from GHL as the quote ID for the URL
@@ -525,14 +530,21 @@ export async function POST(request: NextRequest) {
               contactId: ghlContactId,
             });
           } catch (quoteError) {
-            console.error('Failed to create Quote custom object (quote still delivered):', quoteError);
-            console.error('Quote object creation error details:', {
-              error: quoteError instanceof Error ? quoteError.message : String(quoteError),
-              stack: quoteError instanceof Error ? quoteError.stack : undefined,
+            // Custom object creation failed - log detailed error but don't block quote delivery
+            const errorMessage = quoteError instanceof Error ? quoteError.message : String(quoteError);
+            console.error('⚠️ Failed to create Quote custom object (quote still delivered):', errorMessage);
+            console.error('📋 Quote object creation error details:', {
+              error: errorMessage,
               contactId: ghlContactId,
               customFieldsCount: Object.keys(quoteCustomFields).length,
+              customFieldsKeys: Object.keys(quoteCustomFields),
+              troubleshooting: 'If you want to use custom objects, please ensure:\n' +
+                '1. A "Quote" custom object exists in your GHL account (Settings > Custom Objects)\n' +
+                '2. The object has fields matching these keys: ' + Object.keys(quoteCustomFields).join(', ') + '\n' +
+                '3. Your API token has objects/record.write scope enabled',
             });
             // Don't throw - quote should still be delivered even if custom object creation fails
+            // The quote was successfully calculated and contact was created, so we continue
           }
         }
 
