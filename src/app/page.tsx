@@ -1143,6 +1143,16 @@ export default function Home() {
         }
       });
 
+      // Extract UTM parameters from URL to include in request
+      const params = new URLSearchParams(window.location.search);
+      const utmParams: Record<string, string> = {};
+      ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid'].forEach(param => {
+        const value = params.get(param);
+        if (value) {
+          utmParams[param] = value;
+        }
+      });
+
       // Build the API payload, mapping sanitized fields back to original IDs
       const apiPayload: any = {
         ghlContactId, // Pass the contact ID if we created one after address
@@ -1163,6 +1173,8 @@ export default function Home() {
         condition: formData.condition,
         hasPreviousService: formData.hasPreviousService === 'true' || formData.hasPreviousService === 'switching',
         cleanedWithin3Months: formData.cleanedWithin3Months === 'yes',
+        // Include UTM parameters in the request
+        ...utmParams,
       };
 
       // Add any custom fields (those that were sanitized)

@@ -15,6 +15,13 @@ export interface GHLContact {
   source?: string;
   tags?: string[];
   customFields?: Record<string, string>;
+  // GHL native UTM tracking fields
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmTerm?: string;
+  utmContent?: string;
+  gclid?: string;
 }
 
 export interface GHLContactResponse {

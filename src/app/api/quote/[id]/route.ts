@@ -68,13 +68,17 @@ export async function GET(
       );
     }
 
-    // GHL returns custom fields in properties object, not customFields
-    // Based on testing, the response structure is: { properties: { quote_id: ..., type: [...] } }
-    if (!quoteObject || (!quoteObject.properties && !quoteObject.customFields)) {
-      return NextResponse.json(
-        { error: 'Quote data not found' },
-        { status: 404 }
-      );
+    // Get ghlContactId from multiple sources (KV takes precedence, then GHL object)
+    // This ensures buttons work even if GHL custom object doesn't have contactId set
+    let ghlContactId: string | undefined = undefined;
+    if (quoteDataFromKV?.ghlContactId) {
+      ghlContactId = quoteDataFromKV.ghlContactId;
+      console.log('✅ Found ghlContactId in KV storage:', ghlContactId);
+    } else if (quoteObject?.contactId) {
+      ghlContactId = quoteObject.contactId;
+      console.log('✅ Found ghlContactId in GHL custom object:', ghlContactId);
+    } else {
+      console.warn('⚠️ No ghlContactId found in KV or GHL object - buttons will be disabled');
     }
 
     // If we have KV data but no GHL object, use KV data directly
@@ -83,7 +87,17 @@ export async function GET(
       return NextResponse.json({
         ...quoteDataFromKV,
         quoteId: quoteId,
+        ghlContactId: ghlContactId || quoteDataFromKV.ghlContactId, // Ensure ghlContactId is included
       });
+    }
+
+    // GHL returns custom fields in properties object, not customFields
+    // Based on testing, the response structure is: { properties: { quote_id: ..., type: [...] } }
+    if (!quoteObject || (!quoteObject.properties && !quoteObject.customFields)) {
+      return NextResponse.json(
+        { error: 'Quote data not found' },
+        { status: 404 }
+      );
     }
 
     // GHL returns custom fields in properties object
@@ -148,9 +162,9 @@ export async function GET(
     const [result, contactResult] = await Promise.allSettled([
       // Recalculate quote to get ranges
       calcQuote(inputs),
-      // Fetch contact data if contactId is available
-      quoteObject?.contactId
-        ? getContactById(quoteObject.contactId).then(contact => ({
+      // Fetch contact data if contactId is available (use ghlContactId from above)
+      ghlContactId
+        ? getContactById(ghlContactId).then(contact => ({
             firstName: contact.firstName,
             lastName: contact.lastName,
             email: contact.email,
@@ -191,7 +205,7 @@ export async function GET(
       initialCleaningRecommended: quoteResult.initialCleaningRecommended,
       summaryText,
       smsText,
-      ghlContactId: quoteObject?.contactId,
+      ghlContactId: ghlContactId, // Use the ghlContactId we found (from KV or GHL object)
       quoteId: quoteId,
       contactData,
       serviceType: serviceType,

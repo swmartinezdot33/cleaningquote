@@ -108,6 +108,25 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { ghlContactId: providedContactId } = body;
     
+    // Extract UTM parameters from request URL and body (body takes precedence if both exist)
+    const url = new URL(request.url);
+    const utmParams: Record<string, string> = {};
+    const utmParamNames = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid'];
+    utmParamNames.forEach(param => {
+      // Check body first (if frontend sends it), then URL
+      const bodyValue = body[param];
+      const urlValue = url.searchParams.get(param);
+      const value = bodyValue || urlValue;
+      if (value) {
+        utmParams[param] = String(value);
+      }
+    });
+    
+    // Log UTM parameters for debugging
+    if (Object.keys(utmParams).length > 0) {
+      console.log('📊 UTM parameters captured:', utmParams);
+    }
+    
     // Convert square footage range to midpoint if it's a range string
     let squareFootage = Number(body.squareFeet);
     if (isNaN(squareFootage)) {
@@ -200,6 +219,33 @@ export async function POST(request: NextRequest) {
         }
         if (body.country) {
           contactData.country = body.country;
+        }
+
+        // Add UTM parameters to contact using GHL native fields (not customFields)
+        // GHL has native UTM tracking fields that are better for reporting
+        if (utmParams.utm_source) {
+          contactData.utmSource = utmParams.utm_source;
+          console.log(`✅ Added UTM source to contact (native field): ${utmParams.utm_source}`);
+        }
+        if (utmParams.utm_medium) {
+          contactData.utmMedium = utmParams.utm_medium;
+          console.log(`✅ Added UTM medium to contact (native field): ${utmParams.utm_medium}`);
+        }
+        if (utmParams.utm_campaign) {
+          contactData.utmCampaign = utmParams.utm_campaign;
+          console.log(`✅ Added UTM campaign to contact (native field): ${utmParams.utm_campaign}`);
+        }
+        if (utmParams.utm_term) {
+          contactData.utmTerm = utmParams.utm_term;
+          console.log(`✅ Added UTM term to contact (native field): ${utmParams.utm_term}`);
+        }
+        if (utmParams.utm_content) {
+          contactData.utmContent = utmParams.utm_content;
+          console.log(`✅ Added UTM content to contact (native field): ${utmParams.utm_content}`);
+        }
+        if (utmParams.gclid) {
+          contactData.gclid = utmParams.gclid;
+          console.log(`✅ Added GCLID to contact (native field): ${utmParams.gclid}`);
         }
 
         // Build a map of field IDs (both original and sanitized) to their GHL custom field mappings
@@ -566,6 +612,8 @@ export async function POST(request: NextRequest) {
               'current_condition': mappedCondition,
               'cleaning_service_prior': mappedCleaningServicePrior,
               'cleaned_in_last_3_months': mappedCleanedInLast3Months,
+              // Add UTM parameters for tracking
+              ...utmParams,
             };
             
             // Note: quote_range_low and quote_range_high are not in the schema
