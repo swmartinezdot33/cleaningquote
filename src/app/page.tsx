@@ -334,31 +334,6 @@ export default function Home() {
         throw new Error('Invalid survey questions format');
       }
       
-      // Check if halfBaths or sheddingPets have wrong type (select instead of number)
-      const needsReset = data.questions.some((q: any) => {
-        if ((q.id === 'halfBaths' || q.id === 'sheddingPets') && q.type === 'select') {
-          return true;
-        }
-        return false;
-      });
-      
-      if (needsReset) {
-        console.log('Detected old schema - clearing cache and reloading...');
-        // Clear the cached questions
-        await fetch('/api/admin/migration/clear-survey-cache', {
-          method: 'POST',
-          headers: {
-            'x-admin-password': 'admin', // Will fail but that's OK
-          },
-        }).catch(() => {}); // Ignore errors
-        
-        // Reload after a delay
-        setTimeout(() => {
-          window.location.reload();
-        }, 500);
-        return;
-      }
-      
       // Trust the data - it's already validated by the API
       const sortedQuestions = [...data.questions].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
       
