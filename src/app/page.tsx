@@ -2356,6 +2356,37 @@ export default function Home() {
                               if (isValid) {
                                 // Wait a moment to ensure state is updated, then check service area and advance
                                 setTimeout(async () => {
+                                  // Create contact first (before service area check)
+                                  let createdContactId: string | null = null;
+                                  const data = getValues();
+                                  try {
+                                    console.log('Auto-advance: Creating contact in GHL before service area check...');
+                                    const response = await fetch('/api/contacts/create-or-update', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({
+                                        firstName: data.firstName || '',
+                                        lastName: data.lastName || '',
+                                        email: data.email || '',
+                                        phone: data.phone || '',
+                                        address: data.address || '',
+                                        city: data.city || '',
+                                        state: data.state || '',
+                                        postalCode: data.postalCode || '',
+                                        country: data.country || 'US',
+                                      }),
+                                    });
+
+                                    const contactResult = await response.json();
+                                    if (contactResult.success && contactResult.ghlContactId) {
+                                      console.log('Auto-advance: Contact created in GHL:', contactResult.ghlContactId);
+                                      setGHLContactId(contactResult.ghlContactId);
+                                      createdContactId = contactResult.ghlContactId;
+                                    }
+                                  } catch (contactError) {
+                                    console.error('Auto-advance: Error creating contact:', contactError);
+                                  }
+
                                   // Run service area check before auto-advancing
                                   try {
                                     console.log('Auto-advance: Checking service area with coordinates:', { lat, lng });
@@ -2368,13 +2399,20 @@ export default function Home() {
                                     console.log('Auto-advance: Service area check result:', result);
                                     
                                     if (result.inServiceArea) {
-                                      // In service area - mark as checked and advance
+                                      // In service area - check if we should open survey in new tab
+                                      console.log('Auto-advance: In-service area. openSurveyInNewTab:', openSurveyInNewTab, 'createdContactId:', createdContactId);
+                                      if (openSurveyInNewTab && createdContactId) {
+                                        console.log('Auto-advance: Opening survey continuation in new tab with contactId:', createdContactId);
+                                        window.open(`/?contactId=${createdContactId}`, '_blank');
+                                        return;
+                                      }
+                                      
+                                      // Mark as checked and advance
                                       setServiceAreaChecked(true);
                                       nextStep();
                                     } else {
                                       // Out of service area - redirect directly without advancing
                                       console.log('Auto-advance: Address is out of service area - redirecting');
-                                      const data = getValues();
                                       const addressFieldName = getFormFieldName(currentQuestion.id);
                                       const addressValue = data[addressFieldName] || data.address || '';
                                       
@@ -2395,15 +2433,10 @@ export default function Home() {
                                         console.error('Error creating out-of-service contact:', error);
                                       }
                                       
-                                      // Redirect to out-of-service page
+                                      // Redirect to out-of-service page with contactId if available
                                       const params = new URLSearchParams({
-                                        data: JSON.stringify({
-                                          firstName: data.firstName || '',
-                                          lastName: data.lastName || '',
-                                          email: data.email || '',
-                                          phone: data.phone || '',
-                                          address: addressValue,
-                                        }),
+                                        address: addressValue,
+                                        ...(createdContactId && { contactId: createdContactId }),
                                       });
                                       window.location.href = `/out-of-service?${params.toString()}`;
                                     }
