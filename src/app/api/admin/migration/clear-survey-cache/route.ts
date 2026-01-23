@@ -9,11 +9,15 @@ import { kv } from '@vercel/kv';
  */
 export async function POST(request: NextRequest) {
   try {
-    // Verify this is an admin request (optional auth check)
+    // Verify this is an admin request
     const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
+    const adminPassword = request.headers.get('x-admin-password');
+    
+    // Accept either Bearer token or x-admin-password header
+    const hasAuth = authHeader?.startsWith('Bearer ') || adminPassword;
+    if (!hasAuth) {
       return NextResponse.json(
-        { error: 'Unauthorized. Provide Bearer token.' },
+        { error: 'Unauthorized. Provide Bearer token or x-admin-password header.' },
         { status: 401 }
       );
     }
