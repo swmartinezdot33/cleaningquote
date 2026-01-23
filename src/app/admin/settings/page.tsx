@@ -2268,32 +2268,6 @@ export default function SettingsPage() {
                           <h4 className="font-semibold text-gray-900 mb-4 text-lg">Tags for In-Service Customers</h4>
                           <p className="text-sm text-gray-600 mb-4">Select tags to automatically apply to customers within your service area</p>
                           
-                          {/* Create New Tag Input */}
-                          <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
-                            <label className="text-sm font-medium text-gray-700 block mb-2">Create New Tag</label>
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                placeholder="New tag name..."
-                                value={newInServiceTagName}
-                                onChange={(e) => setNewInServiceTagName(e.target.value)}
-                                onKeyPress={(e) => {
-                                  if (e.key === 'Enter') {
-                                    handleCreateTag(newInServiceTagName, 'in-service');
-                                  }
-                                }}
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                              />
-                              <Button
-                                onClick={() => handleCreateTag(newInServiceTagName, 'in-service')}
-                                disabled={isCreatingTag || !newInServiceTagName.trim()}
-                                className="bg-emerald-500 hover:bg-emerald-600 text-white"
-                              >
-                                {isCreatingTag ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                              </Button>
-                            </div>
-                          </div>
-                          
                           <div className="mb-4">
                             <input
                               type="text"
@@ -2305,6 +2279,32 @@ export default function SettingsPage() {
                           </div>
 
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-64 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-gray-50">
+                            {/* Create New Tag Input - Embedded in grid */}
+                            <div className="col-span-full p-2 bg-emerald-50 border border-emerald-200 rounded-lg">
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  placeholder="New tag name..."
+                                  value={newInServiceTagName}
+                                  onChange={(e) => setNewInServiceTagName(e.target.value)}
+                                  onKeyPress={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleCreateTag(newInServiceTagName, 'in-service');
+                                    }
+                                  }}
+                                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                />
+                                <Button
+                                  onClick={() => handleCreateTag(newInServiceTagName, 'in-service')}
+                                  disabled={isCreatingTag || !newInServiceTagName.trim()}
+                                  className="bg-emerald-500 hover:bg-emerald-600 text-white px-3"
+                                  size="sm"
+                                >
+                                  {isCreatingTag ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                                </Button>
+                              </div>
+                            </div>
+
                             {ghlTags
                               .filter(tag => tag.name.toLowerCase().includes(inServiceTagSearch.toLowerCase()))
                               .map(tag => (
@@ -2339,32 +2339,6 @@ export default function SettingsPage() {
                           <h4 className="font-semibold text-gray-900 mb-4 text-lg">Tags for Out-of-Service Customers</h4>
                           <p className="text-sm text-gray-600 mb-4">Select tags to automatically apply to customers outside your service area</p>
                           
-                          {/* Create New Tag Input */}
-                          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                            <label className="text-sm font-medium text-gray-700 block mb-2">Create New Tag</label>
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                placeholder="New tag name..."
-                                value={newOutOfServiceTagName}
-                                onChange={(e) => setNewOutOfServiceTagName(e.target.value)}
-                                onKeyPress={(e) => {
-                                  if (e.key === 'Enter') {
-                                    handleCreateTag(newOutOfServiceTagName, 'out-of-service');
-                                  }
-                                }}
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                              />
-                              <Button
-                                onClick={() => handleCreateTag(newOutOfServiceTagName, 'out-of-service')}
-                                disabled={isCreatingTag || !newOutOfServiceTagName.trim()}
-                                className="bg-red-500 hover:bg-red-600 text-white"
-                              >
-                                {isCreatingTag ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                              </Button>
-                            </div>
-                          </div>
-                          
                           <div className="mb-4">
                             <input
                               type="text"
@@ -2376,6 +2350,32 @@ export default function SettingsPage() {
                           </div>
 
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-64 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-gray-50">
+                            {/* Create New Tag Input - Embedded in grid */}
+                            <div className="col-span-full p-2 bg-red-50 border border-red-200 rounded-lg">
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  placeholder="New tag name..."
+                                  value={newOutOfServiceTagName}
+                                  onChange={(e) => setNewOutOfServiceTagName(e.target.value)}
+                                  onKeyPress={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleCreateTag(newOutOfServiceTagName, 'out-of-service');
+                                    }
+                                  }}
+                                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                                />
+                                <Button
+                                  onClick={() => handleCreateTag(newOutOfServiceTagName, 'out-of-service')}
+                                  disabled={isCreatingTag || !newOutOfServiceTagName.trim()}
+                                  className="bg-red-500 hover:bg-red-600 text-white px-3"
+                                  size="sm"
+                                >
+                                  {isCreatingTag ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                                </Button>
+                              </div>
+                            </div>
+
                             {ghlTags
                               .filter(tag => tag.name.toLowerCase().includes(outOfServiceTagSearch.toLowerCase()))
                               .map(tag => (
