@@ -47,46 +47,81 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Try different targetKey variations if not provided
-    const targetKeysToTry = targetKey 
-      ? [targetKey]
-      : ['custom_objects.quotes', 'quotes', 'Quote', 'quote'];
+    // Step 1: Fetch association definitions to find the Contact-Quote association ID
+    let associationId: string | null = null;
+    
+    try {
+      console.log('🔍 Fetching association definitions...');
+      const associationsResponse = await makeGHLRequest<any>(
+        `/associations?locationId=${locationId}`,
+        'GET'
+      );
+      
+      const associations = associationsResponse.associations || associationsResponse.data || associationsResponse || [];
+      
+      // Look for association between Contact and Quote/quotes
+      const contactQuoteAssociation = Array.isArray(associations) ? associations.find((assoc: any) => {
+        const firstEntity = (assoc.firstEntityKey || assoc.firstEntity || assoc.sourceKey || '').toLowerCase();
+        const secondEntity = (assoc.secondEntityKey || assoc.secondEntity || assoc.targetKey || '').toLowerCase();
+        
+        const isContactFirst = firstEntity === 'contact' || firstEntity === 'contacts';
+        const isContactSecond = secondEntity === 'contact' || secondEntity === 'contacts';
+        const isQuoteFirst = firstEntity.includes('quote') || firstEntity === 'quotes';
+        const isQuoteSecond = secondEntity.includes('quote') || secondEntity === 'quotes';
+        
+        return (isContactFirst && isQuoteSecond) || (isQuoteFirst && isContactSecond);
+      }) : null;
+      
+      if (contactQuoteAssociation) {
+        associationId = contactQuoteAssociation.id || contactQuoteAssociation.associationId || contactQuoteAssociation._id;
+        console.log('✅ Found association definition:', associationId);
+      } else {
+        console.warn('⚠️ No Contact-Quote association definition found');
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not fetch association definitions:', error instanceof Error ? error.message : String(error));
+    }
 
+    // Step 2: Try creating the relation with correct format
+    // Try both with and without locationId in query string
     const endpointsToTry = [
       `/associations/relations?locationId=${locationId}`,
       `/associations/relations`,
     ];
+    
+    const payloadsToTry = associationId 
+      ? [{ associationId, firstRecordId: contactId, secondRecordId: quoteRecordId }]
+      : [
+          { firstRecordId: contactId, secondRecordId: quoteRecordId },
+          { firstRecordId: quoteRecordId, secondRecordId: contactId },
+        ];
 
     const results: Array<{
       endpoint: string;
-      targetKey: string;
+      payload: any;
       success: boolean;
       error?: string;
       response?: any;
     }> = [];
 
     for (const endpoint of endpointsToTry) {
-      for (const targetKeyToTry of targetKeysToTry) {
+      for (const payload of payloadsToTry) {
+        // Ensure locationId is NOT in payload body
+        const cleanPayload = { ...payload };
+        delete (cleanPayload as any).locationId;
+        
         try {
-          const payload = {
-            locationId,
-            sourceKey: 'Contact',
-            sourceId: contactId,
-            targetKey: targetKeyToTry,
-            targetId: quoteRecordId,
-          };
-
-          console.log('🧪 Testing association:', payload);
+          console.log('🧪 Testing association:', { endpoint, payload: cleanPayload });
 
           const response = await makeGHLRequest<any>(
             endpoint,
             'POST',
-            payload
+            cleanPayload
           );
 
           results.push({
             endpoint,
-            targetKey: targetKeyToTry,
+            payload: cleanPayload,
             success: true,
             response,
           });
@@ -96,15 +131,15 @@ export async function POST(request: NextRequest) {
             success: true,
             message: 'Association successful',
             endpoint,
-            targetKey: targetKeyToTry,
-            payload,
+            payload: cleanPayload,
             response,
+            associationId,
           });
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
           results.push({
             endpoint,
-            targetKey: targetKeyToTry,
+            payload: cleanPayload,
             success: false,
             error: errorMsg,
           });

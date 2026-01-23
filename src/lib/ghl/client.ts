@@ -35,7 +35,8 @@ const KNOWN_OBJECT_IDS: Record<string, string> = {
 export async function makeGHLRequest<T>(
   endpoint: string,
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
-  body?: Record<string, any>
+  body?: Record<string, any>,
+  locationId?: string // Optional: pass locationId to add as header if needed
 ): Promise<T> {
   try {
     const token = await getGHLToken();
@@ -45,13 +46,20 @@ export async function makeGHLRequest<T>(
     }
 
     const url = `${GHL_API_BASE}${endpoint}`;
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Version': '2021-07-28', // GHL 2.0 API version
+    };
+    
+    // Some endpoints may require locationId in header instead of query
+    if (locationId && !endpoint.includes('locationId=')) {
+      headers['Location-Id'] = locationId;
+    }
+    
     const options: RequestInit = {
       method,
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'Version': '2021-07-28', // GHL 2.0 API version
-      },
+      headers,
     };
 
     if (body) {
@@ -1093,6 +1101,12 @@ export async function createCustomObject(
 /**
  * Associate a custom object with a contact using GHL Associations API
  * GHL doesn't accept contactId in the creation payload, so association must be done separately
+ * 
+ * GHL API format requires:
+ * - associationId: The association definition ID (must fetch first)
+ * - firstRecordId: One record ID (contact or quote)
+ * - secondRecordId: The other record ID
+ * - locationId: In query string only, NOT in body
  */
 async function associateCustomObjectWithContact(
   objectId: string,
@@ -1105,79 +1119,138 @@ async function associateCustomObjectWithContact(
     throw new Error('Object ID is required for association');
   }
   
-  // GHL Associations API: POST /associations/relations
-  // Based on GHL API docs, associations are created using the relations endpoint
-  // The payload should include sourceKey (contact), targetKey (custom object), and their IDs
+  // Step 1: Fetch association definitions to find the Contact-Quote association ID
+  let associationId: string | null = null;
+  
+  try {
+    // Try multiple endpoints to find the association
+    const associationEndpoints = [
+      `/associations?locationId=${locationId}`,
+      `/associations`,
+      // Try getting by object keys: Contact and Quote
+      `/associations/object-keys?firstObjectKey=Contact&secondObjectKey=quotes&locationId=${locationId}`,
+      `/associations/object-keys?firstObjectKey=Contact&secondObjectKey=Quote&locationId=${locationId}`,
+      `/associations/object-keys?firstObjectKey=quotes&secondObjectKey=Contact&locationId=${locationId}`,
+    ];
+    
+    for (const assocEndpoint of associationEndpoints) {
+      try {
+        console.log(`🔍 Fetching association from ${assocEndpoint}...`);
+        const associationsResponse = await makeGHLRequest<any>(
+          assocEndpoint,
+          'GET'
+        );
+        
+        // GHL returns associations in various formats
+        let associations: any[] = [];
+        if (Array.isArray(associationsResponse)) {
+          associations = associationsResponse;
+        } else if (associationsResponse.associations) {
+          associations = Array.isArray(associationsResponse.associations) ? associationsResponse.associations : [];
+        } else if (associationsResponse.data) {
+          associations = Array.isArray(associationsResponse.data) ? associationsResponse.data : [];
+        } else if (associationsResponse.id || associationsResponse.associationId) {
+          // Single association object
+          associations = [associationsResponse];
+        }
+        
+        // Look for association between Contact and Quote/quotes
+        const contactQuoteAssociation = associations.find((assoc: any) => {
+          const firstEntity = (assoc.firstEntityKey || assoc.firstEntity || assoc.sourceKey || assoc.firstObjectKey || '').toLowerCase();
+          const secondEntity = (assoc.secondEntityKey || assoc.secondEntity || assoc.targetKey || assoc.secondObjectKey || '').toLowerCase();
+          
+          const isContactFirst = firstEntity === 'contact' || firstEntity === 'contacts';
+          const isContactSecond = secondEntity === 'contact' || secondEntity === 'contacts';
+          const isQuoteFirst = firstEntity.includes('quote') || firstEntity === 'quotes';
+          const isQuoteSecond = secondEntity.includes('quote') || secondEntity === 'quotes';
+          
+          return (isContactFirst && isQuoteSecond) || (isQuoteFirst && isContactSecond);
+        });
+        
+        if (contactQuoteAssociation) {
+          associationId = contactQuoteAssociation.id || contactQuoteAssociation.associationId || contactQuoteAssociation._id;
+          console.log(`✅ Found association definition: ${associationId}`, {
+            firstEntity: contactQuoteAssociation.firstEntityKey || contactQuoteAssociation.firstEntity || contactQuoteAssociation.firstObjectKey,
+            secondEntity: contactQuoteAssociation.secondEntityKey || contactQuoteAssociation.secondEntity || contactQuoteAssociation.secondObjectKey,
+            fullAssociation: contactQuoteAssociation,
+          });
+          break; // Found it, stop searching
+        }
+      } catch (endpointError) {
+        // Try next endpoint
+        continue;
+      }
+    }
+    
+    if (!associationId) {
+      console.warn(`⚠️ No Contact-Quote association definition found. You may need to create it in GHL first.`);
+    }
+  } catch (error) {
+    console.warn(`⚠️ Could not fetch association definitions (will try without associationId):`, error instanceof Error ? error.message : String(error));
+  }
+  
+  // Step 2: Create the relation using the correct format
+  // Try multiple endpoint formats - GHL API can be inconsistent
   const endpointsToTry = [
-    `/associations/relations?locationId=${locationId}`,
-    `/associations/relations`,
+    `/v2/associations/relations?locationId=${locationId}`, // v2 API
+    `/associations/relations?locationId=${locationId}`, // v1 API
+    `/v2/associations/relations`, // v2 without locationId
+    `/associations/relations`, // v1 without locationId
   ];
   
-  // Try different targetKey variations (GHL may use different naming)
-  // Priority: use provided schema key > schema key format (custom_objects.quotes) > object name (quotes)
-  const targetKeyVariations = schemaKey 
-    ? [schemaKey] // Use the actual schema key first if provided
-    : [];
+  // Try with and without associationId (some setups might auto-detect)
+  const payloadsToTry = associationId 
+    ? [{ associationId, firstRecordId: contactId, secondRecordId: recordId }]
+    : [
+        // Try contact first, quote second
+        { firstRecordId: contactId, secondRecordId: recordId },
+        // Try quote first, contact second
+        { firstRecordId: recordId, secondRecordId: contactId },
+      ];
   
-  // Add common variations as fallbacks
-  targetKeyVariations.push(
-    'custom_objects.quotes', // Most common format for custom objects
-    'quotes', // Simple plural form
-    'Quote', // Capitalized singular
-    'quote', // Lowercase singular
-  );
-  
-  const errors: string[] = [];
-  
+  // Try each endpoint with each payload variation
   for (const endpoint of endpointsToTry) {
-    for (const targetKey of targetKeyVariations) {
+    for (const payload of payloadsToTry) {
       try {
-        // GHL associations API expects:
-        // - sourceKey: 'Contact' (for contacts)
-        // - sourceId: contactId
-        // - targetKey: custom object schema key (e.g., 'custom_objects.quotes')
-        // - targetId: recordId (the custom object record ID)
-        const payload = {
-          locationId,
-          sourceKey: 'Contact',
-          sourceId: contactId,
-          targetKey: targetKey,
-          targetId: recordId,
-        };
+        // Make request - ensure locationId is NOT in payload body
+        const cleanPayload = { ...payload };
+        delete (cleanPayload as any).locationId;
         
         console.log(`🔗 Attempting to associate custom object with contact:`, {
           endpoint,
-          targetKey,
-          sourceKey: 'Contact',
-          sourceId: contactId,
-          targetId: recordId,
-          locationId,
-          fullPayload: payload,
+          payload: cleanPayload,
+          contactId,
+          recordId,
+          note: 'locationId is in query string only (if present), not in body',
         });
         
         const response = await makeGHLRequest<any>(
           endpoint,
           'POST',
-          payload
+          cleanPayload,
+          locationId // Pass locationId for header if needed
         );
         
         console.log(`✅ Successfully associated custom object ${recordId} with contact ${contactId}`, {
           endpoint,
-          targetKey,
+          payload: cleanPayload,
           response: response,
         });
         return; // Success
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        errors.push(`${endpoint} with targetKey "${targetKey}": ${errorMsg}`);
-        console.log(`❌ Failed to associate at ${endpoint} with targetKey ${targetKey}:`, errorMsg);
+        console.log(`❌ Failed association attempt:`, {
+          endpoint,
+          payload,
+          error: errorMsg,
+        });
         // Try next variation
       }
     }
   }
   
-  // If all variations failed, throw with detailed error info
-  const errorMessage = `Failed to associate custom object with contact - all endpoint variations failed:\n${errors.join('\n')}`;
+  // If all attempts failed
+  const errorMessage = `Failed to associate custom object with contact. Tried ${attempts.length} variation(s). Last error: ${attempts[attempts.length - 1]}`;
   console.error('❌ Association failed:', errorMessage);
   throw new Error(errorMessage);
 }
