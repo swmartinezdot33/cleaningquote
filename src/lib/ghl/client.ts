@@ -23,6 +23,12 @@ import {
 
 const GHL_API_BASE = 'https://services.leadconnectorhq.com';
 
+// Known object IDs from testing (these are the actual object IDs, not schema keys)
+// These are the most reliable way to access custom objects
+const KNOWN_OBJECT_IDS: Record<string, string> = {
+  quotes: '6973793b9743a548458387d2', // Quote custom object ID
+};
+
 /**
  * Make authenticated request to GHL API
  */
@@ -877,87 +883,108 @@ export async function createCustomObject(
       schemaFieldCount: schemaFields?.fields?.length || 0,
     });
 
-    // GHL 2.0 API: POST /objects/{schemaKey}/records
-    // Based on the schema we successfully fetched, we know:
-    // - The object ID is: 6973793b9743a548458387d2
-    // - The internal name is: custom_objects.quotes
-    // - For API, we should try object ID first, then "quotes" (without prefix)
-    const schemaKeysToTry: string[] = [];
+    // GHL 2.0 API: POST /objects/{objectId}/records
+    // Based on testing, we know:
+    // - Object ID endpoint works: /objects/6973793b9743a548458387d2/records
+    // - Short field names work: quote_id (not custom_objects.quotes.quote_id)
+    // - Object ID is the most reliable identifier
     
-    // If we have schemaFields with object ID, use that first (most reliable)
+    // Determine the object ID to use
+    let objectIdToUse: string | null = null;
+    
+    // Priority 1: Use object ID from schema if available
     if (schemaFields?.object?.id) {
-      schemaKeysToTry.push(schemaFields.object.id);
-      console.log(`✅ Using object ID from schema: ${schemaFields.object.id}`);
+      objectIdToUse = schemaFields.object.id;
+      console.log(`✅ Using object ID from schema: ${objectIdToUse}`);
     }
-    
-    // Add found schemaKey if available (might be "custom_objects.quotes" from listing)
-    if (actualSchemaKey) {
-      // If it's the full internal name, also try just the key part
-      if (actualSchemaKey.startsWith('custom_objects.')) {
-        const keyPart = actualSchemaKey.split('.').pop();
-        if (keyPart) {
-          schemaKeysToTry.push(keyPart); // Add "quotes"
+    // Priority 2: Use known object ID for quotes
+    else if ((objectType === 'quotes' || objectType === 'Quote' || objectType === 'quote') && KNOWN_OBJECT_IDS.quotes) {
+      objectIdToUse = KNOWN_OBJECT_IDS.quotes;
+      console.log(`✅ Using known object ID for quotes: ${objectIdToUse}`);
+    }
+    // Priority 3: Try to get object ID from schema fetch
+    else {
+      try {
+        const schemaKey = objectType === 'quotes' || objectType === 'Quote' 
+          ? 'custom_objects.quotes' 
+          : objectType.startsWith('custom_objects.') 
+            ? objectType 
+            : `custom_objects.${objectType}`;
+        const tempSchema = await getObjectSchema(schemaKey, finalLocationId);
+        if (tempSchema?.object?.id) {
+          objectIdToUse = tempSchema.object.id;
+          console.log(`✅ Found object ID from schema fetch: ${objectIdToUse}`);
         }
+      } catch (error) {
+        console.log('⚠️ Could not fetch schema to get object ID');
       }
-      schemaKeysToTry.push(actualSchemaKey);
     }
-    
-    // Add common variations - prioritize "quotes" (lowercase plural) as that's what the user's code uses
-    const cleanObjectType = objectType.startsWith('custom_objects.') 
-      ? objectType.split('.').pop() || objectType
-      : objectType;
-    
-    schemaKeysToTry.push(
-      cleanObjectType,          // Use cleaned objectType (e.g., "quotes")
-      'quotes',                 // Just the key part (lowercase plural) - most common
-      'Quotes',                 // Capitalized plural
-      'Quote',                  // Capitalized singular
-      'quote',                  // Lowercase singular
-    );
-    
-    // Remove duplicates
-    const uniqueSchemaKeys = [...new Set(schemaKeysToTry)];
     
     let lastError: Error | null = null;
     let response: any = null;
     
-    // Try each schema key with both field formats
-    // Object ID endpoints might need short names, schema key endpoints might need full paths
-    for (const schemaKey of uniqueSchemaKeys) {
-      const endpoint = `/objects/${schemaKey}/records`;
-      const isObjectId = /^[a-f0-9]{24}$/i.test(schemaKey); // MongoDB ObjectId format
-      
-      // Try short names first for object ID, full paths for schema keys
-      const payloadsToTry = isObjectId 
-        ? [payloadShortName, payloadFullPath]  // Object ID: try short names first
-        : [payloadFullPath, payloadShortName];  // Schema key: try full paths first
-      
-      for (const payload of payloadsToTry) {
+    // Try with object ID first (most reliable - we know this works)
+    if (objectIdToUse) {
+      const endpoint = `/objects/${objectIdToUse}/records`;
+      try {
+        console.log(`Attempting to create custom object at endpoint: ${endpoint} (using object ID with short field names)`);
+        console.log(`Payload:`, JSON.stringify(payloadShortName, null, 2));
+        response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
+          endpoint,
+          'POST',
+          payloadShortName
+        );
+        console.log(`✅ Successfully created custom object at: ${endpoint} using object ID with short field names`);
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        console.log(`❌ Failed at ${endpoint}:`, lastError.message);
+        // Try with full paths as fallback
         try {
-          const fieldFormat = payload === payloadFullPath ? 'full_path' : 'short_name';
-          console.log(`Attempting to create custom object at endpoint: ${endpoint} with schemaKey: ${schemaKey} (${fieldFormat})`);
-          console.log(`Payload:`, JSON.stringify(payload, null, 2));
+          console.log(`Trying with full field paths as fallback...`);
           response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
             endpoint,
             'POST',
-            payload
+            payloadFullPath
           );
-          console.log(`✅ Successfully created custom object at: ${endpoint} using ${fieldFormat} format`);
-          break; // Success, exit both loops
-        } catch (error) {
-          lastError = error instanceof Error ? error : new Error(String(error));
-          const errorMessage = lastError.message;
-          const fieldFormat = payload === payloadFullPath ? 'full_path' : 'short_name';
-          console.log(`❌ Failed at ${endpoint} (${fieldFormat}):`, errorMessage);
-          
-          // If this was the last payload format for this endpoint, continue to next schemaKey
-          if (payload === payloadsToTry[payloadsToTry.length - 1]) {
-            console.log(`   Tried both field formats, moving to next schemaKey`);
-          }
+          console.log(`✅ Successfully created custom object at: ${endpoint} using full field paths`);
+        } catch (fallbackError) {
+          lastError = fallbackError instanceof Error ? fallbackError : new Error(String(fallbackError));
+          console.log(`❌ Also failed with full paths:`, lastError.message);
         }
       }
+    }
+    
+    // Fallback: Try with schema key names if object ID didn't work
+    if (!response && actualSchemaKey) {
+      const endpointsToTry: string[] = [];
+      const cleanObjectType = objectType.startsWith('custom_objects.') 
+        ? objectType.split('.').pop() || objectType
+        : objectType;
       
-      if (response) break; // Success, exit outer loop
+      if (actualSchemaKey.startsWith('custom_objects.')) {
+        const keyPart = actualSchemaKey.split('.').pop();
+        if (keyPart) endpointsToTry.push(keyPart);
+      }
+      endpointsToTry.push(cleanObjectType, 'quotes', 'Quote');
+      
+      const uniqueEndpoints = Array.from(new Set(endpointsToTry));
+      for (const schemaKey of uniqueEndpoints) {
+        if (!schemaKey) continue;
+        const endpoint = `/objects/${schemaKey}/records`;
+        try {
+          console.log(`Trying fallback endpoint: ${endpoint}`);
+          response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
+            endpoint,
+            'POST',
+            payloadShortName
+          );
+          console.log(`✅ Successfully created custom object at fallback endpoint: ${endpoint}`);
+          break;
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+          console.log(`❌ Failed at fallback ${endpoint}:`, lastError.message);
+        }
+      }
     }
     
     if (!response) {
@@ -973,9 +1000,14 @@ export async function createCustomObject(
       if (isScopeIssue) {
         errorMsg = 'Failed to create custom object - token lacks required scope (objects/record.write). Please check your GHL API token permissions in your GHL account settings.';
       } else if (isInvalidKey) {
+        const triedEndpoints = objectIdToUse 
+          ? `Object ID: ${objectIdToUse}` 
+          : actualSchemaKey 
+            ? `Schema key: ${actualSchemaKey}` 
+            : `Object type: ${objectType}`;
         errorMsg = `Failed to create custom object - "Invalid Key Passed" error. This usually means:\n` +
           `1. The Quote custom object schema doesn't exist in your GHL account (create it in Settings > Custom Objects)\n` +
-          `2. The schema key is different than expected. Tried: ${uniqueSchemaKeys.join(', ')}\n` +
+          `2. The endpoint format is incorrect. Tried: ${triedEndpoints}\n` +
           `3. The field keys don't match your schema. We're using: ${customFieldsArray?.map(f => f.key).join(', ')}\n` +
           `\nTo fix:\n` +
           `- Create a custom object named "quotes" (or check the exact name in GHL)\n` +
@@ -1011,6 +1043,7 @@ export async function createCustomObject(
 /**
  * Get a custom object by ID from GHL
  * Always uses stored locationId for sub-account (location-level) API calls
+ * Based on testing, we need to use the object ID (not schema key) for the endpoint
  */
 export async function getCustomObjectById(
   objectType: string,
@@ -1025,22 +1058,55 @@ export async function getCustomObjectById(
       throw new Error('Location ID is required. Please configure it in the admin settings.');
     }
 
-    // For GET requests, locationId should be in query string, not body
-    // GHL 2.0 API: Try multiple endpoint formats
-    // Try /objects first, then /custom-objects
-    const endpointsToTry = [
-      `/objects/${objectType}/${objectId}?locationId=${finalLocationId}`,
-      `/objects/${objectType}/records/${objectId}?locationId=${finalLocationId}`,
-      `/custom-objects/${objectType}/${objectId}?locationId=${finalLocationId}`,
-      `/custom-objects/${objectType}/records/${objectId}?locationId=${finalLocationId}`,
-    ];
+    // Determine the object ID to use for the endpoint
+    // Based on testing, we know the object ID is the most reliable identifier
+    let objectIdToUse: string | null = null;
     
-    // If objectType is lowercase plural, also try capitalized singular
+    // Priority 1: Use known object ID for quotes (fastest, most reliable)
+    if (objectType === 'quotes' || objectType === 'Quote' || objectType === 'quote') {
+      objectIdToUse = KNOWN_OBJECT_IDS.quotes;
+      console.log(`✅ Using known object ID for quotes: ${objectIdToUse}`);
+    }
+    // Priority 2: Try to fetch schema to get object ID
+    else {
+      try {
+        const schemaKey = objectType.startsWith('custom_objects.') 
+          ? objectType 
+          : `custom_objects.${objectType}`;
+        const schema = await getObjectSchema(schemaKey, finalLocationId);
+        if (schema?.object?.id) {
+          objectIdToUse = schema.object.id;
+          console.log(`✅ Found object ID from schema: ${objectIdToUse}`);
+        }
+      } catch (schemaError) {
+        console.log('⚠️ Could not fetch schema to get object ID, will try fallback endpoints');
+      }
+    }
+
+    // For GET requests, locationId should be in query string, not body
+    // Based on testing, we should use the object ID in the endpoint (most reliable)
+    const endpointsToTry: string[] = [];
+    
+    // Priority 1: Use object ID endpoint (we know this works)
+    if (objectIdToUse) {
+      endpointsToTry.push(
+        `/objects/${objectIdToUse}/records/${objectId}?locationId=${finalLocationId}`,
+        `/objects/${objectIdToUse}/${objectId}?locationId=${finalLocationId}`,
+      );
+    }
+    
+    // Priority 2: Try with objectType as fallback
+    endpointsToTry.push(
+      `/objects/${objectType}/records/${objectId}?locationId=${finalLocationId}`,
+      `/objects/${objectType}/${objectId}?locationId=${finalLocationId}`,
+    );
+    
+    // Priority 3: If objectType is lowercase plural, also try capitalized singular
     if (objectType === 'quotes') {
-      endpointsToTry.push(`/objects/Quote/${objectId}?locationId=${finalLocationId}`);
-      endpointsToTry.push(`/objects/Quote/records/${objectId}?locationId=${finalLocationId}`);
-      endpointsToTry.push(`/custom-objects/Quote/${objectId}?locationId=${finalLocationId}`);
-      endpointsToTry.push(`/custom-objects/Quote/records/${objectId}?locationId=${finalLocationId}`);
+      endpointsToTry.push(
+        `/objects/Quote/records/${objectId}?locationId=${finalLocationId}`,
+        `/objects/Quote/${objectId}?locationId=${finalLocationId}`,
+      );
     }
     
     let lastError: Error | null = null;
@@ -1068,7 +1134,13 @@ export async function getCustomObjectById(
     }
 
     // GHL may return the object directly or wrapped in a key
-    const customObject = response[objectType] || response[objectType.slice(0, -1)] || response.Quote || response.record || response;
+    // Try to find the object in the response
+    const customObject = response.record || response[objectType] || response[objectType.slice(0, -1)] || response.Quote || response;
+    
+    if (!customObject || !customObject.id) {
+      console.error('Response structure:', Object.keys(response));
+      throw new Error('Invalid response from GHL API - could not find custom object in response');
+    }
     
     return customObject as GHLCustomObjectResponse;
   } catch (error) {

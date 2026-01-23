@@ -40,16 +40,24 @@ export async function GET(
       }
     }
 
-    if (!quoteObject || !quoteObject.customFields) {
+    // GHL returns custom fields in properties object, not customFields
+    // Based on testing, the response structure is: { properties: { quote_id: ..., type: [...] } }
+    if (!quoteObject || (!quoteObject.properties && !quoteObject.customFields)) {
       return NextResponse.json(
         { error: 'Quote data not found' },
         { status: 404 }
       );
     }
 
-    const customFields = quoteObject.customFields;
+    // GHL returns custom fields in properties object
+    // Based on testing, the response structure is: { properties: { quote_id: ..., type: [...] } }
+    const customFields = quoteObject.properties || quoteObject.customFields || {};
 
     // Extract data from custom fields
+    // Handle type field - it's an array for MULTIPLE_OPTIONS
+    const typeValue = customFields.type;
+    const serviceType = Array.isArray(typeValue) ? typeValue[0] || '' : typeValue || '';
+    
     const squareFeet = parseInt(customFields.square_footage || '0', 10) || 0;
     const people = parseInt(customFields.people_in_home || '0', 10) || 0;
     const sheddingPets = parseInt(customFields.shedding_pets || '0', 10) || 0;
@@ -57,9 +65,8 @@ export async function GET(
     const halfBaths = parseInt(customFields.half_baths || '0', 10) || 0;
     const bedrooms = parseInt(customFields.bedrooms || '0', 10) || 0;
     const condition = customFields.current_condition || '';
-    const hasPreviousService = customFields.cleaning_service_prior === 'Yes';
-    const cleanedWithin3Months = customFields.cleaned_in_last_3_months === 'Yes';
-    const serviceType = customFields.type || '';
+    const hasPreviousService = customFields.cleaning_service_prior === 'yes' || customFields.cleaning_service_prior === 'Yes';
+    const cleanedWithin3Months = customFields.cleaned_in_last_3_months === 'yes' || customFields.cleaned_in_last_3_months === 'Yes';
     const frequency = customFields.frequency || '';
 
     // Reconstruct quote inputs
@@ -122,8 +129,8 @@ export async function GET(
       ghlContactId: quoteObject.contactId,
       quoteId: quoteId,
       contactData,
-      serviceType: customFields.type || '',
-      frequency: customFields.frequency || '',
+      serviceType: serviceType,
+      frequency: frequency,
     });
   } catch (error) {
     console.error('Error fetching quote:', error);
