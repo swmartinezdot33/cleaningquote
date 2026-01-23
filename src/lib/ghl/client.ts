@@ -438,16 +438,16 @@ export async function createCustomObject(
     };
 
     // GHL 2.0 API: Use custom-objects endpoint
-    // Endpoint format: /custom-objects/{objectType}
+    // Endpoint format: /custom-objects/{objectType}/records
     const response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
-      `/custom-objects/${objectType}`,
+      `/custom-objects/${objectType}/records`,
       'POST',
       payload
     );
 
     // GHL may return the object directly or wrapped in a key
     // Try to find the object in the response
-    const customObject = response[objectType] || response[objectType.slice(0, -1)] || response;
+    const customObject = response[objectType] || response[objectType.slice(0, -1)] || response.record || response;
     
     return customObject as GHLCustomObjectResponse;
   } catch (error) {
@@ -475,15 +475,32 @@ export async function getCustomObjectById(
 
     // For GET requests, locationId should be in query string, not body
     // GHL 2.0 API: Use custom-objects endpoint
-    // Endpoint format: /custom-objects/{objectType}/{id}?locationId={locationId}
-    const endpoint = `/custom-objects/${objectType}/${objectId}?locationId=${finalLocationId}`;
-    const response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
-      endpoint,
-      'GET'
-    );
+    // Endpoint format: /custom-objects/{objectType}/records/{id}?locationId={locationId}
+    // Try both lowercase and capitalized object type names
+    let endpoint = `/custom-objects/${objectType}/records/${objectId}?locationId=${finalLocationId}`;
+    let response;
+    
+    try {
+      response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
+        endpoint,
+        'GET'
+      );
+    } catch (error) {
+      // If lowercase fails, try capitalized
+      if (objectType === 'quotes') {
+        console.log('Failed with "quotes", trying "Quote" (capitalized) for GET...');
+        endpoint = `/custom-objects/Quote/records/${objectId}?locationId=${finalLocationId}`;
+        response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
+          endpoint,
+          'GET'
+        );
+      } else {
+        throw error;
+      }
+    }
 
     // GHL may return the object directly or wrapped in a key
-    const customObject = response[objectType] || response[objectType.slice(0, -1)] || response;
+    const customObject = response[objectType] || response[objectType.slice(0, -1)] || response.Quote || response.record || response;
     
     return customObject as GHLCustomObjectResponse;
   } catch (error) {

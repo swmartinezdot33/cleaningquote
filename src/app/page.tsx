@@ -1856,54 +1856,102 @@ export default function Home() {
 
                               {/* Show one-time service options if a one-time service was selected */}
                               {showSelectedOneTime && (
-                                <motion.div
-                                  initial={{ opacity: 0, x: -10 }}
-                                  animate={{ opacity: 1, x: 0 }}
-                                  transition={{ delay: 0.25 }}
-                                  className="space-y-2 mt-4"
-                                >
-                                  <div className="text-sm font-semibold text-gray-600 mb-2">OTHER ONE-TIME OPTIONS:</div>
-                                  {selectedServiceType !== 'deep' && (
-                                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
-                                      <div className="flex items-center gap-3">
-                                        <span className="text-xl">🧹</span>
-                                        <span className="font-bold text-lg text-gray-700">
-                                          Deep Clean: ${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}
-                                        </span>
+                                <>
+                                  <motion.div
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.25 }}
+                                    className="space-y-2 mt-4"
+                                  >
+                                    <div className="text-sm font-semibold text-gray-600 mb-2">OTHER ONE-TIME OPTIONS:</div>
+                                    {selectedServiceType !== 'deep' && (
+                                      <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-xl">🧹</span>
+                                          <span className="font-bold text-lg text-gray-700">
+                                            Deep Clean: ${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}
+                                          </span>
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
-                                  {selectedServiceType !== 'general' && (
-                                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
-                                      <div className="flex items-center gap-3">
-                                        <span className="text-xl">✨</span>
-                                        <span className="font-bold text-lg text-gray-700">
-                                          General Clean: ${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}
-                                        </span>
+                                    )}
+                                    {selectedServiceType !== 'general' && (
+                                      <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-xl">✨</span>
+                                          <span className="font-bold text-lg text-gray-700">
+                                            General Clean: ${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}
+                                          </span>
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
-                                  {selectedServiceType !== 'move-in' && (
-                                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
-                                      <div className="flex items-center gap-3">
-                                        <span className="text-xl">🚚</span>
-                                        <span className="font-bold text-lg text-gray-700">
-                                          Move-In Clean: ${quoteResult.ranges.moveInOutBasic.low} to ${quoteResult.ranges.moveInOutBasic.high}
-                                        </span>
+                                    )}
+                                    {selectedServiceType !== 'initial' && (
+                                      <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-xl">✨</span>
+                                          <span className="font-bold text-lg text-gray-700">
+                                            Initial Cleaning: ${quoteResult.ranges.initial.low} to ${quoteResult.ranges.initial.high}
+                                          </span>
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
-                                  {selectedServiceType !== 'move-out' && (
-                                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
-                                      <div className="flex items-center gap-3">
-                                        <span className="text-xl">🚚</span>
-                                        <span className="font-bold text-lg text-gray-700">
-                                          Move-Out Clean: ${quoteResult.ranges.moveInOutFull.low} to ${quoteResult.ranges.moveInOutFull.high}
-                                        </span>
+                                    )}
+                                    {selectedServiceType !== 'move-in' && (
+                                      <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-xl">🚚</span>
+                                          <span className="font-bold text-lg text-gray-700">
+                                            Move-In Clean: ${quoteResult.ranges.moveInOutBasic.low} to ${quoteResult.ranges.moveInOutBasic.high}
+                                          </span>
+                                        </div>
                                       </div>
-                                    </div>
+                                    )}
+                                    {selectedServiceType !== 'move-out' && (
+                                      <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-xl">🚚</span>
+                                          <span className="font-bold text-lg text-gray-700">
+                                            Move-Out Clean: ${quoteResult.ranges.moveInOutFull.low} to ${quoteResult.ranges.moveInOutFull.high}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </motion.div>
+
+                                  {/* Show recurring options as suggestions for ongoing service after initial cleaning */}
+                                  {(selectedServiceType === 'deep' || selectedServiceType === 'general' || selectedServiceType === 'initial') && (
+                                    <motion.div
+                                      initial={{ opacity: 0, x: -10 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      transition={{ delay: 0.3 }}
+                                      className="space-y-2 mt-4"
+                                    >
+                                      <div className="text-sm font-semibold text-gray-600 mb-2">RECURRING CLEANING OPTIONS (After Initial Service):</div>
+                                      <div className="bg-gradient-to-r from-yellow-100 via-amber-100 to-yellow-100 border-l-4 border-yellow-500 pl-6 py-3 rounded-r-xl shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-xl">⭐</span>
+                                          <span className="font-bold text-lg text-yellow-800">
+                                            Bi-Weekly Cleaning: ${quoteResult.ranges.biWeekly.low} to ${quoteResult.ranges.biWeekly.high} (Most Popular)
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-xl">📅</span>
+                                          <span className="font-bold text-lg text-gray-700">
+                                            Weekly Cleaning: ${quoteResult.ranges.weekly.low} to ${quoteResult.ranges.weekly.high}
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-xl">📅</span>
+                                          <span className="font-bold text-lg text-gray-700">
+                                            Every 4 Weeks Cleaning: ${quoteResult.ranges.fourWeek.low} to ${quoteResult.ranges.fourWeek.high}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </motion.div>
                                   )}
-                                </motion.div>
+                                </>
                               )}
                             </>
                           );

@@ -438,6 +438,7 @@ export async function POST(request: NextRequest) {
 
         // Create Quote custom object in GHL
         if (ghlContactId) {
+          let quoteCustomFields: Record<string, string> = {};
           try {
             // Generate unique quote_id
             const generatedQuoteId = randomUUID();
@@ -456,7 +457,7 @@ export async function POST(request: NextRequest) {
             const selectedRange = getSelectedQuoteRange(result.ranges, body.serviceType, body.frequency);
 
             // Map all fields to Quote custom object
-            const quoteCustomFields: Record<string, string> = {
+            quoteCustomFields = {
               quote_id: generatedQuoteId,
               service_address: serviceAddress,
               square_footage: String(body.squareFeet || ''),
@@ -479,13 +480,27 @@ export async function POST(request: NextRequest) {
             }
 
             // Create Quote custom object
-            const quoteObject = await createCustomObject(
-              'quotes',
-              {
-                contactId: ghlContactId,
-                customFields: quoteCustomFields,
-              }
-            );
+            // Try different object type names (GHL might use "Quote" capitalized or "quotes" lowercase)
+            let quoteObject;
+            try {
+              quoteObject = await createCustomObject(
+                'quotes',
+                {
+                  contactId: ghlContactId,
+                  customFields: quoteCustomFields,
+                }
+              );
+            } catch (error) {
+              // If 'quotes' fails, try 'Quote' (capitalized)
+              console.log('Failed with "quotes", trying "Quote" (capitalized)...');
+              quoteObject = await createCustomObject(
+                'Quote',
+                {
+                  contactId: ghlContactId,
+                  customFields: quoteCustomFields,
+                }
+              );
+            }
 
             // Use the ID returned from GHL as the quote ID for the URL
             // The quote_id field in customFields is for reference, but the object ID is what we use for the URL
@@ -497,6 +512,12 @@ export async function POST(request: NextRequest) {
             });
           } catch (quoteError) {
             console.error('Failed to create Quote custom object (quote still delivered):', quoteError);
+            console.error('Quote object creation error details:', {
+              error: quoteError instanceof Error ? quoteError.message : String(quoteError),
+              stack: quoteError instanceof Error ? quoteError.stack : undefined,
+              contactId: ghlContactId,
+              customFieldsCount: Object.keys(quoteCustomFields).length,
+            });
             // Don't throw - quote should still be delivered even if custom object creation fails
           }
         }

@@ -23,15 +23,21 @@ export async function GET(
     }
 
     // Fetch Quote custom object from GHL
+    // Try both 'quotes' and 'Quote' object type names
     let quoteObject;
     try {
       quoteObject = await getCustomObjectById('quotes', quoteId);
     } catch (error) {
-      console.error('Failed to fetch quote object from GHL:', error);
-      return NextResponse.json(
-        { error: 'Quote not found' },
-        { status: 404 }
-      );
+      console.log('Failed with "quotes", trying "Quote" (capitalized)...');
+      try {
+        quoteObject = await getCustomObjectById('Quote', quoteId);
+      } catch (secondError) {
+        console.error('Failed to fetch quote object from GHL:', error, secondError);
+        return NextResponse.json(
+          { error: 'Quote not found' },
+          { status: 404 }
+        );
+      }
     }
 
     if (!quoteObject || !quoteObject.customFields) {
