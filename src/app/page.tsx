@@ -259,6 +259,7 @@ export default function Home() {
   const [widgetTitle, setWidgetTitle] = useState('Raleigh Cleaning Company');
   const [widgetSubtitle, setWidgetSubtitle] = useState("Let's get your professional cleaning price!");
   const [primaryColor, setPrimaryColor] = useState('#f61590');
+  const [googleAdsConversionId, setGoogleAdsConversionId] = useState('');
   // Start with empty array, will be filled from unified API
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [quoteSchema, setQuoteSchema] = useState<z.ZodObject<any>>(generateSchemaFromQuestions([]));
@@ -394,6 +395,7 @@ export default function Home() {
         setWidgetTitle(data.title || 'Raleigh Cleaning Company');
         setWidgetSubtitle(data.subtitle || "Let's get your professional cleaning price!");
         setPrimaryColor(data.primaryColor || '#f61590');
+        setGoogleAdsConversionId(data.googleAdsConversionId || '');
       }
     } catch (error) {
       console.error('Failed to load widget settings:', error);
@@ -987,6 +989,10 @@ export default function Home() {
 
           // In-service area - check if we should open survey in new tab
           console.log('Service area check - in-service. openSurveyInNewTab:', openSurveyInNewTab, 'createdContactId:', createdContactId);
+          
+          // Trigger Google Ads conversion for in-service lead
+          triggerGoogleAdsConversion();
+          
           if (openSurveyInNewTab && createdContactId) {
             console.log('Opening survey continuation in new tab with contactId:', createdContactId);
             window.open(`/?contactId=${createdContactId}`, '_blank');
@@ -1041,6 +1047,34 @@ export default function Home() {
       } catch (error) {
         console.warn('Failed to send tracking event:', error);
       }
+    }
+  };
+
+  // Helper function to trigger Google Ads conversion
+  const triggerGoogleAdsConversion = () => {
+    if (!googleAdsConversionId) {
+      console.log('Google Ads Conversion ID not configured');
+      return;
+    }
+
+    try {
+      // Use gtag to send conversion event if available
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        console.log('Triggering Google Ads conversion:', googleAdsConversionId);
+        (window as any).gtag('event', 'conversion', {
+          'allow_custom_scripts': true,
+          'send_to': googleAdsConversionId
+        });
+      } else {
+        console.log('gtag not available, trying alternative method');
+        // Fallback: create a pixel request if gtag is not available
+        const conversionId = googleAdsConversionId.replace('AW-', '');
+        const conversionLabel = 'in_service_lead'; // Generic label
+        const img = new Image();
+        img.src = `https://googleads.g.doubleclick.net/pagead/conversion/${conversionId}/?label=${conversionLabel}&guid=ON&script=0`;
+      }
+    } catch (error) {
+      console.error('Error triggering Google Ads conversion:', error);
     }
   };
 
@@ -2399,6 +2433,9 @@ export default function Home() {
                                     console.log('Auto-advance: Service area check result:', result);
                                     
                                     if (result.inServiceArea) {
+                                      // Trigger Google Ads conversion for in-service lead
+                                      triggerGoogleAdsConversion();
+
                                       // In service area - check if we should open survey in new tab
                                       console.log('Auto-advance: In-service area. openSurveyInNewTab:', openSurveyInNewTab, 'createdContactId:', createdContactId);
                                       if (openSurveyInNewTab && createdContactId) {
