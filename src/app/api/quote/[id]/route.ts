@@ -3,6 +3,7 @@ import { getCustomObjectById, getContactById } from '@/lib/ghl/client';
 import { calcQuote } from '@/lib/pricing/calcQuote';
 import { generateSummaryText, generateSmsText } from '@/lib/pricing/format';
 import { QuoteInputs } from '@/lib/pricing/types';
+import { getKV } from '@/lib/kv';
 
 /**
  * GET /api/quote/[id]
@@ -22,9 +23,22 @@ export async function GET(
       );
     }
 
-    // Fetch Quote custom object from GHL
-    // Try both 'quotes' and 'Quote' object type names
-    let quoteObject;
+    // First, try to fetch from KV (backup storage for tracking)
+    let quoteDataFromKV = null;
+    try {
+      const kv = getKV();
+      const stored = await kv.get(`quote:${quoteId}`);
+      if (stored && typeof stored === 'string') {
+        quoteDataFromKV = JSON.parse(stored);
+        console.log('✅ Found quote data in KV storage');
+      }
+    } catch (kvError) {
+      console.log('No quote data in KV (will try GHL):', kvError instanceof Error ? kvError.message : String(kvError));
+    }
+
+    // Try to fetch Quote custom object from GHL
+    // If GHL fetch fails but we have KV data, use that instead
+    let quoteObject = null;
     try {
       quoteObject = await getCustomObjectById('quotes', quoteId);
     } catch (error) {
@@ -32,11 +46,14 @@ export async function GET(
       try {
         quoteObject = await getCustomObjectById('Quote', quoteId);
       } catch (secondError) {
-        console.error('Failed to fetch quote object from GHL:', error, secondError);
-        return NextResponse.json(
-          { error: 'Quote not found' },
-          { status: 404 }
-        );
+        console.log('Failed to fetch quote object from GHL, will use KV data if available');
+        // Don't return error yet - check if we have KV data
+        if (!quoteDataFromKV) {
+          return NextResponse.json(
+            { error: 'Quote not found' },
+            { status: 404 }
+          );
+        }
       }
     }
 
@@ -49,9 +66,18 @@ export async function GET(
       );
     }
 
+    // If we have KV data but no GHL object, use KV data directly
+    if (quoteDataFromKV && !quoteObject) {
+      console.log('Using quote data from KV storage (GHL fetch failed)');
+      return NextResponse.json({
+        ...quoteDataFromKV,
+        quoteId: quoteId,
+      });
+    }
+
     // GHL returns custom fields in properties object
     // Based on testing, the response structure is: { properties: { quote_id: ..., type: [...] } }
-    const customFields = quoteObject.properties || quoteObject.customFields || {};
+    const customFields = quoteObject?.properties || quoteObject?.customFields || {};
 
     // Extract data from custom fields
     // Handle type field - it's an array for MULTIPLE_OPTIONS
@@ -104,7 +130,7 @@ export async function GET(
 
     // Fetch contact data if contactId is available
     let contactData = null;
-    if (quoteObject.contactId) {
+    if (quoteObject?.contactId) {
       try {
         const contact = await getContactById(quoteObject.contactId);
         contactData = {
@@ -129,7 +155,7 @@ export async function GET(
       initialCleaningRecommended: result.initialCleaningRecommended,
       summaryText,
       smsText,
-      ghlContactId: quoteObject.contactId,
+      ghlContactId: quoteObject?.contactId,
       quoteId: quoteId,
       contactData,
       serviceType: serviceType,

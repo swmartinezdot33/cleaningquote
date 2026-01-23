@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { kv } from '@vercel/kv';
+import { requireAdminAuth } from '@/lib/security/auth';
 
 const TRACKING_CODES_KEY = 'admin:tracking-codes';
 
@@ -16,16 +17,12 @@ interface TrackingCodes {
 /**
  * GET /api/admin/tracking-codes
  * Retrieve stored tracking codes
+ * Note: This endpoint is public (no auth required) for use in public pages
  */
 export async function GET(request: NextRequest) {
   try {
-    const password = request.headers.get('x-admin-password');
-    if (!password || password !== process.env.ADMIN_PASSWORD) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    // Allow public access - tracking codes are needed for public pages
+    // No authentication required for GET requests
 
     const trackingCodes = await kv.get<TrackingCodes>(TRACKING_CODES_KEY);
 
@@ -44,16 +41,13 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/admin/tracking-codes
  * Save tracking codes
+ * Requires admin authentication
  */
 export async function POST(request: NextRequest) {
   try {
-    const password = request.headers.get('x-admin-password');
-    if (!password || password !== process.env.ADMIN_PASSWORD) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    // Secure authentication (supports both JWT and legacy password)
+    const authResponse = await requireAdminAuth(request);
+    if (authResponse) return authResponse;
 
     const body = await request.json();
     const { googleAnalyticsId, googleTagManagerId, facebookPixelId, metaPixelId, customHeadCode, googleAdsConversionId, googleAdsConversionLabel } = body;

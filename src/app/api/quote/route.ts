@@ -3,7 +3,7 @@ import { calcQuote } from '@/lib/pricing/calcQuote';
 import { generateSummaryText, generateSmsText } from '@/lib/pricing/format';
 import { QuoteInputs, QuoteRanges } from '@/lib/pricing/types';
 import { createOrUpdateContact, createOpportunity, createNote, createCustomObject } from '@/lib/ghl/client';
-import { ghlTokenExists, getGHLConfig } from '@/lib/kv';
+import { ghlTokenExists, getGHLConfig, getKV } from '@/lib/kv';
 import { getSurveyQuestions } from '@/lib/survey/manager';
 import { SurveyQuestion } from '@/lib/survey/schema';
 import { randomUUID } from 'crypto';
@@ -143,10 +143,14 @@ export async function POST(request: NextRequest) {
     const summaryText = generateSummaryText({ ...result, ranges: result.ranges }, body.serviceType, body.frequency, squareFeetRange);
     const smsText = generateSmsText({ ...result, ranges: result.ranges });
 
+    // Generate quoteId early for tracking/redirect purposes
+    // This ensures we always have a quoteId even if GHL custom object creation fails
+    const generatedQuoteId = randomUUID();
+    let quoteId: string | undefined = generatedQuoteId; // Use generated ID as default
+    
     // Attempt GHL integration (non-blocking)
     // If a contact was already created after address step, use that ID; otherwise create/update
     let ghlContactId: string | undefined = providedContactId;
-    let quoteId: string | undefined;
     const hasGHLToken = await ghlTokenExists().catch(() => false);
     
     if (hasGHLToken) {
@@ -450,11 +454,14 @@ export async function POST(request: NextRequest) {
         }
 
         // Create Quote custom object in GHL
+        // IMPORTANT: Always attempt to create quote in GHL, even if it fails we'll store in KV
+        let quoteCustomFields: Record<string, string> = {};
+        let ghlQuoteCreated = false;
+        
         if (ghlContactId) {
-          let quoteCustomFields: Record<string, string> = {};
           try {
-            // Generate unique quote_id
-            const generatedQuoteId = randomUUID();
+            // Use the already-generated quoteId for the quote_id field
+            // This ensures consistency between the URL quoteId and the stored quote_id
             
             // Build service address string
             const addressParts = [
@@ -523,7 +530,7 @@ export async function POST(request: NextRequest) {
             // IMPORTANT: For GHL API, use just the field names (without custom_objects.quotes. prefix)
             // The prefix is only used in GHL templates/workflows, not in API requests
             quoteCustomFields = {
-              'quote_id': generatedQuoteId,
+              'quote_id': generatedQuoteId, // Use the generated UUID for quote_id field
               'service_address': serviceAddress,
               'square_footage': String(body.squareFeet || ''),
               'type': mappedServiceType,
@@ -552,18 +559,23 @@ export async function POST(request: NextRequest) {
               }
             );
 
-            // Use the ID returned from GHL as the quote ID for the URL
-            // The quote_id field in customFields is for reference, but the object ID is what we use for the URL
-            quoteId = quoteObject.id;
+            // Use the ID returned from GHL as the quote ID for the URL (if available)
+            // If GHL returns an ID, use it; otherwise keep the generated UUID
+            // The quote_id field in customFields stores the UUID for reference
+            if (quoteObject?.id) {
+              quoteId = quoteObject.id;
+              ghlQuoteCreated = true;
+            }
+            // If quoteObject.id is not available, quoteId already has the generatedQuoteId as fallback
             console.log('✅ Quote custom object created in GHL:', {
               objectId: quoteObject.id,
               quoteIdField: generatedQuoteId,
               contactId: ghlContactId,
             });
           } catch (quoteError) {
-            // Custom object creation failed - log detailed error but don't block quote delivery
+            // Custom object creation failed - log detailed error
             const errorMessage = quoteError instanceof Error ? quoteError.message : String(quoteError);
-            console.error('⚠️ Failed to create Quote custom object (quote still delivered):', errorMessage);
+            console.error('⚠️ Failed to create Quote custom object in GHL:', errorMessage);
             console.error('📋 Quote object creation error details:', {
               error: errorMessage,
               contactId: ghlContactId,
@@ -574,9 +586,12 @@ export async function POST(request: NextRequest) {
                 '2. The object has fields matching these keys: ' + Object.keys(quoteCustomFields).join(', ') + '\n' +
                 '3. Your API token has objects/record.write scope enabled',
             });
-            // Don't throw - quote should still be delivered even if custom object creation fails
+            // Don't throw - quote will be stored in KV as backup
             // The quote was successfully calculated and contact was created, so we continue
           }
+        } else {
+          // No contact ID - still prepare quoteCustomFields for KV storage
+          console.log('⚠️ No GHL contact ID available - quote will be stored in KV only');
         }
 
         // Create note if enabled
@@ -601,6 +616,43 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ALWAYS store quote data in KV (required for API access)
+    // This ensures quotes are always accessible via the API endpoint, even if GHL creation fails
+    // The quoteId is always generated, so this will always execute
+    try {
+      const kv = getKV();
+      const quoteData = {
+        outOfLimits: false,
+        multiplier: result.multiplier,
+        inputs: result.inputs,
+        ranges: result.ranges,
+        initialCleaningRequired: result.initialCleaningRequired,
+        initialCleaningRecommended: result.initialCleaningRecommended,
+        summaryText,
+        smsText,
+        ghlContactId,
+        serviceType: body.serviceType,
+        frequency: body.frequency,
+        createdAt: new Date().toISOString(),
+        // Store GHL quote creation status for debugging
+        ghlQuoteCreated: ghlQuoteCreated || false,
+        // Store the original quote custom fields for potential retry
+        quoteCustomFields: Object.keys(quoteCustomFields).length > 0 ? quoteCustomFields : undefined,
+      };
+      // Store with 30 day expiration (for tracking purposes)
+      await kv.setex(`quote:${quoteId}`, 60 * 60 * 24 * 30, JSON.stringify(quoteData));
+      console.log(`✅ Stored quote data in KV (always accessible via API): ${quoteId}`);
+      
+      // If GHL creation failed but we have the data, log for potential retry
+      if (!ghlQuoteCreated && ghlContactId && Object.keys(quoteCustomFields).length > 0) {
+        console.warn(`⚠️ Quote ${quoteId} stored in KV but not in GHL - may need manual retry`);
+      }
+    } catch (kvError) {
+      // KV storage failure is critical - log as error but don't block response
+      console.error('❌ CRITICAL: Failed to store quote in KV - quote may not be accessible via API:', kvError);
+      // Still return the quoteId so redirect can happen, but user should be aware
+    }
+
     return NextResponse.json({
       outOfLimits: false,
       multiplier: result.multiplier,
@@ -611,7 +663,7 @@ export async function POST(request: NextRequest) {
       summaryText,
       smsText,
       ghlContactId,
-      quoteId, // Include quoteId if it was created
+      quoteId, // Always include quoteId (generated UUID, or GHL object ID if available)
     });
   } catch (error) {
     console.error('Error calculating quote:', error);
