@@ -857,10 +857,10 @@ export async function createCustomObject(
     
     // Build payloads with both field formats
     // Some endpoints may need full paths, others may need short names
-    // Include contactId if provided to associate the custom object with a contact
+    // Note: contactId cannot be included in the creation payload (GHL returns 422 error)
+    // We'll associate the contact after creation using the associations API
     const payloadFullPath: Record<string, any> = {
       locationId: finalLocationId,
-      ...(data.contactId && { contactId: data.contactId }),
       ...(Object.keys(propertiesFullPath).length > 0 && {
         properties: propertiesFullPath,
       }),
@@ -868,7 +868,6 @@ export async function createCustomObject(
     
     const payloadShortName: Record<string, any> = {
       locationId: finalLocationId,
-      ...(data.contactId && { contactId: data.contactId }),
       ...(Object.keys(propertiesShortName).length > 0 && {
         properties: propertiesShortName,
       }),
@@ -1041,18 +1040,24 @@ export async function createCustomObject(
       throw new Error('Invalid response from GHL API - could not find custom object in response');
     }
     
-    // If contactId was provided but not in the response, try to associate it via associations API
-    if (data.contactId && !customObject.contactId) {
+    // GHL doesn't accept contactId in the creation payload, so we must associate it after creation
+    // Always try to associate if contactId was provided
+    if (data.contactId) {
       try {
-        console.log(`Attempting to associate custom object ${customObject.id} with contact ${data.contactId}...`);
-        await associateCustomObjectWithContact(
-          objectIdToUse || schemaFields?.object?.id || KNOWN_OBJECT_IDS.quotes || '',
-          customObject.id,
-          data.contactId,
-          finalLocationId
-        );
-        console.log(`✅ Successfully associated custom object with contact`);
-        customObject.contactId = data.contactId;
+        const objectIdForAssociation = objectIdToUse || schemaFields?.object?.id || KNOWN_OBJECT_IDS.quotes;
+        if (objectIdForAssociation) {
+          console.log(`Associating custom object ${customObject.id} with contact ${data.contactId}...`);
+          await associateCustomObjectWithContact(
+            objectIdForAssociation,
+            customObject.id,
+            data.contactId,
+            finalLocationId
+          );
+          console.log(`✅ Successfully associated custom object with contact`);
+          customObject.contactId = data.contactId;
+        } else {
+          console.warn(`⚠️ Cannot associate custom object - object ID not available`);
+        }
       } catch (assocError) {
         console.warn(`⚠️ Could not associate custom object with contact (non-blocking):`, assocError instanceof Error ? assocError.message : String(assocError));
         // Don't throw - the object was created successfully, association is optional
@@ -1068,7 +1073,7 @@ export async function createCustomObject(
 
 /**
  * Associate a custom object with a contact using GHL Associations API
- * This is used as a fallback if contactId in the creation payload doesn't work
+ * GHL doesn't accept contactId in the creation payload, so association must be done separately
  */
 async function associateCustomObjectWithContact(
   objectId: string,
