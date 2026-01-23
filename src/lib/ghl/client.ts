@@ -703,13 +703,29 @@ export async function createCustomObject(
 
     // GHL API payload format for creating records
     // According to docs: POST /objects/{schemaKey}/records
+    // The API expects "properties" as an object with field keys as properties
+    // NOT "customFields" as an array
+    const properties: Record<string, any> = {};
+    
+    if (customFieldsArray && customFieldsArray.length > 0) {
+      // Convert array format to object format
+      customFieldsArray.forEach((field) => {
+        properties[field.key] = field.value;
+      });
+    }
+    
+    // Build payload - contactId might need to be in properties or might not be allowed
+    // Try without contactId first, then with it if needed
     const payload: Record<string, any> = {
       locationId: finalLocationId,
-      ...(data.contactId && { contactId: data.contactId }),
-      ...(customFieldsArray && customFieldsArray.length > 0 && {
-        customFields: customFieldsArray,
+      ...(Object.keys(properties).length > 0 && {
+        properties: properties,
       }),
     };
+    
+    // Note: The error said "property contactId should not exist"
+    // So we'll try without contactId first. If association is needed, it might be done differently
+    // or contactId might need to be in properties
 
     console.log('📝 Creating custom object with payload:', {
       endpoint: 'POST /objects/{schemaKey}/records',

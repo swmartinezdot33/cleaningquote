@@ -520,54 +520,37 @@ export async function POST(request: NextRequest) {
               mappedCleanedInLast3Months = 'not_sure';
             }
             
+            // IMPORTANT: For GHL API, use just the field names (without custom_objects.quotes. prefix)
+            // The prefix is only used in GHL templates/workflows, not in API requests
             quoteCustomFields = {
-              'custom_objects.quotes.quote_id': generatedQuoteId,
-              'custom_objects.quotes.service_address': serviceAddress,
-              'custom_objects.quotes.square_footage': String(body.squareFeet || ''),
-              'custom_objects.quotes.type': mappedServiceType,
-              'custom_objects.quotes.frequency': mappedFrequency,
-              'custom_objects.quotes.full_baths': String(body.fullBaths || 0),
-              'custom_objects.quotes.half_baths': String(body.halfBaths || 0),
-              'custom_objects.quotes.bedrooms': String(body.bedrooms || 0),
-              'custom_objects.quotes.people_in_home': String(body.people || 0),
-              'custom_objects.quotes.shedding_pets': String(body.sheddingPets || 0),
-              'custom_objects.quotes.current_condition': mappedCondition,
-              'custom_objects.quotes.cleaning_service_prior': mappedCleaningServicePrior,
-              'custom_objects.quotes.cleaned_in_last_3_months': mappedCleanedInLast3Months,
+              'quote_id': generatedQuoteId,
+              'service_address': serviceAddress,
+              'square_footage': String(body.squareFeet || ''),
+              'type': mappedServiceType,
+              'frequency': mappedFrequency,
+              'full_baths': String(body.fullBaths || 0),
+              'half_baths': String(body.halfBaths || 0),
+              'bedrooms': String(body.bedrooms || 0),
+              'people_in_home': String(body.people || 0),
+              'shedding_pets': String(body.sheddingPets || 0),
+              'current_condition': mappedCondition,
+              'cleaning_service_prior': mappedCleaningServicePrior,
+              'cleaned_in_last_3_months': mappedCleanedInLast3Months,
             };
             
             // Note: quote_range_low and quote_range_high are not in the schema
             // If you want to store these, you'll need to add them as fields in GHL first
 
             // Create Quote custom object
-            // Based on GHL UI, the Internal Name is "custom_objects.quotes"
-            // The createCustomObject function will try multiple schemaKey variations automatically
-            // It will try "custom_objects.quotes" first (the full internal name), then "quotes"
-            let quoteObject;
-            try {
-              quoteObject = await createCustomObject(
-                'custom_objects.quotes', // Try full internal name first (matches GHL UI Internal Name)
-                {
-                  contactId: ghlContactId,
-                  customFields: quoteCustomFields,
-                }
-              );
-            } catch (error) {
-              // If full internal name fails, try just "quotes" (the key part)
-              console.log('⚠️ Failed with "custom_objects.quotes", trying "quotes"...');
-              try {
-                quoteObject = await createCustomObject(
-                  'quotes',
-                  {
-                    contactId: ghlContactId,
-                    customFields: quoteCustomFields,
-                  }
-                );
-              } catch (secondError) {
-                // Both attempts failed, throw to be caught by outer catch
-                throw secondError;
+            // The schemaKey should be just "quotes" (not "custom_objects.quotes")
+            // The customFields keys should be just the field names (not "custom_objects.quotes.field_name")
+            const quoteObject = await createCustomObject(
+              'quotes', // Schema key is just "quotes" (lowercase plural)
+              {
+                contactId: ghlContactId,
+                customFields: quoteCustomFields,
               }
-            }
+            );
 
             // Use the ID returned from GHL as the quote ID for the URL
             // The quote_id field in customFields is for reference, but the object ID is what we use for the URL
