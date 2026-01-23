@@ -93,16 +93,6 @@ export default function AdminPage() {
 
   const watchedRows = watch('rows');
 
-  // Track Meta Pixel PageView on admin page load
-  useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).fbq) {
-      (window as any).fbq('track', 'PageView', {
-        content_name: 'Admin Dashboard',
-        page_path: '/admin',
-      });
-    }
-  }, []);
-
   useEffect(() => {
     // Check if password is stored in sessionStorage
     const storedPassword = sessionStorage.getItem('admin_password');

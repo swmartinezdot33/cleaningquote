@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { kv } from "@vercel/kv"
+import { TrackingScripts } from "@/components/TrackingScripts"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -53,83 +54,6 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* Google Analytics */}
-        {trackingCodes.googleAnalyticsId && (
-          <>
-            <script
-              async
-              src={`https://www.googletagmanager.com/gtag/js?id=${trackingCodes.googleAnalyticsId}`}
-            />
-            <script
-              dangerouslySetInnerHTML={{
-                __html: `
-                  window.dataLayer = window.dataLayer || [];
-                  function gtag(){dataLayer.push(arguments);}
-                  gtag('js', new Date());
-                  gtag('config', '${trackingCodes.googleAnalyticsId}');
-                `,
-              }}
-            />
-          </>
-        )}
-
-        {/* Google Ads Conversion Tracking - gtag.js */}
-        {trackingCodes.googleAdsConversionId && (
-          <>
-            <script
-              async
-              src={`https://www.googletagmanager.com/gtag/js?id=${trackingCodes.googleAdsConversionId}`}
-            />
-            <script
-              dangerouslySetInnerHTML={{
-                __html: `
-                  window.dataLayer = window.dataLayer || [];
-                  function gtag(){dataLayer.push(arguments);}
-                  gtag('js', new Date());
-                  gtag('config', '${trackingCodes.googleAdsConversionId}');
-                `,
-              }}
-            />
-          </>
-        )}
-
-        {/* Google Tag Manager */}
-        {trackingCodes.googleTagManagerId && (
-          <script
-            async
-            src={`https://www.googletagmanager.com/gtm.js?id=${trackingCodes.googleTagManagerId}`}
-          />
-        )}
-
-        {/* Meta Pixel / Facebook Pixel */}
-        {trackingCodes.metaPixelId && (
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-                !function(f,b,e,v,n,t,s)
-                {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-                n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-                if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-                n.queue=[];t=b.createElement(e);t.async=!0;
-                t.src=v;s=b.getElementsByTagName(e)[0];
-                s.parentNode.insertBefore(t,s)}(window, document,'script',
-                'https://connect.facebook.net/en_US/fbevents.js');
-                fbq('init', '${trackingCodes.metaPixelId}');
-                fbq('track', 'PageView');
-              `,
-            }}
-          />
-        )}
-
-        {/* Custom Head Code */}
-        {trackingCodes.customHeadCode && (
-          <script
-            dangerouslySetInnerHTML={{
-              __html: trackingCodes.customHeadCode,
-            }}
-          />
-        )}
-
         {/* Google Maps API with Places library - required for autocomplete and geocoding */}
         {googleMapsApiKey && (
           <script
@@ -139,7 +63,11 @@ export default async function RootLayout({
           />
         )}
       </head>
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        {/* Tracking scripts - EXCLUDED on admin pages */}
+        <TrackingScripts trackingCodes={trackingCodes} />
+        {children}
+      </body>
     </html>
   )
 }
