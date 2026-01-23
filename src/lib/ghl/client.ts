@@ -204,10 +204,12 @@ export async function createOrUpdateContact(
     if (!response.ok) {
       // Try to get error message from response
       let errorMessage = `GHL API Error (${response.status})`;
+      let errorData: any = null;
+      
       if (responseText && responseText.trim().length > 0) {
         try {
-          const errorData = JSON.parse(responseText);
-          errorMessage = `${errorMessage}: ${errorData.message || JSON.stringify(errorData)}`;
+          errorData = JSON.parse(responseText);
+          errorMessage = `${errorMessage}: ${errorData.message || errorData.error || JSON.stringify(errorData)}`;
         } catch (parseError) {
           // Response is not valid JSON, include raw text
           errorMessage = `${errorMessage}: ${responseText.substring(0, 200)}`;
@@ -216,19 +218,22 @@ export async function createOrUpdateContact(
         errorMessage = `${errorMessage}: Empty response from GHL API`;
       }
       
-      // Enhanced error logging for 404 errors (endpoint not found)
-      if (response.status === 404) {
-        console.error('GHL API 404 Error - Endpoint not found:', {
+      // Enhanced error logging for 400/404 errors
+      if (response.status === 400 || response.status === 404) {
+        console.error(`GHL API ${response.status} Error:`, {
           url,
           status: response.status,
           statusText: response.statusText,
           responseText: responseText || '(empty)',
-          payload: {
+          errorData: errorData || '(not JSON)',
+          method: options.method || 'GET',
+          payload: (options.method === 'POST' && payload) ? {
             hasLocationId: !!payload.locationId,
             locationId: payload.locationId,
-            firstName: payload.firstName,
-            lastName: payload.lastName,
-          },
+            hasContactId: !!payload.contactId,
+            customFieldsCount: payload.customFields?.length || 0,
+            customFieldsKeys: payload.customFields?.map((f: any) => f.key) || [],
+          } : undefined,
         });
       }
       
@@ -484,12 +489,49 @@ export async function getObjectSchema(schemaKey: string, locationId?: string): P
       throw new Error('Location ID is required. Please configure it in the admin settings.');
     }
 
-    // GHL API: GET /objects/{schemaKey}?locationId={locationId}
-    const endpoint = `/objects/${schemaKey}?locationId=${finalLocationId}`;
-    const response = await makeGHLRequest<any>(
-      endpoint,
-      'GET'
-    );
+    // Try multiple endpoint formats for GET /objects/{schemaKey}
+    const endpointsToTry = [
+      `/objects/${schemaKey}?locationId=${finalLocationId}`,  // With query param
+      `/objects/${schemaKey}/${finalLocationId}`,              // With path param
+      `/objects/${schemaKey}`,                                 // Without locationId
+    ];
+
+    let lastError: Error | null = null;
+    let response: any = null;
+
+    for (const endpoint of endpointsToTry) {
+      try {
+        console.log(`Attempting to get object schema at: ${endpoint}`);
+        response = await makeGHLRequest<any>(
+          endpoint,
+          'GET'
+        );
+        console.log(`✅ Successfully retrieved object schema from: ${endpoint}`);
+        console.log('Schema structure:', {
+          hasFields: !!response.fields,
+          hasProperties: !!response.properties,
+          keys: Object.keys(response || {}),
+        });
+        if (response.fields) {
+          console.log('Schema fields:', response.fields.map((f: any) => ({
+            key: f.key || f.name,
+            name: f.name,
+            id: f.id,
+            type: f.type,
+          })));
+        }
+        break; // Success, exit loop
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        console.log(`❌ Failed at ${endpoint}:`, lastError.message);
+        // Continue to next endpoint
+      }
+    }
+
+    if (!response) {
+      console.error('All endpoint attempts failed. Last error:', lastError);
+      throw lastError || new Error(`Failed to get object schema (${schemaKey}) - all endpoint variations failed`);
+    }
 
     return response;
   } catch (error) {
