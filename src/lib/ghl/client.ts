@@ -714,12 +714,14 @@ export async function createCustomObject(
     });
 
     // GHL 2.0 API: POST /objects/{schemaKey}/records
-    // Based on GHL UI template format {{ custom_objects.quotes.field }}, the schema key is "quotes" (lowercase plural)
-    // Try the found schemaKey first, then fallback to common variations
+    // Based on GHL UI template format {{ custom_objects.quotes.field }}, the schema key should be "quotes" (lowercase plural)
+    // However, GHL might use a different internal key. Try multiple variations.
+    // Note: The schema key might be case-sensitive or use a different format internally
     const schemaKeysToTry = actualSchemaKey 
       ? [actualSchemaKey] // Use found schemaKey first
       : [
           'quotes',            // "quotes" (lowercase plural - matches GHL template format {{ custom_objects.quotes.field }})
+          'Quotes',            // "Quotes" (capitalized plural)
           'Quote',              // "Quote" (capitalized singular)
           'quote',              // "quote" (lowercase singular)
           objectType,           // Use provided objectType
@@ -776,8 +778,12 @@ export async function createCustomObject(
       } else if (isInvalidKey) {
         errorMsg = `Failed to create custom object - "Invalid Key Passed" error. This usually means:\n` +
           `1. The Quote custom object schema doesn't exist in your GHL account (create it in Settings > Custom Objects)\n` +
-          `2. The field keys don't match your schema. Expected keys: ${customFieldsArray?.map(f => f.key).join(', ')}\n` +
-          `3. The schema key name is different. Please check the exact name in your GHL Custom Objects settings.`;
+          `2. The schema key is different than expected. Tried: ${uniqueSchemaKeys.join(', ')}\n` +
+          `3. The field keys don't match your schema. We're using: ${customFieldsArray?.map(f => f.key).join(', ')}\n` +
+          `\nTo fix:\n` +
+          `- Create a custom object named "quotes" (or check the exact name in GHL)\n` +
+          `- Ensure it has these fields: ${customFieldsArray?.map(f => f.key).join(', ')}\n` +
+          `- The field names must match exactly (case-sensitive)`;
       } else if (isNotFound) {
         errorMsg = `Failed to create custom object - Quote schema not found. Please:\n` +
           `1. Create a "Quote" custom object in your GHL account (Settings > Custom Objects)\n` +

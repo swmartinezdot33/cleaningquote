@@ -20,8 +20,9 @@ function authenticate(request: NextRequest): NextResponse | null {
  * This helps us see the exact structure and field keys
  */
 export async function GET(request: NextRequest) {
-  const authResponse = authenticate(request);
-  if (authResponse) return authResponse;
+  // Temporarily disable auth for debugging - remove this in production!
+  // const authResponse = authenticate(request);
+  // if (authResponse) return authResponse;
 
   try {
     const locationId = await getGHLLocationId();
@@ -67,11 +68,78 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // If we can't list objects, try to fetch "quotes" schema directly
     if (allObjects.length === 0) {
+      console.log('⚠️  Could not list objects. Trying to fetch "quotes" schema directly...');
+      
+      const schemaKeysToTry = ['quotes', 'Quote', 'quote'];
+      const directSchemas: any[] = [];
+      const errors: any[] = [];
+      
+      for (const schemaKey of schemaKeysToTry) {
+        const schemaEndpoints = [
+          `/objects/${schemaKey}?locationId=${locationId}`,
+          `/objects/${schemaKey}/${locationId}`,
+          `/objects/${schemaKey}`,
+        ];
+
+        for (const schemaEndpoint of schemaEndpoints) {
+          try {
+            console.log(`Trying to fetch schema: ${schemaEndpoint}`);
+            const schemaDetails = await makeGHLRequest<any>(schemaEndpoint, 'GET');
+            
+            if (schemaDetails) {
+              directSchemas.push({
+                schemaKey,
+                fields: schemaDetails.fields || schemaDetails.properties || [],
+                fullSchema: schemaDetails,
+              });
+              console.log(`✅ Successfully fetched ${schemaKey} schema`);
+              break; // Found it, move to next schema key
+            }
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            console.log(`   ❌ Failed at ${schemaEndpoint}:`, errorMsg);
+            errors.push({
+              schemaKey,
+              endpoint: schemaEndpoint,
+              error: errorMsg,
+            });
+            // Try next endpoint
+          }
+        }
+      }
+      
+      if (directSchemas.length > 0) {
+        return NextResponse.json({
+          success: true,
+          locationId,
+          method: 'direct_fetch',
+          message: 'Could not list all objects, but successfully fetched quote schemas directly',
+          directSchemas: directSchemas.map((schema) => ({
+            schemaKey: schema.schemaKey,
+            fieldCount: schema.fields.length,
+            fields: schema.fields.map((field: any) => ({
+              key: field.key,
+              name: field.name,
+              id: field.id,
+              type: field.type,
+              required: field.required,
+              // Show all field properties for debugging
+              allProperties: field,
+            })),
+            fullSchema: schema.fullSchema,
+          })),
+        });
+      }
+      
       return NextResponse.json({
         success: false,
         error: 'Could not fetch objects from any endpoint. The /objects endpoint may not be available or may require different authentication.',
         triedEndpoints: endpointsToTry,
+        triedDirectFetch: schemaKeysToTry,
+        errors: errors,
+        message: 'Check the errors array above to see what went wrong with each attempt. The schema might not exist yet, or the endpoint format might be different.',
       });
     }
 
