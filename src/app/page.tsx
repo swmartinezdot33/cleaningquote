@@ -265,6 +265,7 @@ export default function Home() {
   const [addressCoordinates, setAddressCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [serviceAreaChecked, setServiceAreaChecked] = useState(false);
   const [formSettings, setFormSettings] = useState<any>({});
+  const [openSurveyInNewTab, setOpenSurveyInNewTab] = useState(false);
   const appointmentFormRef = useRef<HTMLDivElement>(null);
   const callFormRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
@@ -377,6 +378,7 @@ export default function Home() {
       if (response.ok) {
         const data = await response.json();
         setFormSettings(data.formSettings || {});
+        setOpenSurveyInNewTab(data.formSettings?.openSurveyInNewTab || false);
       }
     } catch (error) {
       console.error('Failed to load form settings:', error);
@@ -623,7 +625,67 @@ export default function Home() {
   // Reset form when questions or formSettings change (to apply query parameters)
   useEffect(() => {
     reset(getDefaultValues());
-  }, [questions, formSettings, mounted]);
+    
+    // Handle contact pre-fill when opening with contactId parameter
+    if (mounted && questions.length > 0) {
+      // Check for contactId in URL parameters
+      const params = new URLSearchParams(window.location.search);
+      const contactId = params.get('contactId');
+
+      if (contactId) {
+        console.log('Found contactId in URL:', contactId);
+        
+        // Fetch contact data
+        const fetchAndPreFillContact = async () => {
+          try {
+            const response = await fetch(`/api/contacts/get?contactId=${contactId}`);
+            const result = await response.json();
+
+            if (result.success && result.contact) {
+              console.log('Fetched contact data:', result.contact);
+              const contact = result.contact;
+
+              // Pre-fill form fields using setValue
+              setValue('firstName', contact.firstName || '', { shouldValidate: false });
+              setValue('lastName', contact.lastName || '', { shouldValidate: false });
+              setValue('email', contact.email || '', { shouldValidate: false });
+              setValue('phone', contact.phone || '', { shouldValidate: false });
+              setValue('address', contact.address1 || '', { shouldValidate: false });
+              setValue('city', contact.city || '', { shouldValidate: false });
+              setValue('state', contact.state || '', { shouldValidate: false });
+              setValue('postalCode', contact.postalCode || '', { shouldValidate: false });
+              setValue('country', contact.country || 'US', { shouldValidate: false });
+
+              // Set the contact ID
+              setGHLContactId(contactId);
+
+              // Mark service area as checked (skip service area check)
+              setServiceAreaChecked(true);
+
+              // Find the address question index
+              const addressQuestionIndex = questions.findIndex(q => q.type === 'address');
+              
+              if (addressQuestionIndex !== -1) {
+                // Set current step to the question after address
+                const nextIndex = addressQuestionIndex + 1;
+                if (nextIndex < questions.length) {
+                  setCurrentStep(nextIndex);
+                }
+              }
+            } else {
+              console.warn('Failed to fetch contact:', result.message);
+              // Continue with normal flow
+            }
+          } catch (error) {
+            console.error('Error fetching contact for pre-fill:', error);
+            // Continue with normal flow
+          }
+        };
+
+        fetchAndPreFillContact();
+      }
+    }
+  }, [questions, formSettings, mounted, setValue, reset, setGHLContactId, setServiceAreaChecked, setCurrentStep]);
 
   // Detect browser autofill and auto-advance
   useEffect(() => {
@@ -949,6 +1011,22 @@ export default function Home() {
             console.log('Contact created in GHL:', result.ghlContactId);
             // Store the contact ID for later use
             setGHLContactId(result.ghlContactId);
+            
+            // If openSurveyInNewTab is enabled, open new tab with contact ID
+            if (openSurveyInNewTab) {
+              const newTabUrl = `${window.location.origin}/?contactId=${result.ghlContactId}`;
+              console.log('Opening new tab for survey continuation:', newTabUrl);
+              window.open(newTabUrl, '_blank');
+              // Show a message to the user
+              setDirection(1);
+              const nextIndex = getNextQuestionIndex(currentStep, fieldName);
+              if (nextIndex >= questions.length) {
+                handleFormSubmit();
+              } else {
+                setCurrentStep(nextIndex);
+              }
+              return;
+            }
           } else {
             console.warn('Failed to create contact in GHL:', result.message);
           }

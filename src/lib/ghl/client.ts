@@ -841,3 +841,77 @@ export async function testGHLConnection(token?: string): Promise<{ success: bool
     return { success: false, error: `Connection test failed: ${errorMessage}` };
   }
 }
+
+/**
+ * Fetch a contact from GHL by contact ID
+ * Used to pre-fill form when opening survey continuation in new tab
+ */
+export async function getContactById(
+  contactId: string,
+  token?: string,
+  locationId?: string
+): Promise<GHLContactResponse> {
+  try {
+    // Use provided token or get from stored settings
+    const finalToken = token || (await getGHLToken());
+    
+    // Use provided locationId, or get from stored settings
+    const finalLocationId = locationId || (await getGHLLocationId());
+    
+    if (!finalToken) {
+      throw new Error('GHL API token is required but not configured');
+    }
+
+    const url = `${GHL_API_BASE}/contacts/${contactId}`;
+    
+    const options: RequestInit = {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${finalToken}`,
+        'Content-Type': 'application/json',
+        'Version': '2021-07-28', // GHL 2.0 API version
+      },
+    };
+
+    const response = await fetch(url, options);
+    const responseText = await response.text();
+
+    if (!response.ok) {
+      let errorMessage = `GHL API Error (${response.status})`;
+      if (responseText && responseText.trim().length > 0) {
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = `${errorMessage}: ${errorData.message || JSON.stringify(errorData)}`;
+        } catch (parseError) {
+          errorMessage = `${errorMessage}: ${responseText.substring(0, 200)}`;
+        }
+      }
+      throw new Error(errorMessage);
+    }
+
+    if (!responseText || responseText.trim().length === 0) {
+      throw new Error('Empty response from GHL API');
+    }
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Failed to parse GHL API response:', parseError);
+      throw new Error('Invalid response from GHL API - could not parse JSON');
+    }
+
+    // Handle different response structures
+    const contact = data.contact || data;
+    
+    if (!contact || !contact.id) {
+      console.error('GHL API response missing contact or contact.id:', data);
+      throw new Error('Invalid response from GHL API - missing contact or contact.id');
+    }
+
+    return contact;
+  } catch (error) {
+    console.error('Failed to fetch contact by ID:', error);
+    throw error;
+  }
+}

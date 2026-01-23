@@ -9,6 +9,7 @@ export interface FormSettings {
   emailParam?: string;
   phoneParam?: string;
   addressParam?: string;
+  openSurveyInNewTab?: boolean;
 }
 
 /**
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest) {
       emailParam,
       phoneParam,
       addressParam,
+      openSurveyInNewTab,
     } = body;
 
     // Build form settings object (only include non-empty values)
@@ -70,6 +72,7 @@ export async function POST(request: NextRequest) {
     if (emailParam?.trim()) formSettings.emailParam = emailParam.trim();
     if (phoneParam?.trim()) formSettings.phoneParam = phoneParam.trim();
     if (addressParam?.trim()) formSettings.addressParam = addressParam.trim();
+    if (typeof openSurveyInNewTab === 'boolean') formSettings.openSurveyInNewTab = openSurveyInNewTab;
 
     await kv.set(FORM_SETTINGS_KEY, formSettings);
 
