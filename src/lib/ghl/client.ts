@@ -1094,12 +1094,15 @@ async function associateCustomObjectWithContact(
   ];
   
   // Try different targetKey variations (GHL may use different naming)
+  // Priority: schema key format (custom_objects.quotes) > object name (quotes) > object ID
   const targetKeyVariations = [
-    'Quote',
-    'quotes',
-    'custom_objects.quotes',
-    objectId, // Use object ID as targetKey
+    'custom_objects.quotes', // Most common format for custom objects
+    'quotes', // Simple plural form
+    'Quote', // Capitalized singular
+    'quote', // Lowercase singular
   ];
+  
+  const errors: string[] = [];
   
   for (const endpoint of endpointsToTry) {
     for (const targetKey of targetKeyVariations) {
@@ -1107,7 +1110,7 @@ async function associateCustomObjectWithContact(
         // GHL associations API expects:
         // - sourceKey: 'Contact' (for contacts)
         // - sourceId: contactId
-        // - targetKey: custom object schema key or object name
+        // - targetKey: custom object schema key (e.g., 'custom_objects.quotes')
         // - targetId: recordId (the custom object record ID)
         const payload = {
           locationId,
@@ -1117,22 +1120,35 @@ async function associateCustomObjectWithContact(
           targetId: recordId,
         };
         
-        console.log(`Attempting to associate at: ${endpoint} with targetKey: ${targetKey}`);
-        await makeGHLRequest<any>(
+        console.log(`🔗 Attempting to associate custom object with contact:`, {
+          endpoint,
+          targetKey,
+          sourceId: contactId,
+          targetId: recordId,
+          locationId,
+        });
+        
+        const response = await makeGHLRequest<any>(
           endpoint,
           'POST',
           payload
         );
-        console.log(`✅ Successfully associated at: ${endpoint} with targetKey: ${targetKey}`);
+        
+        console.log(`✅ Successfully associated custom object ${recordId} with contact ${contactId} using targetKey: ${targetKey}`);
         return; // Success
       } catch (error) {
-        console.log(`❌ Failed to associate at ${endpoint} with targetKey ${targetKey}:`, error instanceof Error ? error.message : String(error));
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        errors.push(`${endpoint} with targetKey "${targetKey}": ${errorMsg}`);
+        console.log(`❌ Failed to associate at ${endpoint} with targetKey ${targetKey}:`, errorMsg);
         // Try next variation
       }
     }
   }
   
-  throw new Error('Failed to associate custom object with contact - all endpoint variations failed');
+  // If all variations failed, throw with detailed error info
+  const errorMessage = `Failed to associate custom object with contact - all endpoint variations failed:\n${errors.join('\n')}`;
+  console.error('❌ Association failed:', errorMessage);
+  throw new Error(errorMessage);
 }
 
 /**

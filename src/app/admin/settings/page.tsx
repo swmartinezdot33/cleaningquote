@@ -147,6 +147,15 @@ export default function SettingsPage() {
 
   const isCardExpanded = (cardId: string) => expandedCards.has(cardId);
 
+  // Track Meta Pixel PageView on admin settings page load
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).fbq) {
+      (window as any).fbq('track', 'PageView', {
+        content_name: 'Admin Settings',
+        page_path: '/admin/settings',
+      });
+    }
+  }, []);
 
   // Check authentication
   useEffect(() => {

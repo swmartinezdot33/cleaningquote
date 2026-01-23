@@ -41,6 +41,16 @@ export default function SurveyBuilderPage() {
   const [ghlFieldSearchTerm, setGhlFieldSearchTerm] = useState('');
   const [ghlFieldDropdownOpen, setGhlFieldDropdownOpen] = useState(false);
 
+  // Track Meta Pixel PageView on admin survey builder page load
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).fbq) {
+      (window as any).fbq('track', 'PageView', {
+        content_name: 'Admin Survey Builder',
+        page_path: '/admin/survey-builder',
+      });
+    }
+  }, []);
+
   useEffect(() => {
     const storedPassword = sessionStorage.getItem('admin_password');
     if (storedPassword) {
