@@ -438,16 +438,52 @@ export async function createCustomObject(
     };
 
     // GHL 2.0 API: Use custom-objects endpoint
-    // Endpoint format: /custom-objects/{objectType}/records
-    const response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
-      `/custom-objects/${objectType}/records`,
-      'POST',
-      payload
-    );
+    // Try multiple endpoint formats - GHL API might use different structures
+    // Based on unique keys showing "custom_objects.quotes", object type should be "quotes" (lowercase, plural)
+    // According to GHL API docs, the endpoint might be /objects/{objectType} or /custom-objects/{objectType}
+    const endpointsToTry = [
+      `/objects/${objectType}`,                   // Try /objects first (might be the correct base path)
+      `/objects/${objectType}/records`,            // With /records
+      `/custom-objects/${objectType}`,            // Without /records
+      `/custom-objects/${objectType}/records`,    // With /records
+    ];
+    
+    // If objectType is lowercase plural, also try capitalized singular
+    if (objectType === 'quotes') {
+      endpointsToTry.push(`/objects/Quote`);
+      endpointsToTry.push(`/objects/Quote/records`);
+      endpointsToTry.push(`/custom-objects/Quote`);
+      endpointsToTry.push(`/custom-objects/Quote/records`);
+    }
+    
+    let lastError: Error | null = null;
+    let response: any = null;
+    
+    for (const endpoint of endpointsToTry) {
+      try {
+        console.log(`Attempting to create custom object at endpoint: ${endpoint}`);
+        response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
+          endpoint,
+          'POST',
+          payload
+        );
+        console.log(`✅ Successfully created custom object at: ${endpoint}`);
+        break; // Success, exit loop
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        console.log(`❌ Failed at ${endpoint}:`, lastError.message);
+        // Continue to next endpoint
+      }
+    }
+    
+    if (!response) {
+      console.error('All endpoint attempts failed. Last error:', lastError);
+      throw lastError || new Error('Failed to create custom object - all endpoint variations failed');
+    }
 
     // GHL may return the object directly or wrapped in a key
     // Try to find the object in the response
-    const customObject = response[objectType] || response[objectType.slice(0, -1)] || response.record || response;
+    const customObject = response[objectType] || response[objectType.slice(0, -1)] || response.Quote || response.record || response;
     
     return customObject as GHLCustomObjectResponse;
   } catch (error) {
@@ -474,29 +510,45 @@ export async function getCustomObjectById(
     }
 
     // For GET requests, locationId should be in query string, not body
-    // GHL 2.0 API: Use custom-objects endpoint
-    // Endpoint format: /custom-objects/{objectType}/records/{id}?locationId={locationId}
-    // Try both lowercase and capitalized object type names
-    let endpoint = `/custom-objects/${objectType}/records/${objectId}?locationId=${finalLocationId}`;
-    let response;
+    // GHL 2.0 API: Try multiple endpoint formats
+    // Try /objects first, then /custom-objects
+    const endpointsToTry = [
+      `/objects/${objectType}/${objectId}?locationId=${finalLocationId}`,
+      `/objects/${objectType}/records/${objectId}?locationId=${finalLocationId}`,
+      `/custom-objects/${objectType}/${objectId}?locationId=${finalLocationId}`,
+      `/custom-objects/${objectType}/records/${objectId}?locationId=${finalLocationId}`,
+    ];
     
-    try {
-      response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
-        endpoint,
-        'GET'
-      );
-    } catch (error) {
-      // If lowercase fails, try capitalized
-      if (objectType === 'quotes') {
-        console.log('Failed with "quotes", trying "Quote" (capitalized) for GET...');
-        endpoint = `/custom-objects/Quote/records/${objectId}?locationId=${finalLocationId}`;
+    // If objectType is lowercase plural, also try capitalized singular
+    if (objectType === 'quotes') {
+      endpointsToTry.push(`/objects/Quote/${objectId}?locationId=${finalLocationId}`);
+      endpointsToTry.push(`/objects/Quote/records/${objectId}?locationId=${finalLocationId}`);
+      endpointsToTry.push(`/custom-objects/Quote/${objectId}?locationId=${finalLocationId}`);
+      endpointsToTry.push(`/custom-objects/Quote/records/${objectId}?locationId=${finalLocationId}`);
+    }
+    
+    let lastError: Error | null = null;
+    let response: any = null;
+    
+    for (const endpoint of endpointsToTry) {
+      try {
+        console.log(`Attempting to get custom object at endpoint: ${endpoint}`);
         response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
           endpoint,
           'GET'
         );
-      } else {
-        throw error;
+        console.log(`✅ Successfully retrieved custom object from: ${endpoint}`);
+        break; // Success, exit loop
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        console.log(`❌ Failed at ${endpoint}:`, lastError.message);
+        // Continue to next endpoint
       }
+    }
+    
+    if (!response) {
+      console.error('All endpoint attempts failed. Last error:', lastError);
+      throw lastError || new Error('Failed to get custom object - all endpoint variations failed');
     }
 
     // GHL may return the object directly or wrapped in a key
