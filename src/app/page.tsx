@@ -1427,10 +1427,6 @@ export default function Home() {
                   animate={{ opacity: 1, y: 0 }}
                   className="text-center mb-8"
                 >
-                  <h2 className="text-4xl font-bold text-gray-900 mb-2">Your Perfect Quote</h2>
-                  <p className="text-xl text-gray-600">
-                    Professional cleaning, personalized pricing
-                  </p>
                 </motion.div>
 
                 {/* Beautiful Quote Card - DAZZLED UP */}
