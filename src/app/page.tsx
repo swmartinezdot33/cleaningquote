@@ -269,6 +269,7 @@ export default function Home() {
   const [quoteSchema, setQuoteSchema] = useState<z.ZodObject<any>>(generateSchemaFromQuestions([]));
   const [addressCoordinates, setAddressCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [serviceAreaChecked, setServiceAreaChecked] = useState(false);
+  const [tabOpened, setTabOpened] = useState(false); // Prevent multiple tab opens
   const [formSettings, setFormSettings] = useState<any>({});
   const [openSurveyInNewTab, setOpenSurveyInNewTab] = useState(false);
   const appointmentFormRef = useRef<HTMLDivElement>(null);
@@ -943,6 +944,7 @@ export default function Home() {
       }
 
       // Check if this is an address question - if so, check service area
+      // IMPORTANT: Only check if not already checked (prevents duplicate tab opens)
       if (currentQuestion.type === 'address' && addressCoordinates && !serviceAreaChecked) {
         // Validate coordinates are not 0,0 (invalid/unknown location)
         if (addressCoordinates.lat === 0 && addressCoordinates.lng === 0) {
@@ -1013,8 +1015,11 @@ export default function Home() {
           // Trigger Google Ads conversion for in-service lead
           triggerGoogleAdsConversion();
           
-          if (openSurveyInNewTab && createdContactId) {
+          if (openSurveyInNewTab && createdContactId && !tabOpened) {
             console.log('Opening survey continuation in new tab with contactId:', createdContactId);
+            // Mark as checked and tab opened BEFORE opening tab to prevent duplicate opens
+            setServiceAreaChecked(true);
+            setTabOpened(true);
             window.open(`/?contactId=${createdContactId}`, '_blank');
             return;
           }
@@ -2529,14 +2534,17 @@ export default function Home() {
 
                                       // In service area - check if we should open survey in new tab
                                       console.log('Auto-advance: In-service area. openSurveyInNewTab:', openSurveyInNewTab, 'createdContactId:', createdContactId);
-                                      if (openSurveyInNewTab && createdContactId) {
+                                      // Mark as checked BEFORE opening tab to prevent duplicate opens
+                                      setServiceAreaChecked(true);
+                                      
+                                      if (openSurveyInNewTab && createdContactId && !tabOpened) {
                                         console.log('Auto-advance: Opening survey continuation in new tab with contactId:', createdContactId);
+                                        setTabOpened(true);
                                         window.open(`/?contactId=${createdContactId}`, '_blank');
                                         return;
                                       }
                                       
-                                      // Mark as checked and advance
-                                      setServiceAreaChecked(true);
+                                      // Advance to next step
                                       nextStep();
                                     } else {
                                       // Out of service area - redirect directly without advancing
