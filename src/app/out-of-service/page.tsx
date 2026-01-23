@@ -19,14 +19,21 @@ export default function OutOfService() {
   const [mounted, setMounted] = useState(false);
   const [primaryColor, setPrimaryColor] = useState('#f61590');
   const [locationData, setLocationData] = useState<LocationData | null>(null);
+  const [contactId, setContactId] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
     loadWidgetSettings();
 
-    // Try to get location data from session storage or URL params
+    // Try to get location data and contact ID from URL params
     const params = new URLSearchParams(window.location.search);
     const dataStr = params.get('data');
+    const cId = params.get('contactId');
+    
+    if (cId) {
+      setContactId(cId);
+    }
+    
     if (dataStr) {
       try {
         const data = JSON.parse(decodeURIComponent(dataStr));
@@ -54,6 +61,13 @@ export default function OutOfService() {
     const g = parseInt(hex.slice(3, 5), 16);
     const b = parseInt(hex.slice(5, 7), 16);
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
+  const getStartQuoteUrl = () => {
+    if (contactId) {
+      return `/?contactId=${contactId}&fromOutOfService=true`;
+    }
+    return '/';
   };
 
   if (!mounted) {
@@ -162,7 +176,7 @@ export default function OutOfService() {
               </div>
 
               <div className="flex flex-col gap-3 mt-10">
-                <Link href="/" className="w-full">
+                <Link href={getStartQuoteUrl()} className="w-full">
                   <Button className="w-full h-12 text-base font-bold" size="lg">
                     <ArrowLeft className="mr-2 h-5 w-5" />
                     Start New Quote

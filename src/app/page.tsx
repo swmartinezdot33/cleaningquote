@@ -631,6 +631,7 @@ export default function Home() {
       // Check for contactId in URL parameters
       const params = new URLSearchParams(window.location.search);
       const contactId = params.get('contactId');
+      const fromOutOfService = params.get('fromOutOfService');
 
       if (contactId) {
         console.log('Found contactId in URL:', contactId);
@@ -659,17 +660,23 @@ export default function Home() {
               // Set the contact ID
               setGHLContactId(contactId);
 
-              // Mark service area as checked (skip service area check)
-              setServiceAreaChecked(true);
-
               // Find the address question index
               const addressQuestionIndex = questions.findIndex(q => q.type === 'address');
               
               if (addressQuestionIndex !== -1) {
-                // Set current step to the question after address
-                const nextIndex = addressQuestionIndex + 1;
-                if (nextIndex < questions.length) {
-                  setCurrentStep(nextIndex);
+                if (fromOutOfService) {
+                  // Coming from out-of-service: start AT the address question so they can try a new address
+                  console.log('Coming from out-of-service page, starting at address question');
+                  setCurrentStep(addressQuestionIndex);
+                  // Don't mark service area as checked - they need to check a new address
+                } else {
+                  // Coming from new tab feature: skip address question and go to next question
+                  console.log('Coming from new tab, skipping address question');
+                  setServiceAreaChecked(true);
+                  const nextIndex = addressQuestionIndex + 1;
+                  if (nextIndex < questions.length) {
+                    setCurrentStep(nextIndex);
+                  }
                 }
               }
             } else {
@@ -877,6 +884,7 @@ export default function Home() {
     if (isValid) {
       // If this is an address question and we've passed validation, create the contact in GHL FIRST
       // (before any service area redirects, so out-of-service customers are also created)
+      let createdContactId: string | null = null;
       if (currentQuestion.type === 'address') {
         const data = getValues();
         try {
@@ -902,6 +910,7 @@ export default function Home() {
             console.log('Contact created in GHL:', result.ghlContactId);
             // Store the contact ID for later use
             setGHLContactId(result.ghlContactId);
+            createdContactId = result.ghlContactId;
           } else {
             console.warn('Failed to create contact in GHL:', result.message);
           }
@@ -967,9 +976,10 @@ export default function Home() {
               console.error('Error creating out-of-service contact:', contactError);
             }
 
-            // Redirect to out-of-service page
+            // Redirect to out-of-service page with contact ID so they can start a new quote with pre-filled info
             const params = new URLSearchParams({
               address: addressValue,
+              ...(createdContactId && { contactId: createdContactId }),
             });
             window.location.href = `/out-of-service?${params.toString()}`;
             return;
@@ -982,57 +992,6 @@ export default function Home() {
           setServiceAreaChecked(true);
         } finally {
           setIsLoading(false);
-        }
-      }
-
-      // If this is an address question and we've passed validation, create the contact in GHL
-      if (currentQuestion.type === 'address') {
-        const data = getValues();
-        try {
-          console.log('Creating contact in GHL after address validation...');
-          const response = await fetch('/api/contacts/create-or-update', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              firstName: data.firstName || '',
-              lastName: data.lastName || '',
-              email: data.email || '',
-              phone: data.phone || '',
-              address: data.address || '',
-              city: data.city || '',
-              state: data.state || '',
-              postalCode: data.postalCode || '',
-              country: data.country || 'US',
-            }),
-          });
-
-          const result = await response.json();
-          if (result.success && result.ghlContactId) {
-            console.log('Contact created in GHL:', result.ghlContactId);
-            // Store the contact ID for later use
-            setGHLContactId(result.ghlContactId);
-            
-            // If openSurveyInNewTab is enabled, open new tab with contact ID
-            if (openSurveyInNewTab) {
-              const newTabUrl = `${window.location.origin}/?contactId=${result.ghlContactId}`;
-              console.log('Opening new tab for survey continuation:', newTabUrl);
-              window.open(newTabUrl, '_blank');
-              // Show a message to the user
-              setDirection(1);
-              const nextIndex = getNextQuestionIndex(currentStep, fieldName);
-              if (nextIndex >= questions.length) {
-                handleFormSubmit();
-              } else {
-                setCurrentStep(nextIndex);
-              }
-              return;
-            }
-          } else {
-            console.warn('Failed to create contact in GHL:', result.message);
-          }
-        } catch (contactError) {
-          console.error('Error creating contact:', contactError);
-          // Continue anyway - contact creation is not blocking
         }
       }
 
