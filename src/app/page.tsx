@@ -2360,7 +2360,7 @@ export default function Home() {
 
                       return (
                         <div className="space-y-4">
-                          <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2 sm:gap-3 max-w-2xl">
+                          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3 sm:gap-4 max-w-3xl mx-auto">
                             {numberOptions.map((num) => {
                               const isSelected = currentValue === num;
                               return (
@@ -2385,8 +2385,8 @@ export default function Home() {
                                     }
                                   }}
                                   className={`
-                                    relative h-16 sm:h-18 md:h-20 rounded-xl sm:rounded-2xl font-medium 
-                                    text-xs sm:text-sm md:text-sm
+                                    relative h-20 sm:h-24 md:h-28 rounded-2xl sm:rounded-3xl font-medium 
+                                    text-sm sm:text-base md:text-base
                                     transition-all duration-300 border-2 shadow-lg
                                     flex items-center justify-center
                                     ${isSelected 
