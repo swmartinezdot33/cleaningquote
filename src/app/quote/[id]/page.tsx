@@ -519,17 +519,29 @@ export default function QuotePage() {
                               </span>
                             </div>
                             <div>
-                              <span className="font-medium">Rooms:</span>{' '}
-                              <span className="text-gray-900">{quoteResult.inputs.bedrooms || 0}</span>
+                              <span className="font-medium">Bedrooms:</span>{' '}
+                              <span className="text-gray-900">{quoteResult.inputs.bedrooms ?? 0}</span>
                             </div>
                             <div>
                               <span className="font-medium">Full Baths:</span>{' '}
-                              <span className="text-gray-900">{quoteResult.inputs.fullBaths || 0}</span>
+                              <span className="text-gray-900">{quoteResult.inputs.fullBaths ?? 0}</span>
                             </div>
                             <div>
                               <span className="font-medium">Half Baths:</span>{' '}
-                              <span className="text-gray-900">{quoteResult.inputs.halfBaths || 0}</span>
+                              <span className="text-gray-900">{quoteResult.inputs.halfBaths ?? 0}</span>
                             </div>
+                            {quoteResult.inputs.people !== undefined && quoteResult.inputs.people !== null && (
+                              <div>
+                                <span className="font-medium">People:</span>{' '}
+                                <span className="text-gray-900">{quoteResult.inputs.people}</span>
+                              </div>
+                            )}
+                            {quoteResult.inputs.sheddingPets !== undefined && quoteResult.inputs.sheddingPets !== null && (
+                              <div>
+                                <span className="font-medium">Shedding Pets:</span>{' '}
+                                <span className="text-gray-900">{quoteResult.inputs.sheddingPets}</span>
+                              </div>
+                            )}
                           </div>
                         </motion.div>
                       )}

@@ -1368,9 +1368,11 @@ export default function Home() {
           setAppointmentNotes(finalNotes);
         }, 1000);
         
-        // If redirect is enabled, redirect immediately
+        // If redirect is enabled, redirect after 5 seconds (as per setting description)
         if (redirectAfterAppointment && appointmentRedirectUrl) {
-          window.location.href = appointmentRedirectUrl;
+          setTimeout(() => {
+            window.location.href = appointmentRedirectUrl;
+          }, 5000); // 5 seconds delay
         }
       } else {
         // Use user-friendly message if available, otherwise use error message
@@ -2483,7 +2485,7 @@ export default function Home() {
             transition={{ duration: 0.4, ease: "easeInOut" }}
           >
             <Card 
-              className="shadow-2xl border-2 bg-white/90 backdrop-blur-sm"
+              className="border-2 bg-white/90 backdrop-blur-sm"
               style={{ borderColor: `${primaryColor}33` }}
             >
               <CardContent className="pt-8 pb-8 px-8">

@@ -199,6 +199,17 @@ export async function GET(
     // Based on testing, the response structure is: { properties: { quote_id: ..., type: [...] } }
     const customFields = quoteObject?.properties || quoteObject?.customFields || {};
 
+    // Debug: Log custom fields to see what we're getting from GHL
+    console.log('🔍 Custom fields from GHL:', {
+      square_footage: customFields.square_footage,
+      bedrooms: customFields.bedrooms,
+      full_baths: customFields.full_baths,
+      half_baths: customFields.half_baths,
+      people_in_home: customFields.people_in_home,
+      shedding_pets: customFields.shedding_pets,
+      allFields: Object.keys(customFields),
+    });
+
     // Extract data from custom fields
     // Handle type field - it's an array for MULTIPLE_OPTIONS
     const typeValue = customFields.type;
@@ -217,12 +228,19 @@ export async function GET(
       serviceType = serviceTypeReverseMap[serviceType];
     }
     
-    const squareFeet = parseInt(customFields.square_footage || '0', 10) || 0;
-    const people = parseInt(customFields.people_in_home || '0', 10) || 0;
-    const sheddingPets = parseInt(customFields.shedding_pets || '0', 10) || 0;
-    const fullBaths = parseInt(customFields.full_baths || '0', 10) || 0;
-    const halfBaths = parseInt(customFields.half_baths || '0', 10) || 0;
-    const bedrooms = parseInt(customFields.bedrooms || '0', 10) || 0;
+    // Parse numeric fields - use null if field doesn't exist, otherwise parse the value
+    const parseNumericField = (value: any): number | null => {
+      if (value === null || value === undefined || value === '') return null;
+      const parsed = parseInt(String(value), 10);
+      return isNaN(parsed) ? null : parsed;
+    };
+    
+    const squareFeet = parseNumericField(customFields.square_footage);
+    const people = parseNumericField(customFields.people_in_home);
+    const sheddingPets = parseNumericField(customFields.shedding_pets);
+    const fullBaths = parseNumericField(customFields.full_baths);
+    const halfBaths = parseNumericField(customFields.half_baths);
+    const bedrooms = parseNumericField(customFields.bedrooms);
     const condition = customFields.current_condition || '';
     const hasPreviousService = customFields.cleaning_service_prior === 'yes' || customFields.cleaning_service_prior === 'Yes';
     const cleanedWithin3Months = customFields.cleaned_in_last_3_months === 'yes' || customFields.cleaned_in_last_3_months === 'Yes';
@@ -239,15 +257,15 @@ export async function GET(
       frequency = frequencyReverseMap[frequency];
     }
 
-    // Reconstruct quote inputs
+    // Reconstruct quote inputs - use 0 as fallback for required numeric fields if null
     const inputs: QuoteInputs = {
-      squareFeet,
-      bedrooms,
-      fullBaths,
-      halfBaths,
-      people,
-      pets: sheddingPets, // Using sheddingPets as pets
-      sheddingPets,
+      squareFeet: squareFeet ?? 1500, // Default to 1500 if not provided
+      bedrooms: bedrooms ?? 0,
+      fullBaths: fullBaths ?? 0,
+      halfBaths: halfBaths ?? 0,
+      people: people ?? 0,
+      pets: sheddingPets ?? 0, // Using sheddingPets as pets
+      sheddingPets: sheddingPets ?? 0,
       condition,
       hasPreviousService,
       cleanedWithin3Months,
@@ -291,10 +309,24 @@ export async function GET(
     );
     const smsText = generateSmsText({ ...quoteResult, ranges: quoteResult.ranges });
 
+    // Return inputs with actual values from GHL (not recalculated ones) to preserve original form data
+    const actualInputs: QuoteInputs = {
+      squareFeet: squareFeet ?? quoteResult.inputs?.squareFeet ?? 1500,
+      bedrooms: bedrooms ?? quoteResult.inputs?.bedrooms ?? 0,
+      fullBaths: fullBaths ?? quoteResult.inputs?.fullBaths ?? 0,
+      halfBaths: halfBaths ?? quoteResult.inputs?.halfBaths ?? 0,
+      people: people ?? quoteResult.inputs?.people ?? 0,
+      pets: sheddingPets ?? quoteResult.inputs?.pets ?? 0,
+      sheddingPets: sheddingPets ?? quoteResult.inputs?.sheddingPets ?? 0,
+      condition: condition || quoteResult.inputs?.condition,
+      hasPreviousService: hasPreviousService ?? quoteResult.inputs?.hasPreviousService,
+      cleanedWithin3Months: cleanedWithin3Months ?? quoteResult.inputs?.cleanedWithin3Months,
+    };
+    
     return NextResponse.json({
       outOfLimits: false,
       multiplier: quoteResult.multiplier,
-      inputs: quoteResult.inputs,
+      inputs: actualInputs, // Use actual values from GHL custom object
       ranges: quoteResult.ranges,
       initialCleaningRequired: quoteResult.initialCleaningRequired,
       initialCleaningRecommended: quoteResult.initialCleaningRecommended,

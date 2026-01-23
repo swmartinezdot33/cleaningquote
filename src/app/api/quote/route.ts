@@ -135,9 +135,12 @@ export async function POST(request: NextRequest) {
     
     const inputs: QuoteInputs = {
       squareFeet: squareFootage,
-      people: Number(body.people),
-      pets: Number(body.pets),
-      sheddingPets: Number(body.sheddingPets),
+      bedrooms: Number(body.bedrooms) || 0,
+      fullBaths: Number(body.fullBaths) || 0,
+      halfBaths: Number(body.halfBaths) || 0,
+      people: Number(body.people) || 0,
+      pets: Number(body.pets) || 0,
+      sheddingPets: Number(body.sheddingPets) || 0,
       condition: body.condition,
       hasPreviousService: body.hasPreviousService,
       cleanedWithin3Months: body.cleanedWithin3Months,
@@ -774,8 +777,18 @@ export async function POST(request: NextRequest) {
           
           if (notePromise) {
             const noteResult = results.find((_, idx) => ghlOperations[idx] === notePromise);
-            if (noteResult?.status === 'rejected') {
+            if (noteResult?.status === 'fulfilled') {
+              console.log('✅ Note created successfully:', {
+                noteId: noteResult.value?.id,
+                contactId: ghlContactId,
+              });
+            } else if (noteResult?.status === 'rejected') {
               console.error('⚠️ Failed to create note:', noteResult.reason);
+              console.error('Note creation error details:', {
+                error: noteResult.reason instanceof Error ? noteResult.reason.message : String(noteResult.reason),
+                contactId: ghlContactId,
+                troubleshooting: 'Ensure your API token has contacts.write scope and the contact exists in GHL',
+              });
             }
           }
         }

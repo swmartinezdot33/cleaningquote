@@ -8,9 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, AlertCircle, Loader2, Save, RotateCw, Eye, EyeOff, Sparkles, ArrowLeft, Copy, Code, ChevronDown, FileText, Upload, MapPin, Plus } from 'lucide-react';
-import { GHLTestWizard } from '@/components/GHLTestWizard';
-import { GHLCustomObjectsTest } from '@/components/GHLCustomObjectsTest';
-import { GHLCustomFieldsTest } from '@/components/GHLCustomFieldsTest';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -33,6 +30,7 @@ export default function SettingsPage() {
   const [isSavingWidget, setIsSavingWidget] = useState(false);
   const [widgetMessage, setWidgetMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
+  const [isTokenSectionExpanded, setIsTokenSectionExpanded] = useState(false);
 
   // Tracking Codes State
   const [googleAnalyticsId, setGoogleAnalyticsId] = useState('');
@@ -1324,22 +1322,31 @@ export default function SettingsPage() {
               <div className="space-y-8">
                 {/* API Token Section */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-6 pb-4 border-b border-gray-200">API Token & Authentication</h3>
+                  <button
+                    type="button"
+                    onClick={() => setIsTokenSectionExpanded(!isTokenSectionExpanded)}
+                    className="w-full flex items-center justify-between text-left mb-6 pb-4 border-b border-gray-200 hover:opacity-80 transition-opacity"
+                  >
+                    <h3 className="text-lg font-semibold text-gray-900">API Token & Authentication</h3>
+                    <ChevronDown 
+                      className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
+                        isTokenSectionExpanded ? 'transform rotate-180' : ''
+                      }`}
+                    />
+                  </button>
                   
-                  <div className="space-y-6">
+                  {isTokenSectionExpanded && (
+                    <div className="space-y-6">
                     <div>
                       <Label htmlFor="token" className="text-base font-semibold">
                         GHL Private Integration Token (PIT)
                       </Label>
                       <p className="text-sm text-gray-600 mt-1 mb-3">
-                        Enter your GoHighLevel API token. <strong className="text-[#f61590]">We strongly recommend using a Location-level PIT token</strong> (sub-account level) for better security and reliability. Keep this secret - never share it publicly.
+                        Enter your GoHighLevel Private Integration Token (PIT). <strong className="text-[#f61590]">We recommend a Location-level PIT token</strong> for better security. Keep this secret - never share it publicly.
                       </p>
-                      <div className="mt-2 mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm font-semibold text-blue-900 mb-1">
-                          💡 Recommended: Location-level PIT Token
-                        </p>
+                      <div className="mt-2 mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg">
                         <p className="text-xs text-blue-800">
-                          Location-level (sub-account) PIT tokens are scoped to a specific location and provide better security. All API calls will use the Location ID you provide below to ensure proper sub-account integration.
+                          <strong>💡 Location-level PIT tokens</strong> are scoped to a specific location and provide better security. Get yours from: GoHighLevel Dashboard → Location → Settings → Integrations → API. Location-level tokens don't require the locations.readonly scope.
                         </p>
                       </div>
                       <div className="relative">
@@ -1398,7 +1405,7 @@ export default function SettingsPage() {
                           <li><strong>locations/tags.write</strong> - Apply tags to customers (in-service/out-of-service)</li>
                         </ul>
                         <p className="text-xs text-amber-700 mt-2 italic">
-                          <strong>Important:</strong> We recommend using a <strong>Location-level PIT token</strong> (sub-account level) for all integrations. Location-level tokens don't need the locations.readonly scope and provide better security by scoping to a specific location. All API calls will automatically use your Location ID for sub-account operations.
+                          <strong>Note:</strong> All API calls will automatically use your Location ID for sub-account operations.
                         </p>
                       </div>
                     </div>
@@ -1450,39 +1457,6 @@ export default function SettingsPage() {
                       </Button>
                     </div>
 
-                    {/* GHL Test Wizard */}
-                    <div className="mt-8 pt-8 border-t border-gray-200">
-                      <h4 className="text-lg font-semibold text-gray-900 mb-4">Comprehensive Endpoint Test</h4>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Test all GHL API endpoints at once and get detailed feedback on each one. This helps diagnose issues with your GHL integration.
-                      </p>
-                      {isAuthenticated && password && (
-                        <GHLTestWizard adminPassword={password} />
-                      )}
-                    </div>
-
-                    {/* GHL Custom Objects Test */}
-                    <div className="mt-8 pt-8 border-t border-gray-200">
-                      <h4 className="text-lg font-semibold text-gray-900 mb-4">Custom Objects Test</h4>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Test the custom objects endpoint specifically. All logs are shown directly in the response - no need to check server logs!
-                      </p>
-                      {isAuthenticated && password && (
-                        <GHLCustomObjectsTest adminPassword={password} />
-                      )}
-                    </div>
-
-                    {/* GHL Custom Fields Mapping Test */}
-                    <div className="mt-8 pt-8 border-t border-gray-200">
-                      <h4 className="text-lg font-semibold text-gray-900 mb-4">Custom Fields Mapping Test</h4>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Test custom fields mapping between survey questions and GHL custom fields. See all available GHL custom fields, survey question mappings, and test the mapping logic with detailed logs.
-                      </p>
-                      {isAuthenticated && password && (
-                        <GHLCustomFieldsTest adminPassword={password} />
-                      )}
-                    </div>
-
                     {/* About GHL Integration */}
                     <div className="mt-8 pt-8 border-t border-gray-200 space-y-6 text-sm text-gray-700">
                       <div>
@@ -1498,115 +1472,12 @@ export default function SettingsPage() {
                         </ul>
                       </div>
                       <div>
-                        <h4 className="font-semibold text-gray-900 mb-2">How to get your GHL PIT token</h4>
-                        <p>
-                          1. Log in to your GoHighLevel dashboard<br />
-                          2. Navigate to the specific Location (sub-account) you want to integrate<br />
-                          3. Go to Settings → Integrations → API<br />
-                          4. <strong>Create a Location-level Private Integration Token</strong> (recommended) or use an existing one<br />
-                          5. Copy the token and paste it above<br />
-                          6. Enter the Location ID from your dashboard URL (found after /location/)
-                        </p>
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-gray-900 mb-2">Required API Scopes</h4>
-                        <p className="mb-2">
-                          When creating your Private Integration Token, make sure to enable these scopes:
-                        </p>
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
-                          <div className="flex items-start gap-2">
-                            <span className="text-blue-600 font-bold mt-0.5">✓</span>
-                            <div>
-                              <p className="font-semibold text-blue-900">contacts.write</p>
-                              <p className="text-xs text-blue-800">Required to create and update customer contacts</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <span className="text-blue-600 font-bold mt-0.5">✓</span>
-                            <div>
-                              <p className="font-semibold text-blue-900">contacts.readonly</p>
-                              <p className="text-xs text-blue-800">Required to view customer contact information</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <span className="text-blue-600 font-bold mt-0.5">✓</span>
-                            <div>
-                              <p className="font-semibold text-blue-900">opportunities.write</p>
-                              <p className="text-xs text-blue-800">Required to create quote opportunities in your pipeline</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <span className="text-blue-600 font-bold mt-0.5">✓</span>
-                            <div>
-                              <p className="font-semibold text-blue-900">opportunities.readonly</p>
-                              <p className="text-xs text-blue-800">Required to fetch pipeline and stage information</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <span className="text-blue-600 font-bold mt-0.5">✓</span>
-                            <div>
-                              <p className="font-semibold text-blue-900">calendars.write</p>
-                              <p className="text-xs text-blue-800">Required to book and create appointments for customers</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <span className="text-blue-600 font-bold mt-0.5">✓</span>
-                            <div>
-                              <p className="font-semibold text-blue-900">calendars.readonly</p>
-                              <p className="text-xs text-blue-800">Required to view available calendars</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <span className="text-blue-600 font-bold mt-0.5">✓</span>
-                            <div>
-                              <p className="font-semibold text-blue-900">locations.readonly</p>
-                              <p className="text-xs text-blue-800">Required to fetch calendars, tags, custom fields, and location information</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <span className="text-blue-600 font-bold mt-0.5">✓</span>
-                            <div>
-                              <p className="font-semibold text-blue-900">locations/customFields.readonly</p>
-                              <p className="text-xs text-blue-800">Required to view custom fields for mapping survey questions</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <span className="text-blue-600 font-bold mt-0.5">✓</span>
-                            <div>
-                              <p className="font-semibold text-blue-900">locations/tags.readonly</p>
-                              <p className="text-xs text-blue-800">Required to view available tags for service area tagging</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <span className="text-blue-600 font-bold mt-0.5">✓</span>
-                            <div>
-                              <p className="font-semibold text-blue-900">locations/tags.write</p>
-                              <p className="text-xs text-blue-800">Required to apply tags to customers (in-service/out-of-service)</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-gray-900 mb-2">Field Mapping</h4>
-                        <p>
-                          To map your survey questions to GHL fields (native fields like firstName, lastName, email, phone, or custom fields), 
-                          go to the <strong>Survey Builder</strong> page. There you can edit each question and select which GHL field it should map to.
-                        </p>
-                        <Button
-                          onClick={() => router.push('/admin/survey-builder')}
-                          variant="outline"
-                          className="mt-3 flex items-center gap-2"
-                        >
-                          <FileText className="h-4 w-4" />
-                          Go to Survey Builder
-                        </Button>
-                      </div>
-                      <div>
                         <h4 className="font-semibold text-gray-900 mb-2">Security</h4>
                         <p>Your GHL token is stored securely in encrypted storage and is never exposed to the client.</p>
                       </div>
                     </div>
-                  </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Integration Configuration Section */}
@@ -1812,14 +1683,6 @@ export default function SettingsPage() {
                           )}
                         </div>
                       )}
-
-                      {/* Service Area Tags */}
-                      <div className="mt-8 pt-8 border-t border-gray-200">
-                        <h4 className="font-semibold text-gray-900 mb-6 text-lg">Service Area Tags</h4>
-                        
-                        <div className="space-y-6">
-                        </div>
-                      </div>
 
                       {/* Calendar Selection for Appointments and Calls */}
                       <div className="mt-8 pt-8 border-t border-gray-200">
@@ -2052,89 +1915,110 @@ export default function SettingsPage() {
                         </div>
                       </div>
 
-                      {/* Quoted Amount Field Mapping */}
+                      {/* Custom Fields & Field Mapping */}
                       <div className="mt-8 pt-8 border-t border-gray-200">
-                        <h4 className="font-semibold text-gray-900 mb-4 text-lg">Custom Fields</h4>
+                        <h4 className="font-semibold text-gray-900 mb-4 text-lg">Custom Fields & Field Mapping</h4>
                         
-                        <div>
-                          <Label htmlFor="quoted-amount-field" className="text-base font-semibold">
-                            GHL Field for Quoted Amount (Custom Field)
-                          </Label>
-                          <div className="flex gap-2 mt-2">
-                            <div className="flex-1 relative">
-                              <input
-                                type="text"
-                                placeholder="Search custom fields..."
-                                value={quotedAmountSearch}
-                                onChange={(e) => setQuotedAmountSearch(e.target.value)}
-                                className="w-full h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
-                              />
-                              {quotedAmountSearch && customFields.length > 0 && (
-                                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
-                                  {customFields
-                                    .filter(field => 
-                                      field.name?.toLowerCase().includes(quotedAmountSearch.toLowerCase()) ||
-                                      field.key?.toLowerCase().includes(quotedAmountSearch.toLowerCase())
-                                    )
-                                    .map((field) => (
-                                      <button
-                                        key={field.key}
-                                        type="button"
-                                        className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
-                                        onClick={() => {
-                                          setQuotedAmountField(field.key);
-                                          setQuotedAmountSearch('');
-                                        }}
-                                      >
-                                        <div className="font-semibold text-gray-900">{field.name}</div>
-                                        <div className="text-xs text-gray-500 font-mono">{field.key}</div>
-                                      </button>
-                                    ))}
+                        <div className="space-y-6">
+                          {/* Quoted Amount Field Mapping */}
+                          <div>
+                            <Label htmlFor="quoted-amount-field" className="text-base font-semibold">
+                              GHL Field for Quoted Amount (Custom Field)
+                            </Label>
+                            <div className="flex gap-2 mt-2">
+                              <div className="flex-1 relative">
+                                <input
+                                  type="text"
+                                  placeholder="Search custom fields..."
+                                  value={quotedAmountSearch}
+                                  onChange={(e) => setQuotedAmountSearch(e.target.value)}
+                                  className="w-full h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
+                                />
+                                {quotedAmountSearch && customFields.length > 0 && (
+                                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
+                                    {customFields
+                                      .filter(field => 
+                                        field.name?.toLowerCase().includes(quotedAmountSearch.toLowerCase()) ||
+                                        field.key?.toLowerCase().includes(quotedAmountSearch.toLowerCase())
+                                      )
+                                      .map((field) => (
+                                        <button
+                                          key={field.key}
+                                          type="button"
+                                          className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
+                                          onClick={() => {
+                                            setQuotedAmountField(field.key);
+                                            setQuotedAmountSearch('');
+                                          }}
+                                        >
+                                          <div className="font-semibold text-gray-900">{field.name}</div>
+                                          <div className="text-xs text-gray-500 font-mono">{field.key}</div>
+                                        </button>
+                                      ))}
+                                </div>
+                                )}
                               </div>
-                              )}
-                            </div>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={loadCustomFields}
-                              disabled={isLoadingCustomFields}
-                              title="Refresh custom fields"
-                            >
-                              <RotateCw className={`h-4 w-4 ${isLoadingCustomFields ? 'animate-spin' : ''}`} />
-                            </Button>
-                          </div>
-                          
-                          {quotedAmountField && (
-                            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
-                              <p className="text-sm text-blue-800">
-                                Selected: <span className="font-mono font-semibold">{quotedAmountField}</span>
-                              </p>
                               <Button
                                 type="button"
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
-                                onClick={() => setQuotedAmountField('')}
-                                className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 h-8 px-3"
+                                onClick={loadCustomFields}
+                                disabled={isLoadingCustomFields}
+                                title="Refresh custom fields"
                               >
-                                Clear
+                                <RotateCw className={`h-4 w-4 ${isLoadingCustomFields ? 'animate-spin' : ''}`} />
                               </Button>
                             </div>
-                          )}
-                          
-                          {customFieldsError && (
-                            <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-800">
-                              {customFieldsError}
-                            </div>
-                          )}
-                          
-                          <p className="text-sm text-gray-600 mt-2">
-                            Select a GHL custom field where the quoted amount will be stored. Leave empty to skip.
-                          </p>
-                        </div>
+                            
+                            {quotedAmountField && (
+                              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                                <p className="text-sm text-blue-800">
+                                  Selected: <span className="font-mono font-semibold">{quotedAmountField}</span>
+                                </p>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setQuotedAmountField('')}
+                                  className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 h-8 px-3"
+                                >
+                                  Clear
+                                </Button>
+                              </div>
+                            )}
+                            
+                            {customFieldsError && (
+                              <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-800">
+                                {customFieldsError}
+                              </div>
+                            )}
+                            
+                            <p className="text-sm text-gray-600 mt-2">
+                              Select a GHL custom field where the quoted amount will be stored. Leave empty to skip.
+                            </p>
+                          </div>
 
-                        {/* Post-Appointment Redirect Settings */}
-                        <div className="mt-8 pt-8 border-t border-gray-200">
+                          {/* Field Mapping */}
+                          <div className="pt-6 border-t border-gray-200">
+                            <h5 className="font-semibold text-gray-900 mb-2">Field Mapping</h5>
+                            <p className="text-sm text-gray-600 mb-3">
+                              To map your survey questions to GHL fields (native fields like firstName, lastName, email, phone, or custom fields), 
+                              go to the <strong>Survey Builder</strong> page. There you can edit each question and select which GHL field it should map to.
+                            </p>
+                            <Button
+                              onClick={() => router.push('/admin/survey-builder')}
+                              variant="outline"
+                              className="flex items-center gap-2"
+                            >
+                              <FileText className="h-4 w-4" />
+                              Go to Survey Builder
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Post-Appointment Redirect Settings */}
+                      <div className="mt-8 pt-8 border-t border-gray-200">
                           <h4 className="font-semibold text-gray-900 mb-4 text-lg">Post-Appointment Settings</h4>
                           
                           <div className="space-y-4">
@@ -2477,7 +2361,6 @@ export default function SettingsPage() {
                           </>
                         )}
                       </Button>
-                    </div>
                   </div>
                 ) : (
                   <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-yellow-800">

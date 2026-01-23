@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,8 @@ export default function AppointmentConfirmedPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const quoteId = params.id as string;
+  const [redirectAfterAppointment, setRedirectAfterAppointment] = useState<boolean>(false);
+  const [appointmentRedirectUrl, setAppointmentRedirectUrl] = useState<string>('');
 
   // Preserve UTM parameters for tracking
   const utmParams = new URLSearchParams();
@@ -19,6 +21,27 @@ export default function AppointmentConfirmedPage() {
     const value = searchParams.get(param);
     if (value) utmParams.set(param, value);
   });
+
+  // Load redirect settings
+  useEffect(() => {
+    const loadRedirectSettings = async () => {
+      try {
+        const response = await fetch('/api/admin/ghl-config');
+        if (response.ok) {
+          const data = await response.json();
+          const config = data.config;
+          if (config) {
+            setRedirectAfterAppointment(config.redirectAfterAppointment === true);
+            setAppointmentRedirectUrl(config.appointmentRedirectUrl || '');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load redirect settings:', error);
+      }
+    };
+
+    loadRedirectSettings();
+  }, []);
 
   // Fire tracking events on page load
   useEffect(() => {
@@ -55,6 +78,17 @@ export default function AppointmentConfirmedPage() {
       });
     }
   }, [quoteId, searchParams]);
+
+  // Handle redirect after 5 seconds if enabled
+  useEffect(() => {
+    if (redirectAfterAppointment && appointmentRedirectUrl) {
+      const redirectTimer = setTimeout(() => {
+        window.location.href = appointmentRedirectUrl;
+      }, 5000); // 5 seconds delay as per setting description
+
+      return () => clearTimeout(redirectTimer);
+    }
+  }, [redirectAfterAppointment, appointmentRedirectUrl]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center px-4">
