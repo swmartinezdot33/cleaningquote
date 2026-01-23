@@ -461,6 +461,7 @@ export async function createCustomObject(
 
     // GHL API payload format for creating records
     // According to docs: POST /objects/{schemaKey}/records
+    // Note: customFields keys might need to match the exact field keys from the schema
     const payload: Record<string, any> = {
       locationId: finalLocationId,
       ...(data.contactId && { contactId: data.contactId }),
@@ -469,13 +470,24 @@ export async function createCustomObject(
       }),
     };
 
+    console.log('Creating custom object with payload:', {
+      endpoint: 'POST /objects/{schemaKey}/records',
+      locationId: finalLocationId,
+      hasContactId: !!data.contactId,
+      customFieldsCount: customFieldsArray?.length || 0,
+      customFieldsKeys: customFieldsArray?.map(f => f.key) || [],
+    });
+
     // GHL 2.0 API: POST /objects/{schemaKey}/records
-    // The 401 error on /objects/quotes/records suggests the endpoint exists but needs proper scopes
+    // The schemaKey must match exactly what's configured in GHL
+    // Based on the image showing "Quote" in the Object column, try that first
     // Try different schemaKey variations to find the correct one
     const schemaKeysToTry = [
-      objectType,           // "quotes" (lowercase plural)
+      'Quote',              // "Quote" (capitalized singular - matches Object column in image)
+      'quote',              // "quote" (lowercase singular)
+      objectType,           // "quotes" (lowercase plural - original)
       objectType.toLowerCase(), // Ensure lowercase
-      objectType.charAt(0).toUpperCase() + objectType.slice(1).toLowerCase(), // "Quote" (capitalized singular)
+      objectType.charAt(0).toUpperCase() + objectType.slice(1).toLowerCase(), // Capitalized version
     ];
     
     // Remove duplicates
@@ -500,8 +512,12 @@ export async function createCustomObject(
         const errorMessage = lastError.message;
         console.log(`❌ Failed at ${endpoint}:`, errorMessage);
         
+        // If we get 400 "Invalid Key Passed", it might be:
+        // - Wrong schemaKey
+        // - Wrong customFields keys (field keys don't match schema)
+        // - Wrong payload format
         // If we get 401, it means the endpoint exists but token lacks scope
-        // If we get 404, the schemaKey is wrong
+        // If we get 404, the schemaKey doesn't exist
         // Continue to try next schemaKey
       }
     }

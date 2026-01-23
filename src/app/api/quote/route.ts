@@ -493,14 +493,28 @@ export async function POST(request: NextRequest) {
             }
 
             // Create Quote custom object
-            // The createCustomObject function will try multiple endpoint variations automatically
-            const quoteObject = await createCustomObject(
-              'quotes',
-              {
-                contactId: ghlContactId,
-                customFields: quoteCustomFields,
-              }
-            );
+            // Try "Quote" first (capitalized, singular) as shown in GHL Object column
+            // The createCustomObject function will try multiple schemaKey variations automatically
+            let quoteObject;
+            try {
+              quoteObject = await createCustomObject(
+                'Quote', // Try capitalized singular first (matches Object column in GHL)
+                {
+                  contactId: ghlContactId,
+                  customFields: quoteCustomFields,
+                }
+              );
+            } catch (error) {
+              // If "Quote" fails, try "quotes" (lowercase plural)
+              console.log('Failed with "Quote", trying "quotes"...');
+              quoteObject = await createCustomObject(
+                'quotes',
+                {
+                  contactId: ghlContactId,
+                  customFields: quoteCustomFields,
+                }
+              );
+            }
 
             // Use the ID returned from GHL as the quote ID for the URL
             // The quote_id field in customFields is for reference, but the object ID is what we use for the URL
