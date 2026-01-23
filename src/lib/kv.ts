@@ -255,6 +255,7 @@ export async function getGHLConfig(): Promise<{
 export interface SurveyQuestionOption {
   value: string;
   label: string;
+  skipToQuestionId?: string; // If this option selected, skip to this question ID
 }
 
 export interface SurveyQuestion {

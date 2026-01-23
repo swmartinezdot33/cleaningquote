@@ -12,23 +12,30 @@ import { randomUUID } from 'crypto';
  * Helper to get the selected quote range based on service type and frequency
  */
 function getSelectedQuoteRange(ranges: QuoteRanges, serviceType: string, frequency: string): { low: number; high: number } | null {
+  // Handle frequency-based pricing first
   if (frequency === 'weekly') {
     return ranges.weekly;
   } else if (frequency === 'bi-weekly') {
     return ranges.biWeekly;
-  } else if (frequency === 'monthly') {
+  } else if (frequency === 'four-week' || frequency === 'monthly') {
     return ranges.fourWeek;
-  } else if (serviceType === 'initial' && frequency === 'one-time') {
-    return ranges.initial;
-  } else if (serviceType === 'deep' && frequency === 'one-time') {
-    return ranges.deep;
-  } else if (serviceType === 'general' && frequency === 'one-time') {
-    return ranges.general;
-  } else if (serviceType === 'move-in' && frequency === 'one-time') {
-    return ranges.moveInOutBasic;
-  } else if (serviceType === 'move-out' && frequency === 'one-time') {
-    return ranges.moveInOutFull;
+  } 
+  
+  // Handle one-time services
+  if (frequency === 'one-time' || !frequency) {
+    if (serviceType === 'initial') {
+      return ranges.initial;
+    } else if (serviceType === 'deep') {
+      return ranges.deep;
+    } else if (serviceType === 'general') {
+      return ranges.general;
+    } else if (serviceType === 'move-in') {
+      return ranges.moveInOutBasic;
+    } else if (serviceType === 'move-out') {
+      return ranges.moveInOutFull;
+    }
   }
+  
   return null;
 }
 
@@ -36,22 +43,28 @@ function getSelectedQuoteRange(ranges: QuoteRanges, serviceType: string, frequen
  * Helper to get the selected quote price based on service type and frequency
  */
 function getSelectedQuotePrice(ranges: any, serviceType: string, frequency: string): number {
+  // Handle frequency-based pricing first
   if (frequency === 'weekly') {
     return Math.round((ranges.weekly.low + ranges.weekly.high) / 2);
   } else if (frequency === 'bi-weekly') {
     return Math.round((ranges.biWeekly.low + ranges.biWeekly.high) / 2);
-  } else if (frequency === 'monthly') {
+  } else if (frequency === 'four-week' || frequency === 'monthly') {
     return Math.round((ranges.fourWeek.low + ranges.fourWeek.high) / 2);
-  } else if (serviceType === 'initial' && frequency === 'one-time') {
-    return Math.round((ranges.initial.low + ranges.initial.high) / 2);
-  } else if (serviceType === 'deep' && frequency === 'one-time') {
-    return Math.round((ranges.deep.low + ranges.deep.high) / 2);
-  } else if (serviceType === 'general' && frequency === 'one-time') {
-    return Math.round((ranges.general.low + ranges.general.high) / 2);
-  } else if (serviceType === 'move-in' && frequency === 'one-time') {
-    return Math.round((ranges.moveInOutBasic.low + ranges.moveInOutBasic.high) / 2);
-  } else if (serviceType === 'move-out' && frequency === 'one-time') {
-    return Math.round((ranges.moveInOutFull.low + ranges.moveInOutFull.high) / 2);
+  }
+  
+  // Handle one-time services
+  if (frequency === 'one-time' || !frequency) {
+    if (serviceType === 'initial') {
+      return Math.round((ranges.initial.low + ranges.initial.high) / 2);
+    } else if (serviceType === 'deep') {
+      return Math.round((ranges.deep.low + ranges.deep.high) / 2);
+    } else if (serviceType === 'general') {
+      return Math.round((ranges.general.low + ranges.general.high) / 2);
+    } else if (serviceType === 'move-in') {
+      return Math.round((ranges.moveInOutBasic.low + ranges.moveInOutBasic.high) / 2);
+    } else if (serviceType === 'move-out') {
+      return Math.round((ranges.moveInOutFull.low + ranges.moveInOutFull.high) / 2);
+    }
   }
 
   // Fallback to the high end of general
