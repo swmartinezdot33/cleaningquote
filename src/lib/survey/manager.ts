@@ -44,11 +44,30 @@ export async function getSurveyQuestions(): Promise<SurveyQuestion[]> {
       return await initializeSurvey();
     }
     
+    // CRITICAL: Restore isCoreField for core questions if missing
+    // This ensures core fields are always protected, even if flag was lost during save
+    const coreFieldIds = ['firstName', 'lastName', 'email', 'phone', 'address', 'squareFeet'];
+    let needsSave = false;
+    const restoredQuestions = questions.map(q => {
+      const shouldBeCore = coreFieldIds.includes(q.id);
+      if (shouldBeCore && !q.isCoreField) {
+        needsSave = true;
+        return { ...q, isCoreField: true };
+      }
+      return q;
+    });
+    
+    // If we restored any isCoreField flags, save them
+    if (needsSave) {
+      console.log('🔒 Restored isCoreField flags for core questions');
+      await kv.set(SURVEY_QUESTIONS_KEY, restoredQuestions);
+    }
+    
     // Log questions with mappings for debugging (only when mappings exist)
-    const questionsWithMappings = questions.filter(q => q.ghlFieldMapping && q.ghlFieldMapping.trim() !== '');
+    const questionsWithMappings = restoredQuestions.filter(q => q.ghlFieldMapping && q.ghlFieldMapping.trim() !== '');
     if (questionsWithMappings.length > 0) {
       console.log('📋 Loaded survey questions with GHL mappings:', {
-        totalQuestions: questions.length,
+        totalQuestions: restoredQuestions.length,
         questionsWithMappings: questionsWithMappings.length,
         mappings: questionsWithMappings.map(q => ({
           id: q.id,
@@ -60,7 +79,7 @@ export async function getSurveyQuestions(): Promise<SurveyQuestion[]> {
     }
     // Note: No warning if mappings don't exist - this is expected and normal
     
-    return questions.sort((a, b) => a.order - b.order);
+    return restoredQuestions.sort((a, b) => a.order - b.order);
   } catch (error) {
     // If KV fails (e.g., in local dev without KV configured), return defaults
     console.warn('KV storage not available, returning default questions:', error instanceof Error ? error.message : 'unknown error');
@@ -105,11 +124,16 @@ export async function saveSurveyQuestions(questions: SurveyQuestion[]): Promise<
     }
     // Note: No warning if mappings don't exist - this is expected and normal
 
-    // Ensure all fields are preserved (including ghlFieldMapping)
+    // Ensure all fields are preserved (including ghlFieldMapping and isCoreField)
+    // CRITICAL: Restore isCoreField for core questions if it's missing
+    const coreFieldIds = ['firstName', 'lastName', 'email', 'phone', 'address', 'squareFeet'];
     const questionsToSave = sorted.map(q => ({
       ...q,
       // Explicitly preserve ghlFieldMapping even if it's undefined
       ghlFieldMapping: q.ghlFieldMapping,
+      // CRITICAL: Preserve isCoreField, or restore it if missing for core fields
+      // This ensures core fields are always protected from deletion
+      isCoreField: q.isCoreField !== undefined ? q.isCoreField : coreFieldIds.includes(q.id),
     }));
 
     // Save to KV
@@ -170,14 +194,18 @@ export async function updateQuestion(id: string, updates: Partial<SurveyQuestion
       console.warn(`⚠️ Warning: Changing type of core field "${id}" from ${question.type} to ${updates.type}`);
     }
 
-    // Merge updates - explicitly preserve ghlFieldMapping if it's being set to undefined (to clear mapping)
+    // Merge updates - explicitly preserve ghlFieldMapping and isCoreField
     const updated = { 
       ...question, 
       ...updates, 
       id, // Force ID to stay the same
       // Explicitly handle ghlFieldMapping - if it's in updates (even if undefined), use it
       // This allows clearing a mapping by setting it to undefined
-      ...(updates.hasOwnProperty('ghlFieldMapping') ? { ghlFieldMapping: updates.ghlFieldMapping } : {})
+      ...(updates.hasOwnProperty('ghlFieldMapping') ? { ghlFieldMapping: updates.ghlFieldMapping } : {}),
+      // CRITICAL: Always preserve isCoreField from original question - never allow it to be changed
+      // Core fields are: firstName, lastName, email, phone, address, squareFeet
+      isCoreField: question.isCoreField !== undefined ? question.isCoreField : 
+        (id === 'firstName' || id === 'lastName' || id === 'email' || id === 'phone' || id === 'address' || id === 'squareFeet'),
     };
 
     // Validate
