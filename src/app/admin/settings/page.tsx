@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { CheckCircle, AlertCircle, Loader2, Save, RotateCw, Eye, EyeOff, Sparkles, ArrowLeft, Copy, Code, ChevronDown, FileText, Upload, MapPin, Plus } from 'lucide-react';
 import { GHLTestWizard } from '@/components/GHLTestWizard';
 import { GHLCustomObjectsTest } from '@/components/GHLCustomObjectsTest';
+import { GHLCustomFieldsTest } from '@/components/GHLCustomFieldsTest';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -198,9 +199,25 @@ export default function SettingsPage() {
       if (response.ok) {
         setIsAuthenticated(true);
         sessionStorage.setItem('admin_password', pass);
+        setMessage(null); // Clear any previous error messages
+      } else {
+        // Authentication failed
+        const errorData = await response.json().catch(() => ({ error: 'Authentication failed' }));
+        setMessage({ 
+          type: 'error', 
+          text: errorData.error || errorData.message || `Authentication failed (${response.status})` 
+        });
+        setIsAuthenticated(false);
+        sessionStorage.removeItem('admin_password');
       }
     } catch (error) {
       console.error('Auth check failed:', error);
+      setMessage({ 
+        type: 'error', 
+        text: error instanceof Error ? error.message : 'Failed to authenticate. Please check your connection and try again.' 
+      });
+      setIsAuthenticated(false);
+      sessionStorage.removeItem('admin_password');
     }
   };
 
@@ -1162,13 +1179,25 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
+                {message && (
+                  <div className={`p-4 rounded-lg ${
+                    message.type === 'success'
+                      ? 'bg-green-50 text-green-800 border border-green-200'
+                      : 'bg-red-50 text-red-800 border border-red-200'
+                  }`}>
+                    {message.text}
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="password">Admin Password</Label>
                   <Input
                     id="password"
                     type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setMessage(null); // Clear error when typing
+                    }}
                     placeholder="Enter your password"
                     className="mt-3"
                     onKeyDown={(e) => {
@@ -1177,6 +1206,9 @@ export default function SettingsPage() {
                       }
                     }}
                   />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Password is set in ADMIN_PASSWORD environment variable
+                  </p>
                 </div>
                 <Button onClick={handleLogin} className="w-full" size="lg">
                   Login
@@ -1438,6 +1470,17 @@ export default function SettingsPage() {
                       </p>
                       {isAuthenticated && password && (
                         <GHLCustomObjectsTest adminPassword={password} />
+                      )}
+                    </div>
+
+                    {/* GHL Custom Fields Mapping Test */}
+                    <div className="mt-8 pt-8 border-t border-gray-200">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4">Custom Fields Mapping Test</h4>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Test custom fields mapping between survey questions and GHL custom fields. See all available GHL custom fields, survey question mappings, and test the mapping logic with detailed logs.
+                      </p>
+                      {isAuthenticated && password && (
+                        <GHLCustomFieldsTest adminPassword={password} />
                       )}
                     </div>
 

@@ -455,15 +455,6 @@ export default function QuotePage() {
                   {/* Quote Content */}
                   <CardContent className="pt-10 pb-10 bg-gradient-to-b from-gray-50 to-white">
                     <div className="space-y-6">
-                      {/* Summary Text */}
-                      {quoteResult.summaryText && (
-                        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                          <div className="prose max-w-none">
-                            <p className="text-gray-700 whitespace-pre-line">{quoteResult.summaryText}</p>
-                          </div>
-                        </div>
-                      )}
-
                       {/* House Details */}
                       {quoteResult.inputs && (
                         <motion.div
@@ -493,6 +484,113 @@ export default function QuotePage() {
                           </div>
                         </motion.div>
                       )}
+
+                      {/* Display ALL pricing options - DAZZLED UP VERSION */}
+                      {quoteResult.ranges && (() => {
+                        const serviceType = quoteResult.serviceType || '';
+                        const frequency = quoteResult.frequency || '';
+
+                        // Helper function to get frequency display info
+                        const getFrequencyInfo = (freq: string) => {
+                          if (freq === 'weekly') {
+                            return { name: 'Weekly Cleaning', range: quoteResult.ranges!.weekly, icon: '📅' };
+                          } else if (freq === 'bi-weekly') {
+                            return { name: 'Bi-Weekly Cleaning', range: quoteResult.ranges!.biWeekly, icon: '📅' };
+                          } else if (freq === 'monthly' || freq === 'four-week' || freq === 'every-4-weeks') {
+                            return { name: 'Every 4 Weeks Cleaning', range: quoteResult.ranges!.fourWeek, icon: '📅' };
+                          }
+                          return null;
+                        };
+
+                        // Get service type info for one-time services
+                        const isOneTimeService = (serviceType: string) => {
+                          return ['move-in', 'move-out', 'deep', 'general'].includes(serviceType);
+                        };
+
+                        const selectedFreqInfo = getFrequencyInfo(frequency);
+                        const isOneTime = isOneTimeService(serviceType) || frequency === 'one-time';
+                        const showSelectedRecurring = selectedFreqInfo && !isOneTime && frequency !== 'one-time';
+
+                        return (
+                          <>
+                            {/* ALL RECURRING OPTIONS */}
+                            <motion.div
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.15 }}
+                              className="space-y-2"
+                            >
+                              <div className="text-sm font-semibold text-gray-600 mb-2">ALL RECURRING OPTIONS:</div>
+                              <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-xl">📅</span>
+                                  <span className="font-bold text-lg text-gray-700">
+                                    Weekly Cleaning: ${quoteResult.ranges.weekly.low} to ${quoteResult.ranges.weekly.high}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className={`border-l-4 pl-6 py-3 rounded-r-xl shadow-sm ${frequency === 'bi-weekly' ? 'bg-gradient-to-r from-yellow-100 via-amber-100 to-yellow-100 border-yellow-500' : 'bg-gradient-to-r from-gray-50 to-gray-100 border-gray-400'}`}>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-xl">{frequency === 'bi-weekly' ? '⭐' : '📅'}</span>
+                                  <span className={`font-bold text-lg ${frequency === 'bi-weekly' ? 'text-yellow-800' : 'text-gray-700'}`}>
+                                    Bi-Weekly Cleaning: ${quoteResult.ranges.biWeekly.low} to ${quoteResult.ranges.biWeekly.high} {frequency === 'bi-weekly' ? '(Most Popular)' : ''}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-xl">📅</span>
+                                  <span className="font-bold text-lg text-gray-700">
+                                    Every 4 Weeks Cleaning: ${quoteResult.ranges.fourWeek.low} to ${quoteResult.ranges.fourWeek.high}
+                                  </span>
+                                </div>
+                              </div>
+                            </motion.div>
+
+                            {/* ONE-TIME SERVICE OPTIONS */}
+                            <motion.div
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.2 }}
+                              className="space-y-2"
+                            >
+                              <div className="text-sm font-semibold text-gray-600 mb-2">ONE-TIME SERVICE OPTIONS:</div>
+                              <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-3 rounded-r-xl shadow-sm">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-xl">🧹</span>
+                                  <span className="font-bold text-lg text-blue-700">
+                                    Deep Clean: ${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-3 rounded-r-xl shadow-sm">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-xl">✨</span>
+                                  <span className="font-bold text-lg text-blue-700">
+                                    General Clean: ${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-3 rounded-r-xl shadow-sm">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-xl">🚚</span>
+                                  <span className="font-bold text-lg text-blue-700">
+                                    Move-In Clean: ${quoteResult.ranges.moveInOutBasic.low} to ${quoteResult.ranges.moveInOutBasic.high}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-3 rounded-r-xl shadow-sm">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-xl">🚚</span>
+                                  <span className="font-bold text-lg text-blue-700">
+                                    Move-Out Clean: ${quoteResult.ranges.moveInOutFull.low} to ${quoteResult.ranges.moveInOutFull.high}
+                                  </span>
+                                </div>
+                              </div>
+                            </motion.div>
+                          </>
+                        );
+                      })()}
 
                       {/* Action Buttons */}
                       {quoteResult.ghlContactId && !appointmentConfirmed && !callConfirmed && (
