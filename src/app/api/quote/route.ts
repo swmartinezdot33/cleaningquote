@@ -203,12 +203,14 @@ export async function POST(request: NextRequest) {
         }
 
         // Build a map of field IDs (both original and sanitized) to their GHL custom field mappings
+        // IMPORTANT: This honors admin-set mappings from the Survey Builder UI
         // The form sanitizes field IDs (replaces dots with underscores), so we need to map both versions
         const fieldIdToMapping = new Map<string, string>();
         surveyQuestions.forEach((question: SurveyQuestion) => {
-          // Only process questions that have a ghlFieldMapping set (not null, not undefined, not empty string)
+          // Only process questions that have a ghlFieldMapping set by admin in Survey Builder
+          // (not null, not undefined, not empty string)
           if (question.ghlFieldMapping && question.ghlFieldMapping.trim() !== '') {
-            // Map original question ID
+            // Map original question ID to admin-set mapping
             fieldIdToMapping.set(question.id, question.ghlFieldMapping.trim());
             // Also map sanitized version (dots replaced with underscores) - this is what's in the body
             const sanitizedId = question.id.replace(/\./g, '_');
@@ -272,15 +274,30 @@ export async function POST(request: NextRequest) {
           });
           
           // Handle native fields (firstName, lastName, email, phone, address1, city, state, postalCode, country)
-          if (mapping === 'firstName' || mapping === 'lastName' || mapping === 'email' || mapping === 'phone' || mapping === 'address1' || mapping === 'address' || mapping === 'city' || mapping === 'state' || mapping === 'postalCode' || mapping === 'country') {
+          // Check if mapping is a native field - strip prefix first to check
+          const mappingWithoutPrefix = mapping.replace(/^(contact|opportunity)\./, '');
+          const nativeFields = ['firstName', 'lastName', 'email', 'phone', 'address1', 'address', 'city', 'state', 'postalCode', 'country'];
+          const isNativeField = nativeFields.includes(mappingWithoutPrefix);
+          
+          if (isNativeField) {
             // Map address -> address1 for consistency with GHL API
-            const nativeFieldName = mapping === 'address' ? 'address1' : mapping;
+            const nativeFieldName = mappingWithoutPrefix === 'address' ? 'address1' : mappingWithoutPrefix;
             contactData[nativeFieldName] = String(fieldValue);
-            console.log(`✅ Mapped to native field: ${nativeFieldName} = ${fieldValue}`);
+            console.log(`✅ Mapped to native field (admin mapping): ${nativeFieldName} = ${fieldValue}`, {
+              originalMapping: mapping,
+              nativeFieldName,
+            });
           } else {
-            // Custom field with explicit mapping - use the mapped GHL custom field key
-            contactData.customFields![mapping] = String(fieldValue);
-            console.log(`✅ Added custom field: ${mapping} = ${fieldValue}`);
+            // Custom field with explicit admin-set mapping
+            // GHL API expects just the field key without "contact." or "opportunity." prefix
+            // Strip prefix if present to ensure compatibility with GHL API
+            const cleanedMapping = mapping.replace(/^(contact|opportunity)\./, '');
+            contactData.customFields![cleanedMapping] = String(fieldValue);
+            console.log(`✅ Added custom field (admin mapping): ${cleanedMapping} = ${fieldValue}`, {
+              originalMapping: mapping,
+              cleanedMapping,
+              fieldValue,
+            });
           }
         });
         
