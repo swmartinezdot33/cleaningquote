@@ -812,6 +812,42 @@ export default function Home() {
     }
     
     if (isValid) {
+      // If this is an address question and we've passed validation, create the contact in GHL FIRST
+      // (before any service area redirects, so out-of-service customers are also created)
+      if (currentQuestion.type === 'address') {
+        const data = getValues();
+        try {
+          console.log('Creating contact in GHL after address validation...');
+          const response = await fetch('/api/contacts/create-or-update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              firstName: data.firstName || '',
+              lastName: data.lastName || '',
+              email: data.email || '',
+              phone: data.phone || '',
+              address: data.address || '',
+              city: data.city || '',
+              state: data.state || '',
+              postalCode: data.postalCode || '',
+              country: data.country || 'US',
+            }),
+          });
+
+          const result = await response.json();
+          if (result.success && result.ghlContactId) {
+            console.log('Contact created in GHL:', result.ghlContactId);
+            // Store the contact ID for later use
+            setGHLContactId(result.ghlContactId);
+          } else {
+            console.warn('Failed to create contact in GHL:', result.message);
+          }
+        } catch (contactError) {
+          console.error('Error creating contact:', contactError);
+          // Continue anyway - contact creation is not blocking
+        }
+      }
+
       // Check if this is an address question - if so, check service area
       if (currentQuestion.type === 'address' && addressCoordinates && !serviceAreaChecked) {
         // Validate coordinates are not 0,0 (invalid/unknown location)
@@ -2097,7 +2133,9 @@ export default function Home() {
                     onClick={() => {
                       setQuoteResult(null);
                       setHouseDetails(null);
-                      setCurrentStep(0);
+                      // Go back to address step (index 4) instead of starting from beginning
+                      const addressQuestionIndex = questions.findIndex(q => q.id === 'address');
+                      setCurrentStep(addressQuestionIndex >= 0 ? addressQuestionIndex : 0);
                       setAppointmentConfirmed(false);
                       setCallConfirmed(false);
                       setShowAppointmentForm(false);
