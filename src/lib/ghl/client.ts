@@ -612,8 +612,9 @@ export async function createCustomObject(
           
           // Try to get the full schema to see field definitions
           // We know "custom_objects.quotes" works from the debug endpoint
-          try {
-            schemaFields = await getObjectSchema(actualSchemaKey, finalLocationId);
+          if (actualSchemaKey) {
+            try {
+              schemaFields = await getObjectSchema(actualSchemaKey, finalLocationId);
             console.log('✅ Retrieved schema fields:', {
               objectId: schemaFields?.object?.id,
               objectKey: schemaFields?.object?.key,
@@ -637,6 +638,7 @@ export async function createCustomObject(
             } catch (fallbackError) {
               console.log('⚠️ Direct fetch also failed');
             }
+          }
           }
         } else {
           console.log('⚠️ No Quote schema found in listed schemas. Will try common variations.');
@@ -673,77 +675,193 @@ export async function createCustomObject(
     // The "key" should be the field key from the schema (e.g., "quote_id", not "{{ custom_objects.quotes.quote_id }}")
     // If we have schema fields, try to map our keys to the schema's field keys/IDs
     let customFieldsArray: Array<{ key: string; value: string }> | undefined;
+    let validFields: Array<{ key: string; value: any; originalKey: string; fieldType?: string }> = [];
+    
     if (data.customFields && Object.keys(data.customFields).length > 0) {
       // Build a map of our field names to schema field keys/IDs
+      // The schema has full paths like "custom_objects.quotes.quote_id"
       const fieldMap = new Map<string, string>();
+      const fieldNameMap = new Map<string, string>(); // Map by display name
       if (schemaFields?.fields && Array.isArray(schemaFields.fields)) {
         // Create a map: our field name -> schema field key/ID
         schemaFields.fields.forEach((field: any) => {
-          const fieldKey = field.key || field.name || field.id;
+          const fieldKey = field.key || field.fieldKey || field.id;
+          const fieldName = field.name || '';
+          
           if (fieldKey) {
-            // Map both the exact key and normalized versions
+            // Map the full key (e.g., "custom_objects.quotes.quote_id")
             fieldMap.set(fieldKey.toLowerCase(), fieldKey);
-            if (field.name) {
-              fieldMap.set(field.name.toLowerCase().replace(/\s+/g, '_'), fieldKey);
+            
+            // Map by the last part of the key (e.g., "quote_id" -> "custom_objects.quotes.quote_id")
+            const keyParts = fieldKey.split('.');
+            if (keyParts.length > 0) {
+              const shortKey = keyParts[keyParts.length - 1];
+              fieldMap.set(shortKey.toLowerCase(), fieldKey);
+            }
+            
+            // Map by display name (e.g., "Quote ID" -> "custom_objects.quotes.quote_id")
+            if (fieldName) {
+              const normalizedName = fieldName.toLowerCase().replace(/\s+/g, '_');
+              fieldMap.set(normalizedName, fieldKey);
+              fieldNameMap.set(normalizedName, fieldKey);
             }
           }
         });
       }
       
-      customFieldsArray = Object.entries(data.customFields).map(([ourKey, value]) => {
-        // Strip the custom_objects.quotes. prefix if present (used in GHL templates, not API)
-        // The API expects just the field name (e.g., "quote_id" not "custom_objects.quotes.quote_id")
-        let fieldKey = ourKey;
-        if (ourKey.startsWith('custom_objects.quotes.')) {
-          fieldKey = ourKey.replace('custom_objects.quotes.', '');
-        } else if (ourKey.startsWith('custom_objects.')) {
-          // Handle other custom_objects.* prefixes
-          const parts = ourKey.split('.');
-          fieldKey = parts[parts.length - 1]; // Get the last part (field name)
+      // Filter and map fields - only include fields that exist in the schema
+      // Also format values based on field type (arrays for MULTIPLE_OPTIONS, etc.)
+      validFields = [];
+      
+      Object.entries(data.customFields).forEach(([ourKey, value]) => {
+        let fieldKey: string | null = null;
+        let fieldType: string | undefined;
+        let fieldDefinition: any = null;
+        
+        // If our key already has the full path, check if it exists in schema
+        if (ourKey.startsWith('custom_objects.')) {
+          const normalizedFullKey = ourKey.toLowerCase();
+          if (fieldMap.has(normalizedFullKey)) {
+            fieldKey = fieldMap.get(normalizedFullKey)!;
+            // Find the field definition to get its type
+            if (schemaFields?.fields) {
+              fieldDefinition = schemaFields.fields.find((f: any) => 
+                (f.key || f.fieldKey || '').toLowerCase() === normalizedFullKey
+              );
+            }
+          }
+        } else {
+          // Try to find the full schema key for our short field name
+          const normalizedKey = ourKey.toLowerCase();
+          
+          // Try direct match first
+          let schemaFieldKey = fieldMap.get(normalizedKey);
+          
+          // If not found, try with underscores/hyphens normalized
+          if (!schemaFieldKey) {
+            schemaFieldKey = fieldMap.get(normalizedKey.replace(/-/g, '_'));
+          }
+          
+          // If still not found, try matching by field name
+          if (!schemaFieldKey && schemaFields?.fields) {
+            const matchingField = schemaFields.fields.find((f: any) => {
+              const fieldName = (f.name || '').toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
+              const ourKeyNormalized = ourKey.toLowerCase().replace(/-/g, '_');
+              return fieldName === ourKeyNormalized || 
+                     fieldName.includes(ourKeyNormalized) ||
+                     ourKeyNormalized.includes(fieldName);
+            });
+            if (matchingField) {
+              schemaFieldKey = matchingField.key || matchingField.fieldKey;
+              fieldDefinition = matchingField;
+            }
+          } else if (schemaFieldKey && schemaFields?.fields) {
+            // Find the field definition
+            fieldDefinition = schemaFields.fields.find((f: any) => 
+              (f.key || f.fieldKey || '').toLowerCase() === schemaFieldKey?.toLowerCase()
+            );
+          }
+          
+          if (schemaFieldKey) {
+            fieldKey = schemaFieldKey;
+          }
         }
         
-        // Try to find matching schema field key
-        const normalizedKey = fieldKey.toLowerCase();
-        const schemaFieldKey = fieldMap.get(normalizedKey) || fieldMap.get(normalizedKey.replace(/_/g, ''));
+        // Get field type from definition
+        if (fieldDefinition) {
+          fieldType = fieldDefinition.type || fieldDefinition.dataType;
+        }
         
-        // Use schema field key if found, otherwise use the stripped field key
-        const finalKey = schemaFieldKey || fieldKey;
-        
-        return {
-          key: finalKey,
-          value: String(value),
-        };
+        // Only include if we found a valid field key in the schema
+        if (fieldKey) {
+          // Format value based on field type
+          let formattedValue: any = value;
+          
+          if (fieldType === 'MULTIPLE_OPTIONS') {
+            // MULTIPLE_OPTIONS expects an array
+            if (Array.isArray(value)) {
+              formattedValue = value;
+            } else if (typeof value === 'string' && value.includes(',')) {
+              // Comma-separated string -> array
+              formattedValue = value.split(',').map(v => v.trim());
+            } else {
+              // Single value -> array with one item
+              formattedValue = [String(value)];
+            }
+          } else if (fieldType === 'SINGLE_OPTIONS') {
+            // SINGLE_OPTIONS can be string or array (GHL accepts both)
+            formattedValue = String(value);
+          } else if (fieldType === 'NUMERICAL') {
+            // NUMERICAL should be a number
+            formattedValue = typeof value === 'number' ? value : Number(value) || 0;
+          } else {
+            // TEXT and other types - keep as string
+            formattedValue = String(value);
+          }
+          
+          validFields.push({
+            key: fieldKey,
+            value: formattedValue,
+            originalKey: ourKey,
+            fieldType,
+          });
+        } else {
+          console.warn(`⚠️ Field "${ourKey}" not found in schema, skipping`);
+        }
       });
       
+      // For properties format, we don't need the array - we'll use the object directly
+      // But keep the array for logging
+      customFieldsArray = validFields.map(f => ({
+        key: f.key,
+        value: f.value,
+        type: f.fieldType,
+      }));
+      
+      const originalFieldsCount = Object.keys(data.customFields || {}).length;
       console.log('📋 Custom fields mapping:', {
         totalFields: customFieldsArray.length,
-        mappedFields: customFieldsArray.filter(f => fieldMap.has(f.key.toLowerCase())).length,
+        originalFieldsCount,
+        skippedFields: originalFieldsCount - customFieldsArray.length,
         fieldKeys: customFieldsArray.map(f => f.key),
+        sampleMapping: validFields.slice(0, 3).map(f => `${f.originalKey} -> ${f.key}`),
       });
     }
 
     // GHL API payload format for creating records
     // According to docs: POST /objects/{schemaKey}/records
     // The API expects "properties" as an object with field keys as properties
-    // NOT "customFields" as an array
-    // Based on user's code, field names should be without prefix (e.g., "quote_id" not "custom_objects.quotes.quote_id")
-    const properties: Record<string, any> = {};
+    // Based on testing, when using object ID, it needs short field names (e.g., "quote_id")
+    // When using schema key, it may need full paths (e.g., "custom_objects.quotes.quote_id")
+    // We'll try both formats
+    const propertiesFullPath: Record<string, any> = {};
+    const propertiesShortName: Record<string, any> = {};
     
-    if (customFieldsArray && customFieldsArray.length > 0) {
-      // Convert array format to object format
-      // The field keys are already cleaned (without prefix) from the mapping above
-      customFieldsArray.forEach((field) => {
-        properties[field.key] = field.value;
+    if (validFields && validFields.length > 0) {
+      validFields.forEach((field) => {
+        // Full path format (e.g., "custom_objects.quotes.quote_id")
+        propertiesFullPath[field.key] = field.value;
+        
+        // Short name format (e.g., "quote_id") - extract last part of key
+        const keyParts = field.key.split('.');
+        const shortKey = keyParts.length > 0 ? keyParts[keyParts.length - 1] : field.key;
+        propertiesShortName[shortKey] = field.value;
       });
     }
     
-    // Build payload - locationId must be in the request body
-    // Note: The error said "property contactId should not exist" at top level
-    // Contact association is done via Associations API separately
-    const payload: Record<string, any> = {
+    // Build payloads with both field formats
+    // Some endpoints may need full paths, others may need short names
+    const payloadFullPath: Record<string, any> = {
       locationId: finalLocationId,
-      ...(Object.keys(properties).length > 0 && {
-        properties: properties,
+      ...(Object.keys(propertiesFullPath).length > 0 && {
+        properties: propertiesFullPath,
+      }),
+    };
+    
+    const payloadShortName: Record<string, any> = {
+      locationId: finalLocationId,
+      ...(Object.keys(propertiesShortName).length > 0 && {
+        properties: propertiesShortName,
       }),
     };
 
@@ -803,34 +921,43 @@ export async function createCustomObject(
     let lastError: Error | null = null;
     let response: any = null;
     
-    // Try each schema key
-    // Based on the schema we fetched, we know:
-    // - Object ID: 6973793b9743a548458387d2 (most reliable)
-    // - Object key: custom_objects.quotes (for GET requests)
-    // - For POST /records, we should try object ID first, then "quotes"
+    // Try each schema key with both field formats
+    // Object ID endpoints might need short names, schema key endpoints might need full paths
     for (const schemaKey of uniqueSchemaKeys) {
       const endpoint = `/objects/${schemaKey}/records`;
+      const isObjectId = /^[a-f0-9]{24}$/i.test(schemaKey); // MongoDB ObjectId format
       
-      try {
-        console.log(`Attempting to create custom object at endpoint: ${endpoint} with schemaKey: ${schemaKey}`);
-        console.log(`Payload:`, JSON.stringify(payload, null, 2));
-        response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
-          endpoint,
-          'POST',
-          payload
-        );
-        console.log(`✅ Successfully created custom object at: ${endpoint}`);
-        break; // Success, exit loop
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-        const errorMessage = lastError.message;
-        console.log(`❌ Failed at ${endpoint}:`, errorMessage);
-        console.log(`   Payload sent:`, JSON.stringify(payload, null, 2));
-        
-        // If we get 400 "Invalid Key Passed", try next schemaKey
-        // If we get 422, the payload format might be wrong
-        // Continue to try next schemaKey
+      // Try short names first for object ID, full paths for schema keys
+      const payloadsToTry = isObjectId 
+        ? [payloadShortName, payloadFullPath]  // Object ID: try short names first
+        : [payloadFullPath, payloadShortName];  // Schema key: try full paths first
+      
+      for (const payload of payloadsToTry) {
+        try {
+          const fieldFormat = payload === payloadFullPath ? 'full_path' : 'short_name';
+          console.log(`Attempting to create custom object at endpoint: ${endpoint} with schemaKey: ${schemaKey} (${fieldFormat})`);
+          console.log(`Payload:`, JSON.stringify(payload, null, 2));
+          response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
+            endpoint,
+            'POST',
+            payload
+          );
+          console.log(`✅ Successfully created custom object at: ${endpoint} using ${fieldFormat} format`);
+          break; // Success, exit both loops
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+          const errorMessage = lastError.message;
+          const fieldFormat = payload === payloadFullPath ? 'full_path' : 'short_name';
+          console.log(`❌ Failed at ${endpoint} (${fieldFormat}):`, errorMessage);
+          
+          // If this was the last payload format for this endpoint, continue to next schemaKey
+          if (payload === payloadsToTry[payloadsToTry.length - 1]) {
+            console.log(`   Tried both field formats, moving to next schemaKey`);
+          }
+        }
       }
+      
+      if (response) break; // Success, exit outer loop
     }
     
     if (!response) {

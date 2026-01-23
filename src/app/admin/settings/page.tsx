@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, AlertCircle, Loader2, Save, RotateCw, Eye, EyeOff, Sparkles, ArrowLeft, Copy, Code, ChevronDown, FileText, Upload, MapPin, Plus } from 'lucide-react';
 import { GHLTestWizard } from '@/components/GHLTestWizard';
+import { GHLCustomObjectsTest } from '@/components/GHLCustomObjectsTest';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -1426,6 +1427,17 @@ export default function SettingsPage() {
                       </p>
                       {isAuthenticated && password && (
                         <GHLTestWizard adminPassword={password} />
+                      )}
+                    </div>
+
+                    {/* GHL Custom Objects Test */}
+                    <div className="mt-8 pt-8 border-t border-gray-200">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4">Custom Objects Test</h4>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Test the custom objects endpoint specifically. All logs are shown directly in the response - no need to check server logs!
+                      </p>
+                      {isAuthenticated && password && (
+                        <GHLCustomObjectsTest adminPassword={password} />
                       )}
                     </div>
 
