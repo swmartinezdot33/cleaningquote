@@ -519,10 +519,10 @@ export async function getObjectSchema(schemaKey: string, locationId?: string): P
     }
 
     // Try multiple endpoint formats for GET /objects/{schemaKey}
+    // For GET requests, locationId should be in query string
     const endpointsToTry = [
-      `/objects/${schemaKey}?locationId=${finalLocationId}`,  // With query param
-      `/objects/${schemaKey}/${finalLocationId}`,              // With path param
-      `/objects/${schemaKey}`,                                 // Without locationId
+      `/objects/${schemaKey}?locationId=${finalLocationId}`,  // With query param (preferred)
+      `/objects/${schemaKey}`,                                 // Without locationId (might work with location-level token)
     ];
 
     let lastError: Error | null = null;
@@ -611,36 +611,58 @@ export async function createCustomObject(
           console.log(`✅ Found Quote schema with key: ${actualSchemaKey}`);
           
           // Try to get the full schema to see field definitions
+          // We know "custom_objects.quotes" works from the debug endpoint
           if (actualSchemaKey) {
             try {
               schemaFields = await getObjectSchema(actualSchemaKey, finalLocationId);
               console.log('✅ Retrieved schema fields:', {
-                fieldCount: schemaFields.fields?.length || 0,
-                fieldKeys: schemaFields.fields?.map((f: any) => f.key || f.name || f.id) || [],
-                sampleFields: schemaFields.fields?.slice(0, 5).map((f: any) => ({
+                objectId: schemaFields?.object?.id,
+                objectKey: schemaFields?.object?.key,
+                fieldCount: schemaFields?.fields?.length || 0,
+                fieldKeys: schemaFields?.fields?.map((f: any) => f.fieldKey || f.key || f.name || f.id) || [],
+                sampleFields: schemaFields?.fields?.slice(0, 5).map((f: any) => ({
+                  fieldKey: f.fieldKey,
                   key: f.key,
                   name: f.name,
                   id: f.id,
-                  type: f.type,
+                  type: f.dataType || f.type,
                 })) || [],
               });
             } catch (schemaError) {
-              console.log('⚠️ Could not fetch schema details, continuing with schemaKey only');
+              console.log('⚠️ Could not fetch schema details, trying "custom_objects.quotes" as fallback...');
+              // Try direct fetch with "custom_objects.quotes" as fallback (we know this works)
+              try {
+                schemaFields = await getObjectSchema('custom_objects.quotes', finalLocationId);
+                actualSchemaKey = 'custom_objects.quotes';
+                console.log('✅ Successfully fetched schema with "custom_objects.quotes"');
+              } catch (fallbackError) {
+                console.log('⚠️ Direct fetch also failed');
+              }
             }
           }
         } else {
           console.log('⚠️ No Quote schema found in listed schemas. Will try common variations.');
+          // Try direct fetch with known working key
+          try {
+            console.log('Trying direct fetch with "custom_objects.quotes"...');
+            schemaFields = await getObjectSchema('custom_objects.quotes', finalLocationId);
+            actualSchemaKey = 'custom_objects.quotes';
+            console.log('✅ Successfully fetched schema with "custom_objects.quotes"');
+          } catch (directError) {
+            console.log('⚠️ Direct fetch failed, will try common variations');
+          }
         }
       } else {
         console.log('⚠️ No schemas found (endpoint may not be available). Will try common schema key variations.');
         // If we can't list schemas, try to directly fetch the "quotes" schema
+        // We know "custom_objects.quotes" works from the debug endpoint
         try {
-          console.log('Attempting to directly fetch "quotes" schema...');
-          schemaFields = await getObjectSchema('quotes', finalLocationId);
-          actualSchemaKey = 'quotes';
-          console.log('✅ Successfully fetched "quotes" schema directly');
+          console.log('Attempting to directly fetch "custom_objects.quotes" schema...');
+          schemaFields = await getObjectSchema('custom_objects.quotes', finalLocationId);
+          actualSchemaKey = 'custom_objects.quotes';
+          console.log('✅ Successfully fetched "custom_objects.quotes" schema directly');
         } catch (directFetchError) {
-          console.log('⚠️ Could not fetch "quotes" schema directly, will try variations when creating record');
+          console.log('⚠️ Could not fetch "custom_objects.quotes" schema directly, will try variations when creating record');
         }
       }
     } catch (listError) {
@@ -706,33 +728,26 @@ export async function createCustomObject(
     // According to docs: POST /objects/{schemaKey}/records
     // The API expects "properties" as an object with field keys as properties
     // NOT "customFields" as an array
-    // Try both full fieldKey format and just the field name (without prefix)
-    const propertiesWithPrefix: Record<string, any> = {};
-    const propertiesWithoutPrefix: Record<string, any> = {};
+    // Based on user's code, field names should be without prefix (e.g., "quote_id" not "custom_objects.quotes.quote_id")
+    const properties: Record<string, any> = {};
     
     if (customFieldsArray && customFieldsArray.length > 0) {
       // Convert array format to object format
+      // The field keys are already cleaned (without prefix) from the mapping above
       customFieldsArray.forEach((field) => {
-        // Full fieldKey format: custom_objects.quotes.quote_id
-        propertiesWithPrefix[field.key] = field.value;
-        
-        // Try without prefix: quote_id (extract field name after last dot)
-        const fieldName = field.key.includes('.') ? field.key.split('.').pop() : field.key;
-        if (fieldName) {
-          propertiesWithoutPrefix[fieldName] = field.value;
-        }
+        properties[field.key] = field.value;
       });
     }
     
-    // Build payloads to try - first with full fieldKey, then without prefix
+    // Build payload - locationId must be in the request body
     // Note: The error said "property contactId should not exist" at top level
-    // Contact association might be done via Associations API separately
-    const buildPayload = (props: Record<string, any>) => ({
+    // Contact association is done via Associations API separately
+    const payload: Record<string, any> = {
       locationId: finalLocationId,
-      ...(Object.keys(props).length > 0 && {
-        properties: props,
+      ...(Object.keys(properties).length > 0 && {
+        properties: properties,
       }),
-    });
+    };
 
     console.log('📝 Creating custom object with payload:', {
       endpoint: 'POST /objects/{schemaKey}/records',
@@ -747,37 +762,41 @@ export async function createCustomObject(
     });
 
     // GHL 2.0 API: POST /objects/{schemaKey}/records
-    // The schemaKey can be:
-    // 1. The object ID (e.g., "6973793b9743a548458387d2") - most reliable
-    // 2. Just "quotes" (not "custom_objects.quotes") - the "custom_objects.quotes" format is for templates/workflows
-    // Strip the prefix if present
-    let cleanObjectType = objectType;
-    if (objectType.startsWith('custom_objects.')) {
-      const parts = objectType.split('.');
-      cleanObjectType = parts[parts.length - 1]; // Get the last part (e.g., "quotes")
-    }
-    
+    // Based on the schema we successfully fetched, we know:
+    // - The object ID is: 6973793b9743a548458387d2
+    // - The internal name is: custom_objects.quotes
+    // - For API, we should try object ID first, then "quotes" (without prefix)
     const schemaKeysToTry: string[] = [];
     
     // If we have schemaFields with object ID, use that first (most reliable)
     if (schemaFields?.object?.id) {
       schemaKeysToTry.push(schemaFields.object.id);
+      console.log(`✅ Using object ID from schema: ${schemaFields.object.id}`);
     }
     
-    // Add found schemaKey if available
+    // Add found schemaKey if available (might be "custom_objects.quotes" from listing)
     if (actualSchemaKey) {
+      // If it's the full internal name, also try just the key part
+      if (actualSchemaKey.startsWith('custom_objects.')) {
+        const keyPart = actualSchemaKey.split('.').pop();
+        if (keyPart) {
+          schemaKeysToTry.push(keyPart); // Add "quotes"
+        }
+      }
       schemaKeysToTry.push(actualSchemaKey);
     }
     
-    // Add common variations
+    // Add common variations - prioritize "quotes" (lowercase plural) as that's what the user's code uses
+    const cleanObjectType = objectType.startsWith('custom_objects.') 
+      ? objectType.split('.').pop() || objectType
+      : objectType;
+    
     schemaKeysToTry.push(
       cleanObjectType,          // Use cleaned objectType (e.g., "quotes")
       'quotes',                 // Just the key part (lowercase plural) - most common
       'Quotes',                 // Capitalized plural
       'Quote',                  // Capitalized singular
       'quote',                  // Lowercase singular
-      objectType,               // Use provided objectType as fallback
-      objectType.toLowerCase(), // Ensure lowercase
     );
     
     // Remove duplicates
@@ -786,40 +805,33 @@ export async function createCustomObject(
     let lastError: Error | null = null;
     let response: any = null;
     
-    // Try each schema key with both property formats (with and without prefix)
+    // Try each schema key
+    // Based on the schema we fetched, we know:
+    // - Object ID: 6973793b9743a548458387d2 (most reliable)
+    // - Object key: custom_objects.quotes (for GET requests)
+    // - For POST /records, we should try object ID first, then "quotes"
     for (const schemaKey of uniqueSchemaKeys) {
       const endpoint = `/objects/${schemaKey}/records`;
       
-      // Try with full fieldKey prefix first
-      const payloadsToTry = [
-        { payload: buildPayload(propertiesWithPrefix), description: 'with full fieldKey prefix' },
-        { payload: buildPayload(propertiesWithoutPrefix), description: 'without fieldKey prefix' },
-      ];
-      
-      for (const { payload, description } of payloadsToTry) {
-        try {
-          console.log(`Attempting to create custom object at endpoint: ${endpoint} with schemaKey: ${schemaKey} (${description})`);
-          response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
-            endpoint,
-            'POST',
-            payload
-          );
-          console.log(`✅ Successfully created custom object at: ${endpoint} using ${description}`);
-          break; // Success, exit both loops
-        } catch (error) {
-          lastError = error instanceof Error ? error : new Error(String(error));
-          const errorMessage = lastError.message;
-          console.log(`❌ Failed at ${endpoint} (${description}):`, errorMessage);
-          console.log(`   Payload sent:`, JSON.stringify(payload, null, 2));
-          
-          // If we get 422 with "properties must be an object", try next format
-          // If we get 400 "Invalid Key Passed", try next schemaKey
-          // Continue to try next format or schemaKey
-        }
-      }
-      
-      if (response) {
-        break; // Success, exit schemaKey loop
+      try {
+        console.log(`Attempting to create custom object at endpoint: ${endpoint} with schemaKey: ${schemaKey}`);
+        console.log(`Payload:`, JSON.stringify(payload, null, 2));
+        response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
+          endpoint,
+          'POST',
+          payload
+        );
+        console.log(`✅ Successfully created custom object at: ${endpoint}`);
+        break; // Success, exit loop
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        const errorMessage = lastError.message;
+        console.log(`❌ Failed at ${endpoint}:`, errorMessage);
+        console.log(`   Payload sent:`, JSON.stringify(payload, null, 2));
+        
+        // If we get 400 "Invalid Key Passed", try next schemaKey
+        // If we get 422, the payload format might be wrong
+        // Continue to try next schemaKey
       }
     }
     
