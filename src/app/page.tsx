@@ -985,6 +985,13 @@ export default function Home() {
             return;
           }
 
+          // In-service area - check if we should open survey in new tab
+          if (openSurveyInNewTab && createdContactId) {
+            console.log('Opening survey continuation in new tab with contactId:', createdContactId);
+            window.open(`/?contactId=${createdContactId}`, '_blank');
+            return;
+          }
+
           setServiceAreaChecked(true);
         } catch (error) {
           console.error('Error checking service area:', error);
