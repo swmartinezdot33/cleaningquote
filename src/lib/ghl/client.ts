@@ -60,10 +60,12 @@ export async function makeGHLRequest<T>(
     if (!response.ok) {
       // Try to get error message from response
       let errorMessage = `GHL API Error (${response.status})`;
+      let errorData: any = null;
+      
       if (responseText && responseText.trim().length > 0) {
         try {
-          const errorData = JSON.parse(responseText) as GHLAPIError;
-          errorMessage = `${errorMessage}: ${errorData.message || JSON.stringify(errorData)}`;
+          errorData = JSON.parse(responseText) as GHLAPIError;
+          errorMessage = `${errorMessage}: ${errorData.message || errorData.error || JSON.stringify(errorData)}`;
         } catch (parseError) {
           // Response is not valid JSON, include raw text
           errorMessage = `${errorMessage}: ${responseText.substring(0, 200)}`;
@@ -71,6 +73,27 @@ export async function makeGHLRequest<T>(
       } else {
         errorMessage = `${errorMessage}: Empty response from GHL API`;
       }
+      
+      // Enhanced error logging for 400/404 errors to help debug
+      if (response.status === 400 || response.status === 404) {
+        console.error(`GHL API ${response.status} Error Details:`, {
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          responseText: responseText || '(empty)',
+          errorData: errorData || '(not JSON)',
+          method: options.method || 'GET',
+          payload: (options.method === 'POST' && body) ? {
+            hasLocationId: !!body.locationId,
+            locationId: body.locationId,
+            hasContactId: !!body.contactId,
+            customFieldsCount: body.customFields?.length || 0,
+            customFieldsKeys: body.customFields?.map((f: any) => f.key) || [],
+            customFieldsSample: body.customFields?.slice(0, 3) || [],
+          } : undefined,
+        });
+      }
+      
       throw new Error(errorMessage);
     }
 
