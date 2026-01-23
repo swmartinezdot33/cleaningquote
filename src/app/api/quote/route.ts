@@ -574,27 +574,13 @@ export async function POST(request: NextRequest) {
             // Prepare custom object creation (will parallelize with opportunity and note)
             // The schemaKey should be just "quotes" (not "custom_objects.quotes")
             // The customFields keys should be just the field names (not "custom_objects.quotes.field_name")
-            const quoteObjectPromise = createCustomObject(
+            quoteObjectPromise = createCustomObject(
               'quotes', // Schema key is just "quotes" (lowercase plural)
               {
                 contactId: ghlContactId,
                 customFields: quoteCustomFields,
               }
             );
-
-            // Use the ID returned from GHL as the quote ID for the URL (if available)
-            // If GHL returns an ID, use it; otherwise keep the generated UUID
-            // The quote_id field in customFields stores the UUID for reference
-            if (quoteObject?.id) {
-              quoteId = quoteObject.id;
-              ghlQuoteCreated = true;
-            }
-            // If quoteObject.id is not available, quoteId already has the generatedQuoteId as fallback
-            console.log('✅ Quote custom object created in GHL:', {
-              objectId: quoteObject.id,
-              quoteIdField: generatedQuoteId,
-              contactId: ghlContactId,
-            });
           } catch (quoteError) {
             // Custom object creation failed - log detailed error
             const errorMessage = quoteError instanceof Error ? quoteError.message : String(quoteError);
