@@ -752,27 +752,7 @@ export default function QuotePage() {
                                   </div>
                                 )}
 
-                                {/* Move-In Clean - Only show if not selected */}
-                                {selectedServiceName !== 'Move-In Clean' && (
-                                  <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
-                                    <span className="text-sm text-gray-400">🧹</span>
-                                    <div className="flex-1">
-                                      <span className="font-semibold text-gray-900">Move-In Clean:</span>{' '}
-                                      <span className="text-gray-700">${quoteResult.ranges.moveInOutBasic.low} to ${quoteResult.ranges.moveInOutBasic.high}</span>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Move-Out Clean - Only show if not selected */}
-                                {selectedServiceName !== 'Move-Out Clean' && (
-                                  <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
-                                    <span className="text-sm text-gray-400">🧹</span>
-                                    <div className="flex-1">
-                                      <span className="font-semibold text-gray-900">Move-Out Clean:</span>{' '}
-                                      <span className="text-gray-700">${quoteResult.ranges.moveInOutFull.low} to ${quoteResult.ranges.moveInOutFull.high}</span>
-                                    </div>
-                                  </div>
-                                )}
+                                {/* Note: Move-In and Move-Out are only shown when selected, not in "OTHER SERVICE OPTIONS" */}
 
 
                                 {/* Show other recurring options if they selected a one-time service */}
