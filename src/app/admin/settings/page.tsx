@@ -2629,6 +2629,10 @@ export default function SettingsPage() {
                       </Label>
                       <p className="text-sm text-gray-600 mt-2">
                         When enabled, after the user enters their address and passes the service area check, a new tab will open to continue the survey. Their contact information will be pre-filled, and they'll skip directly to house detail questions.
+                        <br />
+                        <span className="text-xs text-gray-500 italic mt-1 block">
+                          Note: This feature only works when the widget is embedded in an iframe. It will not open a new tab when users access the survey directly on your website.
+                        </span>
                       </p>
                     </div>
                     <div className="ml-4 flex items-center">

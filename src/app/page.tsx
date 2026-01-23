@@ -1036,7 +1036,10 @@ export default function Home() {
           // Trigger Google Ads conversion for in-service lead
           triggerGoogleAdsConversion();
           
-          if (openSurveyInNewTab && createdContactId && !tabOpened) {
+          // Only open new tab if we're in an iframe (widget mode)
+          const isInIframe = window.self !== window.top;
+          
+          if (openSurveyInNewTab && createdContactId && !tabOpened && isInIframe) {
             console.log('Opening survey continuation in new tab with contactId:', createdContactId);
             // Mark as checked and tab opened BEFORE opening tab to prevent duplicate opens
             setServiceAreaChecked(true);
@@ -2612,7 +2615,10 @@ export default function Home() {
                                       // Mark as checked BEFORE opening tab to prevent duplicate opens
                                       setServiceAreaChecked(true);
                                       
-                                      if (openSurveyInNewTab && createdContactId && !tabOpened) {
+                                      // Only open new tab if we're in an iframe (widget mode)
+                                      const isInIframe = window.self !== window.top;
+                                      
+                                      if (openSurveyInNewTab && createdContactId && !tabOpened && isInIframe) {
                                         console.log('Auto-advance: Opening survey continuation in new tab with contactId:', createdContactId);
                                         setTabOpened(true);
                                         window.open(`/?contactId=${createdContactId}`, '_blank');
