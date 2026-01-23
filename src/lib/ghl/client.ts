@@ -671,22 +671,23 @@ export async function createCustomObject(
       }
       
       customFieldsArray = Object.entries(data.customFields).map(([ourKey, value]) => {
-        // If our key already includes the full fieldKey format (custom_objects.quotes.field_name),
-        // use it directly. Otherwise, try to map it.
-        if (ourKey.startsWith('custom_objects.')) {
-          // Already in the correct format
-          return {
-            key: ourKey,
-            value: String(value),
-          };
+        // Strip the custom_objects.quotes. prefix if present (used in GHL templates, not API)
+        // The API expects just the field name (e.g., "quote_id" not "custom_objects.quotes.quote_id")
+        let fieldKey = ourKey;
+        if (ourKey.startsWith('custom_objects.quotes.')) {
+          fieldKey = ourKey.replace('custom_objects.quotes.', '');
+        } else if (ourKey.startsWith('custom_objects.')) {
+          // Handle other custom_objects.* prefixes
+          const parts = ourKey.split('.');
+          fieldKey = parts[parts.length - 1]; // Get the last part (field name)
         }
         
         // Try to find matching schema field key
-        const normalizedKey = ourKey.toLowerCase();
+        const normalizedKey = fieldKey.toLowerCase();
         const schemaFieldKey = fieldMap.get(normalizedKey) || fieldMap.get(normalizedKey.replace(/_/g, ''));
         
-        // Use schema field key if found, otherwise use our key (assume it matches)
-        const finalKey = schemaFieldKey || ourKey;
+        // Use schema field key if found, otherwise use the stripped field key
+        const finalKey = schemaFieldKey || fieldKey;
         
         return {
           key: finalKey,
@@ -705,12 +706,21 @@ export async function createCustomObject(
     // According to docs: POST /objects/{schemaKey}/records
     // The API expects "properties" as an object with field keys as properties
     // NOT "customFields" as an array
-    const properties: Record<string, any> = {};
+    // Try both full fieldKey format and just the field name (without prefix)
+    const propertiesWithPrefix: Record<string, any> = {};
+    const propertiesWithoutPrefix: Record<string, any> = {};
     
     if (customFieldsArray && customFieldsArray.length > 0) {
       // Convert array format to object format
       customFieldsArray.forEach((field) => {
-        properties[field.key] = field.value;
+        // Full fieldKey format: custom_objects.quotes.quote_id
+        propertiesWithPrefix[field.key] = field.value;
+        
+        // Try without prefix: quote_id (extract field name after last dot)
+        const fieldName = field.key.includes('.') ? field.key.split('.').pop() : field.key;
+        if (fieldName) {
+          propertiesWithoutPrefix[fieldName] = field.value;
+        }
       });
     }
     
@@ -740,20 +750,25 @@ export async function createCustomObject(
     });
 
     // GHL 2.0 API: POST /objects/{schemaKey}/records
-    // Based on GHL UI, the Internal Name is "custom_objects.quotes" (with the prefix)
-    // The API might accept either the full internal name or just the key part
-    // Try the full internal name first, then fallback to variations
+    // The schemaKey should be just "quotes" (not "custom_objects.quotes")
+    // The "custom_objects.quotes" format is for GHL templates/workflows, not the API
+    // Strip the prefix if present
+    let cleanObjectType = objectType;
+    if (objectType.startsWith('custom_objects.')) {
+      const parts = objectType.split('.');
+      cleanObjectType = parts[parts.length - 1]; // Get the last part (e.g., "quotes")
+    }
+    
     const schemaKeysToTry = actualSchemaKey 
       ? [actualSchemaKey] // Use found schemaKey first
       : [
-          'custom_objects.quotes',  // Full internal name from GHL UI (most likely to work)
-          'quotes',                 // Just the key part (lowercase plural)
+          cleanObjectType,          // Use cleaned objectType (e.g., "quotes")
+          'quotes',                 // Just the key part (lowercase plural) - most common
           'Quotes',                 // Capitalized plural
           'Quote',                  // Capitalized singular
           'quote',                  // Lowercase singular
-          objectType,               // Use provided objectType
+          objectType,               // Use provided objectType as fallback
           objectType.toLowerCase(), // Ensure lowercase
-          objectType.charAt(0).toUpperCase() + objectType.slice(1).toLowerCase(), // Capitalized version
         ];
     
     // Remove duplicates
