@@ -1743,44 +1743,90 @@ export default function Home() {
 
                               {/* Show other recurring options if a recurring service was selected */}
                               {showSelectedRecurring && (
-                                <motion.div
-                                  initial={{ opacity: 0, x: -10 }}
-                                  animate={{ opacity: 1, x: 0 }}
-                                  transition={{ delay: 0.25 }}
-                                  className="space-y-2"
-                                >
-                                  <div className="text-sm font-semibold text-gray-600 mb-2">OTHER RECURRING OPTIONS:</div>
-                                  {selectedFrequency !== 'weekly' && (
-                                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
-                                      <div className="flex items-center gap-3">
-                                        <span className="text-xl">📅</span>
-                                        <span className="font-bold text-lg text-gray-700">
-                                          Weekly Cleaning: ${quoteResult.ranges.weekly.low} to ${quoteResult.ranges.weekly.high}
-                                        </span>
+                                <>
+                                  <motion.div
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.25 }}
+                                    className="space-y-2"
+                                  >
+                                    <div className="text-sm font-semibold text-gray-600 mb-2">OTHER RECURRING OPTIONS:</div>
+                                    {selectedFrequency !== 'weekly' && (
+                                      <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-xl">📅</span>
+                                          <span className="font-bold text-lg text-gray-700">
+                                            Weekly Cleaning: ${quoteResult.ranges.weekly.low} to ${quoteResult.ranges.weekly.high}
+                                          </span>
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
-                                  {selectedFrequency !== 'bi-weekly' && (
-                                    <div className="bg-gradient-to-r from-yellow-100 via-amber-100 to-yellow-100 border-l-4 border-yellow-500 pl-6 py-3 rounded-r-xl shadow-sm">
-                                      <div className="flex items-center gap-3">
-                                        <span className="text-xl">⭐</span>
-                                        <span className="font-bold text-lg text-yellow-800">
-                                          Bi-Weekly Cleaning: ${quoteResult.ranges.biWeekly.low} to ${quoteResult.ranges.biWeekly.high} (Most Popular)
-                                        </span>
+                                    )}
+                                    {selectedFrequency !== 'bi-weekly' && (
+                                      <div className="bg-gradient-to-r from-yellow-100 via-amber-100 to-yellow-100 border-l-4 border-yellow-500 pl-6 py-3 rounded-r-xl shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-xl">⭐</span>
+                                          <span className="font-bold text-lg text-yellow-800">
+                                            Bi-Weekly Cleaning: ${quoteResult.ranges.biWeekly.low} to ${quoteResult.ranges.biWeekly.high} (Most Popular)
+                                          </span>
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
-                                  {(selectedFrequency !== 'monthly' && selectedFrequency !== 'four-week' && selectedFrequency !== 'every-4-weeks') && (
-                                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
-                                      <div className="flex items-center gap-3">
-                                        <span className="text-xl">📅</span>
-                                        <span className="font-bold text-lg text-gray-700">
-                                          Every 4 Weeks Cleaning: ${quoteResult.ranges.fourWeek.low} to ${quoteResult.ranges.fourWeek.high}
-                                        </span>
+                                    )}
+                                    {(selectedFrequency !== 'monthly' && selectedFrequency !== 'four-week' && selectedFrequency !== 'every-4-weeks') && (
+                                      <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-xl">📅</span>
+                                          <span className="font-bold text-lg text-gray-700">
+                                            Every 4 Weeks Cleaning: ${quoteResult.ranges.fourWeek.low} to ${quoteResult.ranges.fourWeek.high}
+                                          </span>
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
-                                </motion.div>
+                                    )}
+                                  </motion.div>
+
+                                  {/* Show initial cleaning options when recurring service is selected */}
+                                  <motion.div
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.3 }}
+                                    className="space-y-2 mt-4"
+                                  >
+                                    <div className="text-sm font-semibold text-gray-600 mb-2">INITIAL CLEANING OPTIONS:</div>
+                                    {/* Initial Cleaning - show if required or as option */}
+                                    {(quoteResult.initialCleaningRequired || selectedServiceType !== 'initial') && (
+                                      <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 border-l-4 border-purple-600 pl-6 py-3 rounded-r-xl shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-xl">✨</span>
+                                          <span className="font-bold text-lg text-purple-700">
+                                            Initial Cleaning: ${quoteResult.ranges.initial.low} to ${quoteResult.ranges.initial.high}
+                                            {quoteResult.initialCleaningRequired && ' (Required)'}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {/* Deep Clean */}
+                                    {selectedServiceType !== 'deep' && (
+                                      <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-3 rounded-r-xl shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-xl">🧹</span>
+                                          <span className="font-bold text-lg text-blue-700">
+                                            Deep Clean: ${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {/* General Clean */}
+                                    {selectedServiceType !== 'general' && (
+                                      <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 border-l-4 border-blue-600 pl-6 py-3 rounded-r-xl shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-xl">✨</span>
+                                          <span className="font-bold text-lg text-blue-700">
+                                            General Clean: ${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </motion.div>
+                                </>
                               )}
 
                               {/* Show one-time service options if a one-time service was selected */}
