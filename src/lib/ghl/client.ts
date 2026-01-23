@@ -1371,6 +1371,77 @@ export async function getCustomObjectById(
 }
 
 /**
+ * Search for a quote custom object by quote_id field (generated UUID)
+ * This is useful when we have the generated UUID but need to find the GHL object
+ */
+export async function getCustomObjectByQuoteId(
+  quoteId: string,
+  locationId?: string
+): Promise<GHLCustomObjectResponse | null> {
+  try {
+    let finalLocationId = locationId || (await getGHLLocationId());
+    
+    if (!finalLocationId) {
+      console.log('⚠️ Location ID not available, cannot search by quote_id');
+      return null;
+    }
+
+    const objectId = KNOWN_OBJECT_IDS.quotes;
+    if (!objectId) {
+      console.log('⚠️ Known quotes object ID not available, cannot search by quote_id');
+      return null;
+    }
+
+    // Try to list records and search for the one with matching quote_id
+    // Note: GHL API might not support filtering, so we may need to list all and filter client-side
+    // This is a fallback method - prefer using getCustomObjectById with GHL object ID when possible
+    try {
+      const endpoint = `/objects/${objectId}/records?locationId=${finalLocationId}`;
+      console.log(`🔍 Attempting to search for quote by quote_id: ${quoteId}`);
+      
+      const response = await makeGHLRequest<any>(endpoint, 'GET');
+      
+      // GHL returns records in various formats
+      let records: any[] = [];
+      if (Array.isArray(response)) {
+        records = response;
+      } else if (response.records && Array.isArray(response.records)) {
+        records = response.records;
+      } else if (response.data && Array.isArray(response.data)) {
+        records = response.data;
+      } else if (typeof response === 'object') {
+        // Try to find records in the response object
+        const keys = Object.keys(response);
+        for (const key of keys) {
+          if (Array.isArray(response[key])) {
+            records = response[key];
+            break;
+          }
+        }
+      }
+      
+      // Search for the record with matching quote_id
+      for (const record of records) {
+        const recordQuoteId = record.properties?.quote_id || record.customFields?.quote_id || record.quote_id;
+        if (recordQuoteId === quoteId) {
+          console.log(`✅ Found quote by quote_id field: ${quoteId}`);
+          return record as GHLCustomObjectResponse;
+        }
+      }
+      
+      console.log(`⚠️ Quote with quote_id ${quoteId} not found in GHL records`);
+      return null;
+    } catch (error) {
+      console.log(`⚠️ Failed to search for quote by quote_id:`, error instanceof Error ? error.message : String(error));
+      return null;
+    }
+  } catch (error) {
+    console.error('Error searching for quote by quote_id:', error);
+    return null;
+  }
+}
+
+/**
  * Get locationId from token (works for both agency and location-level tokens)
  * Uses /oauth/installedLocations endpoint
  */

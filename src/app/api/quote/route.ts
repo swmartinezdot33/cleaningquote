@@ -740,7 +740,12 @@ export async function POST(request: NextRequest) {
               await kv.setex(`quote:${ghlObjectId}`, 60 * 60 * 24 * 30, JSON.stringify(kvData));
               console.log(`✅ Stored quote data in KV with GHL object ID: ${ghlObjectId}`);
             } catch (kvError) {
-              console.error('⚠️ Failed to store quote in KV with both IDs:', kvError);
+              const errorMsg = kvError instanceof Error ? kvError.message : String(kvError);
+              console.error('⚠️ Failed to store quote in KV with both IDs:', errorMsg);
+              // If KV is not configured, this is expected in local dev - log but don't fail
+              if (errorMsg.includes('KV_REST_API_URL') || errorMsg.includes('not configured')) {
+                console.warn('⚠️ KV storage not configured - quotes will not be retrievable via API in local dev');
+              }
             }
           } else if (quoteObjectPromise) {
             // Custom object creation failed - log detailed error
@@ -789,7 +794,7 @@ export async function POST(request: NextRequest) {
 
     // ALWAYS store quote data in KV (required for API access)
     // This ensures quotes are always accessible via the API endpoint, even if GHL creation fails
-    // Only store here if we haven't already stored it above (when GHL creation succeeded)
+    // Store here if we haven't already stored it above (when GHL creation succeeded)
     if (!ghlQuoteCreated) {
       try {
         const kv = getKV();
@@ -813,18 +818,68 @@ export async function POST(request: NextRequest) {
           quoteCustomFields: Object.keys(quoteCustomFields).length > 0 ? quoteCustomFields : undefined,
         };
         // Store with generated UUID (for frontend redirect)
-        await kv.setex(`quote:${generatedQuoteId}`, 60 * 60 * 24 * 30, JSON.stringify(quoteData));
-        console.log(`✅ Stored quote data in KV (always accessible via API): ${generatedQuoteId}`);
+        const quoteDataString = JSON.stringify(quoteData);
+        await kv.setex(`quote:${generatedQuoteId}`, 60 * 60 * 24 * 30, quoteDataString);
+        
+        // Verify storage worked
+        const verifyStored = await kv.get(`quote:${generatedQuoteId}`);
+        if (verifyStored) {
+          console.log(`✅ Stored quote data in KV (always accessible via API): ${generatedQuoteId} (verified)`);
+        } else {
+          console.error(`❌ KV storage verification failed: ${generatedQuoteId}`);
+        }
         
         // If GHL creation failed but we have the data, log for potential retry
         if (ghlContactId && Object.keys(quoteCustomFields).length > 0) {
           console.warn(`⚠️ Quote ${generatedQuoteId} stored in KV but not in GHL - may need manual retry`);
         }
       } catch (kvError) {
-        // KV storage failure is critical - log as error but don't block response
-        console.error('❌ CRITICAL: Failed to store quote in KV - quote may not be accessible via API:', kvError);
+        // KV storage failure - check if it's a configuration issue
+        const errorMsg = kvError instanceof Error ? kvError.message : String(kvError);
+        if (errorMsg.includes('KV_REST_API_URL') || errorMsg.includes('not configured')) {
+          console.warn('⚠️ KV storage not configured - quotes will not be retrievable via API in local dev');
+        } else {
+          // KV storage failure is critical - log as error but don't block response
+          console.error('❌ CRITICAL: Failed to store quote in KV - quote may not be accessible via API:', errorMsg);
+        }
         // Still return the quoteId so redirect can happen, but user should be aware
       }
+    } else {
+      // GHL creation succeeded, but ensure KV storage happened (double-check)
+      // This is a safety net in case the earlier storage block didn't execute
+      try {
+        const kv = getKV();
+        const existing = await kv.get(`quote:${generatedQuoteId}`);
+        if (!existing) {
+          console.warn(`⚠️ GHL quote created but KV storage missing - storing now...`);
+          const quoteData = {
+            outOfLimits: false,
+            multiplier: result.multiplier,
+            inputs: result.inputs,
+            ranges: result.ranges,
+            initialCleaningRequired: result.initialCleaningRequired,
+            initialCleaningRecommended: result.initialCleaningRecommended,
+            summaryText,
+            smsText,
+            ghlContactId,
+            serviceType: body.serviceType,
+            frequency: body.frequency,
+            createdAt: new Date().toISOString(),
+            ghlQuoteCreated: true,
+            generatedQuoteId: generatedQuoteId,
+            quoteCustomFields: Object.keys(quoteCustomFields).length > 0 ? quoteCustomFields : undefined,
+          };
+          await kv.setex(`quote:${generatedQuoteId}`, 60 * 60 * 24 * 30, JSON.stringify(quoteData));
+          console.log(`✅ Stored quote data in KV (safety net): ${generatedQuoteId}`);
+        }
+        } catch (kvError) {
+          const errorMsg = kvError instanceof Error ? kvError.message : String(kvError);
+          if (errorMsg.includes('KV_REST_API_URL') || errorMsg.includes('not configured')) {
+            console.warn('⚠️ KV storage not configured (safety net) - quotes will not be retrievable via API in local dev');
+          } else {
+            console.error('❌ CRITICAL: Failed to store quote in KV (safety net):', errorMsg);
+          }
+        }
     }
 
     return NextResponse.json({

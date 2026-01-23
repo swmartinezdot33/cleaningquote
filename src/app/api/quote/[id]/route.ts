@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCustomObjectById, getContactById } from '@/lib/ghl/client';
+import { getCustomObjectById, getCustomObjectByQuoteId, getContactById } from '@/lib/ghl/client';
 import { calcQuote } from '@/lib/pricing/calcQuote';
 import { generateSummaryText, generateSmsText } from '@/lib/pricing/format';
 import { QuoteInputs } from '@/lib/pricing/types';
@@ -29,28 +29,63 @@ export async function GET(
       (async () => {
         try {
           const kv = getKV();
-          const stored = await kv.get(`quote:${quoteId}`);
+          const key = `quote:${quoteId}`;
+          console.log(`🔍 Attempting KV lookup for key: ${key}`);
+          const stored = await kv.get(key);
+          console.log(`🔍 KV lookup result for ${key}:`, {
+            found: !!stored,
+            type: typeof stored,
+            isString: typeof stored === 'string',
+            length: stored ? (typeof stored === 'string' ? stored.length : 'not string') : 0,
+          });
           if (stored && typeof stored === 'string') {
             const parsed = JSON.parse(stored);
-            console.log('✅ Found quote data in KV storage');
+            console.log(`✅ Found quote data in KV storage with key: ${key}`);
             return parsed;
+          } else if (stored) {
+            // KV might return the parsed object directly
+            console.log(`✅ Found quote data in KV storage (already parsed) with key: ${key}`);
+            return stored as any;
           }
+          console.log(`⚠️ KV lookup returned null/undefined for key: ${key}`);
           return null;
         } catch (kvError) {
-          console.log('No quote data in KV:', kvError instanceof Error ? kvError.message : String(kvError));
+          const errorMsg = kvError instanceof Error ? kvError.message : String(kvError);
+          // If KV is not configured, this is expected in local dev
+          if (errorMsg.includes('KV_REST_API_URL') || errorMsg.includes('not configured')) {
+            console.log('⚠️ KV storage not configured - skipping KV lookup (expected in local dev)');
+          } else {
+            console.log(`❌ KV lookup error for quote:${quoteId}:`, errorMsg);
+          }
           return null;
         }
       })(),
       // Try to fetch Quote custom object from GHL
       (async () => {
         try {
+          // First try direct ID lookup (might be GHL object ID)
           return await getCustomObjectById('quotes', quoteId);
         } catch (error) {
-          console.log('Failed with "quotes", trying "Quote" (capitalized)...');
+          console.log('Direct ID lookup failed, trying "Quote" (capitalized)...');
           try {
             return await getCustomObjectById('Quote', quoteId);
           } catch (secondError) {
-            console.log('Failed to fetch quote object from GHL');
+            // If direct ID lookup fails, the quoteId might be a generated UUID
+            // stored in the quote_id field. Try searching by that field.
+            console.log('Direct ID lookup failed, quoteId might be a generated UUID in quote_id field');
+            console.log('Attempting to search for quote by quote_id field...');
+            
+            try {
+              const quoteByQuoteId = await getCustomObjectByQuoteId(quoteId);
+              if (quoteByQuoteId) {
+                console.log('✅ Found quote by searching quote_id field');
+                return quoteByQuoteId;
+              }
+            } catch (searchError) {
+              console.log('Search by quote_id field failed:', searchError instanceof Error ? searchError.message : String(searchError));
+            }
+            
+            // If all GHL lookups failed, throw the original error
             throw secondError;
           }
         }
@@ -94,10 +129,28 @@ export async function GET(
       }
     }
 
-    // If both failed, return error
+    // If both failed, return error with detailed logging
     if (!quoteDataFromKV && !quoteObject) {
+      console.error('❌ Quote not found:', {
+        quoteId,
+        kvLookupSucceeded: kvResult.status === 'fulfilled',
+        kvHasData: !!quoteDataFromKV,
+        ghlLookupSucceeded: ghlResult.status === 'fulfilled',
+        ghlHasData: !!quoteObject,
+        kvError: kvResult.status === 'rejected' ? (kvResult.reason instanceof Error ? kvResult.reason.message : String(kvResult.reason)) : null,
+        ghlError: ghlResult.status === 'rejected' ? (ghlResult.reason instanceof Error ? ghlResult.reason.message : String(ghlResult.reason)) : null,
+        note: 'Quote may not exist, may have expired (30 day TTL), or may have been created before dual-ID storage was implemented',
+      });
+      
       return NextResponse.json(
-        { error: 'Quote not found' },
+        { 
+          error: 'Quote not found',
+          quoteId,
+          details: process.env.NODE_ENV === 'development' ? {
+            kvLookupFailed: kvResult.status === 'rejected',
+            ghlLookupFailed: ghlResult.status === 'rejected',
+          } : undefined,
+        },
         { status: 404 }
       );
     }
