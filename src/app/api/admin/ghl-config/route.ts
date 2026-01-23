@@ -16,12 +16,9 @@ function authenticate(request: NextRequest): NextResponse | null {
 }
 
 /**
- * GET - Retrieve GHL configuration
+ * GET - Retrieve GHL configuration (public, no auth needed for reading)
  */
 export async function GET(request: NextRequest) {
-  const authResponse = authenticate(request);
-  if (authResponse) return authResponse;
-
   try {
     const config = await getGHLConfig();
     
