@@ -384,6 +384,11 @@ export async function POST(request: NextRequest) {
         // Note: Contact creation happens regardless of createContact config
         // This ensures bookings work even if contact creation is "disabled"
 
+        // Prepare promises for parallel execution (opportunity, custom object, note)
+        let opportunityPromise: Promise<any> | null = null;
+        let quoteObjectPromise: Promise<any> | null = null;
+        let notePromise: Promise<any> | null = null;
+
         // Create opportunity if enabled
         if (ghlConfig?.createOpportunity && ghlContactId) {
           // Get the selected price range first
@@ -463,7 +468,7 @@ export async function POST(request: NextRequest) {
             });
           }
 
-          await createOpportunity({
+          opportunityPromise = createOpportunity({
             contactId: ghlContactId,
             name: opportunityName,
             value: opportunityValue,
@@ -612,14 +617,69 @@ export async function POST(request: NextRequest) {
           console.log('⚠️ No GHL contact ID available - quote will be stored in KV only');
         }
 
-        // Create note if enabled
+        // Prepare note creation (will parallelize with opportunity and custom object)
         if (ghlConfig?.createNote !== false && ghlContactId) {
           const noteBody = `Quote Generated from Website Form\n\n${summaryText}`;
-
-          await createNote({
+          notePromise = createNote({
             contactId: ghlContactId,
             body: noteBody,
           });
+        }
+
+        // Execute all GHL operations in parallel for faster response
+        const ghlOperations = [
+          opportunityPromise,
+          quoteObjectPromise,
+          notePromise,
+        ].filter(Boolean) as Promise<any>[];
+
+        if (ghlOperations.length > 0) {
+          const results = await Promise.allSettled(ghlOperations);
+          
+          // Process quote object result
+          const quoteResult = quoteObjectPromise 
+            ? results.find((_, idx) => ghlOperations[idx] === quoteObjectPromise)
+            : null;
+          
+          if (quoteResult && quoteResult.status === 'fulfilled' && quoteResult.value?.id) {
+            quoteId = quoteResult.value.id;
+            ghlQuoteCreated = true;
+            console.log('✅ Quote custom object created in GHL:', {
+              objectId: quoteResult.value.id,
+              quoteIdField: generatedQuoteId,
+              contactId: ghlContactId,
+            });
+          } else if (quoteObjectPromise) {
+            // Custom object creation failed - log detailed error
+            const error = quoteResult?.status === 'rejected' ? quoteResult.reason : null;
+            const errorMessage = error instanceof Error ? error.message : String(error || 'Unknown error');
+            console.error('⚠️ Failed to create Quote custom object in GHL:', errorMessage);
+            console.error('📋 Quote object creation error details:', {
+              error: errorMessage,
+              contactId: ghlContactId,
+              customFieldsCount: Object.keys(quoteCustomFields).length,
+              customFieldsKeys: Object.keys(quoteCustomFields),
+              troubleshooting: 'If you want to use custom objects, please ensure:\n' +
+                '1. A "Quote" custom object exists in your GHL account (Settings > Custom Objects)\n' +
+                '2. The object has fields matching these keys: ' + Object.keys(quoteCustomFields).join(', ') + '\n' +
+                '3. Your API token has objects/record.write scope enabled',
+            });
+          }
+          
+          // Log other operation results
+          if (opportunityPromise) {
+            const oppResult = results.find((_, idx) => ghlOperations[idx] === opportunityPromise);
+            if (oppResult?.status === 'rejected') {
+              console.error('⚠️ Failed to create opportunity:', oppResult.reason);
+            }
+          }
+          
+          if (notePromise) {
+            const noteResult = results.find((_, idx) => ghlOperations[idx] === notePromise);
+            if (noteResult?.status === 'rejected') {
+              console.error('⚠️ Failed to create note:', noteResult.reason);
+            }
+          }
         }
 
         console.log('Successfully synced quote to GHL for contact:', ghlContactId);
