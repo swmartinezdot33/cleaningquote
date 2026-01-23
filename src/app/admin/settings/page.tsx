@@ -117,6 +117,10 @@ export default function SettingsPage() {
   // Quote Completed Tags Settings
   const [quoteCompletedTags, setQuoteCompletedTags] = useState<Set<string>>(new Set());
   const [quoteTagsSearch, setQuoteTagsSearch] = useState<string>('');
+  
+  // New tag creation for appointment booked and quote completed
+  const [newAppointmentTagName, setNewAppointmentTagName] = useState<string>('');
+  const [newQuoteTagName, setNewQuoteTagName] = useState<string>('');
 
   // Google Maps API Key State
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState('');
@@ -834,6 +838,58 @@ export default function SettingsPage() {
           setSelectedOutOfServiceTags(new Set([...selectedOutOfServiceTags, data.tag.name]));
           setNewOutOfServiceTagName('');
           setOutOfServiceTagSearch(''); // Clear search to show the new tag
+        }
+      } else {
+        const error = await response.json();
+        console.error('Tag creation error:', error);
+        const errorMessage = error.details || error.error || 'Unknown error';
+        alert(`Failed to create tag: ${errorMessage}`);
+      }
+    } catch (error) {
+      console.error('Error creating tag:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Failed to create tag: ${errorMessage}`);
+    } finally {
+      setIsCreatingTag(false);
+    }
+  };
+
+  const handleCreateAppointmentOrQuoteTag = async (tagNameToCreate: string, section: 'appointment' | 'quote') => {
+    if (!tagNameToCreate.trim()) {
+      return;
+    }
+
+    // Check if tag already exists
+    const tagExists = ghlTags.some(tag => tag.name.toLowerCase() === tagNameToCreate.trim().toLowerCase());
+    if (tagExists) {
+      alert(`Tag "${tagNameToCreate.trim()}" already exists. Please select it from the list.`);
+      return;
+    }
+
+    setIsCreatingTag(true);
+    try {
+      const response = await fetch('/api/admin/ghl-tags/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': password,
+        },
+        body: JSON.stringify({ name: tagNameToCreate.trim() }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Refresh tags list to ensure consistency
+        await loadTags();
+        // Automatically select the newly created tag and clear the input
+        if (section === 'appointment') {
+          setAppointmentBookedTags(new Set([...appointmentBookedTags, data.tag.id]));
+          setNewAppointmentTagName('');
+          setAppointmentTagsSearch(''); // Clear search to show the new tag
+        } else {
+          setQuoteCompletedTags(new Set([...quoteCompletedTags, data.tag.id]));
+          setNewQuoteTagName('');
+          setQuoteTagsSearch(''); // Clear search to show the new tag
         }
       } else {
         const error = await response.json();
@@ -2077,6 +2133,32 @@ export default function SettingsPage() {
                             />
                           </div>
 
+                          {/* Create New Tag Input */}
+                          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <label className="text-sm font-medium text-gray-700 block mb-2">Create New Tag</label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                placeholder="New tag name..."
+                                value={newAppointmentTagName}
+                                onChange={(e) => setNewAppointmentTagName(e.target.value)}
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') {
+                                    handleCreateAppointmentOrQuoteTag(newAppointmentTagName, 'appointment');
+                                  }
+                                }}
+                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              <Button
+                                onClick={() => handleCreateAppointmentOrQuoteTag(newAppointmentTagName, 'appointment')}
+                                disabled={isCreatingTag || !newAppointmentTagName.trim()}
+                                className="bg-blue-500 hover:bg-blue-600 text-white"
+                              >
+                                {isCreatingTag ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                              </Button>
+                            </div>
+                          </div>
+
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-64 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-gray-50">
                             {ghlTags
                               .filter(tag => tag.name.toLowerCase().includes(appointmentTagsSearch.toLowerCase()))
@@ -2120,6 +2202,32 @@ export default function SettingsPage() {
                               onChange={(e) => setQuoteTagsSearch(e.target.value)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
                             />
+                          </div>
+
+                          {/* Create New Tag Input */}
+                          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <label className="text-sm font-medium text-gray-700 block mb-2">Create New Tag</label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                placeholder="New tag name..."
+                                value={newQuoteTagName}
+                                onChange={(e) => setNewQuoteTagName(e.target.value)}
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') {
+                                    handleCreateAppointmentOrQuoteTag(newQuoteTagName, 'quote');
+                                  }
+                                }}
+                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              <Button
+                                onClick={() => handleCreateAppointmentOrQuoteTag(newQuoteTagName, 'quote')}
+                                disabled={isCreatingTag || !newQuoteTagName.trim()}
+                                className="bg-blue-500 hover:bg-blue-600 text-white"
+                              >
+                                {isCreatingTag ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                              </Button>
+                            </div>
                           </div>
 
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-64 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-gray-50">
