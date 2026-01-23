@@ -724,18 +724,15 @@ export async function createCustomObject(
       });
     }
     
-    // Build payload - contactId might need to be in properties or might not be allowed
-    // Try without contactId first, then with it if needed
-    const payload: Record<string, any> = {
+    // Build payloads to try - first with full fieldKey, then without prefix
+    // Note: The error said "property contactId should not exist" at top level
+    // Contact association might be done via Associations API separately
+    const buildPayload = (props: Record<string, any>) => ({
       locationId: finalLocationId,
-      ...(Object.keys(properties).length > 0 && {
-        properties: properties,
+      ...(Object.keys(props).length > 0 && {
+        properties: props,
       }),
-    };
-    
-    // Note: The error said "property contactId should not exist"
-    // So we'll try without contactId first. If association is needed, it might be done differently
-    // or contactId might need to be in properties
+    });
 
     console.log('📝 Creating custom object with payload:', {
       endpoint: 'POST /objects/{schemaKey}/records',
@@ -750,8 +747,9 @@ export async function createCustomObject(
     });
 
     // GHL 2.0 API: POST /objects/{schemaKey}/records
-    // The schemaKey should be just "quotes" (not "custom_objects.quotes")
-    // The "custom_objects.quotes" format is for GHL templates/workflows, not the API
+    // The schemaKey can be:
+    // 1. The object ID (e.g., "6973793b9743a548458387d2") - most reliable
+    // 2. Just "quotes" (not "custom_objects.quotes") - the "custom_objects.quotes" format is for templates/workflows
     // Strip the prefix if present
     let cleanObjectType = objectType;
     if (objectType.startsWith('custom_objects.')) {
@@ -759,17 +757,28 @@ export async function createCustomObject(
       cleanObjectType = parts[parts.length - 1]; // Get the last part (e.g., "quotes")
     }
     
-    const schemaKeysToTry = actualSchemaKey 
-      ? [actualSchemaKey] // Use found schemaKey first
-      : [
-          cleanObjectType,          // Use cleaned objectType (e.g., "quotes")
-          'quotes',                 // Just the key part (lowercase plural) - most common
-          'Quotes',                 // Capitalized plural
-          'Quote',                  // Capitalized singular
-          'quote',                  // Lowercase singular
-          objectType,               // Use provided objectType as fallback
-          objectType.toLowerCase(), // Ensure lowercase
-        ];
+    const schemaKeysToTry: string[] = [];
+    
+    // If we have schemaFields with object ID, use that first (most reliable)
+    if (schemaFields?.object?.id) {
+      schemaKeysToTry.push(schemaFields.object.id);
+    }
+    
+    // Add found schemaKey if available
+    if (actualSchemaKey) {
+      schemaKeysToTry.push(actualSchemaKey);
+    }
+    
+    // Add common variations
+    schemaKeysToTry.push(
+      cleanObjectType,          // Use cleaned objectType (e.g., "quotes")
+      'quotes',                 // Just the key part (lowercase plural) - most common
+      'Quotes',                 // Capitalized plural
+      'Quote',                  // Capitalized singular
+      'quote',                  // Lowercase singular
+      objectType,               // Use provided objectType as fallback
+      objectType.toLowerCase(), // Ensure lowercase
+    );
     
     // Remove duplicates
     const uniqueSchemaKeys = [...new Set(schemaKeysToTry)];
@@ -777,31 +786,40 @@ export async function createCustomObject(
     let lastError: Error | null = null;
     let response: any = null;
     
+    // Try each schema key with both property formats (with and without prefix)
     for (const schemaKey of uniqueSchemaKeys) {
       const endpoint = `/objects/${schemaKey}/records`;
-      try {
-        console.log(`Attempting to create custom object at endpoint: ${endpoint} with schemaKey: ${schemaKey}`);
-        response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
-          endpoint,
-          'POST',
-          payload
-        );
-        console.log(`✅ Successfully created custom object at: ${endpoint}`);
-        break; // Success, exit loop
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-        const errorMessage = lastError.message;
-        console.log(`❌ Failed at ${endpoint}:`, errorMessage);
-        console.log(`   Payload sent:`, JSON.stringify(payload, null, 2));
-        console.log(`   Custom fields being sent:`, customFieldsArray);
-        
-        // If we get 400 "Invalid Key Passed", it might be:
-        // - Wrong schemaKey (unlikely if we found it from list)
-        // - Wrong customFields keys (field keys don't match schema) - MOST LIKELY
-        // - Wrong payload format
-        // If we get 401, it means the endpoint exists but token lacks scope
-        // If we get 404, the schemaKey doesn't exist
-        // Continue to try next schemaKey
+      
+      // Try with full fieldKey prefix first
+      const payloadsToTry = [
+        { payload: buildPayload(propertiesWithPrefix), description: 'with full fieldKey prefix' },
+        { payload: buildPayload(propertiesWithoutPrefix), description: 'without fieldKey prefix' },
+      ];
+      
+      for (const { payload, description } of payloadsToTry) {
+        try {
+          console.log(`Attempting to create custom object at endpoint: ${endpoint} with schemaKey: ${schemaKey} (${description})`);
+          response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
+            endpoint,
+            'POST',
+            payload
+          );
+          console.log(`✅ Successfully created custom object at: ${endpoint} using ${description}`);
+          break; // Success, exit both loops
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+          const errorMessage = lastError.message;
+          console.log(`❌ Failed at ${endpoint} (${description}):`, errorMessage);
+          console.log(`   Payload sent:`, JSON.stringify(payload, null, 2));
+          
+          // If we get 422 with "properties must be an object", try next format
+          // If we get 400 "Invalid Key Passed", try next schemaKey
+          // Continue to try next format or schemaKey
+        }
+      }
+      
+      if (response) {
+        break; // Success, exit schemaKey loop
       }
     }
     
