@@ -404,8 +404,37 @@ export async function createAppointment(
 }
 
 /**
+ * List all object schemas to find the correct schemaKey
+ * Always uses stored locationId for sub-account (location-level) API calls
+ */
+export async function listObjectSchemas(locationId?: string): Promise<any[]> {
+  try {
+    let finalLocationId = locationId || (await getGHLLocationId());
+    
+    if (!finalLocationId) {
+      throw new Error('Location ID is required. Please configure it in the admin settings.');
+    }
+
+    // GHL API: GET /objects?locationId={locationId}
+    const endpoint = `/objects?locationId=${finalLocationId}`;
+    const response = await makeGHLRequest<{ objects?: any[]; data?: any[] }>(
+      endpoint,
+      'GET'
+    );
+
+    // GHL may return { objects: [...] } or { data: [...] } or array directly
+    const schemas = response.objects || response.data || (Array.isArray(response) ? response : []);
+    return schemas;
+  } catch (error) {
+    console.error('Failed to list object schemas:', error);
+    throw error;
+  }
+}
+
+/**
  * Create a custom object in GHL
  * Always uses stored locationId for sub-account (location-level) API calls
+ * According to GHL API docs: POST /objects/{schemaKey}/records
  */
 export async function createCustomObject(
   objectType: string,
@@ -421,6 +450,7 @@ export async function createCustomObject(
     }
 
     // Convert customFields object to array format required by GHL API
+    // GHL expects customFields as array of { key: string, value: string }
     let customFieldsArray: Array<{ key: string; value: string }> | undefined;
     if (data.customFields && Object.keys(data.customFields).length > 0) {
       customFieldsArray = Object.entries(data.customFields).map(([key, value]) => ({
@@ -429,6 +459,8 @@ export async function createCustomObject(
       }));
     }
 
+    // GHL API payload format for creating records
+    // According to docs: POST /objects/{schemaKey}/records
     const payload: Record<string, any> = {
       locationId: finalLocationId,
       ...(data.contactId && { contactId: data.contactId }),
@@ -437,31 +469,25 @@ export async function createCustomObject(
       }),
     };
 
-    // GHL 2.0 API: Use custom-objects endpoint
-    // Try multiple endpoint formats - GHL API might use different structures
-    // Based on unique keys showing "custom_objects.quotes", object type should be "quotes" (lowercase, plural)
-    // According to GHL API docs, the endpoint might be /objects/{objectType} or /custom-objects/{objectType}
-    const endpointsToTry = [
-      `/objects/${objectType}`,                   // Try /objects first (might be the correct base path)
-      `/objects/${objectType}/records`,            // With /records
-      `/custom-objects/${objectType}`,            // Without /records
-      `/custom-objects/${objectType}/records`,    // With /records
+    // GHL 2.0 API: POST /objects/{schemaKey}/records
+    // The 401 error on /objects/quotes/records suggests the endpoint exists but needs proper scopes
+    // Try different schemaKey variations to find the correct one
+    const schemaKeysToTry = [
+      objectType,           // "quotes" (lowercase plural)
+      objectType.toLowerCase(), // Ensure lowercase
+      objectType.charAt(0).toUpperCase() + objectType.slice(1).toLowerCase(), // "Quote" (capitalized singular)
     ];
     
-    // If objectType is lowercase plural, also try capitalized singular
-    if (objectType === 'quotes') {
-      endpointsToTry.push(`/objects/Quote`);
-      endpointsToTry.push(`/objects/Quote/records`);
-      endpointsToTry.push(`/custom-objects/Quote`);
-      endpointsToTry.push(`/custom-objects/Quote/records`);
-    }
+    // Remove duplicates
+    const uniqueSchemaKeys = [...new Set(schemaKeysToTry)];
     
     let lastError: Error | null = null;
     let response: any = null;
     
-    for (const endpoint of endpointsToTry) {
+    for (const schemaKey of uniqueSchemaKeys) {
+      const endpoint = `/objects/${schemaKey}/records`;
       try {
-        console.log(`Attempting to create custom object at endpoint: ${endpoint}`);
+        console.log(`Attempting to create custom object at endpoint: ${endpoint} with schemaKey: ${schemaKey}`);
         response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
           endpoint,
           'POST',
@@ -471,19 +497,30 @@ export async function createCustomObject(
         break; // Success, exit loop
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        console.log(`❌ Failed at ${endpoint}:`, lastError.message);
-        // Continue to next endpoint
+        const errorMessage = lastError.message;
+        console.log(`❌ Failed at ${endpoint}:`, errorMessage);
+        
+        // If we get 401, it means the endpoint exists but token lacks scope
+        // If we get 404, the schemaKey is wrong
+        // Continue to try next schemaKey
       }
     }
     
     if (!response) {
+      // If all attempts failed with 401, it's a scope issue
+      // If all failed with 404, the schemaKey doesn't exist
+      const isScopeIssue = lastError?.message.includes('401') || lastError?.message.includes('not authorized');
+      const errorMsg = isScopeIssue
+        ? 'Failed to create custom object - token lacks required scope (objects/record.write). Please check your GHL API token permissions.'
+        : `Failed to create custom object - schemaKey "${objectType}" not found. Please verify the object type name in your GHL account.`;
+      
       console.error('All endpoint attempts failed. Last error:', lastError);
-      throw lastError || new Error('Failed to create custom object - all endpoint variations failed');
+      throw new Error(errorMsg);
     }
 
     // GHL may return the object directly or wrapped in a key
     // Try to find the object in the response
-    const customObject = response[objectType] || response[objectType.slice(0, -1)] || response.Quote || response.record || response;
+    const customObject = response.record || response[objectType] || response[objectType.slice(0, -1)] || response.Quote || response;
     
     return customObject as GHLCustomObjectResponse;
   } catch (error) {
