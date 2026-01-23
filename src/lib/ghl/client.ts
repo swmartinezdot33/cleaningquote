@@ -612,32 +612,30 @@ export async function createCustomObject(
           
           // Try to get the full schema to see field definitions
           // We know "custom_objects.quotes" works from the debug endpoint
-          if (actualSchemaKey) {
+          try {
+            schemaFields = await getObjectSchema(actualSchemaKey, finalLocationId);
+            console.log('✅ Retrieved schema fields:', {
+              objectId: schemaFields?.object?.id,
+              objectKey: schemaFields?.object?.key,
+              fieldCount: schemaFields?.fields?.length || 0,
+              fieldKeys: schemaFields?.fields?.map((f: any) => f.fieldKey || f.key || f.name || f.id) || [],
+              sampleFields: schemaFields?.fields?.slice(0, 5).map((f: any) => ({
+                fieldKey: f.fieldKey,
+                key: f.key,
+                name: f.name,
+                id: f.id,
+                type: f.dataType || f.type,
+              })) || [],
+            });
+          } catch (schemaError) {
+            console.log('⚠️ Could not fetch schema details, trying "custom_objects.quotes" as fallback...');
+            // Try direct fetch with "custom_objects.quotes" as fallback (we know this works)
             try {
-              schemaFields = await getObjectSchema(actualSchemaKey, finalLocationId);
-              console.log('✅ Retrieved schema fields:', {
-                objectId: schemaFields?.object?.id,
-                objectKey: schemaFields?.object?.key,
-                fieldCount: schemaFields?.fields?.length || 0,
-                fieldKeys: schemaFields?.fields?.map((f: any) => f.fieldKey || f.key || f.name || f.id) || [],
-                sampleFields: schemaFields?.fields?.slice(0, 5).map((f: any) => ({
-                  fieldKey: f.fieldKey,
-                  key: f.key,
-                  name: f.name,
-                  id: f.id,
-                  type: f.dataType || f.type,
-                })) || [],
-              });
-            } catch (schemaError) {
-              console.log('⚠️ Could not fetch schema details, trying "custom_objects.quotes" as fallback...');
-              // Try direct fetch with "custom_objects.quotes" as fallback (we know this works)
-              try {
-                schemaFields = await getObjectSchema('custom_objects.quotes', finalLocationId);
-                actualSchemaKey = 'custom_objects.quotes';
-                console.log('✅ Successfully fetched schema with "custom_objects.quotes"');
-              } catch (fallbackError) {
-                console.log('⚠️ Direct fetch also failed');
-              }
+              schemaFields = await getObjectSchema('custom_objects.quotes', finalLocationId);
+              actualSchemaKey = 'custom_objects.quotes';
+              console.log('✅ Successfully fetched schema with "custom_objects.quotes"');
+            } catch (fallbackError) {
+              console.log('⚠️ Direct fetch also failed');
             }
           }
         } else {
