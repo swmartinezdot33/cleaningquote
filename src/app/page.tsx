@@ -272,6 +272,8 @@ export default function Home() {
   const [tabOpened, setTabOpened] = useState(false); // Prevent multiple tab opens
   const [formSettings, setFormSettings] = useState<any>({});
   const [openSurveyInNewTab, setOpenSurveyInNewTab] = useState(false);
+  const serviceAreaCheckInProgress = useRef(false); // Prevent concurrent service area checks
+  const autoAdvanceTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Track auto-advance timeout
   const appointmentFormRef = useRef<HTMLDivElement>(null);
   const callFormRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
@@ -354,6 +356,16 @@ export default function Home() {
       alert('Error loading form. Please refresh the page.');
     }
   };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autoAdvanceTimeoutRef.current) {
+        clearTimeout(autoAdvanceTimeoutRef.current);
+        autoAdvanceTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   // Auto-focus input when step changes
   useEffect(() => {
@@ -944,8 +956,8 @@ export default function Home() {
       }
 
       // Check if this is an address question - if so, check service area
-      // IMPORTANT: Only check if not already checked (prevents duplicate tab opens)
-      if (currentQuestion.type === 'address' && addressCoordinates && !serviceAreaChecked) {
+      // IMPORTANT: Only check if not already checked and not in progress (prevents duplicate checks and tab opens)
+      if (currentQuestion.type === 'address' && addressCoordinates && !serviceAreaChecked && !serviceAreaCheckInProgress.current) {
         // Validate coordinates are not 0,0 (invalid/unknown location)
         if (addressCoordinates.lat === 0 && addressCoordinates.lng === 0) {
           console.warn('Invalid coordinates (0,0) - skipping service area check. Address may need to be geocoded.');
@@ -964,6 +976,7 @@ export default function Home() {
         }
 
         setIsLoading(true);
+        serviceAreaCheckInProgress.current = true;
         try {
           console.log('Checking service area with coordinates:', addressCoordinates);
           const response = await fetch('/api/service-area/check', {
@@ -1031,6 +1044,7 @@ export default function Home() {
           setServiceAreaChecked(true);
         } finally {
           setIsLoading(false);
+          serviceAreaCheckInProgress.current = false;
         }
       }
 
@@ -2480,12 +2494,25 @@ export default function Home() {
                               setAddressCoordinates({ lat, lng });
                               // Reset service area check flag when new coordinates are set
                               setServiceAreaChecked(false);
+                              setTabOpened(false); // Reset tab opened flag too
+                              
+                              // Clear any pending auto-advance timeout
+                              if (autoAdvanceTimeoutRef.current) {
+                                clearTimeout(autoAdvanceTimeoutRef.current);
+                                autoAdvanceTimeoutRef.current = null;
+                              }
                               
                               // If validation passed and we have valid coordinates, check service area first
                               // Then auto-advance only if in service area
-                              if (isValid) {
+                              if (isValid && !serviceAreaCheckInProgress.current) {
                                 // Wait a moment to ensure state is updated, then check service area and advance
-                                setTimeout(async () => {
+                                autoAdvanceTimeoutRef.current = setTimeout(async () => {
+                                  // Prevent concurrent checks
+                                  if (serviceAreaCheckInProgress.current) {
+                                    console.log('Service area check already in progress, skipping');
+                                    return;
+                                  }
+                                  serviceAreaCheckInProgress.current = true;
                                   // Create contact first (before service area check)
                                   let createdContactId: string | null = null;
                                   const data = getValues();
@@ -2579,6 +2606,9 @@ export default function Home() {
                                   } catch (error) {
                                     console.error('Auto-advance: Error checking service area:', error);
                                     // If service area check fails, don't auto-advance (user can click Next manually)
+                                  } finally {
+                                    serviceAreaCheckInProgress.current = false;
+                                    autoAdvanceTimeoutRef.current = null;
                                   }
                                 }, 200);
                               }
