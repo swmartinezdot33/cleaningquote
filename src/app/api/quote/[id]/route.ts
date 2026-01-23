@@ -72,6 +72,9 @@ export async function GET(
     // Reconstruct quote inputs
     const inputs: QuoteInputs = {
       squareFeet,
+      bedrooms,
+      fullBaths,
+      halfBaths,
       people,
       pets: sheddingPets, // Using sheddingPets as pets
       sheddingPets,

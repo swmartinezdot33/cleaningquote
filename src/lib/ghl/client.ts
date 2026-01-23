@@ -1085,31 +1085,50 @@ async function associateCustomObjectWithContact(
     throw new Error('Object ID is required for association');
   }
   
-  // GHL Associations API: POST /objects/{objectId}/records/{recordId}/associations
-  // Based on GHL API docs, associations are created with contactId in the payload
+  // GHL Associations API: POST /associations/relations
+  // Based on GHL API docs, associations are created using the relations endpoint
+  // The payload should include sourceKey (contact), targetKey (custom object), and their IDs
   const endpointsToTry = [
-    `/objects/${objectId}/records/${recordId}/associations?locationId=${locationId}`,
-    `/objects/${objectId}/records/${recordId}/associations`,
+    `/associations/relations?locationId=${locationId}`,
+    `/associations/relations`,
+  ];
+  
+  // Try different targetKey variations (GHL may use different naming)
+  const targetKeyVariations = [
+    'Quote',
+    'quotes',
+    'custom_objects.quotes',
+    objectId, // Use object ID as targetKey
   ];
   
   for (const endpoint of endpointsToTry) {
-    try {
-      const payload = {
-        locationId,
-        contactId,
-      };
-      
-      console.log(`Attempting to associate at: ${endpoint}`);
-      await makeGHLRequest<any>(
-        endpoint,
-        'POST',
-        payload
-      );
-      console.log(`✅ Successfully associated at: ${endpoint}`);
-      return; // Success
-    } catch (error) {
-      console.log(`❌ Failed to associate at ${endpoint}:`, error instanceof Error ? error.message : String(error));
-      // Try next endpoint
+    for (const targetKey of targetKeyVariations) {
+      try {
+        // GHL associations API expects:
+        // - sourceKey: 'Contact' (for contacts)
+        // - sourceId: contactId
+        // - targetKey: custom object schema key or object name
+        // - targetId: recordId (the custom object record ID)
+        const payload = {
+          locationId,
+          sourceKey: 'Contact',
+          sourceId: contactId,
+          targetKey: targetKey,
+          targetId: recordId,
+        };
+        
+        console.log(`Attempting to associate at: ${endpoint} with targetKey: ${targetKey}`);
+        await makeGHLRequest<any>(
+          endpoint,
+          'POST',
+          payload
+        );
+        console.log(`✅ Successfully associated at: ${endpoint} with targetKey: ${targetKey}`);
+        return; // Success
+      } catch (error) {
+        console.log(`❌ Failed to associate at ${endpoint} with targetKey ${targetKey}:`, error instanceof Error ? error.message : String(error));
+        // Try next variation
+      }
     }
   }
   

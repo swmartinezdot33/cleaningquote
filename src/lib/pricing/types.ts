@@ -24,6 +24,9 @@ export interface PricingTable {
 
 export interface QuoteInputs {
   squareFeet: number;
+  bedrooms?: number;
+  fullBaths?: number;
+  halfBaths?: number;
   people: number;
   pets: number;
   sheddingPets: number;
