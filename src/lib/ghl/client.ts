@@ -1148,9 +1148,11 @@ async function associateCustomObjectWithContact(
         console.log(`🔗 Attempting to associate custom object with contact:`, {
           endpoint,
           targetKey,
+          sourceKey: 'Contact',
           sourceId: contactId,
           targetId: recordId,
           locationId,
+          fullPayload: payload,
         });
         
         const response = await makeGHLRequest<any>(
@@ -1159,7 +1161,11 @@ async function associateCustomObjectWithContact(
           payload
         );
         
-        console.log(`✅ Successfully associated custom object ${recordId} with contact ${contactId} using targetKey: ${targetKey}`);
+        console.log(`✅ Successfully associated custom object ${recordId} with contact ${contactId}`, {
+          endpoint,
+          targetKey,
+          response: response,
+        });
         return; // Success
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
