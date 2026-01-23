@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGHLToken, getGHLLocationId } from '@/lib/kv';
 
+// Force dynamic rendering - this route uses request headers
+export const dynamic = 'force-dynamic';
+
 interface GHLCalendar {
   id: string;
   name: string;

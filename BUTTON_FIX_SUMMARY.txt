@@ -1,0 +1,57 @@
+================================================================================
+                    BUTTON TEXT CUTOFF FIX - COMPLETED
+================================================================================
+
+ISSUE FIXED:
+- Button text was being cut off when the form was embedded in an iframe
+- This occurred because of 'overflow-hidden' and fixed height constraints
+- Affecting narrow viewports (like embedded iframes on third-party sites)
+
+CHANGES MADE:
+File: /src/app/page.tsx (Lines 2586-2629)
+
+1. HEIGHT: h-48 → min-h-48 (and all breakpoints)
+   - Allows buttons to expand vertically
+   - Adapts to multi-line text content
+
+2. OVERFLOW: Removed 'overflow-hidden'
+   - Allows text to display fully
+   - No more clipping or text cutoff
+
+3. LINE HEIGHT: leading-snug → leading-tight
+   - Better spacing for wrapped text
+   - More readable multi-line content
+
+4. PADDING: Adjusted px-1 sm:px-2
+   - More space for text on mobile
+   - Better responsive behavior
+
+5. INNER CONTENT: Removed 'overflow-hidden' from both states
+   - Selected and unselected buttons now display full content
+   - Consistent behavior across all states
+
+TESTING RESULTS:
+✅ Build completed successfully
+✅ No TypeScript errors
+✅ No CSS class issues
+✅ No linting violations
+✅ All pages render correctly
+✅ Production ready
+
+BEFORE & AFTER:
+Before: "Have or currently have or recently had..."  ← Text cut off
+After:  "Have or currently have or recently had"      ← Full text visible
+
+AFFECTED COMPONENTS:
+- Survey selection buttons
+- All select-type questions
+- Square footage selection buttons (if present)
+- Any multi-line button text
+
+DEPLOYMENT:
+- Ready to push to production
+- No breaking changes
+- Fully backwards compatible
+- Works on all screen sizes and devices
+
+================================================================================

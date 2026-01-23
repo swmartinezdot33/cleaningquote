@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGHLToken, getGHLLocationId } from '@/lib/kv';
 
+// Force dynamic rendering - this route uses request headers
+export const dynamic = 'force-dynamic';
+
 function authenticate(request: NextRequest) {
   const password = request.headers.get('x-admin-password');
   

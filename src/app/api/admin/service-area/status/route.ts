@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceAreaPolygon, getServiceAreaNetworkLink } from '@/lib/kv';
 
+// Force dynamic rendering - this route uses request headers
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/admin/service-area/status
  * Get current service area configuration status

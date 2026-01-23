@@ -2,13 +2,35 @@
  * Raleigh Cleaning Company Quote Widget
  * Embed this script on your website to display the cleaning quote form
  * 
- * Customization options via data attributes:
- * data-base-url="https://yoursite.com" - Base URL of your site
- * data-widget-id="my-widget" - Custom widget container ID
- * data-mobile-height="800" - Height in pixels for mobile (default: 900px)
- * data-desktop-height="600" - Min height in pixels for desktop (default: 600px)
+ * BASIC USAGE:
+ * <div id="cleaning-quote-widget"></div>
+ * <script src="https://yoursite.com/widget.js" 
+ *   data-base-url="https://yoursite.com"
+ *   data-container-id="cleaning-quote-widget">
+ * </script>
  * 
- * Supports GHL contact variable placeholders:
+ * HEIGHT CUSTOMIZATION (IMPORTANT - Makes sure questions always fit!):
+ * 
+ * OPTION 1: Simple Fixed Height (RECOMMENDED for small containers)
+ *   data-height="1200" - Sets fixed height in pixels (works on all devices)
+ * 
+ * OPTION 2: Responsive Heights (RECOMMENDED for flexible layouts)
+ *   data-mobile-height="1200" - Height for mobile devices (default: 900px)
+ *   data-tablet-height="1000" - Height for tablets (default: 900px)
+ *   data-desktop-height="800"  - Height for desktop (default: 600px)
+ * 
+ * OPTION 3: Breakpoint-Specific (for fine control)
+ *   data-small-height="1400"   - Screens <= 480px (default: mobile-height)
+ *   data-medium-height="1200"  - Screens 481-1024px (default: tablet-height)
+ *   data-large-height="900"    - Screens > 1024px (default: desktop-height)
+ * 
+ * OTHER CUSTOMIZATION OPTIONS:
+ * data-base-url="https://yoursite.com"   - Base URL of your site (required)
+ * data-container-id="my-widget"          - Container element ID (required)
+ * data-widget-id="my-widget"             - Alternative to container-id
+ * data-max-width="600"                   - Max width in pixels (default: 800px)
+ * 
+ * GHL CONTACT VARIABLE PLACEHOLDERS (auto-fills form if available):
  * data-first-name="{{contact.firstName}}"
  * data-last-name="{{contact.lastName}}"
  * data-phone="{{contact.phone}}"
@@ -17,6 +39,24 @@
  * data-city="{{contact.city}}"
  * data-state="{{contact.state}}"
  * data-postal-code="{{contact.postalCode}}"
+ * 
+ * EXAMPLE - Small Embedded Container (Sidebar):
+ * <div id="quote-widget" style="width: 100%; max-width: 400px;"></div>
+ * <script src="https://yoursite.com/widget.js"
+ *   data-base-url="https://yoursite.com"
+ *   data-container-id="quote-widget"
+ *   data-height="1400">
+ * </script>
+ * 
+ * EXAMPLE - Responsive Container (Main Content):
+ * <div id="quote-widget"></div>
+ * <script src="https://yoursite.com/widget.js"
+ *   data-base-url="https://yoursite.com"
+ *   data-container-id="quote-widget"
+ *   data-mobile-height="1200"
+ *   data-tablet-height="1000"
+ *   data-desktop-height="900">
+ * </script>
  */
 
 (function () {
@@ -25,8 +65,23 @@
   const baseUrl = scriptTag?.dataset.baseUrl || window.location.origin;
   const widgetId = scriptTag?.dataset.widgetId || 'cleaning-quote-widget';
   const containerId = scriptTag?.dataset.containerId || widgetId;
+  
+  // Height configuration - supports multiple options
+  // OPTION 1: Single fixed height for all devices
+  const fixedHeight = scriptTag?.dataset.height ? parseInt(scriptTag.dataset.height, 10) : null;
+  
+  // OPTION 2: Responsive heights by device type (fallback)
   const mobileHeight = parseInt(scriptTag?.dataset.mobileHeight || '900', 10);
+  const tabletHeight = parseInt(scriptTag?.dataset.tabletHeight || scriptTag?.dataset.mobileHeight || '900', 10);
   const desktopHeight = parseInt(scriptTag?.dataset.desktopHeight || '600', 10);
+  
+  // OPTION 3: Breakpoint-specific heights (most control)
+  const smallHeight = scriptTag?.dataset.smallHeight ? parseInt(scriptTag.dataset.smallHeight, 10) : null;
+  const mediumHeight = scriptTag?.dataset.mediumHeight ? parseInt(scriptTag.dataset.mediumHeight, 10) : null;
+  const largeHeight = scriptTag?.dataset.largeHeight ? parseInt(scriptTag.dataset.largeHeight, 10) : null;
+  
+  // Max width configuration
+  const maxWidth = parseInt(scriptTag?.dataset.maxWidth || '800', 10);
 
   // Build query parameters from data attributes
   function buildQueryString() {
@@ -61,6 +116,30 @@
            window.innerWidth <= 768;
   }
 
+  // Get appropriate height based on screen size
+  function getHeightForScreenSize() {
+    // If fixed height is set, always use it
+    if (fixedHeight !== null) {
+      return fixedHeight;
+    }
+    
+    // If breakpoint heights are set, use them
+    if (smallHeight !== null || mediumHeight !== null || largeHeight !== null) {
+      const width = window.innerWidth;
+      if (width <= 480) {
+        return smallHeight !== null ? smallHeight : mobileHeight;
+      } else if (width <= 1024) {
+        return mediumHeight !== null ? mediumHeight : tabletHeight;
+      } else {
+        return largeHeight !== null ? largeHeight : desktopHeight;
+      }
+    }
+    
+    // Fallback to device-type detection
+    const isMobile = isMobileDevice();
+    return isMobile ? mobileHeight : desktopHeight;
+  }
+
   // Create iframe container
   function initializeWidget() {
     // Find or create container
@@ -78,16 +157,15 @@
       iframeUrl += `&${queryString}`;
     }
 
-    // Determine initial height based on device type
-    const isMobile = isMobileDevice();
-    const initialHeight = isMobile ? mobileHeight : desktopHeight;
+    // Get initial height based on screen size
+    const initialHeight = getHeightForScreenSize();
 
     // Create iframe
     const iframe = document.createElement('iframe');
     iframe.src = iframeUrl;
     iframe.style.cssText = `
       width: 100%;
-      max-width: 800px;
+      max-width: ${maxWidth}px;
       min-height: ${initialHeight}px;
       border: none;
       border-radius: 8px;
@@ -120,8 +198,7 @@
     window.addEventListener('resize', function() {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(function() {
-        const nowMobile = isMobileDevice();
-        const newHeight = nowMobile ? mobileHeight : desktopHeight;
+        const newHeight = getHeightForScreenSize();
         iframe.style.minHeight = newHeight + 'px';
       }, 250);
     });

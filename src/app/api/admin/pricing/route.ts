@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getKV } from '@/lib/kv';
 import { invalidatePricingCache } from '@/lib/pricing/loadPricingTable';
 import { PricingTable } from '@/lib/pricing/types';
+import { requireAdminAuth } from '@/lib/security/auth';
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
 
 const PRICING_DATA_KEY = 'pricing:data:table';
 
@@ -11,25 +15,9 @@ const PRICING_DATA_KEY = 'pricing:data:table';
  */
 export async function GET(request: NextRequest) {
   try {
-    // Check for password authentication
-    const password = request.headers.get('x-admin-password');
-    const requiredPassword = process.env.ADMIN_PASSWORD;
-    
-    if (requiredPassword && password !== requiredPassword) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Invalid or missing password.' },
-        { status: 401 }
-      );
-    }
-
-    // If no password is required, allow access (for local dev without password)
-    // But still check if password was provided and it's wrong
-    if (requiredPassword && !password) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Password required.' },
-        { status: 401 }
-      );
-    }
+    // Secure authentication (supports both JWT and legacy password)
+    const authResponse = await requireAdminAuth(request);
+    if (authResponse) return authResponse;
 
     try {
       const kv = getKV();
@@ -75,16 +63,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Check for password authentication
-    const password = request.headers.get('x-admin-password');
-    const requiredPassword = process.env.ADMIN_PASSWORD;
-    
-    if (requiredPassword && password !== requiredPassword) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Invalid or missing password.' },
-        { status: 401 }
-      );
-    }
+    // Secure authentication (supports both JWT and legacy password)
+    const authResponse = await requireAdminAuth(request);
+    if (authResponse) return authResponse;
 
     const body = await request.json();
     const pricingData: PricingTable = body.data;
@@ -145,16 +126,9 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    // Check for password authentication
-    const password = request.headers.get('x-admin-password');
-    const requiredPassword = process.env.ADMIN_PASSWORD;
-    
-    if (requiredPassword && password !== requiredPassword) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Invalid or missing password.' },
-        { status: 401 }
-      );
-    }
+    // Secure authentication (supports both JWT and legacy password)
+    const authResponse = await requireAdminAuth(request);
+    if (authResponse) return authResponse;
 
     const kv = getKV();
     await kv.del(PRICING_DATA_KEY);

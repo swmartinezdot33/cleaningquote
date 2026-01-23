@@ -2584,13 +2584,13 @@ export default function Home() {
                                     }
                                   }}
                                   className={`
-                                    relative h-48 sm:h-40 md:h-44 lg:h-48 rounded-2xl sm:rounded-3xl font-medium 
+                                    relative min-h-48 sm:min-h-40 md:min-h-44 lg:min-h-48 rounded-2xl sm:rounded-3xl font-medium 
                                     text-xs sm:text-base md:text-base
                                     transition-all duration-300 border-2 shadow-lg
                                     flex flex-col items-center justify-center px-3 py-5 sm:px-6 sm:py-8
                                     text-center leading-snug
-                                    overflow-hidden break-words whitespace-normal
-                                    min-w-0 w-full
+                                    break-words whitespace-normal
+                                    w-full
                                     ${isSelected 
                                       ? 'shadow-2xl' 
                                       : 'hover:shadow-xl bg-gradient-to-br from-gray-50 to-white'
@@ -2608,20 +2608,20 @@ export default function Home() {
                                       initial={{ scale: 0.8, opacity: 0 }}
                                       animate={{ scale: 1, opacity: 1 }}
                                       transition={{ type: 'spring', bounce: 0.3, duration: 0.4 }}
-                                      className="relative z-10 flex flex-col items-center justify-center gap-1 w-full px-2 overflow-hidden"
+                                      className="relative z-10 flex flex-col items-center justify-center gap-1 w-full px-1 sm:px-2"
                                     >
-                                      <span className="text-xs sm:text-base md:text-base font-semibold leading-snug break-words whitespace-normal w-full">{mainText}</span>
+                                      <span className="text-xs sm:text-base md:text-base font-semibold leading-tight break-words whitespace-normal w-full">{mainText}</span>
                                       {detailsText && (
-                                        <span className="text-xs sm:text-sm md:text-sm opacity-90 font-normal leading-snug text-center px-1 break-words whitespace-normal w-full">
+                                        <span className="text-xs sm:text-sm md:text-sm opacity-90 font-normal leading-tight text-center px-1 break-words whitespace-normal w-full">
                                           {detailsText}
                                         </span>
                                       )}
                                     </motion.div>
                                   ) : (
-                                    <span className="relative z-10 flex flex-col items-center justify-center gap-1 w-full px-2 overflow-hidden">
-                                      <span className="text-xs sm:text-base md:text-base font-semibold leading-snug break-words whitespace-normal w-full">{mainText}</span>
+                                    <span className="relative z-10 flex flex-col items-center justify-center gap-1 w-full px-1 sm:px-2">
+                                      <span className="text-xs sm:text-base md:text-base font-semibold leading-tight break-words whitespace-normal w-full">{mainText}</span>
                                       {detailsText && (
-                                        <span className="text-xs sm:text-sm md:text-sm opacity-75 font-normal leading-snug text-center px-1 break-words whitespace-normal w-full">
+                                        <span className="text-xs sm:text-sm md:text-sm opacity-75 font-normal leading-tight text-center px-1 break-words whitespace-normal w-full">
                                           {detailsText}
                                         </span>
                                       )}

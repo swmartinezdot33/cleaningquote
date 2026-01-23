@@ -1,29 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storeGHLToken, storeGHLLocationId, ghlTokenExists, getGHLToken, getGHLLocationId } from '@/lib/kv';
 import { testGHLConnection, testGHLConnectionComprehensive } from '@/lib/ghl/client';
+import { requireAdminAuth } from '@/lib/security/auth';
 
-/**
- * Authenticate request with admin password
- */
-function authenticate(request: NextRequest): NextResponse | null {
-  const password = request.headers.get('x-admin-password');
-  const requiredPassword = process.env.ADMIN_PASSWORD;
-
-  if (requiredPassword && password !== requiredPassword) {
-    return NextResponse.json(
-      { error: 'Unauthorized. Invalid or missing password.' },
-      { status: 401 }
-    );
-  }
-  return null;
-}
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
 
 /**
  * GET - Retrieve GHL token status and connection info
  */
 export async function GET(request: NextRequest) {
   try {
-    const authResponse = authenticate(request);
+    // Secure authentication (supports both JWT and legacy password)
+    const authResponse = await requireAdminAuth(request);
     if (authResponse) return authResponse;
 
     const tokenExists = await ghlTokenExists().catch(() => false);
@@ -76,7 +65,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const authResponse = authenticate(request);
+    // Secure authentication (supports both JWT and legacy password)
+    const authResponse = await requireAdminAuth(request);
     if (authResponse) return authResponse;
 
     const body = await request.json();
@@ -157,7 +147,8 @@ export async function POST(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
-    const authResponse = authenticate(request);
+    // Secure authentication (supports both JWT and legacy password)
+    const authResponse = await requireAdminAuth(request);
     if (authResponse) return authResponse;
 
     const tokenExists = await ghlTokenExists().catch(() => false);
