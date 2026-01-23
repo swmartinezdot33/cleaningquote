@@ -73,6 +73,26 @@ export default async function RootLayout({
           </>
         )}
 
+        {/* Google Ads Conversion Tracking - gtag.js */}
+        {trackingCodes.googleAdsConversionId && (
+          <>
+            <script
+              async
+              src={`https://www.googletagmanager.com/gtag/js?id=${trackingCodes.googleAdsConversionId}`}
+            />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${trackingCodes.googleAdsConversionId}');
+                `,
+              }}
+            />
+          </>
+        )}
+
         {/* Google Tag Manager */}
         {trackingCodes.googleTagManagerId && (
           <script
@@ -96,18 +116,6 @@ export default async function RootLayout({
                 'https://connect.facebook.net/en_US/fbevents.js');
                 fbq('init', '${trackingCodes.metaPixelId}');
                 fbq('track', 'PageView');
-              `,
-            }}
-          />
-        )}
-
-        {/* Google Ads Conversion Tracking Setup */}
-        {trackingCodes.googleAdsConversionId && trackingCodes.googleAdsConversionLabel && (
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-                window.__GOOGLE_ADS_CONVERSION_ID = '${trackingCodes.googleAdsConversionId}';
-                window.__GOOGLE_ADS_CONVERSION_LABEL = '${trackingCodes.googleAdsConversionLabel}';
               `,
             }}
           />
