@@ -1179,8 +1179,10 @@ export default function Home() {
         pets: Number(formData.sheddingPets),
         sheddingPets: convertSelectToNumber(formData.sheddingPets),
         condition: formData.condition,
-        hasPreviousService: formData.hasPreviousService === 'true' || formData.hasPreviousService === 'switching',
-        cleanedWithin3Months: formData.cleanedWithin3Months === 'yes',
+        // IMPORTANT: Pass the actual string values, not booleans!
+        // These will be mapped to GHL select fields which expect the exact value
+        hasPreviousService: formData.hasPreviousService || 'false', // Pass 'true', 'false', or 'switching'
+        cleanedWithin3Months: formData.cleanedWithin3Months || 'no', // Pass 'yes', 'no', or 'unsure'
         // Include UTM parameters in the request
         ...utmParams,
       };

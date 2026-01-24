@@ -6,6 +6,7 @@ import { createOrUpdateContact, createOpportunity, createNote, createCustomObjec
 import { ghlTokenExists, getGHLConfig, getKV } from '@/lib/kv';
 import { getSurveyQuestions } from '@/lib/survey/manager';
 import { SurveyQuestion } from '@/lib/survey/schema';
+import { sanitizeCustomFields } from '@/lib/ghl/field-normalizer';
 
 /**
  * Generate a human-readable, unique Quote ID
@@ -647,6 +648,9 @@ export async function POST(request: NextRequest) {
             if (utmParams.gclid) {
               quoteCustomFields['gclid'] = utmParams.gclid;
             }
+            
+            // Sanitize all custom fields to ensure values are properly formatted
+            quoteCustomFields = sanitizeCustomFields(quoteCustomFields);
             
             // Log UTM parameters being added to quote
             if (Object.keys(utmParams).length > 0) {

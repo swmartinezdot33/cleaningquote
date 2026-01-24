@@ -4,6 +4,7 @@
  */
 
 import { getGHLToken, getGHLLocationId } from '@/lib/kv';
+import { normalizeFieldValue } from './field-normalizer';
 import {
   GHLContact,
   GHLContactResponse,
@@ -183,10 +184,12 @@ export async function createOrUpdateContact(
     // We have: { fieldKey: "fieldValue", ... }
     let customFieldsArray: Array<{ key: string; value: string }> | undefined;
     if (contactData.customFields && Object.keys(contactData.customFields).length > 0) {
-      customFieldsArray = Object.entries(contactData.customFields).map(([key, value]) => ({
-        key,
-        value: String(value),
-      }));
+      customFieldsArray = Object.entries(contactData.customFields)
+        .filter(([, value]) => value !== null && value !== undefined && value !== '')
+        .map(([key, value]) => ({
+          key,
+          value: normalizeFieldValue(value),
+        }));
     }
 
     const payload: Record<string, any> = {
@@ -333,10 +336,12 @@ export async function createOpportunity(
     // Convert customFields object to array format required by GHL API
     let customFieldsArray: Array<{ key: string; value: string }> | undefined;
     if (opportunityData.customFields && Object.keys(opportunityData.customFields).length > 0) {
-      customFieldsArray = Object.entries(opportunityData.customFields).map(([key, value]) => ({
-        key,
-        value: String(value),
-      }));
+      customFieldsArray = Object.entries(opportunityData.customFields)
+        .filter(([, value]) => value !== null && value !== undefined && value !== '')
+        .map(([key, value]) => ({
+          key,
+          value: normalizeFieldValue(value),
+        }));
     }
 
     const payload: Record<string, any> = {
