@@ -1163,6 +1163,11 @@ export default function Home() {
         lastName: formData.lastName || formData.last_name,
         email: formData.email,
         phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        postalCode: formData.postalCode,
+        country: formData.country,
         serviceType: formData.serviceType,
         frequency: formData.frequency,
         // Convert square footage range to numeric value
