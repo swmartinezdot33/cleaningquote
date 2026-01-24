@@ -6,7 +6,20 @@ import { createOrUpdateContact, createOpportunity, createNote, createCustomObjec
 import { ghlTokenExists, getGHLConfig, getKV } from '@/lib/kv';
 import { getSurveyQuestions } from '@/lib/survey/manager';
 import { SurveyQuestion } from '@/lib/survey/schema';
-import { randomUUID } from 'crypto';
+
+/**
+ * Generate a human-readable, unique Quote ID
+ * Format: QT-YYMMDD-XXXXX
+ * Example: QT-260124-A9F2X
+ */
+function generateReadableQuoteId(): string {
+  const date = new Date();
+  // Get YYMMDD format
+  const yymmdd = date.toISOString().slice(2, 10).replace(/-/g, '');
+  // Get random 5-character suffix (alphanumeric, uppercase)
+  const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
+  return `QT-${yymmdd}-${randomSuffix}`;
+}
 
 /**
  * Helper to get the selected quote range based on service type and frequency
@@ -165,9 +178,10 @@ export async function POST(request: NextRequest) {
     const summaryText = generateSummaryText({ ...result, ranges: result.ranges }, body.serviceType, body.frequency, squareFeetRange);
     const smsText = generateSmsText({ ...result, ranges: result.ranges });
 
-    // Generate quoteId early for tracking/redirect purposes
+    // Generate readable quoteId early for tracking/redirect purposes
+    // Format: QT-YYMMDD-XXXXX (e.g., QT-260124-A9F2X)
     // This ensures we always have a quoteId even if GHL custom object creation fails
-    const generatedQuoteId = randomUUID();
+    const generatedQuoteId = generateReadableQuoteId();
     let quoteId: string | undefined = generatedQuoteId; // Use generated ID as default
     
     // Track whether GHL quote creation succeeded (for KV storage metadata)
