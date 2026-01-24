@@ -228,9 +228,9 @@ export default function QuotePage() {
     }
   }, [isLoading, quoteResult, quoteId, googleAdsConversionId, googleAdsConversionLabel]);
 
-  // Auto-scroll to calendar when appointment form opens
+  // Auto-scroll to calendar when appointment or call form opens
   useEffect(() => {
-    if (showAppointmentForm && calendarRef.current) {
+    if ((showAppointmentForm || showCallForm) && calendarRef.current) {
       setTimeout(() => {
         calendarRef.current?.scrollIntoView({
           behavior: 'smooth',
@@ -240,7 +240,7 @@ export default function QuotePage() {
         window.scrollBy({ top: -20, behavior: 'smooth' });
       }, 200);
     }
-  }, [showAppointmentForm]);
+  }, [showAppointmentForm, showCallForm]);
 
   const handleBookAppointment = async (date?: string, time?: string, notes?: string, timestamp?: number) => {
     const finalDate = date || appointmentDate;
