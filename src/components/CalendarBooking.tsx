@@ -418,6 +418,26 @@ export function CalendarBooking({
 
   return (
     <div className="space-y-6">
+      <style>{`
+        @keyframes glow {
+          0%, 100% {
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1), 0 0 20px rgba(0, 0, 0, 0.1);
+            transform: scale(1);
+          }
+          50% {
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2), 0 0 30px rgba(0, 0, 0, 0.15);
+            transform: scale(1.02);
+          }
+        }
+        
+        .glow-button {
+          animation: glow 2s ease-in-out infinite;
+        }
+        
+        .glow-button:not(:disabled):hover {
+          animation: glow 1.5s ease-in-out infinite;
+        }
+      `}</style>
       {/* Calendar View */}
       {!selectedDate && (
         <motion.div
@@ -697,7 +717,7 @@ export function CalendarBooking({
             <Button
               onClick={handleConfirm}
               disabled={isBooking}
-              className="flex-1 h-12 font-bold text-base"
+              className="flex-1 h-12 font-bold text-base glow-button shadow-lg hover:shadow-xl transition-shadow"
               style={{ backgroundColor: primaryColor }}
             >
               {isBooking ? (
