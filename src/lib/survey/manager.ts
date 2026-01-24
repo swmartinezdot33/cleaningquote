@@ -5,6 +5,7 @@
 
 import { kv } from '@vercel/kv';
 import { SurveyQuestion, DEFAULT_SURVEY_QUESTIONS, validateSurveyQuestion } from './schema';
+import { validateFieldTypeCompatibility } from './field-type-validator';
 
 const SURVEY_QUESTIONS_KEY = 'survey:questions:v2';
 
@@ -156,6 +157,20 @@ export async function addQuestion(question: SurveyQuestion): Promise<SurveyQuest
       throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
     }
 
+    // Validate field type compatibility with GHL mapping
+    if (question.ghlFieldMapping && question.ghlFieldMapping.trim() !== '') {
+      const typeValidation = await validateFieldTypeCompatibility(question.type, question.ghlFieldMapping);
+      if (!typeValidation.valid) {
+        throw new Error(`Field type validation failed: ${typeValidation.error}`);
+      }
+      console.log('✅ Field type validated for new mapping:', {
+        id: question.id,
+        surveyType: question.type,
+        ghlField: question.ghlFieldMapping,
+        ghlFieldType: typeValidation.ghlFieldType,
+      });
+    }
+
     const questions = await getSurveyQuestions();
 
     // Check for duplicate ID
@@ -192,6 +207,25 @@ export async function updateQuestion(id: string, updates: Partial<SurveyQuestion
     const question = questions[index];
     if (question.isCoreField && updates.type && updates.type !== question.type) {
       console.warn(`⚠️ Warning: Changing type of core field "${id}" from ${question.type} to ${updates.type}`);
+    }
+
+    // Validate field type compatibility with GHL mapping
+    if (updates.type || updates.ghlFieldMapping) {
+      const newType = updates.type || question.type;
+      const newMapping = updates.ghlFieldMapping !== undefined ? updates.ghlFieldMapping : question.ghlFieldMapping;
+      
+      if (newMapping && newMapping.trim() !== '') {
+        const validation = await validateFieldTypeCompatibility(newType, newMapping);
+        if (!validation.valid) {
+          throw new Error(`Field type validation failed: ${validation.error}`);
+        }
+        console.log('✅ Field type validated for mapping:', {
+          id,
+          surveyType: newType,
+          ghlField: newMapping,
+          ghlFieldType: validation.ghlFieldType,
+        });
+      }
     }
 
     // Merge updates - explicitly preserve ghlFieldMapping and isCoreField

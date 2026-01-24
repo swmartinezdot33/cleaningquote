@@ -40,6 +40,8 @@ export default function SurveyBuilderPage() {
   const [isLoadingFields, setIsLoadingFields] = useState(false);
   const [ghlFieldSearchTerm, setGhlFieldSearchTerm] = useState('');
   const [ghlFieldDropdownOpen, setGhlFieldDropdownOpen] = useState(false);
+  const [fieldTypeValidation, setFieldTypeValidation] = useState<{ valid: boolean; error?: string; ghlFieldType?: string; compatibleSurveyTypes?: string[] } | null>(null);
+  const [compatibleTypes, setCompatibleTypes] = useState<string[]>(['text', 'email', 'tel', 'number', 'select', 'address']);
 
   useEffect(() => {
     const storedPassword = sessionStorage.getItem('admin_password');
@@ -100,6 +102,30 @@ export default function SurveyBuilderPage() {
       ]);
     } finally {
       setIsLoadingFields(false);
+    }
+  };
+
+  const validateFieldMapping = async (surveyType: string, ghlMapping: string | undefined) => {
+    if (!ghlMapping || ghlMapping.trim() === '') {
+      setFieldTypeValidation(null);
+      setCompatibleTypes(['text', 'email', 'tel', 'number', 'select', 'address']);
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/admin/field-type-validator?surveyFieldType=${encodeURIComponent(surveyType)}&ghlFieldMapping=${encodeURIComponent(ghlMapping)}`
+      );
+
+      const validation = await response.json();
+      setFieldTypeValidation(validation);
+      setCompatibleTypes(validation.compatibleSurveyTypes || ['text', 'email', 'tel', 'number', 'select', 'address']);
+    } catch (error) {
+      console.error('Failed to validate field mapping:', error);
+      setFieldTypeValidation({
+        valid: false,
+        error: 'Failed to validate field type compatibility'
+      });
     }
   };
 
@@ -226,6 +252,14 @@ export default function SurveyBuilderPage() {
       return;
     }
 
+    // Validate field type compatibility
+    if (editingQuestion.ghlFieldMapping && editingQuestion.ghlFieldMapping.trim() !== '') {
+      if (fieldTypeValidation && !fieldTypeValidation.valid) {
+        setMessage({ type: 'error', text: `Field type validation failed: ${fieldTypeValidation.error}` });
+        return;
+      }
+    }
+
     try {
       setIsSaving(true);
       
@@ -252,6 +286,7 @@ export default function SurveyBuilderPage() {
           setMessage({ type: 'success', text: 'Question added' });
           setEditingQuestion(null);
           setEditingIndex(null);
+          setFieldTypeValidation(null);
           setTimeout(() => setMessage(null), 2000);
         } else {
           throw new Error(data.error || 'Failed to add question');
@@ -292,6 +327,7 @@ export default function SurveyBuilderPage() {
           setMessage({ type: 'success', text: 'Question updated' });
           setEditingQuestion(null);
           setEditingIndex(null);
+          setFieldTypeValidation(null);
           setTimeout(() => setMessage(null), 2000);
         } else {
           throw new Error(data.error || 'Failed to update question');
@@ -519,6 +555,10 @@ export default function SurveyBuilderPage() {
                         value={editingQuestion.type || 'text'}
                         onValueChange={(value: any) => {
                           setEditingQuestion({ ...editingQuestion, type: value });
+                          // Re-validate field type when survey type changes
+                          if (editingQuestion.ghlFieldMapping) {
+                            validateFieldMapping(value, editingQuestion.ghlFieldMapping);
+                          }
                         }}
                       >
                         <SelectTrigger>
@@ -667,10 +707,13 @@ export default function SurveyBuilderPage() {
                       <Select
                         value={editingQuestion.ghlFieldMapping || ''}
                         onValueChange={(value) => {
+                          const newMapping = value === 'none' ? undefined : value;
                           setEditingQuestion({ 
                             ...editingQuestion, 
-                            ghlFieldMapping: value === 'none' ? undefined : value 
+                            ghlFieldMapping: newMapping
                           });
+                          // Validate field type when mapping changes
+                          validateFieldMapping(editingQuestion.type || 'text', newMapping);
                         }}
                         onOpenChange={(open) => {
                           setGhlFieldDropdownOpen(open);
@@ -720,8 +763,39 @@ export default function SurveyBuilderPage() {
                         </SelectContent>
                       </Select>
                     </div>
+                    
+                    {/* Field Type Validation Display */}
                     {editingQuestion.ghlFieldMapping && (
-                      <p className="text-xs text-green-600 mt-1">
+                      <div className="mt-2 space-y-2">
+                        {fieldTypeValidation?.valid ? (
+                          <div className="p-2 bg-green-50 border border-green-200 rounded-lg">
+                            <p className="text-xs text-green-700 font-medium">
+                              ✓ Field type is compatible
+                            </p>
+                            <p className="text-xs text-green-600 mt-1">
+                              GHL field type: <strong>{fieldTypeValidation.ghlFieldType}</strong>
+                            </p>
+                          </div>
+                        ) : fieldTypeValidation?.error ? (
+                          <div className="p-2 bg-red-50 border border-red-200 rounded-lg">
+                            <p className="text-xs text-red-700 font-medium">
+                              ✗ Type mismatch!
+                            </p>
+                            <p className="text-xs text-red-600 mt-1">
+                              {fieldTypeValidation.error}
+                            </p>
+                            {fieldTypeValidation.compatibleSurveyTypes && (
+                              <p className="text-xs text-red-600 mt-1">
+                                Compatible types: {fieldTypeValidation.compatibleSurveyTypes.join(', ')}
+                              </p>
+                            )}
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+                    
+                    {editingQuestion.ghlFieldMapping && !fieldTypeValidation?.error && (
+                      <p className="text-xs text-green-600 mt-2">
                         ✓ Will map to GHL field: <strong>{editingQuestion.ghlFieldMapping}</strong>
                       </p>
                     )}
