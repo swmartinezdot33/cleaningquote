@@ -279,9 +279,33 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       }
+
+      // LocationId / Location-Id not specified – sub-account needs Location-Id header
+      if (errorMessage.includes('LocationId is not specified') || errorMessage.includes('locationId') && errorMessage.includes('required') || errorMessage.includes('Location-Id')) {
+        return NextResponse.json(
+          {
+            error: 'GHL Location Not Specified',
+            details: errorMessage,
+            userMessage: 'Calendar connection needs a valid Location ID. Please set the Location ID in Admin Settings and ensure your GHL token has access to that location.',
+          },
+          { status: 500 }
+        );
+      }
+
+      // Token/location access (403)
+      if (errorMessage.includes('403') || errorMessage.includes('does not have access to this location') || errorMessage.includes('token does not have access')) {
+        return NextResponse.json(
+          {
+            error: 'GHL Access Denied',
+            details: errorMessage,
+            userMessage: 'Your GHL connection does not have permission to create appointments for this location. Please check the API token and Location ID in Admin Settings.',
+          },
+          { status: 500 }
+        );
+      }
       
       // Handle unavailable time slot error
-      if (errorMessage.includes('no longer available') || errorMessage.includes('slot') && errorMessage.includes('available')) {
+      if (errorMessage.includes('no longer available') || (errorMessage.includes('slot') && errorMessage.includes('available'))) {
         return NextResponse.json(
           {
             error: 'Time Slot Unavailable',

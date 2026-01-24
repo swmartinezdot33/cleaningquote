@@ -445,11 +445,14 @@ export async function createAppointment(
       contactId: '***hidden***',
     });
 
-    // GHL 2.0 API: Use calendars/events/appointments endpoint for creating appointments - locationId is in the request body
+    // GHL 2.0 API: Use calendars/events/appointments endpoint for creating appointments
+    // NOTE: locationId must NOT be in the body (causes "locationId should not exist" error)
+    // Pass finalLocationId as 4th arg so makeGHLRequest adds Location-Id header (required for sub-account/location-level API)
     const response = await makeGHLRequest<{ appointment: GHLAppointmentResponse }>(
       `/calendars/events/appointments`,
       'POST',
-      payload
+      payload,
+      finalLocationId
     );
 
     console.log('Appointment created successfully:', response.appointment?.id);

@@ -275,6 +275,8 @@ export default function QuotePage() {
           timestamp: finalTimestamp,
           notes: finalNotes,
           type: 'appointment',
+          serviceType: quoteResult.serviceType,
+          frequency: quoteResult.frequency,
         }),
       });
 
@@ -345,6 +347,8 @@ export default function QuotePage() {
           timestamp: timestamp,
           notes: notes,
           type: 'call',
+          serviceType: quoteResult.serviceType,
+          frequency: quoteResult.frequency,
         }),
       });
 
