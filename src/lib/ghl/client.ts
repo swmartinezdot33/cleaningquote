@@ -1135,9 +1135,10 @@ async function associateCustomObjectWithContact(
   try {
     // Try multiple endpoints to find the association
     const associationEndpoints = [
+      `/associations/key/contact_quote?locationId=${locationId}`,
       `/associations?locationId=${locationId}`,
       `/associations`,
-      // Try getting by object keys: Contact and Quote
+      `/associations/object-keys?firstObjectKey=contact&secondObjectKey=custom_objects.quotes&locationId=${locationId}`,
       `/associations/object-keys?firstObjectKey=Contact&secondObjectKey=quotes&locationId=${locationId}`,
       `/associations/object-keys?firstObjectKey=Contact&secondObjectKey=Quote&locationId=${locationId}`,
       `/associations/object-keys?firstObjectKey=quotes&secondObjectKey=Contact&locationId=${locationId}`,
@@ -1201,46 +1202,38 @@ async function associateCustomObjectWithContact(
   
   // Step 2: Create the relation using the correct format
   // Endpoint: POST /associations/relations
-  // Payload: { associationId, firstRecordId, secondRecordId }
-  // Note: locationId must be in header (Location-Id), not query string or body
-  // The associations endpoint doesn't accept locationId in query string (422 error)
-  // And requires it in header (400 error if missing)
+  // Payload: { associationId, firstRecordId, secondRecordId, locationId }
+  // GHL requires locationId in the body ("LocationId is not specified" otherwise) and associationId when creating a relation.
   const endpointsToTry = [
-    `/associations/relations`, // Always use header for locationId
+    `/associations/relations`,
   ];
   
-  // Try with and without associationId (some setups might auto-detect)
+  // Try with and without associationId (some setups might auto-detect). Always include locationId in body.
   const payloadsToTry = associationId 
-    ? [{ associationId, firstRecordId: contactId, secondRecordId: recordId }]
+    ? [{ associationId, firstRecordId: contactId, secondRecordId: recordId, locationId }]
     : [
-        // Try contact first, quote second
-        { firstRecordId: contactId, secondRecordId: recordId },
-        // Try quote first, contact second
-        { firstRecordId: recordId, secondRecordId: contactId },
+        { firstRecordId: contactId, secondRecordId: recordId, locationId },
+        { firstRecordId: recordId, secondRecordId: contactId, locationId },
       ];
   
-  // Try each endpoint with each payload variation
   const errors: string[] = [];
   for (const endpoint of endpointsToTry) {
     for (const payload of payloadsToTry) {
       try {
-        // Make request - ensure locationId is NOT in payload body
         const cleanPayload = { ...payload };
-        delete (cleanPayload as any).locationId;
         
         console.log(`🔗 Attempting to associate custom object with contact:`, {
           endpoint,
           payload: cleanPayload,
           contactId,
           recordId,
-          note: 'locationId is in query string only (if present), not in body',
         });
         
         const response = await makeGHLRequest<any>(
           endpoint,
           'POST',
-          cleanPayload,
-          locationId // Pass locationId for header if needed
+          cleanPayload
+          // locationId is in body; do not pass as header for this endpoint
         );
         
         console.log(`✅ Successfully associated custom object ${recordId} with contact ${contactId}`, {

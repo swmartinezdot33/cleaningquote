@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest",
-    "test:watch": "vitest --watch"
+    "test:watch": "vitest --watch",
+    "test:association": "node scripts/test-association.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
