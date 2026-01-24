@@ -77,8 +77,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Use GHL's free-slots endpoint
-    // GHL API expects startDate and endDate (not from and to). locationId is required for sub-account/location-level API.
-    const ghlUrl = `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${fromTime}&endDate=${toTime}&locationId=${locationId}`;
+    // GHL API expects startDate and endDate. locationId should NOT be in query params.
+    const ghlUrl = `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${fromTime}&endDate=${toTime}`;
     console.log('[calendar-availability/month] Calling GHL API:', ghlUrl);
     
     const freeSlotsResponse = await fetch(ghlUrl, {
