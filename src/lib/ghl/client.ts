@@ -202,7 +202,10 @@ export async function createOrUpdateContact(
       ...(contactData.city && { city: contactData.city }),
       ...(contactData.state && { state: contactData.state }),
       ...(contactData.postalCode && { postalCode: contactData.postalCode }),
-      ...(contactData.country && { country: contactData.country }),
+      ...(contactData.country && { 
+        // GHL expects 2-letter country code (US, UK, CA, etc) not full name (USA, United States, etc)
+        country: contactData.country.length === 2 ? contactData.country : contactData.country === 'USA' ? 'US' : contactData.country
+      }),
       ...(contactData.source && { source: contactData.source }),
       ...(allTags.length > 0 && { tags: allTags }),
       ...(customFieldsArray && customFieldsArray.length > 0 && {
