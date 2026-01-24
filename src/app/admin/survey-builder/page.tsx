@@ -531,11 +531,11 @@ export default function SurveyBuilderPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
-              className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+              className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto"
               onClick={() => setEditingQuestion(null)}
             >
-              <Card className="w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
-                <CardHeader className="flex flex-row items-center justify-between">
+              <Card className="w-full max-w-2xl my-8" onClick={(e) => e.stopPropagation()}>
+                <CardHeader className="flex flex-row items-center justify-between sticky top-0 bg-white z-10 border-b">
                   <div>
                     <CardTitle>Edit Question</CardTitle>
                   </div>
@@ -543,7 +543,8 @@ export default function SurveyBuilderPage() {
                     <X className="w-4 h-4" />
                   </Button>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <div className="overflow-y-auto max-h-[calc(100vh-220px)]">
+                  <CardContent className="space-y-6">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Question ID (auto-generated)</Label>
@@ -800,17 +801,18 @@ export default function SurveyBuilderPage() {
                       </p>
                     )}
                   </div>
-
-                  <div className="flex gap-2 justify-end">
-                    <Button variant="outline" onClick={() => setEditingQuestion(null)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleSaveQuestion} disabled={isSaving}>
-                      {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                      Save Question
-                    </Button>
-                  </div>
                 </CardContent>
+                </div>
+
+                <div className="flex gap-2 justify-end border-t pt-4 p-6">
+                  <Button variant="outline" onClick={() => setEditingQuestion(null)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSaveQuestion} disabled={isSaving}>
+                    {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Save Question
+                  </Button>
+                </div>
               </Card>
             </motion.div>
           )}
