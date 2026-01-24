@@ -308,7 +308,7 @@ export async function POST(request: NextRequest) {
         let skippedFieldsCount = 0;
         
         Object.keys(body).forEach((bodyKey) => {
-          const fieldValue = body[bodyKey];
+          let fieldValue = body[bodyKey];
           
           // Skip if value is empty or undefined
           if (fieldValue === undefined || fieldValue === null || fieldValue === '') {
@@ -324,6 +324,49 @@ export async function POST(request: NextRequest) {
             skippedFieldsCount++;
             console.log(`⏭️  Skipping unmapped field "${bodyKey}": ${fieldValue}`);
             return;
+          }
+          
+          // Normalize special fields that have select/dropdown values
+          // These need to be converted from their display form to their GHL schema values
+          if (bodyKey === 'serviceType') {
+            // Map display values like "move-out Clean" to schema values like "move_out"
+            const serviceTypeMap: Record<string, string> = {
+              'general': 'general_cleaning',
+              'general cleaning': 'general_cleaning',
+              'initial': 'initial_cleaning',
+              'initial cleaning': 'initial_cleaning',
+              'deep': 'deep_clean',
+              'deep clean': 'deep_clean',
+              'move-in': 'move_in',
+              'move-in clean': 'move_in',
+              'move-out': 'move_out',
+              'move-out clean': 'move_out',
+              'recurring': 'recurring_cleaning',
+            };
+            fieldValue = serviceTypeMap[String(fieldValue).toLowerCase()] || String(fieldValue);
+          } else if (bodyKey === 'frequency') {
+            // Normalize frequency values
+            const frequencyMap: Record<string, string> = {
+              'weekly': 'weekly',
+              'bi-weekly': 'biweekly',
+              'biweekly': 'biweekly',
+              'four-week': 'monthly',
+              'monthly': 'monthly',
+              'one-time': 'one_time',
+              'one time': 'one_time',
+            };
+            fieldValue = frequencyMap[String(fieldValue).toLowerCase()] || String(fieldValue);
+          } else if (bodyKey === 'condition') {
+            // Normalize condition values
+            const conditionMap: Record<string, string> = {
+              'excellent': 'excellent',
+              'good': 'good',
+              'average': 'average',
+              'poor': 'poor',
+              'very-poor': 'very_poor',
+              'very poor': 'very_poor',
+            };
+            fieldValue = conditionMap[String(fieldValue).toLowerCase()] || String(fieldValue);
           }
           
           mappedFieldsCount++;
