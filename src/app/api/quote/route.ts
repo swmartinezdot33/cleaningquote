@@ -919,6 +919,8 @@ export async function POST(request: NextRequest) {
       summaryText,
       smsText,
       ghlContactId,
+      serviceType: body.serviceType, // Echo back the service type for verification
+      frequency: body.frequency, // Echo back the frequency for verification
       quoteId: generatedQuoteId, // Always use generated UUID for frontend redirect (stored in KV with this ID)
       // Also include GHL object ID if available (for reference/debugging)
       ...(quoteId !== generatedQuoteId && { ghlObjectId: quoteId }),
