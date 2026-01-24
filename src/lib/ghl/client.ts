@@ -425,7 +425,8 @@ export async function createAppointment(
       title: appointmentData.title,
       startTime: appointmentData.startTime,
       endTime: appointmentData.endTime,
-      locationId: finalLocationId, // locationId is required in the request body
+      // Note: locationId should NOT be in the body for appointments endpoint
+      // It's only needed in the header (via makeGHLRequest if needed)
       ...(appointmentData.calendarId && { calendarId: appointmentData.calendarId }),
       ...(appointmentData.assignedTo && { assignedTo: appointmentData.assignedTo }),
       ...(appointmentData.notes && { notes: appointmentData.notes }),
