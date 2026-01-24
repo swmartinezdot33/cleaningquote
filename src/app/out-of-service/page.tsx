@@ -184,7 +184,7 @@ export default function OutOfService() {
                 </Link>
 
                 <a
-                  href="mailto:contact@raleighcleaning.com"
+                  href="mailto:hello@raleighcleaningcompany.com"
                   className="w-full"
                 >
                   <Button
@@ -200,11 +200,11 @@ export default function OutOfService() {
           </Card>
 
           <div className="text-center text-gray-600 text-sm">
+            <p className="mb-1">Get in touch</p>
             <p>
-              Questions? We're here to help.{' '}
-              <a href="mailto:contact@raleighcleaning.com" className="underline" style={{ color: primaryColor }}>
-                Get in touch
-              </a>
+              <a href="tel:9199252378" className="underline" style={{ color: primaryColor }}>Phone: 919.925.2378</a>
+              {' · '}
+              <a href="mailto:hello@raleighcleaningcompany.com" className="underline" style={{ color: primaryColor }}>Email: hello@raleighcleaningcompany.com</a>
             </p>
           </div>
         </motion.div>

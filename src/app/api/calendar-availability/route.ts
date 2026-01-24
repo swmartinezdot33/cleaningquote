@@ -83,16 +83,17 @@ export async function GET(request: NextRequest) {
     const toTimestamp = dayEnd.getTime();
 
     // Use GHL's free-slots endpoint which respects calendar configuration
-    // GET /calendars/:calendarId/free-slots?startDate={timestamp}&endDate={timestamp}
-    // GHL API expects startDate and endDate (not from and to)
+    // GET /calendars/:calendarId/free-slots?startDate={ts}&endDate={ts}&locationId={id}
+    // locationId required for sub-account/location-level API
     const freeSlotsResponse = await fetch(
-      `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${fromTimestamp}&endDate=${toTimestamp}`,
+      `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${fromTimestamp}&endDate=${toTimestamp}&locationId=${locationId}`,
       {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-          'Version': '2021-07-28', // Use API 2.0 version
+          'Version': '2021-07-28',
+          'Location-Id': locationId,
         },
       }
     );

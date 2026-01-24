@@ -62,16 +62,17 @@ export async function GET(request: NextRequest) {
     const toTime = new Date(endTime).getTime();
 
     // Use GHL's free-slots endpoint which respects calendar configuration
-    // GET /calendars/:calendarId/free-slots?startDate={timestamp}&endDate={timestamp}
-    // GHL API expects startDate and endDate (not from and to)
+    // GET /calendars/:calendarId/free-slots?startDate={ts}&endDate={ts}&locationId={id}
+    // locationId required for sub-account/location-level API
     const freeSlotsResponse = await fetch(
-      `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${fromTime}&endDate=${toTime}`,
+      `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${fromTime}&endDate=${toTime}&locationId=${locationId}`,
       {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-          'Version': '2021-07-28', // Use API 2.0 version
+          'Version': '2021-07-28',
+          'Location-Id': locationId,
         },
       }
     );
@@ -133,12 +134,18 @@ export async function GET(request: NextRequest) {
 
     const freeSlotsData = await freeSlotsResponse.json();
     
-    // GHL free-slots API returns data in format: { "YYYY-MM-DD": [{ start: timestamp, end: timestamp }, ...] }
+    // GHL free-slots API returns: { "YYYY-MM-DD": [...] } or { "YYYY-MM-DD": { slots: [...] } } or { slots: { "YYYY-MM-DD": [...] } }
     const allSlots: any[] = [];
-    Object.keys(freeSlotsData).forEach((dateKey) => {
-      const slots = freeSlotsData[dateKey];
+    let toIterate = freeSlotsData;
+    if (freeSlotsData?.slots && typeof freeSlotsData.slots === 'object') toIterate = freeSlotsData.slots;
+    if (freeSlotsData?.data && typeof freeSlotsData.data === 'object') toIterate = freeSlotsData.data;
+    Object.keys(toIterate || {}).forEach((dateKey) => {
+      if (dateKey === 'traceId' || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return;
+      const slots = toIterate[dateKey];
       if (Array.isArray(slots)) {
         allSlots.push(...slots);
+      } else if (slots?.slots && Array.isArray(slots.slots)) {
+        allSlots.push(...slots.slots);
       }
     });
 

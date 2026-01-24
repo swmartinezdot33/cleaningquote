@@ -77,8 +77,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Use GHL's free-slots endpoint
-    // GHL API expects startDate and endDate (not from and to)
-    const ghlUrl = `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${fromTime}&endDate=${toTime}`;
+    // GHL API expects startDate and endDate (not from and to). locationId is required for sub-account/location-level API.
+    const ghlUrl = `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${fromTime}&endDate=${toTime}&locationId=${locationId}`;
     console.log('[calendar-availability/month] Calling GHL API:', ghlUrl);
     
     const freeSlotsResponse = await fetch(ghlUrl, {
@@ -87,6 +87,7 @@ export async function GET(request: NextRequest) {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
         'Version': '2021-07-28',
+        'Location-Id': locationId, // Some GHL endpoints require Location-Id header for sub-accounts
       },
     });
 
@@ -282,7 +283,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         slots: {},
         count: 0,
-        message: 'No available time slots found. Ensure the calendar has users assigned AND availability/office hours configured in GHL.',
+        message: 'No available time slots found. Ensure the calendar has users assigned AND availability (office hours) configured in GHL.',
         warning: 'Calendar may need availability configuration',
         debug: {
           calendarId,
