@@ -661,16 +661,15 @@ export default function Home() {
   useEffect(() => {
     reset(getDefaultValues());
     
-      // Handle contact pre-fill when opening with contactId parameter
+      // Handle contact pre-fill when opening with contactId or ghlContactId parameter
       if (mounted && questions.length > 0) {
-        // Check for contactId in URL parameters
         const params = new URLSearchParams(window.location.search);
-        const contactId = params.get('contactId');
+        const contactId = params.get('contactId') || params.get('ghlContactId');
         const fromOutOfService = params.get('fromOutOfService');
         const startAt = params.get('startAt'); // New parameter to specify starting step
 
         if (contactId) {
-          console.log('Found contactId in URL:', contactId);
+          console.log('Found contactId in URL (contactId/ghlContactId):', contactId);
           
           // Fetch contact data
           const fetchAndPreFillContact = async () => {
@@ -945,6 +944,7 @@ export default function Home() {
               state: data.state || '',
               postalCode: data.postalCode || '',
               country: data.country || 'US',
+              sourceUrl: typeof window !== 'undefined' ? window.location.href : undefined,
             }),
           });
 
@@ -1161,8 +1161,10 @@ export default function Home() {
       });
 
       // Build the API payload, mapping sanitized fields back to original IDs
+      const urlContactId = params.get('contactId') || params.get('ghlContactId');
       const apiPayload: any = {
-        ghlContactId, // Pass the contact ID if we created one after address
+        ghlContactId: ghlContactId || urlContactId || undefined, // From state (address step or contactId pre-fill) or URL param
+        ...(urlContactId && { contactId: urlContactId }), // Fallback for quote API when ghlContactId not in state
         firstName: formData.firstName || formData.first_name,
         lastName: formData.lastName || formData.last_name,
         email: formData.email,
@@ -1190,6 +1192,8 @@ export default function Home() {
         // Include UTM and passthrough params (e.g. start=iframe-Staver) for attribution
         ...utmParams,
         ...passthroughToApi,
+        // When no utm_source, API uses this as source/utm_source for GHL
+        sourceUrl: typeof window !== 'undefined' ? window.location.href : undefined,
       };
 
       // Add any custom fields (those that were sanitized)
@@ -2589,6 +2593,7 @@ export default function Home() {
                                         state: data.state || '',
                                         postalCode: data.postalCode || '',
                                         country: data.country || 'US',
+                                        sourceUrl: typeof window !== 'undefined' ? window.location.href : undefined,
                                       }),
                                     });
 

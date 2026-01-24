@@ -116,7 +116,7 @@ function convertSquareFootageRange(range: string): number {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { ghlContactId: providedContactId } = body;
+    const { ghlContactId: providedContactId, contactId: bodyContactId } = body;
     
     // Extract UTM parameters from request URL and body (body takes precedence if both exist)
     const url = new URL(request.url);
@@ -135,6 +135,12 @@ export async function POST(request: NextRequest) {
     // Log UTM parameters for debugging
     if (Object.keys(utmParams).length > 0) {
       console.log('📊 UTM parameters captured:', utmParams);
+    }
+
+    // When no utm_source, use landing URL (sourceUrl) as source for attribution
+    const effectiveUtmSource = utmParams.utm_source || (body.sourceUrl && String(body.sourceUrl).trim()) || null;
+    if (effectiveUtmSource && !utmParams.utm_source) {
+      console.log('📊 Using landing URL as source (no utm_source):', effectiveUtmSource);
     }
     
     // Convert square footage range to midpoint if it's a range string
@@ -186,8 +192,8 @@ export async function POST(request: NextRequest) {
     let quoteCustomFields: Record<string, string> = {};
     
     // Attempt GHL integration (non-blocking)
-    // If a contact was already created after address step, use that ID; otherwise create/update
-    let ghlContactId: string | undefined = providedContactId;
+    // If a contact was already created after address step or passed via contactId/ghlContactId param, use that ID
+    let ghlContactId: string | undefined = providedContactId || bodyContactId;
     const hasGHLToken = await ghlTokenExists().catch(() => false);
     
     if (hasGHLToken) {
@@ -236,11 +242,12 @@ export async function POST(request: NextRequest) {
         }
 
         // Add UTM parameters to contact using GHL native fields (not customFields)
-        // GHL has native UTM tracking fields that are better for reporting
-        if (utmParams.utm_source) {
-          contactData.utmSource = utmParams.utm_source;
-          console.log(`✅ Added UTM source to contact (native field): ${utmParams.utm_source}`);
+        // When no utm_source, effectiveUtmSource is the landing URL (sourceUrl from client)
+        if (effectiveUtmSource) {
+          contactData.utmSource = effectiveUtmSource;
+          console.log(`✅ Added UTM source to contact (native field): ${effectiveUtmSource}`);
         }
+        contactData.source = effectiveUtmSource || 'Website Quote Form';
         if (utmParams.utm_medium) {
           contactData.utmMedium = utmParams.utm_medium;
           console.log(`✅ Added UTM medium to contact (native field): ${utmParams.utm_medium}`);
@@ -684,9 +691,9 @@ export async function POST(request: NextRequest) {
             };
             
             // Add UTM parameters for tracking (map to schema field names)
-            // The schema has fields: utm_source, utm_medium, utm_campaign, utm_term, utm_content, gclid
-            if (utmParams.utm_source) {
-              quoteCustomFields['utm_source'] = utmParams.utm_source;
+            // When no utm_source, effectiveUtmSource is the landing URL (sourceUrl from client)
+            if (effectiveUtmSource) {
+              quoteCustomFields['utm_source'] = effectiveUtmSource;
             }
             if (utmParams.utm_medium) {
               quoteCustomFields['utm_medium'] = utmParams.utm_medium;

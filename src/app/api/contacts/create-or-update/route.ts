@@ -54,6 +54,9 @@ export async function POST(request: NextRequest) {
       // Get survey questions to map fields
       const surveyQuestions = await getSurveyQuestions();
 
+      // When no utm_source, use landing URL (sourceUrl) as source for attribution
+      const effectiveSource = (body.sourceUrl && String(body.sourceUrl).trim()) || 'Website Quote Form';
+
       // Build contact data using field mappings
       const contactData: any = {
         firstName,
@@ -61,7 +64,7 @@ export async function POST(request: NextRequest) {
         email,
         phone,
         address1: address,
-        source: 'Website Quote Form',
+        source: effectiveSource,
         tags: ['Quote Request'],
         customFields: {},
       };

@@ -43,6 +43,7 @@
  * data-city="{{contact.city}}"
  * data-state="{{contact.state}}"
  * data-postal-code="{{contact.postalCode}}"
+ * data-contact-id="{{contact.id}}"  - GHL contact ID: pre-fill and associate quote with this contact
  * 
  * EXAMPLE - Small Embedded Container (Sidebar):
  * <div id="quote-widget" style="width: 100%; max-width: 400px;"></div>
@@ -115,13 +116,14 @@
       'city': 'data-city',
       'state': 'data-state',
       'postalCode': 'data-postal-code',
+      'contactId': 'data-contact-id',
     };
 
     for (const [paramName, attrName] of Object.entries(attributeMap)) {
       const value = scriptTag?.dataset[attrName.replace('data-', '')] || scriptTag?.getAttribute(attrName);
-      if (value && value.trim() && !value.includes('{{')) {
-        // Override with data attribute (e.g. GHL contact placeholders)
-        params.set(paramName, value);
+      if (value && String(value).trim() && !String(value).includes('{{')) {
+        // Override with data attribute (e.g. GHL {{contact.id}}, {{contact.firstName}})
+        params.set(paramName, String(value).trim());
       }
     }
 
