@@ -442,17 +442,19 @@ export async function createAppointment(
     console.log('Creating appointment with payload:', {
       ...payload,
       contactId: '***hidden***',
+      locationIdHeader: finalLocationId,
     });
 
     // GHL 2.0 API: Use calendars/events/appointments endpoint for creating appointments
     // NOTE: locationId must NOT be in the body (causes "locationId should not exist" error).
-    // Do NOT pass Location-Id header: GHL infers location from the token (location-level PIT).
-    // Passing it can cause 403 "token does not have access to this location" when the stored
-    // Location ID and the token's location differ. (Working behavior as of f43b4d5 / Jan 24.)
+    // The events API requires the Location-Id header for sub-accounts so GHL can scope
+    // the request to the correct location (and its calendars). Without it, 401 Unauthorized
+    // can occur. Use the location from Admin Settings (getGHLLocationId / ghl:location:id).
     const response = await makeGHLRequest<{ appointment: GHLAppointmentResponse }>(
       `/calendars/events/appointments`,
       'POST',
-      payload
+      payload,
+      finalLocationId
     );
 
     console.log('Appointment created successfully:', response.appointment?.id);
