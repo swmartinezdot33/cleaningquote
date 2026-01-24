@@ -42,6 +42,11 @@ export default function SurveyBuilderPage() {
   const [ghlFieldDropdownOpen, setGhlFieldDropdownOpen] = useState(false);
   const [fieldTypeValidation, setFieldTypeValidation] = useState<{ valid: boolean; error?: string; ghlFieldType?: string; compatibleSurveyTypes?: string[] } | null>(null);
   const [compatibleTypes, setCompatibleTypes] = useState<string[]>(['text', 'email', 'tel', 'number', 'select', 'address']);
+  
+  // Schema validation states
+  const [schemaValidation, setSchemaValidation] = useState<any>(null);
+  const [fieldChangeImpact, setFieldChangeImpact] = useState<any>(null);
+  const [showImpactWarning, setShowImpactWarning] = useState(false);
 
   useEffect(() => {
     const storedPassword = sessionStorage.getItem('admin_password');
@@ -126,6 +131,59 @@ export default function SurveyBuilderPage() {
         valid: false,
         error: 'Failed to validate field type compatibility'
       });
+    }
+  };
+
+  const validateSchemaChange = async (question: Partial<SurveyQuestion>) => {
+    try {
+      const response = await fetch('/api/admin/survey-schema-validator', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': password,
+        },
+        body: JSON.stringify({
+          action: 'validate',
+          question,
+        }),
+      });
+
+      const result = await response.json();
+      setSchemaValidation(result);
+      return result;
+    } catch (error) {
+      console.error('Failed to validate schema:', error);
+      return { valid: false, errors: [] };
+    }
+  };
+
+  const checkFieldChangeImpact = async (fieldId: string, oldQuestion: SurveyQuestion | undefined, newQuestion: Partial<SurveyQuestion>) => {
+    try {
+      const response = await fetch('/api/admin/survey-schema-validator', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': password,
+        },
+        body: JSON.stringify({
+          action: 'check-impact',
+          fieldId,
+          oldQuestion,
+          newQuestion,
+        }),
+      });
+
+      const result = await response.json();
+      setFieldChangeImpact(result);
+      
+      if (result.breaking) {
+        setShowImpactWarning(true);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Failed to check field change impact:', error);
+      return null;
     }
   };
 
@@ -241,6 +299,15 @@ export default function SurveyBuilderPage() {
   const handleSaveQuestion = async () => {
     if (!editingQuestion) return;
 
+    // Validate schema change
+    const validation = await validateSchemaChange(editingQuestion);
+    
+    if (!validation.valid && validation.errors && validation.errors.length > 0) {
+      const errorMessages = validation.errors.map((e: any) => e.message).join('; ');
+      setMessage({ type: 'error', text: `Validation failed: ${errorMessages}` });
+      return;
+    }
+
     // Validate
     if (!editingQuestion.label || !editingQuestion.id) {
       setMessage({ type: 'error', text: 'Label and ID are required' });
@@ -256,6 +323,18 @@ export default function SurveyBuilderPage() {
     if (editingQuestion.ghlFieldMapping && editingQuestion.ghlFieldMapping.trim() !== '') {
       if (fieldTypeValidation && !fieldTypeValidation.valid) {
         setMessage({ type: 'error', text: `Field type validation failed: ${fieldTypeValidation.error}` });
+        return;
+      }
+    }
+
+    // Check for breaking changes if this is an update and field type changed
+    if (editingIndex !== null && editingIndex < questions.length) {
+      const oldQuestion = questions[editingIndex];
+      if (fieldChangeImpact && fieldChangeImpact.breaking) {
+        setMessage({ 
+          type: 'error', 
+          text: `Cannot save: ${fieldChangeImpact.impact.join('; ')}. Revert the changes or restore from backup.` 
+        });
         return;
       }
     }
@@ -287,6 +366,8 @@ export default function SurveyBuilderPage() {
           setEditingQuestion(null);
           setEditingIndex(null);
           setFieldTypeValidation(null);
+          setSchemaValidation(null);
+          setFieldChangeImpact(null);
           setTimeout(() => setMessage(null), 2000);
         } else {
           throw new Error(data.error || 'Failed to add question');
@@ -328,6 +409,9 @@ export default function SurveyBuilderPage() {
           setEditingQuestion(null);
           setEditingIndex(null);
           setFieldTypeValidation(null);
+          setSchemaValidation(null);
+          setFieldChangeImpact(null);
+          setShowImpactWarning(false);
           setTimeout(() => setMessage(null), 2000);
         } else {
           throw new Error(data.error || 'Failed to update question');
@@ -554,8 +638,19 @@ export default function SurveyBuilderPage() {
                       <Label>Type</Label>
                       <Select
                         value={editingQuestion.type || 'text'}
-                        onValueChange={(value: any) => {
+                        onValueChange={async (value: any) => {
+                          const oldQuestion = editingIndex !== null ? questions[editingIndex] : undefined;
                           setEditingQuestion({ ...editingQuestion, type: value });
+                          
+                          // Check impact if this is an existing question
+                          if (editingIndex !== null && oldQuestion) {
+                            await checkFieldChangeImpact(
+                              editingQuestion.id || '',
+                              oldQuestion,
+                              { ...editingQuestion, type: value }
+                            );
+                          }
+                          
                           // Re-validate field type when survey type changes
                           if (editingQuestion.ghlFieldMapping) {
                             validateFieldMapping(value, editingQuestion.ghlFieldMapping);
@@ -804,13 +899,71 @@ export default function SurveyBuilderPage() {
                 </CardContent>
                 </div>
 
+                {/* Field Change Impact Warning */}
+                {fieldChangeImpact && fieldChangeImpact.breaking && (
+                  <div className="mx-6 my-4 p-4 bg-red-50 border-l-4 border-red-500 rounded">
+                    <p className="text-sm font-semibold text-red-900">⚠️ Breaking Change Detected</p>
+                    <p className="text-xs text-red-700 mt-2">
+                      This change would break the following systems:
+                    </p>
+                    <ul className="text-xs text-red-700 mt-1 ml-4 list-disc">
+                      {fieldChangeImpact.impact.map((item: string, idx: number) => (
+                        <li key={idx}>{item}</li>
+                      ))}
+                    </ul>
+                    {fieldChangeImpact.affectedSystems && fieldChangeImpact.affectedSystems.length > 0 && (
+                      <p className="text-xs text-red-700 mt-2">
+                        Affected: {fieldChangeImpact.affectedSystems.join(', ')}
+                      </p>
+                    )}
+                    <p className="text-xs text-red-800 mt-2 font-medium">
+                      {fieldChangeImpact.recommendation}
+                    </p>
+                  </div>
+                )}
+
+                {/* Schema Validation Errors */}
+                {schemaValidation && !schemaValidation.valid && schemaValidation.errors && schemaValidation.errors.length > 0 && (
+                  <div className="mx-6 mb-4 p-4 bg-red-50 border border-red-200 rounded">
+                    <p className="text-sm font-semibold text-red-900">❌ Validation Errors</p>
+                    {schemaValidation.errors.map((error: any, idx: number) => (
+                      <div key={idx} className="mt-2 text-xs">
+                        <p className="text-red-800 font-medium">{error.message}</p>
+                        <p className="text-red-700">{error.suggestion}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Schema Validation Warnings */}
+                {schemaValidation && schemaValidation.warnings && schemaValidation.warnings.length > 0 && (
+                  <div className="mx-6 mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded">
+                    <p className="text-sm font-semibold text-yellow-900">⚠️ Warnings</p>
+                    {schemaValidation.warnings.map((warning: any, idx: number) => (
+                      <div key={idx} className="mt-2 text-xs">
+                        <p className="text-yellow-800 font-medium">{warning.message}</p>
+                        <p className="text-yellow-700">{warning.suggestion}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="flex gap-2 justify-end border-t pt-4 p-6">
-                  <Button variant="outline" onClick={() => setEditingQuestion(null)}>
+                  <Button variant="outline" onClick={() => {
+                    setEditingQuestion(null);
+                    setShowImpactWarning(false);
+                    setFieldChangeImpact(null);
+                    setSchemaValidation(null);
+                  }}>
                     Cancel
                   </Button>
-                  <Button onClick={handleSaveQuestion} disabled={isSaving}>
+                  <Button 
+                    onClick={handleSaveQuestion} 
+                    disabled={isSaving || (fieldChangeImpact && fieldChangeImpact.breaking) || (schemaValidation && !schemaValidation.valid)}
+                    className={fieldChangeImpact && fieldChangeImpact.breaking ? 'bg-red-600 hover:bg-red-700' : ''}
+                  >
                     {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    Save Question
+                    {fieldChangeImpact && fieldChangeImpact.breaking ? 'Cannot Save - Breaking Change' : 'Save Question'}
                   </Button>
                 </div>
               </Card>
