@@ -1146,14 +1146,18 @@ export default function Home() {
         }
       });
 
-      // Extract UTM parameters from URL to include in request
+      // Extract UTM and passthrough params from URL (for API and redirect)
       const params = new URLSearchParams(window.location.search);
       const utmParams: Record<string, string> = {};
       ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid'].forEach(param => {
         const value = params.get(param);
-        if (value) {
-          utmParams[param] = value;
-        }
+        if (value) utmParams[param] = value;
+      });
+      // Passthrough params to send to API for attribution (e.g. start=iframe-Staver, tashiane=Verther)
+      const passthroughToApi: Record<string, string> = {};
+      ['start', 'tashiane'].forEach(param => {
+        const value = params.get(param);
+        if (value) passthroughToApi[param] = value;
       });
 
       // Build the API payload, mapping sanitized fields back to original IDs
@@ -1183,8 +1187,9 @@ export default function Home() {
         // These will be mapped to GHL select fields which expect the exact value
         hasPreviousService: formData.hasPreviousService || 'false', // Pass 'true', 'false', or 'switching'
         cleanedWithin3Months: formData.cleanedWithin3Months || 'no', // Pass 'yes', 'no', or 'unsure'
-        // Include UTM parameters in the request
+        // Include UTM and passthrough params (e.g. start=iframe-Staver) for attribution
         ...utmParams,
+        ...passthroughToApi,
       };
 
       // Add any custom fields (those that were sanitized)
@@ -1221,16 +1226,10 @@ export default function Home() {
           quoteId: result.quoteId,
         });
 
-        // Preserve UTM parameters for tracking through the journey
-        const params = new URLSearchParams(window.location.search);
-        const utmParams = new URLSearchParams();
-        ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid'].forEach(param => {
-          const value = params.get(param);
-          if (value) utmParams.set(param, value);
-        });
-        
-        // Redirect to quote page with UTM parameters
-        const quoteUrl = `/quote/${result.quoteId}${utmParams.toString() ? `?${utmParams.toString()}` : ''}`;
+        // Preserve all query params for tracking (UTM, start, gclid, etc.) except one-time/functional
+        const redirectParams = new URLSearchParams(window.location.search);
+        ['contactId', 'fromOutOfService', 'startAt'].forEach(k => redirectParams.delete(k));
+        const quoteUrl = `/quote/${result.quoteId}${redirectParams.toString() ? `?${redirectParams.toString()}` : ''}`;
         
         // If embedded in iframe, notify parent and update iframe src
         if (window.location.search.includes('embedded=true') || window.self !== window.top) {

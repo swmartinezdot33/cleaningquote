@@ -26,15 +26,21 @@ The widget.js script:
 - User clicks "Book an Appointment"
 - Redirects to confirmation: `/quote/{id}/appointment-confirmed?utm_source=facebook&utm_medium=cpc&utm_campaign=january_sale`
 
-## UTM Parameters Preserved
+## Parameters Preserved
 
-The following parameters are automatically extracted and preserved:
+**All** query parameters from the parent page are now passed into the iframe and preserved through the journey. This includes:
+
+**UTM and advertising:**
 - `utm_source` - Traffic source (e.g., "facebook", "google")
 - `utm_medium` - Marketing medium (e.g., "cpc", "email", "social")
 - `utm_campaign` - Campaign name (e.g., "january_sale")
 - `utm_term` - Campaign term/keyword
 - `utm_content` - Campaign content/variant
 - `gclid` - Google Click ID
+
+**Custom / iframe attribution (passed to API and stored in GHL as tags/notes):**
+- `start` - e.g. `start=iframe-Staver` for partner or embed source
+- `tashiane` - example custom param (add more in `page.tsx` and `api/quote/route.ts` as needed)
 
 ## Testing
 

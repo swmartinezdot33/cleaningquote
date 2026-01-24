@@ -91,14 +91,11 @@ export default function QuotePage() {
   const searchParams = useSearchParams();
   const quoteId = params.id as string;
 
-  // Helper function to extract UTM parameters from URL
-  const getUTMParams = (): string => {
-    const utmParams = new URLSearchParams();
-    ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid'].forEach(param => {
-      const value = searchParams.get(param);
-      if (value) utmParams.set(param, value);
-    });
-    return utmParams.toString();
+  // Preserve all query params (UTM, start, gclid, etc.) through appointment/callback redirects
+  const getPassthroughParams = (): string => {
+    const p = new URLSearchParams();
+    searchParams.forEach((value, key) => p.set(key, value));
+    return p.toString();
   };
   
   const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
@@ -283,9 +280,9 @@ export default function QuotePage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Redirect to confirmation page with UTM parameters preserved
-        const utmParams = getUTMParams();
-        const confirmationUrl = `/quote/${quoteId}/appointment-confirmed${utmParams ? `?${utmParams}` : ''}`;
+        // Redirect to confirmation with all query params preserved (UTM, start, etc.)
+        const qs = getPassthroughParams();
+        const confirmationUrl = `/quote/${quoteId}/appointment-confirmed${qs ? `?${qs}` : ''}`;
         
         // If embedded in iframe, notify parent and update iframe src
         if (window.location.search.includes('embedded=true') || window.self !== window.top) {
@@ -308,6 +305,9 @@ export default function QuotePage() {
         }
         return;
       } else {
+        if (data.details && typeof data.details === 'string') {
+          console.warn('Appointment create API details (see Network tab for full response):', data.details);
+        }
         setBookingMessage({
           type: 'error',
           text: data.userMessage || data.error || 'Failed to book appointment',
@@ -355,9 +355,9 @@ export default function QuotePage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Redirect to confirmation page with UTM parameters preserved
-        const utmParams = getUTMParams();
-        const confirmationUrl = `/quote/${quoteId}/callback-confirmed${utmParams ? `?${utmParams}` : ''}`;
+        // Redirect to confirmation with all query params preserved (UTM, start, etc.)
+        const qs = getPassthroughParams();
+        const confirmationUrl = `/quote/${quoteId}/callback-confirmed${qs ? `?${qs}` : ''}`;
         
         // If embedded in iframe, notify parent and update iframe src
         if (window.location.search.includes('embedded=true') || window.self !== window.top) {
@@ -380,6 +380,9 @@ export default function QuotePage() {
         }
         return;
       } else {
+        if (data.details && typeof data.details === 'string') {
+          console.warn('Call create API details (see Network tab for full response):', data.details);
+        }
         setCallMessage({
           type: 'error',
           text: data.userMessage || data.error || 'Failed to schedule call',
@@ -874,10 +877,8 @@ export default function QuotePage() {
                       <div className="pt-4 text-center">
                         <button
                           onClick={() => {
-                            // Preserve UTM parameters
-                            const utmParams = getUTMParams();
-                            // Pass contactId and startAt=address to skip to address step
-                            const params = new URLSearchParams(utmParams);
+                            // Preserve query params (UTM, start, etc.) and add contact/step
+                            const params = new URLSearchParams(getPassthroughParams());
                             if (quoteResult?.ghlContactId) {
                               params.set('contactId', quoteResult.ghlContactId);
                             }

@@ -262,6 +262,18 @@ export async function POST(request: NextRequest) {
           console.log(`✅ Added GCLID to contact (native field): ${utmParams.gclid}`);
         }
 
+        // Iframe / widget passthrough params for attribution (e.g. start=iframe-Staver, tashiane=Verther)
+        const passthroughKeys = ['start', 'tashiane'];
+        passthroughKeys.forEach(key => {
+          const val = body[key];
+          if (val != null && String(val).trim()) {
+            const v = String(val).trim();
+            contactData.tags = contactData.tags || [];
+            contactData.tags.push(`${key}:${v}`);
+            console.log(`✅ Added passthrough to contact: ${key}=${v}`);
+          }
+        });
+
         // Build a map of field IDs (both original and sanitized) to their GHL custom field mappings
         // IMPORTANT: This honors admin-set mappings from the Survey Builder UI
         // The form sanitizes field IDs (replaces dots with underscores), so we need to map both versions
@@ -737,7 +749,11 @@ export async function POST(request: NextRequest) {
 
         // Prepare note creation (will parallelize with opportunity and custom object)
         if (ghlConfig?.createNote !== false && ghlContactId) {
-          const noteBody = `Quote Generated from Website Form\n\n${summaryText}`;
+          let noteBody = `Quote Generated from Website Form\n\n${summaryText}`;
+          const notePassthrough = ['start', 'tashiane'].filter(k => body[k] && String(body[k]).trim());
+          if (notePassthrough.length) {
+            noteBody += '\n\n' + notePassthrough.map(k => `${k}: ${String(body[k]).trim()}`).join(', ');
+          }
           notePromise = createNote({
             contactId: ghlContactId,
             body: noteBody,

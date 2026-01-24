@@ -263,8 +263,15 @@ export async function POST(request: NextRequest) {
       message: `${type === 'call' ? 'Call' : 'Appointment'} created successfully`,
     });
   } catch (error) {
-    console.error('Error creating appointment:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const statusMatch = errorMessage.match(/GHL API Error \((\d+)\)/);
+    const ghlStatus = statusMatch ? parseInt(statusMatch[1], 10) : null;
+
+    console.error('Error creating appointment:', {
+      error: errorMessage,
+      ghlStatus,
+      stack: error instanceof Error ? (error as Error).stack : undefined,
+    });
 
     // Check if it's a GHL API error
     if (errorMessage.includes('GHL API Error')) {
@@ -273,7 +280,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error: 'Calendar Configuration Error',
-            details: 'The selected calendar in GHL needs to have team members assigned to it. Please configure the calendar in your GHL account settings.',
+            details: errorMessage,
             userMessage: 'This calendar is not properly configured. The calendar needs to have team members assigned in your GHL account. Please contact your administrator to configure the calendar settings in GHL, or try selecting a different calendar.',
           },
           { status: 500 }
@@ -281,7 +288,7 @@ export async function POST(request: NextRequest) {
       }
 
       // LocationId / Location-Id not specified – sub-account needs Location-Id header
-      if (errorMessage.includes('LocationId is not specified') || errorMessage.includes('locationId') && errorMessage.includes('required') || errorMessage.includes('Location-Id')) {
+      if (errorMessage.includes('LocationId is not specified') || (errorMessage.includes('locationId') && errorMessage.includes('required')) || errorMessage.includes('Location-Id')) {
         return NextResponse.json(
           {
             error: 'GHL Location Not Specified',
@@ -292,30 +299,77 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Token/location access (403)
-      if (errorMessage.includes('403') || errorMessage.includes('does not have access to this location') || errorMessage.includes('token does not have access')) {
+      // "The token does not have access to this location" – token and Location ID must match the same sub-account
+      if (errorMessage.includes('token does not have access to this location')) {
         return NextResponse.json(
           {
-            error: 'GHL Access Denied',
+            error: 'GHL Token / Location Mismatch',
             details: errorMessage,
-            userMessage: 'Your GHL connection does not have permission to create appointments for this location. Please check the API token and Location ID in Admin Settings.',
+            userMessage:
+              'The API token does not have access to the Location ID in your settings. Use a location-level (Private Integration) token created for the same sub-account: in GHL, open that sub-account → Settings → Integrations → API, create or copy a location-level token. Set that token and the Location ID (from that same sub-account’s Business Profile or API page) in Admin Settings.',
           },
           { status: 500 }
         );
       }
-      
+
+      // Other 403 / permission-style errors
+      const isPermissionError =
+        ghlStatus === 403 ||
+        errorMessage.includes('403') ||
+        errorMessage.includes('does not have access to this location') ||
+        errorMessage.includes('token does not have access') ||
+        (errorMessage.includes('permission') && (errorMessage.includes('location') || errorMessage.includes('valid')));
+      if (isPermissionError) {
+        return NextResponse.json(
+          {
+            error: 'GHL Access Denied',
+            details: errorMessage,
+            userMessage:
+              'Your GHL connection does not have permission to create appointments for this location. In Admin Settings, please check: (1) API token has the calendars/events.write scope and is for this location, and (2) Location ID matches the sub-account that owns the appointment calendar.',
+          },
+          { status: 500 }
+        );
+      }
+
+      // 422 / 400 validation: invalid assignedTo, calendar, or similar
+      const lower = errorMessage.toLowerCase();
+      const isUserAssignee = /assignedto|assigned_to|assignee|user\s+(not\s+)?found|invalid\s+user/.test(lower);
+      const isCalendar = /calendar\s+(not\s+)?found|invalid\s+calendar|calendar\s+id/.test(lower);
+      if (ghlStatus === 422 || ghlStatus === 400) {
+        if (isUserAssignee) {
+          return NextResponse.json(
+            {
+              error: 'Invalid assignee',
+              details: errorMessage,
+              userMessage: 'The user assigned to this calendar may not be valid. In Admin Settings, re-select the user for the appointment calendar and ensure that user is assigned to this calendar in GHL.',
+            },
+            { status: 400 }
+          );
+        }
+        if (isCalendar) {
+          return NextResponse.json(
+            {
+              error: 'Invalid calendar',
+              details: errorMessage,
+              userMessage: 'The appointment calendar may not be valid. In Admin Settings, re-select the calendar for appointments.',
+            },
+            { status: 400 }
+          );
+        }
+      }
+
       // Handle unavailable time slot error
       if (errorMessage.includes('no longer available') || (errorMessage.includes('slot') && errorMessage.includes('available'))) {
         return NextResponse.json(
           {
             error: 'Time Slot Unavailable',
-            details: 'The selected time slot has been booked by another customer or is no longer available.',
+            details: errorMessage,
             userMessage: 'Sorry, the time slot you selected is no longer available. Please choose a different date and time.',
           },
           { status: 400 }
         );
       }
-      
+
       return NextResponse.json(
         {
           error: 'Failed to create appointment in GHL',
@@ -329,7 +383,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: 'Failed to create appointment',
-        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        details: errorMessage,
         userMessage: 'We encountered an issue creating your appointment. Please try again.',
       },
       { status: 500 }

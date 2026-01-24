@@ -30,6 +30,10 @@
  * data-widget-id="my-widget"             - Alternative to container-id
  * data-max-width="600"                   - Max width in pixels (default: 800px)
  * 
+ * QUERY PARAMETERS (passed from parent page into the iframe and used for attribution):
+ * All parent URL params (UTM, gclid, start, tashiane, etc.) are passed into the iframe.
+ * Example: https://partner.com/getquote?start=iframe-Staver&utm_source=facebook
+ *
  * GHL CONTACT VARIABLE PLACEHOLDERS (auto-fills form if available):
  * data-first-name="{{contact.firstName}}"
  * data-last-name="{{contact.lastName}}"
@@ -83,27 +87,23 @@
   // Max width configuration
   const maxWidth = parseInt(scriptTag?.dataset.maxWidth || '800', 10);
 
-  // Extract UTM parameters from parent page URL
-  function extractUTMParams() {
+  // Extract all query parameters from parent page URL (UTM, gclid, start, and any custom params)
+  // This allows the iframe to receive and use params like ?start=iframe-Staver&tashiane=Verther
+  function extractParentQueryParams() {
     const params = new URLSearchParams();
     const parentParams = new URLSearchParams(window.location.search);
     
-    // UTM parameters to preserve
-    const utmParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid'];
-    
-    utmParams.forEach(param => {
-      const value = parentParams.get(param);
-      if (value) {
-        params.append(param, value);
-      }
+    parentParams.forEach((value, key) => {
+      params.append(key, value);
     });
     
     return params;
   }
 
-  // Build query parameters from data attributes
+  // Build query parameters: parent URL params + data-attribute overrides (for form pre-fill)
   function buildQueryString() {
-    const params = extractUTMParams(); // Start with UTM params from parent page
+    const params = extractParentQueryParams(); // Start with all params from parent page
+    params.delete('embedded'); // we add embedded=true to the iframe URL explicitly
     
     // Map of data attributes to query parameter names
     const attributeMap = {
@@ -120,8 +120,8 @@
     for (const [paramName, attrName] of Object.entries(attributeMap)) {
       const value = scriptTag?.dataset[attrName.replace('data-', '')] || scriptTag?.getAttribute(attrName);
       if (value && value.trim() && !value.includes('{{')) {
-        // Only add if value exists and doesn't contain unreplaced template variables
-        params.append(paramName, value);
+        // Override with data attribute (e.g. GHL contact placeholders)
+        params.set(paramName, value);
       }
     }
 
