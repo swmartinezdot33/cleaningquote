@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget Embed Test - UTM Parameters</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .info code {
+            background: #fff;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Widget Embed Test - UTM Parameter Preservation</h1>
+        
+        <div class="info">
+            <p><strong>Current URL Parameters:</strong></p>
+            <p id="urlParams"></p>
+            <p><strong>Note:</strong> UTM parameters from this page will be automatically passed to the embedded widget iframe.</p>
+        </div>
+
+        <h2>Embedded Widget</h2>
+        <div id="cleaning-quote-widget"></div>
+        
+        <script>
+            // Display current URL parameters
+            const params = new URLSearchParams(window.location.search);
+            const utmParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid'];
+            const paramDisplay = utmParams.map(param => {
+                const value = params.get(param);
+                return value ? `<code>${param}=${value}</code>` : null;
+            }).filter(Boolean).join(', ') || 'None';
+            
+            document.getElementById('urlParams').innerHTML = paramDisplay || 'No UTM parameters found';
+        </script>
+        
+        <!-- Widget Embed Script -->
+        <script src="http://localhost:3000/widget.js" 
+            data-base-url="http://localhost:3000"
+            data-container-id="cleaning-quote-widget"
+            data-height="1200">
+        </script>
+    </div>
+</body>
+</html>

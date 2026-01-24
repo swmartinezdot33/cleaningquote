@@ -1717,10 +1717,9 @@ export default function Home() {
                           const getServiceTypeInfo = (serviceType: string, freq: string) => {
                             // If frequency is one-time OR service type is a one-time service type, treat as one-time
                             if (freq === 'one-time' || isOneTimeService(serviceType)) {
-                              if (serviceType === 'move-in') {
-                                return { name: 'Move-In Clean', range: quoteResult.ranges!.moveInOutBasic, icon: '🚚' };
-                              } else if (serviceType === 'move-out') {
-                                return { name: 'Move-Out Clean', range: quoteResult.ranges!.moveInOutFull, icon: '🚚' };
+                              if (serviceType === 'move-in' || serviceType === 'move-out') {
+                                // For move-in/move-out, use Basic option as the primary selected option
+                                return { name: 'Move-In/Out Clean', range: quoteResult.ranges!.moveInOutBasic, icon: '🚚' };
                               } else if (serviceType === 'deep') {
                                 return { name: 'Deep Clean', range: quoteResult.ranges!.deep, icon: '🧹' };
                               }
@@ -1962,25 +1961,25 @@ export default function Home() {
                                         </div>
                                       </div>
                                     )}
-                                    {selectedServiceType !== 'move-in' && (
-                                      <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
-                                        <div className="flex items-center gap-3">
-                                          <span className="text-xl">🚚</span>
-                                          <span className="font-bold text-lg text-gray-700">
-                                            Move-In Clean: ${quoteResult.ranges.moveInOutBasic.low} to ${quoteResult.ranges.moveInOutBasic.high}
-                                          </span>
+                                    {selectedServiceType !== 'deep' && selectedServiceType !== 'general' && selectedServiceType !== 'initial' && (
+                                      <>
+                                        <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
+                                          <div className="flex items-center gap-3">
+                                            <span className="text-xl">🚚</span>
+                                            <span className="font-bold text-lg text-gray-700">
+                                              Move-In/Out Clean - Basic: ${quoteResult.ranges.moveInOutBasic.low} to ${quoteResult.ranges.moveInOutBasic.high}
+                                            </span>
+                                          </div>
                                         </div>
-                                      </div>
-                                    )}
-                                    {selectedServiceType !== 'move-out' && (
-                                      <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
-                                        <div className="flex items-center gap-3">
-                                          <span className="text-xl">🚚</span>
-                                          <span className="font-bold text-lg text-gray-700">
-                                            Move-Out Clean: ${quoteResult.ranges.moveInOutFull.low} to ${quoteResult.ranges.moveInOutFull.high}
-                                          </span>
+                                        <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400 pl-6 py-3 rounded-r-xl shadow-sm">
+                                          <div className="flex items-center gap-3">
+                                            <span className="text-xl">🚚</span>
+                                            <span className="font-bold text-lg text-gray-700">
+                                              Move-In/Out Clean - Full: ${quoteResult.ranges.moveInOutFull.low} to ${quoteResult.ranges.moveInOutFull.high}
+                                            </span>
+                                          </div>
                                         </div>
-                                      </div>
+                                      </>
                                     )}
                                   </motion.div>
                                 </>
