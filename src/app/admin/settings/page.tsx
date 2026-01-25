@@ -61,6 +61,7 @@ export default function SettingsPage() {
   const [createContact, setCreateContact] = useState(true);
   const [createOpportunity, setCreateOpportunity] = useState(false);
   const [createNote, setCreateNote] = useState(true);
+  const [createQuoteObject, setCreateQuoteObject] = useState(true);
   const [pipelines, setPipelines] = useState<any[]>([]);
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>('');
   const [selectedStageId, setSelectedStageId] = useState<string>('');
@@ -572,6 +573,7 @@ export default function SettingsPage() {
           createContact,
           createOpportunity,
           createNote,
+          createQuoteObject,
           pipelineId: selectedPipelineId || undefined,
           pipelineStageId: selectedStageId || undefined,
           opportunityStatus,
@@ -1545,6 +1547,20 @@ export default function SettingsPage() {
                           <label htmlFor="create-note" className="cursor-pointer flex-1">
                             <div className="font-semibold text-gray-900">Create Note</div>
                             <div className="text-sm text-gray-600">Add a note to the contact with the complete quote summary</div>
+                          </label>
+                        </div>
+
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <input
+                            type="checkbox"
+                            id="create-quote-object"
+                            checked={createQuoteObject}
+                            onChange={(e) => setCreateQuoteObject(e.target.checked)}
+                            className="w-5 h-5 text-[#f61590] rounded cursor-pointer"
+                          />
+                          <label htmlFor="create-quote-object" className="cursor-pointer flex-1">
+                            <div className="font-semibold text-gray-900">Create Quote (Custom Object)</div>
+                            <div className="text-sm text-gray-600">Create a Quote custom object in GHL and link it to the contact</div>
                           </label>
                         </div>
 

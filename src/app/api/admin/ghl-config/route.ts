@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
         createContact: true,
         createOpportunity: false,
         createNote: true,
+        createQuoteObject: true,
       },
     });
   } catch (error) {
@@ -51,6 +52,7 @@ export async function POST(request: NextRequest) {
       createContact, 
       createOpportunity, 
       createNote, 
+      createQuoteObject,
       pipelineId, 
       pipelineStageId, 
       opportunityStatus, 
@@ -76,6 +78,7 @@ export async function POST(request: NextRequest) {
       createContact: Boolean(createContact),
       createOpportunity: Boolean(createOpportunity),
       createNote: Boolean(createNote),
+      createQuoteObject: createQuoteObject === false ? false : true,
       pipelineId,
       pipelineStageId,
       opportunityStatus,

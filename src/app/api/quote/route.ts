@@ -745,15 +745,18 @@ export async function POST(request: NextRequest) {
             // If you want to store these, you'll need to add them as fields in GHL first
 
             // Prepare custom object creation (will parallelize with opportunity and note)
-            // The schemaKey should be just "quotes" (not "custom_objects.quotes")
-            // The customFields keys should be just the field names (not "custom_objects.quotes.field_name")
-            quoteObjectPromise = createCustomObject(
-              'quotes', // Schema key is just "quotes" (lowercase plural)
-              {
-                contactId: ghlContactId,
-                customFields: quoteCustomFields,
-              }
-            );
+            // Only call GHL when createQuoteObject is not explicitly disabled
+            if (ghlConfig?.createQuoteObject !== false) {
+              // The schemaKey should be just "quotes" (not "custom_objects.quotes")
+              // The customFields keys should be just the field names (not "custom_objects.quotes.field_name")
+              quoteObjectPromise = createCustomObject(
+                'quotes', // Schema key is just "quotes" (lowercase plural)
+                {
+                  contactId: ghlContactId,
+                  customFields: quoteCustomFields,
+                }
+              );
+            }
           } catch (quoteError) {
             // Custom object creation failed - log detailed error
             const errorMessage = quoteError instanceof Error ? quoteError.message : String(quoteError);
