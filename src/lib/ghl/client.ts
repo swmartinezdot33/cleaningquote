@@ -992,8 +992,8 @@ export async function createCustomObject(
         response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
           endpoint,
           'POST',
-          payloadShortName,
-          finalLocationId
+          payloadShortName
+          // locationId in body; do NOT pass Location-Id header (can 403 with location-level PIT, breaks quote–contact association)
         );
         console.log(`✅ Successfully created custom object at: ${endpoint} using object ID with short field names`);
       } catch (error) {
@@ -1005,8 +1005,8 @@ export async function createCustomObject(
           response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
             endpoint,
             'POST',
-            payloadFullPath,
-            finalLocationId
+            payloadFullPath
+            // locationId in body; do NOT pass Location-Id header (can 403 with location-level PIT)
           );
           console.log(`✅ Successfully created custom object at: ${endpoint} using full field paths`);
         } catch (fallbackError) {
@@ -1038,8 +1038,8 @@ export async function createCustomObject(
           response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
             endpoint,
             'POST',
-            payloadShortName,
-            finalLocationId
+            payloadShortName
+            // locationId in body; do NOT pass Location-Id header (can 403 with location-level PIT)
           );
           console.log(`✅ Successfully created custom object at fallback endpoint: ${endpoint}`);
           break;
