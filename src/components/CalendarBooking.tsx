@@ -50,6 +50,7 @@ export function CalendarBooking({
   const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
   const [isLoadingTimes, setIsLoadingTimes] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [noSlotsMessage, setNoSlotsMessage] = useState<string | null>(null);
 
   // Fetch available dates for the current month
   useEffect(() => {
@@ -68,6 +69,7 @@ export function CalendarBooking({
 
   const fetchAvailableDates = async () => {
     setIsLoadingCalendar(true);
+    setNoSlotsMessage(null);
     try {
       const year = currentMonth.getFullYear();
       const month = currentMonth.getMonth();
@@ -105,13 +107,15 @@ export function CalendarBooking({
       // Check for errors in response (even if status is 200)
       if (data.error) {
         console.error('[CalendarBooking] API returned error:', data.error, data.message);
-        setAvailableDays(new Map()); // Clear availability on error
+        setAvailableDays(new Map());
+        setNoSlotsMessage(null);
         setCalendarError(data.message || data.error || 'Unable to load calendar availability');
         return;
       }
       
-      // Clear any previous errors
+      // Clear any previous errors / no-slots message
       setCalendarError(null);
+      setNoSlotsMessage(null);
 
       if (response.ok) {
         const daysMap = new Map<string, DayAvailability>();
@@ -169,10 +173,7 @@ export function CalendarBooking({
         if (daysMap.size === 0) {
           console.warn('[CalendarBooking] NO AVAILABLE DATES FOUND');
           console.warn('[CalendarBooking] Response data:', JSON.stringify(data, null, 2));
-          if (data.warning || data.message) {
-            console.warn('[CalendarBooking] API warning:', data.warning || data.message);
-            setCalendarError(data.message || data.warning || 'No available time slots found. Please check calendar configuration in GHL.');
-          }
+          setNoSlotsMessage(data.message || 'No available time slots in this month. Try another month.');
         }
         
         setAvailableDays(daysMap);
@@ -466,20 +467,8 @@ export function CalendarBooking({
                     {calendarError ? 'Unable to Load Calendar' : 'No Available Time Slots'}
                   </p>
                   <p className="text-sm text-amber-800">
-                    {calendarError || 'No available time slots found for this calendar. This usually means:'}
+                    {calendarError || (noSlotsMessage ?? 'No available time slots in this month. Try another month.')}
                   </p>
-                  {!calendarError && (
-                    <ul className="text-xs text-amber-700 mt-2 list-disc list-inside space-y-1">
-                      <li>Users are assigned to the calendar but don't have office hours/availability configured</li>
-                      <li>No availability is set for the requested date range</li>
-                      <li>Calendar settings need to be configured in GHL</li>
-                    </ul>
-                  )}
-                  {(calendarError?.includes('No users assigned') || calendarError?.includes('users assigned')) && (
-                    <p className="text-xs text-amber-700 mt-2">
-                      Please assign users to the calendar AND configure their availability/office hours in GHL Calendar settings.
-                    </p>
-                  )}
                 </div>
               </div>
             </div>

@@ -109,27 +109,15 @@ export async function GET(request: NextRequest) {
       if (freeSlotsResponse.status === 404) {
         return NextResponse.json({
           slots: {},
-          message: 'No available time slots found for this calendar',
+          message: 'No available time slots in this period. Try another month.',
         });
       }
 
       if (freeSlotsResponse.status === 422) {
-        // Check for specific 422 errors
-        const errorMessage = errorData.message || errorText || '';
-        const errorMessageStr = typeof errorMessage === 'string' ? errorMessage : (Array.isArray(errorMessage) ? errorMessage.join(', ') : JSON.stringify(errorMessage));
-        
-        if (errorMessageStr.includes('No users found') || errorMessageStr.includes('no users')) {
-          return NextResponse.json({
-            slots: {},
-            error: 'Calendar has no users assigned in GHL. Users must be assigned to the calendar in GHL Calendar settings.',
-            message: 'Calendar configuration error: No users assigned to calendar in GHL',
-          });
-        }
-        // Generic 422 error
+        // 422 from GHL (e.g. no users, config issues): treat as "no slots" — calendar is working, just none available
         return NextResponse.json({
           slots: {},
-          error: errorMessageStr || 'Calendar configuration error',
-          message: errorMessageStr || 'Please check calendar settings in GHL',
+          message: 'No available time slots in this period. Try another month.',
         });
       }
 
@@ -280,21 +268,10 @@ export async function GET(request: NextRequest) {
       console.error('  4. Calendar settings in GHL need to be configured');
       console.error('========================================');
       
-      // Return empty slots but with a helpful message
       return NextResponse.json({
         slots: {},
         count: 0,
-        message: 'No available time slots found. Ensure the calendar has users assigned AND availability (office hours) configured in GHL.',
-        warning: 'Calendar may need availability configuration',
-        debug: {
-          calendarId,
-          type,
-          dateRange: {
-            from: new Date(fromTime).toISOString(),
-            to: new Date(toTime).toISOString(),
-          },
-          ghlResponseStatus: freeSlotsResponse.status,
-        },
+        message: 'No available time slots in this month. Try another month.',
       });
     }
 

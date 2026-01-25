@@ -53,11 +53,9 @@ export async function makeGHLRequest<T>(
       'Version': '2021-07-28', // GHL 2.0 API version
     };
     
-    // Some endpoints may require locationId in header instead of query
-    // For associations endpoint, always use header (query string causes 422 error)
+    // Location-Id header: only when explicitly required. For sub-account PIT, objects and associations
+    // use locationId in query or body per highlevel-api-docs; adding the header can cause 403.
     if (locationId) {
-      // Always add Location-Id header if locationId is provided
-      // Some endpoints (like associations) require it in header, not query string
       headers['Location-Id'] = locationId;
     }
     
@@ -877,8 +875,6 @@ export async function createCustomObject(
         }
       });
       
-      // For properties format, we don't need the array - we'll use the object directly
-      // But keep the array for logging
       customFieldsArray = validFields.map(f => ({
         key: f.key,
         value: f.value,
@@ -895,43 +891,34 @@ export async function createCustomObject(
       });
     }
 
-    // GHL API payload format for creating records
-    // According to docs: POST /objects/{schemaKey}/records
-    // The API expects "properties" as an object with field keys as properties
-    // Based on testing, when using object ID, it needs short field names (e.g., "quote_id")
-    // When using schema key, it may need full paths (e.g., "custom_objects.quotes.quote_id")
-    // We'll try both formats
     const propertiesFullPath: Record<string, any> = {};
     const propertiesShortName: Record<string, any> = {};
     
     if (validFields && validFields.length > 0) {
       validFields.forEach((field) => {
-        // Full path format (e.g., "custom_objects.quotes.quote_id")
         propertiesFullPath[field.key] = field.value;
-        
-        // Short name format (e.g., "quote_id") - extract last part of key
         const keyParts = field.key.split('.');
         const shortKey = keyParts.length > 0 ? keyParts[keyParts.length - 1] : field.key;
         propertiesShortName[shortKey] = field.value;
       });
+    } else if (data.customFields && Object.keys(data.customFields).length > 0) {
+      // Fallback: GHL IRecordSchema "properties" is an object. When schema missing, use customFields as-is.
+      Object.entries(data.customFields).forEach(([k, v]) => {
+        const fv = v !== null && v !== undefined && Array.isArray(v) ? v : String(v ?? '');
+        propertiesShortName[k] = fv;
+      });
+      console.log('📋 Using data.customFields as properties fallback (no schema match):', Object.keys(propertiesShortName));
     }
-    
-    // Build payloads with both field formats
-    // Some endpoints may need full paths, others may need short names
-    // Note: contactId cannot be included in the creation payload (GHL returns 422 error)
-    // We'll associate the contact after creation using the associations API
+
+    // GHL API 2.0 (highlevel-api-docs): POST /objects/{schemaKey}/records
+    // Body: { locationId, properties }. Sub-account PIT: locationId in body only, no Location-Id header.
     const payloadFullPath: Record<string, any> = {
       locationId: finalLocationId,
-      ...(Object.keys(propertiesFullPath).length > 0 && {
-        properties: propertiesFullPath,
-      }),
+      properties: Object.keys(propertiesFullPath).length > 0 ? propertiesFullPath : {},
     };
-    
     const payloadShortName: Record<string, any> = {
       locationId: finalLocationId,
-      ...(Object.keys(propertiesShortName).length > 0 && {
-        properties: propertiesShortName,
-      }),
+      properties: propertiesShortName || {},
     };
 
     console.log('📝 Creating custom object with payload:', {
@@ -946,109 +933,39 @@ export async function createCustomObject(
       schemaFieldCount: schemaFields?.fields?.length || 0,
     });
 
-    // GHL 2.0 API: POST /objects/{objectId}/records
-    // Based on testing, we know:
-    // - Object ID endpoint works: /objects/6973793b9743a548458387d2/records
-    // - Short field names work: quote_id (not custom_objects.quotes.quote_id)
-    // - Object ID is the most reliable identifier
-    
-    // Determine the object ID to use
-    let objectIdToUse: string | null = null;
-    
-    // Priority 1: Use object ID from schema if available
-    if (schemaFields?.object?.id) {
-      objectIdToUse = schemaFields.object.id;
-      console.log(`✅ Using object ID from schema: ${objectIdToUse}`);
-    }
-    // Priority 2: Use known object ID for quotes
-    else if ((objectType === 'quotes' || objectType === 'Quote' || objectType === 'quote') && KNOWN_OBJECT_IDS.quotes) {
-      objectIdToUse = KNOWN_OBJECT_IDS.quotes;
-      console.log(`✅ Using known object ID for quotes: ${objectIdToUse}`);
-    }
-    // Priority 3: Try to get object ID from schema fetch
-    else {
-      try {
-        const schemaKey = objectType === 'quotes' || objectType === 'Quote' 
-          ? 'custom_objects.quotes' 
-          : objectType.startsWith('custom_objects.') 
-            ? objectType 
-            : `custom_objects.${objectType}`;
-        const tempSchema = await getObjectSchema(schemaKey, finalLocationId);
-        if (tempSchema?.object?.id) {
-          objectIdToUse = tempSchema.object.id;
-          console.log(`✅ Found object ID from schema fetch: ${objectIdToUse}`);
-        }
-      } catch (error) {
-        console.log('⚠️ Could not fetch schema to get object ID');
-      }
-    }
+    // GHL API 2.0 (highlevel-api-docs): POST /objects/{schemaKey}/records — schemaKey must include "custom_objects." prefix
+    const schemaKeyForPath = (actualSchemaKey?.startsWith('custom_objects.') ? actualSchemaKey : (actualSchemaKey ? `custom_objects.${actualSchemaKey}` : null))
+      || (objectType === 'quotes' || objectType === 'Quote' || objectType === 'quote' ? 'custom_objects.quotes' : `custom_objects.${objectType}`);
+    const objectIdToUse = schemaFields?.object?.id || ((objectType === 'quotes' || objectType === 'Quote' || objectType === 'quote') ? KNOWN_OBJECT_IDS.quotes : null);
     
     let lastError: Error | null = null;
     let response: any = null;
     
-    // Try with object ID first (most reliable - we know this works)
-    if (objectIdToUse) {
-      const endpoint = `/objects/${objectIdToUse}/records`;
-      try {
-        console.log(`Attempting to create custom object at endpoint: ${endpoint} (using object ID with short field names)`);
-        console.log(`Payload:`, JSON.stringify(payloadShortName, null, 2));
-        response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
-          endpoint,
-          'POST',
-          payloadShortName
-          // locationId in body; do NOT pass Location-Id header (can 403 with location-level PIT, breaks quote–contact association)
-        );
-        console.log(`✅ Successfully created custom object at: ${endpoint} using object ID with short field names`);
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-        console.log(`❌ Failed at ${endpoint}:`, lastError.message);
-        // Try with full paths as fallback
+    // 1) Try schemaKey path first (per GHL spec: /objects/{schemaKey}/records)
+    const schemaKeyEndpoint = `/objects/${schemaKeyForPath}/records`;
+    try {
+      console.log(`[GHL] POST ${schemaKeyEndpoint} (schemaKey per spec)`);
+      response = await makeGHLRequest<{ record?: { id: string } }>(schemaKeyEndpoint, 'POST', payloadShortName);
+      console.log(`✅ Created at ${schemaKeyEndpoint}`);
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+      console.log(`❌ ${schemaKeyEndpoint}:`, lastError.message);
+      // 2) Fallback: object ID path (some GHL setups accept /objects/{objectId}/records)
+      if (objectIdToUse) {
+        const objectIdEndpoint = `/objects/${objectIdToUse}/records`;
         try {
-          console.log(`Trying with full field paths as fallback...`);
-          response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
-            endpoint,
-            'POST',
-            payloadFullPath
-            // locationId in body; do NOT pass Location-Id header (can 403 with location-level PIT)
-          );
-          console.log(`✅ Successfully created custom object at: ${endpoint} using full field paths`);
-        } catch (fallbackError) {
-          lastError = fallbackError instanceof Error ? fallbackError : new Error(String(fallbackError));
-          console.log(`❌ Also failed with full paths:`, lastError.message);
-        }
-      }
-    }
-    
-    // Fallback: Try with schema key names if object ID didn't work
-    if (!response && actualSchemaKey) {
-      const endpointsToTry: string[] = [];
-      const cleanObjectType = objectType.startsWith('custom_objects.') 
-        ? objectType.split('.').pop() || objectType
-        : objectType;
-      
-      if (actualSchemaKey.startsWith('custom_objects.')) {
-        const keyPart = actualSchemaKey.split('.').pop();
-        if (keyPart) endpointsToTry.push(keyPart);
-      }
-      endpointsToTry.push(cleanObjectType, 'quotes', 'Quote');
-      
-      const uniqueEndpoints = Array.from(new Set(endpointsToTry));
-      for (const schemaKey of uniqueEndpoints) {
-        if (!schemaKey) continue;
-        const endpoint = `/objects/${schemaKey}/records`;
-        try {
-          console.log(`Trying fallback endpoint: ${endpoint}`);
-          response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
-            endpoint,
-            'POST',
-            payloadShortName
-            // locationId in body; do NOT pass Location-Id header (can 403 with location-level PIT)
-          );
-          console.log(`✅ Successfully created custom object at fallback endpoint: ${endpoint}`);
-          break;
-        } catch (error) {
-          lastError = error instanceof Error ? error : new Error(String(error));
-          console.log(`❌ Failed at fallback ${endpoint}:`, lastError.message);
+          console.log(`[GHL] POST ${objectIdEndpoint} (objectId fallback)`);
+          response = await makeGHLRequest<{ record?: { id: string } }>(objectIdEndpoint, 'POST', payloadShortName);
+          console.log(`✅ Created at ${objectIdEndpoint}`);
+        } catch (e2) {
+          lastError = e2 instanceof Error ? e2 : new Error(String(e2));
+          console.log(`❌ ${objectIdEndpoint}:`, lastError.message);
+          try {
+            response = await makeGHLRequest<{ record?: { id: string } }>(objectIdEndpoint, 'POST', payloadFullPath);
+            console.log(`✅ Created at ${objectIdEndpoint} (full paths)`);
+          } catch (e3) {
+            lastError = e3 instanceof Error ? e3 : new Error(String(e3));
+          }
         }
       }
     }
@@ -1095,16 +1012,14 @@ export async function createCustomObject(
       throw new Error(errorMsg);
     }
 
-    // GHL may return the object directly or wrapped in a key
-    // Try to find the object in the response
-    const customObject = response.record || response[objectType] || response[objectType.slice(0, -1)] || response.Quote || response;
-    
-    if (!customObject || !customObject.id) {
-      console.error('Response structure:', Object.keys(response));
+    // GHL RecordByIdResponseDTO: { record: { id, properties, ... } } (highlevel-api-docs)
+    const customObject = response.record || response[objectType] || response[objectType.slice(0, -1)] || response.Quote || (response?.id ? response : null);
+    if (!customObject?.id) {
+      console.error('Response structure:', Object.keys(response || {}), String(JSON.stringify(response)).slice(0, 400));
       throw new Error('Invalid response from GHL API - could not find custom object in response');
     }
     
-    // GHL doesn't accept contactId in the creation payload, so we must associate it after creation
+    // GHL doesn't accept contactId in the creation payload; associate via POST /associations/relations
     // Always try to associate if contactId was provided
     if (data.contactId) {
       try {
@@ -1155,14 +1070,10 @@ export async function createCustomObject(
 }
 
 /**
- * Associate a custom object with a contact using GHL Associations API
- * GHL doesn't accept contactId in the creation payload, so association must be done separately
- * 
- * GHL API format requires:
- * - associationId: The association definition ID (must fetch first)
- * - firstRecordId: One record ID (contact or quote)
- * - secondRecordId: The other record ID
- * - locationId: In query string only, NOT in body
+ * Associate a custom object with a contact (GHL highlevel-api-docs: associations.json)
+ * - GET /associations/key/{key_name}?locationId= — locationId in query; no Location-Id header (sub-account PIT)
+ * - POST /associations/relations — body createRelationReqDto: { locationId, associationId, firstRecordId, secondRecordId }
+ * Scopes: associations.readonly (get), associations/relation.write (create)
  */
 async function associateCustomObjectWithContact(
   objectId: string,
@@ -1193,21 +1104,21 @@ async function associateCustomObjectWithContact(
     for (const assocEndpoint of associationEndpoints) {
       try {
         console.log(`🔍 Fetching association from ${assocEndpoint}...`);
-        const associationsResponse = await makeGHLRequest<any>(
-          assocEndpoint,
-          'GET'
-        );
-        
-        // GHL returns associations in various formats
+        const associationsResponse = await makeGHLRequest<any>(assocEndpoint, 'GET');
+        // GHL GET /associations/key/contact_quote returns the association object { id, key, firstObjectKey, secondObjectKey }
+        if (assocEndpoint.includes('key/contact_quote') && associationsResponse && typeof associationsResponse === 'object' && (associationsResponse.id || associationsResponse.associationId)) {
+          associationId = associationsResponse.id || associationsResponse.associationId;
+          console.log(`✅ Found association from /associations/key/contact_quote: ${associationId}`);
+          break;
+        }
         let associations: any[] = [];
         if (Array.isArray(associationsResponse)) {
           associations = associationsResponse;
-        } else if (associationsResponse.associations) {
+        } else if (associationsResponse?.associations) {
           associations = Array.isArray(associationsResponse.associations) ? associationsResponse.associations : [];
-        } else if (associationsResponse.data) {
+        } else if (associationsResponse?.data) {
           associations = Array.isArray(associationsResponse.data) ? associationsResponse.data : [];
-        } else if (associationsResponse.id || associationsResponse.associationId) {
-          // Single association object
+        } else if (associationsResponse?.id || associationsResponse?.associationId) {
           associations = [associationsResponse];
         }
         
