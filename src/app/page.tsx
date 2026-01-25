@@ -277,6 +277,7 @@ export default function Home() {
   const appointmentFormRef = useRef<HTMLDivElement>(null);
   const callFormRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
+  const addressAutocompleteRef = useRef<{ geocodeCurrentValue: () => Promise<{ lat: number; lng: number; formattedAddress: string } | null> } | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -651,6 +652,7 @@ export default function Home() {
     getValues,
     watch,
     setValue,
+    setError,
     reset,
   } = useForm({
     resolver: zodResolver(quoteSchema),
@@ -924,6 +926,15 @@ export default function Home() {
     }
     
     if (isValid) {
+      // Block Next on address question until address is entered
+      if (currentQuestion.type === 'address') {
+        const addressVal = getValues()[fieldName as string] ?? getValues()['address'] ?? '';
+        if (!String(addressVal).trim()) {
+          setError(fieldName as any, { type: 'manual', message: 'Please enter your service address.' });
+          return;
+        }
+      }
+
       // If this is an address question and we've passed validation, create the contact in GHL FIRST
       // (before any service area redirects, so out-of-service customers are also created)
       let createdContactId: string | null = null;
@@ -1056,6 +1067,78 @@ export default function Home() {
         } finally {
           setIsLoading(false);
           serviceAreaCheckInProgress.current = false;
+        }
+      } else if (currentQuestion.type === 'address' && !addressCoordinates && !serviceAreaChecked && !serviceAreaCheckInProgress.current) {
+        // Manual address: user typed but didn't select from autocomplete. Geocode on Next, then run service check.
+        const addressVal = getValues()[fieldName as string] ?? getValues()['address'] ?? '';
+        if (String(addressVal).trim()) {
+          setIsLoading(true);
+          serviceAreaCheckInProgress.current = true;
+          try {
+            const placeDetails = await addressAutocompleteRef.current?.geocodeCurrentValue?.() ?? null;
+            if (!placeDetails) {
+              setError(fieldName as any, { type: 'manual', message: "We couldn't verify that address. Please select from the suggestions or try another address." });
+              return;
+            }
+            setAddressCoordinates({ lat: placeDetails.lat, lng: placeDetails.lng });
+            setValue(fieldName as any, placeDetails.formattedAddress, { shouldValidate: true, shouldDirty: true });
+
+            const response = await fetch('/api/service-area/check', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ lat: placeDetails.lat, lng: placeDetails.lng }),
+            });
+            const result = await response.json();
+
+            if (!result.inServiceArea) {
+              const data = getValues();
+              const addressValue = data[getFormFieldName(currentQuestion.id)] || data.address || '';
+              try {
+                await fetch('/api/service-area/out-of-service', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    firstName: data.firstName || '',
+                    lastName: data.lastName || '',
+                    email: data.email || '',
+                    phone: data.phone || '',
+                    address: addressValue,
+                  }),
+                });
+              } catch (e) {
+                console.error('Error creating out-of-service contact:', e);
+              }
+              const params = new URLSearchParams({
+                address: addressValue,
+                ...(createdContactId && { contactId: createdContactId }),
+              });
+              window.location.href = `/out-of-service?${params.toString()}`;
+              return;
+            }
+
+            triggerGoogleAdsConversion();
+            setServiceAreaChecked(true);
+            const isInIframe = window.self !== window.top;
+            if (openSurveyInNewTab && createdContactId && !tabOpened && isInIframe) {
+              setTabOpened(true);
+              window.open(`/?contactId=${createdContactId}`, '_blank');
+              return;
+            }
+            setDirection(1);
+            const nextIndex = getNextQuestionIndex(currentStep, fieldName);
+            if (nextIndex >= questions.length) {
+              handleFormSubmit();
+            } else {
+              setCurrentStep(nextIndex);
+            }
+            return;
+          } catch (err) {
+            console.error('Error geocoding or checking service area:', err);
+            setError(fieldName as any, { type: 'manual', message: "We couldn't verify that address. Please try again or select from the suggestions." });
+          } finally {
+            setIsLoading(false);
+            serviceAreaCheckInProgress.current = false;
+          }
         }
       }
 
@@ -2527,6 +2610,7 @@ export default function Home() {
 
                     {currentQuestion.type === 'address' && (
                       <GooglePlacesAutocomplete
+                        ref={addressAutocompleteRef}
                         id={currentQuestion.id}
                         placeholder={currentQuestion.placeholder}
                         required={currentQuestion.required}

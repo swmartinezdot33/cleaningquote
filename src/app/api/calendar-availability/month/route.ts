@@ -89,6 +89,7 @@ export async function GET(request: NextRequest) {
         'Version': '2021-07-28',
         'Location-Id': locationId,
       },
+      cache: 'no-store',
     });
 
     console.log('[calendar-availability/month] GHL API response status:', freeSlotsResponse.status);

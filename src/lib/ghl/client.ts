@@ -992,7 +992,8 @@ export async function createCustomObject(
         response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
           endpoint,
           'POST',
-          payloadShortName
+          payloadShortName,
+          finalLocationId
         );
         console.log(`✅ Successfully created custom object at: ${endpoint} using object ID with short field names`);
       } catch (error) {
@@ -1004,7 +1005,8 @@ export async function createCustomObject(
           response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
             endpoint,
             'POST',
-            payloadFullPath
+            payloadFullPath,
+            finalLocationId
           );
           console.log(`✅ Successfully created custom object at: ${endpoint} using full field paths`);
         } catch (fallbackError) {
@@ -1036,7 +1038,8 @@ export async function createCustomObject(
           response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
             endpoint,
             'POST',
-            payloadShortName
+            payloadShortName,
+            finalLocationId
           );
           console.log(`✅ Successfully created custom object at fallback endpoint: ${endpoint}`);
           break;
@@ -1189,7 +1192,9 @@ async function associateCustomObjectWithContact(
         console.log(`🔍 Fetching association from ${assocEndpoint}...`);
         const associationsResponse = await makeGHLRequest<any>(
           assocEndpoint,
-          'GET'
+          'GET',
+          undefined,
+          locationId
         );
         
         // GHL returns associations in various formats
@@ -1272,8 +1277,8 @@ async function associateCustomObjectWithContact(
         const response = await makeGHLRequest<any>(
           endpoint,
           'POST',
-          cleanPayload
-          // locationId is in body; do not pass as header for this endpoint
+          cleanPayload,
+          locationId
         );
         
         console.log(`✅ Successfully associated custom object ${recordId} with contact ${contactId}`, {

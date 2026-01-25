@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -22,6 +22,10 @@ export interface PlaceDetails {
   formattedAddress: string;
 }
 
+export interface GooglePlacesAutocompleteHandle {
+  geocodeCurrentValue: () => Promise<PlaceDetails | null>;
+}
+
 declare global {
   interface Window {
     google?: any;
@@ -29,7 +33,7 @@ declare global {
   }
 }
 
-export function GooglePlacesAutocomplete({
+export const GooglePlacesAutocomplete = forwardRef<GooglePlacesAutocompleteHandle, GooglePlacesAutocompleteProps>(function GooglePlacesAutocomplete({
   id,
   label,
   placeholder,
@@ -38,13 +42,50 @@ export function GooglePlacesAutocomplete({
   value,
   onChange,
   onKeyDown,
-}: GooglePlacesAutocompleteProps) {
+}, ref) {
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
   const placeSelectedRef = useRef(false); // Track if a place was just selected from autocomplete
   const userTypedInputRef = useRef<string>(''); // Track user's typed input to preserve street number
   const [isLoadingGeo, setIsLoadingGeo] = useState(false);
   const [googleLoaded, setGoogleLoaded] = useState(false);
+
+  /** Geocode address string and return PlaceDetails or null. Used when user clicks Next without selecting from autocomplete. */
+  const geocodeToPlaceDetails = (address: string): Promise<PlaceDetails | null> => {
+    return new Promise((resolve) => {
+      if (!address?.trim() || !window.google?.maps?.Geocoder) {
+        resolve(null);
+        return;
+      }
+      setIsLoadingGeo(true);
+      const geocoder = new window.google.maps.Geocoder();
+      geocoder.geocode(
+        { address: address.trim(), componentRestrictions: { country: 'us' } },
+        (results: any[], status: string) => {
+          setIsLoadingGeo(false);
+          if (status === 'OK' && results?.[0]) {
+            const place = results[0];
+            const lat = typeof place.geometry?.location?.lat === 'function' ? place.geometry.location.lat() : place.geometry?.location?.lat;
+            const lng = typeof place.geometry?.location?.lng === 'function' ? place.geometry.location.lng() : place.geometry?.location?.lng;
+            if (lat != null && lng != null && lat !== 0 && lng !== 0 && !isNaN(lat) && !isNaN(lng)) {
+              const fullAddress = buildAddressFromGeocodeResult(place, address);
+              resolve({ lat, lng, formattedAddress: fullAddress });
+              return;
+            }
+          }
+          resolve(null);
+        }
+      );
+    });
+  };
+
+  useImperativeHandle(ref, () => ({
+    geocodeCurrentValue: (): Promise<PlaceDetails | null> => {
+      const v = inputRef.current?.value?.trim();
+      if (!v) return Promise.resolve(null);
+      return geocodeToPlaceDetails(v);
+    },
+  }), []);
 
   // Initialize Google Places Autocomplete
   useEffect(() => {
@@ -421,4 +462,4 @@ export function GooglePlacesAutocomplete({
       </div>
     </div>
   );
-}
+});

@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
     // GET /calendars/:calendarId/free-slots?startDate={ts}&endDate={ts}
     // Note: locationId should NOT be in query parameters for this endpoint
     const freeSlotsResponse = await fetch(
-      `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${fromTimestamp}&endTime=${toTimestamp}`,
+      `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${fromTimestamp}&endDate=${toTimestamp}`,
       {
         method: 'GET',
         headers: {
