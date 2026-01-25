@@ -1537,20 +1537,6 @@ export default function SettingsPage() {
                         <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
                           <input
                             type="checkbox"
-                            id="create-opportunity"
-                            checked={createOpportunity}
-                            onChange={(e) => setCreateOpportunity(e.target.checked)}
-                            className="w-5 h-5 text-[#f61590] rounded cursor-pointer"
-                          />
-                          <label htmlFor="create-opportunity" className="cursor-pointer flex-1">
-                            <div className="font-semibold text-gray-900">Create Opportunity</div>
-                            <div className="text-sm text-gray-600">Automatically create a sales opportunity with the quote details</div>
-                          </label>
-                        </div>
-
-                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                          <input
-                            type="checkbox"
                             id="create-note"
                             checked={createNote}
                             onChange={(e) => setCreateNote(e.target.checked)}
@@ -1559,6 +1545,20 @@ export default function SettingsPage() {
                           <label htmlFor="create-note" className="cursor-pointer flex-1">
                             <div className="font-semibold text-gray-900">Create Note</div>
                             <div className="text-sm text-gray-600">Add a note to the contact with the complete quote summary</div>
+                          </label>
+                        </div>
+
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <input
+                            type="checkbox"
+                            id="create-opportunity"
+                            checked={createOpportunity}
+                            onChange={(e) => setCreateOpportunity(e.target.checked)}
+                            className="w-5 h-5 text-[#f61590] rounded cursor-pointer"
+                          />
+                          <label htmlFor="create-opportunity" className="cursor-pointer flex-1">
+                            <div className="font-semibold text-gray-900">Create Opportunity</div>
+                            <div className="text-sm text-gray-600">Automatically create a sales opportunity with the quote details</div>
                           </label>
                         </div>
                       </div>
