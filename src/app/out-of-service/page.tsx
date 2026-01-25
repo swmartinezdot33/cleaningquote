@@ -64,10 +64,13 @@ export default function OutOfService() {
   };
 
   const getStartQuoteUrl = () => {
+    const params = new URLSearchParams();
+    params.set('startAt', 'address');
     if (contactId) {
-      return `/?contactId=${contactId}&fromOutOfService=true`;
+      params.set('contactId', contactId);
+      params.set('fromOutOfService', 'true');
     }
-    return '/';
+    return `/?${params.toString()}`;
   };
 
   if (!mounted) {

@@ -14,6 +14,7 @@ export default function AppointmentConfirmedPage() {
   const quoteId = params.id as string;
   const [redirectAfterAppointment, setRedirectAfterAppointment] = useState<boolean>(false);
   const [appointmentRedirectUrl, setAppointmentRedirectUrl] = useState<string>('');
+  const [isLoadingAnotherQuote, setIsLoadingAnotherQuote] = useState(false);
 
   // Preserve UTM parameters for tracking
   const utmParams = new URLSearchParams();
@@ -128,11 +129,35 @@ export default function AppointmentConfirmedPage() {
               </Button>
 
               <Button
-                onClick={() => router.push(`/${utmParams.toString() ? `?${utmParams.toString()}` : ''}`)}
+                onClick={async () => {
+                  setIsLoadingAnotherQuote(true);
+                  try {
+                    const res = await fetch(`/api/quote/${quoteId}`);
+                    const data = await res.json();
+                    const p = new URLSearchParams(utmParams);
+                    p.set('startAt', 'address');
+                    if (data?.ghlContactId) p.set('contactId', data.ghlContactId);
+                    router.push(`/?${p.toString()}`);
+                  } catch {
+                    const p = new URLSearchParams(utmParams);
+                    p.set('startAt', 'address');
+                    router.push(`/?${p.toString()}`);
+                  } finally {
+                    setIsLoadingAnotherQuote(false);
+                  }
+                }}
                 variant="ghost"
                 className="w-full"
+                disabled={isLoadingAnotherQuote}
               >
-                Get Another Quote
+                {isLoadingAnotherQuote ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  'Get Another Quote'
+                )}
               </Button>
             </div>
           </CardContent>

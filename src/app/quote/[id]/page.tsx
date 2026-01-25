@@ -419,7 +419,11 @@ export default function QuotePage() {
               <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Quote Not Found</h2>
               <p className="text-gray-600 mb-6">{error || 'The quote you are looking for could not be found.'}</p>
-              <Button onClick={() => router.push('/')}>Start New Quote</Button>
+              <Button onClick={() => {
+                const params = new URLSearchParams(getPassthroughParams());
+                params.set('startAt', 'address');
+                router.push(`/?${params.toString()}`);
+              }}>Start New Quote</Button>
             </div>
           </CardContent>
         </Card>
@@ -435,7 +439,12 @@ export default function QuotePage() {
             <div className="text-center">
               <h2 className="text-2xl font-bold text-red-600 mb-4">Out of Limits</h2>
               <p className="text-gray-700 mb-6">{quoteResult.message}</p>
-              <Button onClick={() => router.push('/')}>Start New Quote</Button>
+              <Button onClick={() => {
+                const params = new URLSearchParams(getPassthroughParams());
+                params.set('startAt', 'address');
+                if (quoteResult?.ghlContactId) params.set('contactId', quoteResult.ghlContactId);
+                router.push(`/?${params.toString()}`);
+              }}>Start New Quote</Button>
             </div>
           </CardContent>
         </Card>
