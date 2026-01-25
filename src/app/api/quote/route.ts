@@ -590,12 +590,48 @@ export async function POST(request: NextRequest) {
             });
           }
 
+          // Resolve pipeline and stage using routing rules
+          let resolvedPipelineId = ghlConfig.pipelineId;
+          let resolvedPipelineStageId = ghlConfig.pipelineStageId;
+          
+          if (ghlConfig.pipelineRoutingRules && Array.isArray(ghlConfig.pipelineRoutingRules) && ghlConfig.pipelineRoutingRules.length > 0) {
+            for (const rule of ghlConfig.pipelineRoutingRules) {
+              // Get the UTM value to check
+              let raw: string;
+              if (rule.utmParam === 'utm_source') {
+                // For utm_source, also use effectiveUtmSource when utm_source is absent
+                raw = utmParams.utm_source || effectiveUtmSource || '';
+              } else {
+                raw = utmParams[rule.utmParam as keyof typeof utmParams] || '';
+              }
+              
+              const v = String(raw).toLowerCase();
+              const needle = String(rule.value || '').toLowerCase();
+              let matches = false;
+              
+              if (rule.match === 'contains') {
+                matches = v.includes(needle);
+              } else if (rule.match === 'equals') {
+                matches = v === needle;
+              } else if (rule.match === 'starts_with') {
+                matches = v.startsWith(needle);
+              }
+              
+              if (matches) {
+                resolvedPipelineId = rule.pipelineId;
+                resolvedPipelineStageId = rule.pipelineStageId;
+                console.log(`✅ Pipeline routing: rule matched (${rule.utmParam} ${rule.match} "${rule.value}") -> pipeline ${rule.pipelineId}`);
+                break; // First match wins
+              }
+            }
+          }
+
           opportunityPromise = createOpportunity({
             contactId: ghlContactId,
             name: opportunityName,
             value: opportunityValue,
-            pipelineId: ghlConfig.pipelineId,
-            pipelineStageId: ghlConfig.pipelineStageId,
+            pipelineId: resolvedPipelineId,
+            pipelineStageId: resolvedPipelineStageId,
             status: (ghlConfig.opportunityStatus as 'open' | 'won' | 'lost' | 'abandoned') || 'open',
             assignedTo: ghlConfig.opportunityAssignedTo,
             source: ghlConfig.opportunitySource,

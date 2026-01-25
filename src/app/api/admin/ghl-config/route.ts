@@ -54,7 +54,8 @@ export async function POST(request: NextRequest) {
       createNote, 
       createQuoteObject,
       pipelineId, 
-      pipelineStageId, 
+      pipelineStageId,
+      pipelineRoutingRules,
       opportunityStatus, 
       opportunityMonetaryValue, 
       useDynamicPricingForValue,
@@ -74,6 +75,25 @@ export async function POST(request: NextRequest) {
       quoteCompletedTags,
     } = body;
 
+    // Validate and clean pipelineRoutingRules
+    let validatedRules: Array<{ utmParam: string; match: string; value: string; pipelineId: string; pipelineStageId: string }> | undefined;
+    if (Array.isArray(pipelineRoutingRules)) {
+      validatedRules = pipelineRoutingRules.filter((rule: any) => {
+        // Each rule must have: utmParam, match, value (non-empty), pipelineId, pipelineStageId
+        return (
+          rule.utmParam && String(rule.utmParam).trim() &&
+          rule.match && String(rule.match).trim() &&
+          rule.value && String(rule.value).trim() &&
+          rule.pipelineId && String(rule.pipelineId).trim() &&
+          rule.pipelineStageId && String(rule.pipelineStageId).trim()
+        );
+      });
+      // Only include if there are valid rules
+      if (validatedRules.length === 0) {
+        validatedRules = undefined;
+      }
+    }
+
     await storeGHLConfig({
       createContact: Boolean(createContact),
       createOpportunity: Boolean(createOpportunity),
@@ -81,6 +101,7 @@ export async function POST(request: NextRequest) {
       createQuoteObject: createQuoteObject === false ? false : true,
       pipelineId,
       pipelineStageId,
+      pipelineRoutingRules: validatedRules,
       opportunityStatus,
       opportunityMonetaryValue: useDynamicPricingForValue ? undefined : opportunityMonetaryValue,
       useDynamicPricingForValue: Boolean(useDynamicPricingForValue),

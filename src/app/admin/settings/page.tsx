@@ -62,6 +62,7 @@ export default function SettingsPage() {
   const [createOpportunity, setCreateOpportunity] = useState(false);
   const [createNote, setCreateNote] = useState(true);
   const [createQuoteObject, setCreateQuoteObject] = useState(true);
+  const [pipelineRoutingRules, setPipelineRoutingRules] = useState<Array<{ utmParam: string; match: string; value: string; pipelineId: string; pipelineStageId: string }>>([]);
   const [pipelines, setPipelines] = useState<any[]>([]);
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>('');
   const [selectedStageId, setSelectedStageId] = useState<string>('');
@@ -550,6 +551,15 @@ export default function SettingsPage() {
       return;
     }
     
+    // Validate routing rules: each rule with a value must have pipelineId and pipelineStageId
+    const invalidRules = pipelineRoutingRules.filter(rule => 
+      (rule.value && rule.value.trim()) && (!rule.pipelineId || !rule.pipelineStageId)
+    );
+    if (invalidRules.length > 0) {
+      setConfigMessage({ type: 'error', text: 'Each routing rule must have a value and both a pipeline and stage selected.' });
+      return;
+    }
+    
     if (redirectAfterAppointment && !appointmentRedirectUrl) {
       setConfigMessage({ type: 'error', text: 'Please enter a redirect URL if redirection is enabled' });
       return;
@@ -576,6 +586,7 @@ export default function SettingsPage() {
           createQuoteObject,
           pipelineId: selectedPipelineId || undefined,
           pipelineStageId: selectedStageId || undefined,
+          pipelineRoutingRules: pipelineRoutingRules.length > 0 ? pipelineRoutingRules : undefined,
           opportunityStatus,
           opportunityMonetaryValue: opportunityValue || undefined,
           useDynamicPricingForValue,
@@ -1604,9 +1615,9 @@ export default function SettingsPage() {
                             </div>
                           ) : (
                             <>
-                              {/* Pipeline Selection */}
+                              {/* Pipeline Selection - Default */}
                               <div>
-                                <Label className="text-base font-semibold mb-2 block">Select Pipeline</Label>
+                                <Label className="text-base font-semibold mb-2 block">Default Pipeline</Label>
                                 <select
                                   value={selectedPipelineId}
                                   onChange={(e) => {
@@ -1622,12 +1633,13 @@ export default function SettingsPage() {
                                     </option>
                                   ))}
                                 </select>
+                                <div className="text-sm text-gray-500 mt-1">Used when no UTM routing rule matches.</div>
                               </div>
 
-                              {/* Stage Selection */}
+                              {/* Stage Selection - Default */}
                               {selectedPipelineId && (
                                 <div>
-                                  <Label className="text-base font-semibold mb-2 block">Select Starting Stage</Label>
+                                  <Label className="text-base font-semibold mb-2 block">Default Starting Stage</Label>
                                   <select
                                     value={selectedStageId}
                                     onChange={(e) => setSelectedStageId(e.target.value)}
@@ -1644,6 +1656,152 @@ export default function SettingsPage() {
                                   </select>
                                 </div>
                               )}
+
+                              {/* Pipeline Routing by UTM */}
+                              <div className="pt-4 border-t border-gray-300">
+                                <div className="mb-4">
+                                  <h5 className="font-semibold text-gray-900 mb-2">Pipeline Routing by UTM (Optional)</h5>
+                                  <p className="text-sm text-gray-600 mb-3">
+                                    First matching rule wins. Match is case-insensitive. If none match, the default pipeline is used.
+                                  </p>
+                                  <Button
+                                    type="button"
+                                    onClick={() => {
+                                      setPipelineRoutingRules([
+                                        ...pipelineRoutingRules,
+                                        { utmParam: 'utm_source', match: 'contains', value: '', pipelineId: '', pipelineStageId: '' }
+                                      ]);
+                                    }}
+                                    className="bg-green-600 hover:bg-green-700 text-white"
+                                  >
+                                    Add Rule
+                                  </Button>
+                                </div>
+
+                                {pipelineRoutingRules.length > 0 && (
+                                  <div className="space-y-3">
+                                    {pipelineRoutingRules.map((rule, idx) => (
+                                      <div key={idx} className="p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
+                                        <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+                                          {/* UTM Param */}
+                                          <div>
+                                            <label className="block text-xs font-semibold text-gray-700 mb-1">UTM Param</label>
+                                            <select
+                                              value={rule.utmParam}
+                                              onChange={(e) => {
+                                                const newRules = [...pipelineRoutingRules];
+                                                newRules[idx].utmParam = e.target.value;
+                                                setPipelineRoutingRules(newRules);
+                                              }}
+                                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white"
+                                            >
+                                              <option value="utm_source">utm_source</option>
+                                              <option value="utm_medium">utm_medium</option>
+                                              <option value="utm_campaign">utm_campaign</option>
+                                              <option value="utm_term">utm_term</option>
+                                              <option value="utm_content">utm_content</option>
+                                            </select>
+                                          </div>
+
+                                          {/* Match */}
+                                          <div>
+                                            <label className="block text-xs font-semibold text-gray-700 mb-1">Match</label>
+                                            <select
+                                              value={rule.match}
+                                              onChange={(e) => {
+                                                const newRules = [...pipelineRoutingRules];
+                                                newRules[idx].match = e.target.value;
+                                                setPipelineRoutingRules(newRules);
+                                              }}
+                                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white"
+                                            >
+                                              <option value="contains">contains</option>
+                                              <option value="equals">equals</option>
+                                              <option value="starts_with">starts_with</option>
+                                            </select>
+                                          </div>
+
+                                          {/* Value */}
+                                          <div>
+                                            <label className="block text-xs font-semibold text-gray-700 mb-1">Value</label>
+                                            <input
+                                              type="text"
+                                              value={rule.value}
+                                              onChange={(e) => {
+                                                const newRules = [...pipelineRoutingRules];
+                                                newRules[idx].value = e.target.value;
+                                                setPipelineRoutingRules(newRules);
+                                              }}
+                                              placeholder="e.g., google"
+                                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                            />
+                                          </div>
+
+                                          {/* Pipeline */}
+                                          <div>
+                                            <label className="block text-xs font-semibold text-gray-700 mb-1">Pipeline</label>
+                                            <select
+                                              value={rule.pipelineId}
+                                              onChange={(e) => {
+                                                const newRules = [...pipelineRoutingRules];
+                                                newRules[idx].pipelineId = e.target.value;
+                                                newRules[idx].pipelineStageId = ''; // Reset stage
+                                                setPipelineRoutingRules(newRules);
+                                              }}
+                                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white"
+                                            >
+                                              <option value="">-- Select --</option>
+                                              {pipelines.map((p) => (
+                                                <option key={p.id} value={p.id}>
+                                                  {p.name}
+                                                </option>
+                                              ))}
+                                            </select>
+                                          </div>
+
+                                          {/* Stage */}
+                                          <div>
+                                            <label className="block text-xs font-semibold text-gray-700 mb-1">Stage</label>
+                                            <select
+                                              value={rule.pipelineStageId}
+                                              onChange={(e) => {
+                                                const newRules = [...pipelineRoutingRules];
+                                                newRules[idx].pipelineStageId = e.target.value;
+                                                setPipelineRoutingRules(newRules);
+                                              }}
+                                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white"
+                                            >
+                                              <option value="">-- Select --</option>
+                                              {rule.pipelineId && pipelines
+                                                .find((p) => p.id === rule.pipelineId)
+                                                ?.stages?.map((s: any) => (
+                                                  <option key={s.id} value={s.id}>
+                                                    {s.name}
+                                                  </option>
+                                                ))}
+                                            </select>
+                                          </div>
+                                        </div>
+
+                                        {/* Remove Button */}
+                                        <div className="flex justify-end">
+                                          <Button
+                                            type="button"
+                                            onClick={() => {
+                                              setPipelineRoutingRules(pipelineRoutingRules.filter((_, i) => i !== idx));
+                                            }}
+                                            variant="outline"
+                                            className="text-red-600 border-red-300 hover:bg-red-50"
+                                            size="sm"
+                                          >
+                                            Remove
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
 
                               {/* Status Selection */}
                               <div>
