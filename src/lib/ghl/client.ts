@@ -1192,9 +1192,7 @@ async function associateCustomObjectWithContact(
         console.log(`🔍 Fetching association from ${assocEndpoint}...`);
         const associationsResponse = await makeGHLRequest<any>(
           assocEndpoint,
-          'GET',
-          undefined,
-          locationId
+          'GET'
         );
         
         // GHL returns associations in various formats
@@ -1277,8 +1275,8 @@ async function associateCustomObjectWithContact(
         const response = await makeGHLRequest<any>(
           endpoint,
           'POST',
-          cleanPayload,
-          locationId
+          cleanPayload
+          // locationId is in body; do not pass Location-Id header (location-level PIT can 403)
         );
         
         console.log(`✅ Successfully associated custom object ${recordId} with contact ${contactId}`, {
