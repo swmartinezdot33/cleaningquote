@@ -413,17 +413,19 @@ export async function createNote(noteData: GHLNote, locationId?: string): Promis
 
 /**
  * Create an appointment in GHL
- * Always uses stored locationId for sub-account (location-level) API calls
+ * Location-level PIT (Private Integration Token): token is scoped to one location;
+ * do NOT send Location-Id header — GHL infers location from the token. Sending
+ * Location-Id with a location-level PIT can cause 403 "token does not have access
+ * to this location". For agency tokens, GHL may require Location-Id; we only
+ * retry with it when the error clearly says location is required/not specified.
  */
 export async function createAppointment(
   appointmentData: GHLAppointment,
   locationId?: string
 ): Promise<GHLAppointmentResponse> {
   try {
-    // Always use locationId - required for sub-account (location-level) API calls
-    // Use provided locationId, or get from stored settings (required)
-    let finalLocationId = locationId || (await getGHLLocationId());
-    
+    const stored = await getGHLLocationId();
+    const finalLocationId = locationId || stored;
     if (!finalLocationId) {
       throw new Error('Location ID is required. Please configure it in the admin settings.');
     }
@@ -433,32 +435,56 @@ export async function createAppointment(
       title: appointmentData.title,
       startTime: appointmentData.startTime,
       endTime: appointmentData.endTime,
-      // Note: locationId must NOT be in the body (GHL returns "locationId should not exist")
+      locationId: finalLocationId, // GHL API requires locationId in body for /calendars/events/appointments
       ...(appointmentData.calendarId && { calendarId: appointmentData.calendarId }),
       ...(appointmentData.assignedTo && { assignedTo: appointmentData.assignedTo }),
       ...(appointmentData.notes && { notes: appointmentData.notes }),
     };
 
-    console.log('Creating appointment with payload:', {
-      ...payload,
-      contactId: '***hidden***',
-      locationIdHeader: finalLocationId,
-    });
+    const endpoint = `/calendars/events/appointments`;
 
-    // GHL 2.0 API: Use calendars/events/appointments endpoint for creating appointments
-    // NOTE: locationId must NOT be in the body (causes "locationId should not exist" error).
-    // The events API requires the Location-Id header for sub-accounts so GHL can scope
-    // the request to the correct location (and its calendars). Without it, 401 Unauthorized
-    // can occur. Use the location from Admin Settings (getGHLLocationId / ghl:location:id).
-    const response = await makeGHLRequest<{ appointment: GHLAppointmentResponse }>(
-      `/calendars/events/appointments`,
-      'POST',
-      payload,
-      finalLocationId
-    );
+    // 1) Try WITHOUT Location-Id header (location-level PIT: token implies location)
+    console.log('[createAppointment] try WITHOUT Location-Id (location-level PIT) | locationId(in body)=' + finalLocationId + ' | calendarId=' + (payload.calendarId || '') + ' | assignedTo=' + (payload.assignedTo || ''));
 
-    console.log('Appointment created successfully:', response.appointment?.id);
-    return response.appointment || response;
+    let response: { appointment?: GHLAppointmentResponse } | GHLAppointmentResponse;
+
+    try {
+      response = await makeGHLRequest<{ appointment: GHLAppointmentResponse }>(
+        endpoint,
+        'POST',
+        payload
+        // no 4th arg: no Location-Id header
+      );
+    } catch (first: any) {
+      const msg = (first?.message || String(first)).toLowerCase();
+      // Do NOT retry with Location-Id when error is "token does not have access to this location"
+      // — that indicates sending/implying Location-Id is wrong (e.g. location-level PIT).
+      const tokenNoAccessToLocation = msg.includes('token does not have access') && msg.includes('location');
+      const needLocation =
+        !tokenNoAccessToLocation &&
+        (msg.includes('locationid') && (msg.includes('not specified') || msg.includes('required'))) ||
+        msg.includes('location is required') ||
+        (msg.includes('location-id') && msg.includes('required'));
+      if (needLocation) {
+        console.log('[createAppointment] retry WITH Location-Id=' + finalLocationId + ' (agency: location required)');
+        try {
+          response = await makeGHLRequest<{ appointment: GHLAppointmentResponse }>(
+            endpoint,
+            'POST',
+            payload,
+            finalLocationId
+          );
+        } catch (retryErr) {
+          console.error('Appointment create failed (with and without Location-Id):', retryErr instanceof Error ? retryErr.message : String(retryErr));
+          throw retryErr;
+        }
+      } else {
+        throw first;
+      }
+    }
+
+    console.log('Appointment created successfully:', (response as any)?.appointment?.id || (response as any)?.id);
+    return (response as any)?.appointment || response;
   } catch (error) {
     console.error('Failed to create appointment:', {
       error: error instanceof Error ? error.message : String(error),
@@ -1293,6 +1319,16 @@ export async function getCustomObjectById(
       throw new Error('Location ID is required. Please configure it in the admin settings.');
     }
 
+    // Our generated quote ids (QT-YYMMDD-XXXXX) are in the quote_id field, not the GHL record id.
+    // /records/{id} expects the GHL record id, so /records/QT-* always 404. For quotes, try
+    // getCustomObjectByQuoteId first to avoid hammering /records/ with wrong id.
+    const isOurQuoteId = /^QT-\d{6}-[A-Z0-9]{5}$/i.test(objectId);
+    if (isOurQuoteId && (objectType === 'quotes' || objectType === 'Quote' || objectType === 'quote')) {
+      const byQuote = await getCustomObjectByQuoteId(objectId, finalLocationId);
+      if (byQuote) return byQuote;
+      throw new Error(`Quote with quote_id ${objectId} not found in GHL`);
+    }
+
     // Determine the object ID to use for the endpoint
     // Based on testing, we know the object ID is the most reliable identifier
     let objectIdToUse: string | null = null;
@@ -1451,55 +1487,6 @@ export async function getCustomObjectByQuoteId(
     }
   } catch (error) {
     console.error('Error searching for quote by quote_id:', error);
-    return null;
-  }
-}
-
-/**
- * Get locationId from token (works for both agency and location-level tokens)
- * Uses /oauth/installedLocations endpoint
- */
-export async function getLocationIdFromToken(token?: string): Promise<string | null> {
-  try {
-    const testToken = token || await getGHLToken();
-    
-    if (!testToken) {
-      return null;
-    }
-
-    const response = await fetch(`${GHL_API_BASE}/oauth/installedLocations`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${testToken.trim()}`,
-        'Content-Type': 'application/json',
-        'Version': '2021-07-28',
-      },
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    // Read response text once
-    const responseText = await response.text();
-    if (!responseText || responseText.trim().length === 0) {
-      return null;
-    }
-
-    try {
-      const data = JSON.parse(responseText);
-      const locations = data.locations || data.data || [];
-      
-      if (locations.length > 0) {
-        return locations[0].id;
-      }
-    } catch (parseError) {
-      console.error('Failed to parse locationId response:', parseError);
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Failed to get locationId from token:', error);
     return null;
   }
 }

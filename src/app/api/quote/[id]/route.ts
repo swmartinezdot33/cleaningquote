@@ -23,6 +23,29 @@ export async function GET(
       );
     }
 
+    // Our generated IDs are QT-YYMMDD-XXXXX. GHL record IDs are 24-char hex; /records/{id}
+    // expects the GHL id, not our quote_id. For QT-* we prefer KV and skip GHL to avoid 404s.
+    const isOurGeneratedId = /^QT-\d{6}-[A-Z0-9]{5}$/i.test(quoteId);
+
+    if (isOurGeneratedId) {
+      try {
+        const kv = getKV();
+        const stored = await kv.get(`quote:${quoteId}`);
+        const parsed = stored && (typeof stored === 'string' ? JSON.parse(stored) : stored);
+        if (parsed && (parsed.ranges || parsed.ghlContactId)) {
+          const ghlContactId = parsed.ghlContactId;
+          console.log('✅ Serving quote from KV (QT-* id, skipping GHL):', quoteId);
+          return NextResponse.json({
+            ...parsed,
+            quoteId,
+            ghlContactId: ghlContactId || parsed.ghlContactId,
+          });
+        }
+      } catch (e) {
+        // KV failed; fall through to parallel fetch
+      }
+    }
+
     // Fetch from KV and GHL in parallel for faster response
     const [kvResult, ghlResult] = await Promise.allSettled([
       // Try to fetch from KV (backup storage for tracking)

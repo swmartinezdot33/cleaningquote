@@ -41,21 +41,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get GHL config to retrieve calendar IDs
+    // Get GHL config and Location ID from Admin (used for contact fetch and createAppointment)
     const ghlConfig = await getGHLConfig();
+    const locationIdFromSettings = await getGHLLocationId();
 
-    console.log('GHL Config:', {
-      hasConfig: !!ghlConfig,
-      appointmentCalendarId: ghlConfig?.appointmentCalendarId,
-      callCalendarId: ghlConfig?.callCalendarId,
-      appointmentUserId: ghlConfig?.appointmentUserId,
-      callUserId: ghlConfig?.callUserId,
-    });
+    console.log('[appointments/create] FROM SETTINGS Location-Id=' + (locationIdFromSettings || '') + ' | appointmentCalendarId=' + (ghlConfig?.appointmentCalendarId || '') + ' | appointmentUserId=' + (ghlConfig?.appointmentUserId || ''));
 
     // Fetch contact information to get the contact name
     let contactName = '';
     try {
-      const locationId = await getGHLLocationId();
+      const locationId = locationIdFromSettings;
       // Try with locationId in query string (for location-level tokens)
       const endpoint = locationId ? `/contacts/${contactId}?locationId=${locationId}` : `/contacts/${contactId}`;
       const contactResponse = await makeGHLRequest<{ contact?: { firstName?: string; lastName?: string; name?: string } } | { firstName?: string; lastName?: string; name?: string }>(
@@ -207,16 +202,20 @@ export async function POST(request: NextRequest) {
       title,
     });
 
-    // Create appointment in GHL with appropriate calendar ID and assigned user
-    const appointment = await createAppointment({
-      contactId,
-      title,
-      startTime: startDateTime.toISOString(),
-      endTime: endDateTime.toISOString(),
-      notes: notes || defaultNotes,
-      calendarId,
-      assignedTo, // Assign to the configured user
-    });
+    // Create appointment in GHL. Pass Location ID from Admin so we use the same
+    // sub-account as the configured calendar and user.
+    const appointment = await createAppointment(
+      {
+        contactId,
+        title,
+        startTime: startDateTime.toISOString(),
+        endTime: endDateTime.toISOString(),
+        notes: notes || defaultNotes,
+        calendarId,
+        assignedTo,
+      },
+      locationIdFromSettings
+    );
 
     // Add appointment booked tags if configured
     if (ghlConfig?.appointmentBookedTags && Array.isArray(ghlConfig.appointmentBookedTags) && ghlConfig.appointmentBookedTags.length > 0) {

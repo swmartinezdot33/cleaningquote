@@ -128,6 +128,15 @@ export async function deleteNetworkPricingPath(): Promise<void> {
 }
 
 /**
+ * GHL credentials and config — single source of truth
+ *
+ * The entire app must get GHL token, Location ID, and GHL config (calendars, users, etc.)
+ * only from here (Admin → KV). Populated via Admin GHL Connection and GHL Config; read
+ * via getGHLToken, getGHLLocationId, getGHLConfig. Do not derive or fetch these from
+ * any other source (e.g. OAuth/installedLocations).
+ */
+
+/**
  * Store GHL API token
  */
 export async function storeGHLToken(token: string): Promise<void> {

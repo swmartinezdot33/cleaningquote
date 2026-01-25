@@ -13,8 +13,13 @@ import { test, expect } from '@playwright/test';
  *
  * Or with dev server already running:
  *   PLAYWRIGHT_REUSE_SERVER=1 TEST_QUOTE_ID=QT-260124-XXXXX npx playwright test e2e/appointment-from-ui.spec.ts
+ *
+ * If GHL is not configured (403 / token-location mismatch), the test fails with a clear message.
+ * To pass when only asserting the UI flow (calendar → date → time → confirm → error shown):
+ *   ALLOW_GHL_CONFIG_ERROR=1 TEST_QUOTE_ID=... npx playwright test e2e/appointment-from-ui.spec.ts
  */
 const QUOTE_ID = process.env.TEST_QUOTE_ID;
+const ALLOW_GHL_CONFIG_ERROR = process.env.ALLOW_GHL_CONFIG_ERROR === '1';
 
 test.describe('Appointment from UI', () => {
   test.skip(
@@ -80,19 +85,29 @@ test.describe('Appointment from UI', () => {
     await expect(confirmBtn).toBeVisible({ timeout: 5000 });
     await confirmBtn.click();
 
-    // Success: either redirect to appointment-confirmed or no error message
-    const errMsg = page.getByText(/we encountered an issue creating your appointment/i);
-    const confirmed = page.url().includes('/appointment-confirmed');
+    // Success: redirect to appointment-confirmed. If GHL misconfigured, we show an error instead.
+    const errMsg = page.getByText(
+      /we encountered an issue|API token does not have access|does not have permission to create|failed to book appointment/i
+    );
 
-    await Promise.race([
-      page.waitForURL(/\/quote\/[^/]+\/appointment-confirmed/, { timeout: 25_000 }),
+    const outcome = await Promise.race([
+      page.waitForURL(/\/quote\/[^/]+\/appointment-confirmed/, { timeout: 25_000 }).then(() => 'success'),
       errMsg.waitFor({ state: 'visible', timeout: 25_000 }).then(() => 'error'),
-    ]).then((outcome) => {
-      if (outcome === 'error') {
-        const text = errMsg.textContent();
-        throw new Error(`Appointment create failed: ${text || 'unknown'}`);
+    ]);
+
+    if (outcome === 'error') {
+      const text = (await errMsg.textContent()) || '';
+      const isGhlConfigError =
+        /API token does not have access|does not have permission to create|Location ID|location-level/i.test(text);
+      if (ALLOW_GHL_CONFIG_ERROR && isGhlConfigError) {
+        // UI flow worked: we showed the GHL config error. Still on quote page.
+        expect(page.url()).toMatch(new RegExp(`/quote/${QUOTE_ID}(?:/|$)`));
+        return;
       }
-    });
+      throw new Error(
+        `Appointment create failed (GHL config may be needed): ${text.slice(0, 200)}`
+      );
+    }
 
     expect(page.url()).toMatch(/\/appointment-confirmed/);
   });
