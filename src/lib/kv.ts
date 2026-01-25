@@ -199,6 +199,7 @@ export async function storeGHLConfig(config: {
   createContact: boolean;
   createOpportunity: boolean;
   createNote: boolean;
+  createQuoteObject?: boolean;  // Create Quote custom object in GHL (default true when undefined)
   pipelineId?: string;
   pipelineStageId?: string;
   opportunityStatus?: string;
@@ -235,6 +236,7 @@ export async function getGHLConfig(): Promise<{
   createContact: boolean;
   createOpportunity: boolean;
   createNote: boolean;
+  createQuoteObject?: boolean;  // Create Quote custom object in GHL (default true when undefined)
   pipelineId?: string;
   pipelineStageId?: string;
   opportunityStatus?: string;
