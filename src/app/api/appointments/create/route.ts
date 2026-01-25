@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
         calendarId,
         assignedTo,
       },
-      locationIdFromSettings
+      locationIdFromSettings ?? undefined
     );
 
     // Add appointment booked tags if configured
