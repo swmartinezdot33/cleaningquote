@@ -1941,6 +1941,108 @@ export default function SettingsPage() {
                         </div>
                       )}
 
+                      {/* Custom Fields & Field Mapping */}
+                      <div className="mt-8 pt-8 border-t border-gray-200">
+                        <h4 className="font-semibold text-gray-900 mb-4 text-lg">Custom Fields & Field Mapping</h4>
+                        
+                        <div className="space-y-6">
+                          {/* Quoted Amount Field Mapping */}
+                          <div>
+                            <Label htmlFor="quoted-amount-field" className="text-base font-semibold">
+                              GHL Field for Quoted Amount (Custom Field)
+                            </Label>
+                            <div className="flex gap-2 mt-2">
+                              <div className="flex-1 relative">
+                                <input
+                                  type="text"
+                                  placeholder="Search custom fields..."
+                                  value={quotedAmountSearch}
+                                  onChange={(e) => setQuotedAmountSearch(e.target.value)}
+                                  className="w-full h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
+                                />
+                                {quotedAmountSearch && customFields.length > 0 && (
+                                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
+                                    {customFields
+                                      .filter(field => 
+                                        field.name?.toLowerCase().includes(quotedAmountSearch.toLowerCase()) ||
+                                        field.key?.toLowerCase().includes(quotedAmountSearch.toLowerCase())
+                                      )
+                                      .map((field) => (
+                                        <button
+                                          key={field.key}
+                                          type="button"
+                                          className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
+                                          onClick={() => {
+                                            setQuotedAmountField(field.key);
+                                            setQuotedAmountSearch('');
+                                          }}
+                                        >
+                                          <div className="font-semibold text-gray-900">{field.name}</div>
+                                          <div className="text-xs text-gray-500 font-mono">{field.key}</div>
+                                        </button>
+                                      ))}
+                                  </div>
+                                )}
+                              </div>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={loadCustomFields}
+                                disabled={isLoadingCustomFields}
+                                title="Refresh custom fields"
+                              >
+                                <RotateCw className={`h-4 w-4 ${isLoadingCustomFields ? 'animate-spin' : ''}`} />
+                              </Button>
+                            </div>
+                            
+                            {quotedAmountField && (
+                              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                                <p className="text-sm text-blue-800">
+                                  Selected: <span className="font-mono font-semibold">{quotedAmountField}</span>
+                                </p>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setQuotedAmountField('')}
+                                  className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 h-8 px-3"
+                                >
+                                  Clear
+                                </Button>
+                              </div>
+                            )}
+                            
+                            {customFieldsError && (
+                              <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-800">
+                                {customFieldsError}
+                              </div>
+                            )}
+                            
+                            <p className="text-sm text-gray-600 mt-2">
+                              Select a GHL custom field where the quoted amount will be stored. Leave empty to skip.
+                            </p>
+                          </div>
+
+                          {/* Field Mapping */}
+                          <div className="pt-6 border-t border-gray-200">
+                            <h5 className="font-semibold text-gray-900 mb-2">Field Mapping</h5>
+                            <p className="text-sm text-gray-600 mb-3">
+                              To map your survey questions to GHL fields (native fields like firstName, lastName, email, phone, or custom fields), 
+                              go to the <strong>Survey Builder</strong> page. There you can edit each question and select which GHL field it should map to.
+                            </p>
+                            <Button
+                              onClick={() => router.push('/admin/survey-builder')}
+                              variant="outline"
+                              className="flex items-center gap-2"
+                            >
+                              <FileText className="h-4 w-4" />
+                              Go to Survey Builder
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Calendar Selection for Appointments and Calls */}
                       <div className="mt-8 pt-8 border-t border-gray-200">
                         <h4 className="font-semibold text-gray-900 mb-6 text-lg">Appointment & Call Calendars</h4>
@@ -2168,108 +2270,6 @@ export default function SettingsPage() {
                                 </div>
                               </div>
                             )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Custom Fields & Field Mapping */}
-                      <div className="mt-8 pt-8 border-t border-gray-200">
-                        <h4 className="font-semibold text-gray-900 mb-4 text-lg">Custom Fields & Field Mapping</h4>
-                        
-                        <div className="space-y-6">
-                          {/* Quoted Amount Field Mapping */}
-                          <div>
-                            <Label htmlFor="quoted-amount-field" className="text-base font-semibold">
-                              GHL Field for Quoted Amount (Custom Field)
-                            </Label>
-                            <div className="flex gap-2 mt-2">
-                              <div className="flex-1 relative">
-                                <input
-                                  type="text"
-                                  placeholder="Search custom fields..."
-                                  value={quotedAmountSearch}
-                                  onChange={(e) => setQuotedAmountSearch(e.target.value)}
-                                  className="w-full h-10 px-3 rounded-md border border-gray-300 bg-white text-gray-900"
-                                />
-                                {quotedAmountSearch && customFields.length > 0 && (
-                                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
-                                    {customFields
-                                      .filter(field => 
-                                        field.name?.toLowerCase().includes(quotedAmountSearch.toLowerCase()) ||
-                                        field.key?.toLowerCase().includes(quotedAmountSearch.toLowerCase())
-                                      )
-                                      .map((field) => (
-                                        <button
-                                          key={field.key}
-                                          type="button"
-                                          className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
-                                          onClick={() => {
-                                            setQuotedAmountField(field.key);
-                                            setQuotedAmountSearch('');
-                                          }}
-                                        >
-                                          <div className="font-semibold text-gray-900">{field.name}</div>
-                                          <div className="text-xs text-gray-500 font-mono">{field.key}</div>
-                                        </button>
-                                      ))}
-                                </div>
-                                )}
-                              </div>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={loadCustomFields}
-                                disabled={isLoadingCustomFields}
-                                title="Refresh custom fields"
-                              >
-                                <RotateCw className={`h-4 w-4 ${isLoadingCustomFields ? 'animate-spin' : ''}`} />
-                              </Button>
-                            </div>
-                            
-                            {quotedAmountField && (
-                              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
-                                <p className="text-sm text-blue-800">
-                                  Selected: <span className="font-mono font-semibold">{quotedAmountField}</span>
-                                </p>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setQuotedAmountField('')}
-                                  className="text-blue-600 hover:text-blue-800 hover:bg-blue-100 h-8 px-3"
-                                >
-                                  Clear
-                                </Button>
-                              </div>
-                            )}
-                            
-                            {customFieldsError && (
-                              <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-800">
-                                {customFieldsError}
-                              </div>
-                            )}
-                            
-                            <p className="text-sm text-gray-600 mt-2">
-                              Select a GHL custom field where the quoted amount will be stored. Leave empty to skip.
-                            </p>
-                          </div>
-
-                          {/* Field Mapping */}
-                          <div className="pt-6 border-t border-gray-200">
-                            <h5 className="font-semibold text-gray-900 mb-2">Field Mapping</h5>
-                            <p className="text-sm text-gray-600 mb-3">
-                              To map your survey questions to GHL fields (native fields like firstName, lastName, email, phone, or custom fields), 
-                              go to the <strong>Survey Builder</strong> page. There you can edit each question and select which GHL field it should map to.
-                            </p>
-                            <Button
-                              onClick={() => router.push('/admin/survey-builder')}
-                              variant="outline"
-                              className="flex items-center gap-2"
-                            >
-                              <FileText className="h-4 w-4" />
-                              Go to Survey Builder
-                            </Button>
                           </div>
                         </div>
                       </div>
