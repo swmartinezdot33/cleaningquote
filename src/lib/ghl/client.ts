@@ -391,11 +391,8 @@ export async function createNote(noteData: GHLNote, locationId?: string): Promis
       throw new Error('Location ID is required. Please configure it in the admin settings.');
     }
 
-    // Official GHL: POST /contacts/:contactId/notes. locationId in body for sub-accounts.
-    const payload = {
-      body: noteData.body,
-      locationId: finalLocationId,
-    };
+    // Official GHL: POST /contacts/:contactId/notes. Do NOT send locationId in body (422 "property locationId should not exist").
+    const payload = { body: noteData.body };
 
     const endpoint = `/contacts/${noteData.contactId}/notes`;
     const response = await makeGHLRequest<{ note: GHLNoteResponse }>(
@@ -894,17 +891,25 @@ export async function createCustomObject(
     const propertiesFullPath: Record<string, any> = {};
     const propertiesShortName: Record<string, any> = {};
     
+    // Coerce 'type' to string when it's an array (GHL expects one of: initial_cleaning, general_cleaning, deep_clean, move_in, move_out, recurring_cleaning).
+    const asTypeValue = (v: any, key: string): any => {
+      if (key !== 'type') return v;
+      return Array.isArray(v) ? (v[0] != null ? String(v[0]) : '') : (v != null ? String(v) : '');
+    };
+
     if (validFields && validFields.length > 0) {
       validFields.forEach((field) => {
-        propertiesFullPath[field.key] = field.value;
         const keyParts = field.key.split('.');
         const shortKey = keyParts.length > 0 ? keyParts[keyParts.length - 1] : field.key;
-        propertiesShortName[shortKey] = field.value;
+        const v = asTypeValue(field.value, shortKey);
+        propertiesFullPath[field.key] = v;
+        propertiesShortName[shortKey] = v;
       });
     } else if (data.customFields && Object.keys(data.customFields).length > 0) {
       // Fallback: GHL IRecordSchema "properties" is an object. When schema missing, use customFields as-is.
       Object.entries(data.customFields).forEach(([k, v]) => {
-        const fv = v !== null && v !== undefined && Array.isArray(v) ? v : String(v ?? '');
+        let fv: any = v !== null && v !== undefined && Array.isArray(v) ? v : String(v ?? '');
+        fv = asTypeValue(fv, k);
         propertiesShortName[k] = fv;
       });
       console.log('📋 Using data.customFields as properties fallback (no schema match):', Object.keys(propertiesShortName));

@@ -625,16 +625,35 @@ export async function POST(request: NextRequest) {
             // IMPORTANT: Use full fieldKey format: custom_objects.quotes.field_name
             // Also map values to match dropdown options from the schema
             
-            // Map service type to schema options
+            // Map service type to GHL Type field: initial_cleaning, general_cleaning, deep_clean, move_in, move_out, recurring_cleaning.
+            // Use lowercase trim for lookup so "general initial Clean" and variants match.
             const serviceTypeMap: Record<string, string> = {
               'general': 'general_cleaning',
+              'general cleaning': 'general_cleaning',
+              'general clean': 'general_cleaning',
               'initial': 'initial_cleaning',
+              'initial cleaning': 'initial_cleaning',
+              'initial clean': 'initial_cleaning',
+              'general initial': 'initial_cleaning',
+              'general initial clean': 'initial_cleaning',
+              'general initial cleaning': 'initial_cleaning',
               'deep': 'deep_clean',
+              'deep clean': 'deep_clean',
+              'deep cleaning': 'deep_clean',
               'move-in': 'move_in',
+              'move-in clean': 'move_in',
+              'move-in cleaning': 'move_in',
+              'move in': 'move_in',
               'move-out': 'move_out',
+              'move-out clean': 'move_out',
+              'move-out cleaning': 'move_out',
+              'move out': 'move_out',
               'recurring': 'recurring_cleaning',
+              'recurring cleaning': 'recurring_cleaning',
+              'recurring clean': 'recurring_cleaning',
             };
-            const mappedServiceType = serviceTypeMap[body.serviceType || ''] || body.serviceType || '';
+            const raw = String(body.serviceType || '').toLowerCase().trim();
+            const mappedServiceType = serviceTypeMap[raw] || (raw ? 'general_cleaning' : '');
             
             // Map frequency to schema options
             const frequencyMap: Record<string, string> = {
