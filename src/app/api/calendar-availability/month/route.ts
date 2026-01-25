@@ -80,14 +80,14 @@ export async function GET(request: NextRequest) {
     // GHL API expects startDate and endDate. locationId should NOT be in query params.
     const ghlUrl = `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${fromTime}&endDate=${toTime}`;
     console.log('[calendar-availability/month] Calling GHL API:', ghlUrl);
-    
+
     const freeSlotsResponse = await fetch(ghlUrl, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
         'Version': '2021-07-28',
-        'Location-Id': locationId, // Some GHL endpoints require Location-Id header for sub-accounts
+        'Location-Id': locationId,
       },
     });
 
