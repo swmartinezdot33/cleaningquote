@@ -67,6 +67,10 @@ export default function SettingsPage() {
   const [opportunityStatus, setOpportunityStatus] = useState<string>('open');
   const [opportunityValue, setOpportunityValue] = useState<number>(0);
   const [useDynamicPricingForValue, setUseDynamicPricingForValue] = useState<boolean>(true);
+  const [selectedOpportunityAssignedTo, setSelectedOpportunityAssignedTo] = useState<string>('');
+  const [opportunitySource, setOpportunitySource] = useState<string>('');
+  const [selectedOpportunityTags, setSelectedOpportunityTags] = useState<Set<string>>(new Set());
+  const [opportunityTagsSearch, setOpportunityTagsSearch] = useState<string>('');
   const [isLoadingPipelines, setIsLoadingPipelines] = useState(false);
   const [pipelinesError, setPipelinesError] = useState<string | null>(null);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
@@ -163,10 +167,11 @@ export default function SettingsPage() {
     }
   }, [isAuthenticated]);
 
-  // Load pipelines when connection status changes to connected
+  // Load pipelines and tags when connection status changes to connected and create opportunity is on
   useEffect(() => {
     if (isAuthenticated && connectionStatus === 'connected' && createOpportunity) {
       loadPipelines();
+      if (ghlTags.length === 0) loadTags();
     }
   }, [connectionStatus, createOpportunity, isAuthenticated]);
 
@@ -424,6 +429,9 @@ export default function SettingsPage() {
         setOpportunityStatus(config.opportunityStatus || 'open');
         setOpportunityValue(config.opportunityMonetaryValue || 0);
         setUseDynamicPricingForValue(config.useDynamicPricingForValue !== false);
+        setSelectedOpportunityAssignedTo(config.opportunityAssignedTo || '');
+        setOpportunitySource(config.opportunitySource || '');
+        setSelectedOpportunityTags(new Set(Array.isArray(config.opportunityTags) ? config.opportunityTags : []));
         setSelectedAppointmentCalendarId(config.appointmentCalendarId || '');
         setSelectedCallCalendarId(config.callCalendarId || '');
         setSelectedAppointmentUserId(config.appointmentUserId || '');
@@ -569,6 +577,9 @@ export default function SettingsPage() {
           opportunityStatus,
           opportunityMonetaryValue: opportunityValue || undefined,
           useDynamicPricingForValue,
+          opportunityAssignedTo: selectedOpportunityAssignedTo || undefined,
+          opportunitySource: opportunitySource || undefined,
+          opportunityTags: Array.from(selectedOpportunityTags).length > 0 ? Array.from(selectedOpportunityTags) : undefined,
           inServiceTags: Array.from(selectedInServiceTags).length > 0 ? Array.from(selectedInServiceTags) : undefined,
           outOfServiceTags: Array.from(selectedOutOfServiceTags).length > 0 ? Array.from(selectedOutOfServiceTags) : undefined,
           appointmentCalendarId: selectedAppointmentCalendarId || undefined,
@@ -1677,6 +1688,78 @@ export default function SettingsPage() {
                                     placeholder="e.g., 150"
                                     className="h-10"
                                   />
+                                )}
+                              </div>
+
+                              {/* Opportunity Owner (Assigned To) */}
+                              <div>
+                                <Label className="text-base font-semibold mb-2 block">Assign to User (Owner)</Label>
+                                <select
+                                  value={selectedOpportunityAssignedTo}
+                                  onChange={(e) => setSelectedOpportunityAssignedTo(e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                                >
+                                  <option value="">-- No owner (unassigned) --</option>
+                                  {users.map((u) => (
+                                    <option key={u.id} value={u.id}>
+                                      {u.name || u.email}
+                                    </option>
+                                  ))}
+                                </select>
+                                <div className="text-sm text-gray-500 mt-1">User who will own the opportunity in GHL</div>
+                              </div>
+
+                              {/* Opportunity Source */}
+                              <div>
+                                <Label className="text-base font-semibold mb-2 block">Source</Label>
+                                <Input
+                                  type="text"
+                                  value={opportunitySource}
+                                  onChange={(e) => setOpportunitySource(e.target.value)}
+                                  placeholder="e.g. Website Quote"
+                                  className="h-10"
+                                />
+                                <div className="text-sm text-gray-500 mt-1">Source to set on the opportunity in GHL</div>
+                              </div>
+
+                              {/* Opportunity Tags - multi-select from GHL tags */}
+                              <div>
+                                <Label className="text-base font-semibold mb-2 block">Tags</Label>
+                                <div className="text-sm text-gray-500 mb-2">Select GHL tags to add to the opportunity</div>
+                                <div className="mb-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Search tags..."
+                                    value={opportunityTagsSearch}
+                                    onChange={(e) => setOpportunityTagsSearch(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-2 border border-gray-200 rounded-lg bg-gray-50">
+                                  {ghlTags
+                                    .filter((tag) => tag.name.toLowerCase().includes(opportunityTagsSearch.toLowerCase()))
+                                    .map((tag) => (
+                                      <button
+                                        key={tag.id}
+                                        type="button"
+                                        onClick={() => {
+                                          const next = new Set(selectedOpportunityTags);
+                                          if (next.has(tag.name)) next.delete(tag.name);
+                                          else next.add(tag.name);
+                                          setSelectedOpportunityTags(next);
+                                        }}
+                                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                          selectedOpportunityTags.has(tag.name)
+                                            ? 'bg-pink-500 text-white border border-pink-600'
+                                            : 'bg-white text-gray-700 border border-gray-300 hover:border-pink-400'
+                                        }`}
+                                      >
+                                        {tag.name}
+                                      </button>
+                                    ))}
+                                </div>
+                                {selectedOpportunityTags.size > 0 && (
+                                  <p className="text-sm text-gray-600 mt-2">{selectedOpportunityTags.size} tag(s) selected</p>
                                 )}
                               </div>
                             </>

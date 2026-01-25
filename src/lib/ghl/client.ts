@@ -355,6 +355,9 @@ export async function createOpportunity(
         pipelineStageId: opportunityData.pipelineStageId,
       }),
       ...(opportunityData.status && { status: opportunityData.status }),
+      ...(opportunityData.assignedTo && { assignedTo: opportunityData.assignedTo }),
+      ...(opportunityData.source && { source: opportunityData.source }),
+      ...(opportunityData.tags && opportunityData.tags.length > 0 && { tags: opportunityData.tags }),
       ...(customFieldsArray && customFieldsArray.length > 0 && {
         customFields: customFieldsArray,
       }),

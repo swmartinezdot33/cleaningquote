@@ -47,6 +47,9 @@ export interface GHLOpportunity {
   pipelineId?: string;
   pipelineStageId?: string;
   status?: 'open' | 'won' | 'lost' | 'abandoned';
+  assignedTo?: string;   // User ID (opportunity owner)
+  source?: string;
+  tags?: string[];
   customFields?: Record<string, string>;
 }
 

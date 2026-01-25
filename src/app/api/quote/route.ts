@@ -597,6 +597,9 @@ export async function POST(request: NextRequest) {
             pipelineId: ghlConfig.pipelineId,
             pipelineStageId: ghlConfig.pipelineStageId,
             status: (ghlConfig.opportunityStatus as 'open' | 'won' | 'lost' | 'abandoned') || 'open',
+            assignedTo: ghlConfig.opportunityAssignedTo,
+            source: ghlConfig.opportunitySource,
+            tags: ghlConfig.opportunityTags && ghlConfig.opportunityTags.length > 0 ? ghlConfig.opportunityTags : undefined,
             customFields: opportunityCustomFields,
           });
         }

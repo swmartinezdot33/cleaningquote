@@ -204,6 +204,9 @@ export async function storeGHLConfig(config: {
   opportunityStatus?: string;
   opportunityMonetaryValue?: number;
   useDynamicPricingForValue?: boolean;
+  opportunityAssignedTo?: string;   // User ID to assign opportunity to (owner)
+  opportunitySource?: string;       // Source for the opportunity
+  opportunityTags?: string[];       // Tags to add to the opportunity
   inServiceTags?: string[];
   outOfServiceTags?: string[];
   appointmentCalendarId?: string;
@@ -237,6 +240,9 @@ export async function getGHLConfig(): Promise<{
   opportunityStatus?: string;
   opportunityMonetaryValue?: number;
   useDynamicPricingForValue?: boolean;
+  opportunityAssignedTo?: string;   // User ID to assign opportunity to (owner)
+  opportunitySource?: string;       // Source for the opportunity
+  opportunityTags?: string[];       // Tags to add to the opportunity
   inServiceTags?: string[];
   outOfServiceTags?: string[];
   appointmentCalendarId?: string;
