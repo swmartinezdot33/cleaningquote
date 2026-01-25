@@ -378,30 +378,33 @@ export async function createOpportunity(
 
 /**
  * Add a note to a contact in GHL
- * Always uses stored locationId for sub-account (location-level) API calls
+ * Uses official endpoint: POST /contacts/:contactId/notes
+ * https://marketplace.gohighlevel.com/docs/ghl/contacts/create-note
+ *
+ * The /v2/locations/.../contacts/.../notes path returns 404; the working path is
+ * /contacts/:contactId/notes. locationId in body for sub-accounts; do NOT send
+ * Location-Id header (can 403 with location-level PIT, same as associations).
  */
 export async function createNote(noteData: GHLNote, locationId?: string): Promise<GHLNoteResponse> {
   try {
-    // Always use locationId - required for sub-account (location-level) API calls
-    // Use provided locationId, or get from stored settings (required)
     let finalLocationId = locationId || (await getGHLLocationId());
-    
+
     if (!finalLocationId) {
       throw new Error('Location ID is required. Please configure it in the admin settings.');
     }
 
+    // Official GHL: POST /contacts/:contactId/notes. locationId in body for sub-accounts.
     const payload = {
       body: noteData.body,
+      locationId: finalLocationId,
     };
 
-    // GHL 2.0 API: Use contacts notes endpoint with locationId in path
-    // Endpoint format: /v2/locations/{locationId}/contacts/{contactId}/notes
-    const endpoint = `/v2/locations/${finalLocationId}/contacts/${noteData.contactId}/notes`;
+    const endpoint = `/contacts/${noteData.contactId}/notes`;
     const response = await makeGHLRequest<{ note: GHLNoteResponse }>(
       endpoint,
       'POST',
-      payload,
-      finalLocationId // Pass locationId for header if needed
+      payload
+      // Do NOT pass Location-Id header (can 403 with location-level PIT)
     );
 
     return response.note || response;
@@ -1746,9 +1749,9 @@ export async function testGHLConnectionComprehensive(token?: string): Promise<GH
       // Notes - Create (actual endpoint we use)
       {
         name: 'Notes - Create Endpoint (dry-run)',
-        endpoint: `/v2/locations/${locationId}/contacts/test-contact-id/notes`,
+        endpoint: `/contacts/test-contact-id/notes`,
         method: 'POST' as const,
-        body: { body: 'Test note' }, // Dry-run test payload
+        body: { body: 'Test note', locationId }, // Dry-run test payload
       },
     ];
 

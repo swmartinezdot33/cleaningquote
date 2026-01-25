@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
           },
         },
         testDetails: {
-          endpoint: `/v2/locations/${locationId}/contacts/${testContactId}/notes`,
+          endpoint: `/contacts/${testContactId}/notes`,
           method: 'POST',
           locationId,
         },
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
           troubleshooting: {
             contactId: testContactId,
             locationId,
-            endpoint: `/v2/locations/${locationId}/contacts/${testContactId}/notes`,
+            endpoint: `/contacts/${testContactId}/notes`,
             suggestions: [
               'Verify your API token has contacts.write scope',
               'Ensure the contact exists in GHL',
