@@ -649,87 +649,18 @@ export async function createCustomObject(
       throw new Error('Location ID is required. Please configure it in the admin settings.');
     }
 
-    // First, try to find the correct schemaKey by listing all schemas
-    // Note: This is optional - if listing fails, we'll try common variations
+    // Fetch schema directly. Skip GET /objects (list) — it 404s/401s for many GHL setups.
     let actualSchemaKey: string | null = null;
     let schemaFields: any = null;
-    
+    const schemaKeyToFetch = (objectType === 'quotes' || objectType === 'Quote' || objectType === 'quote')
+      ? 'custom_objects.quotes'
+      : `custom_objects.${objectType}`;
     try {
-      console.log('Attempting to list object schemas to find correct schemaKey...');
-      const schemas = await listObjectSchemas(finalLocationId);
-      
-      if (schemas.length > 0) {
-        console.log(`Found ${schemas.length} object schemas`);
-        
-        // Look for Quote-related schema (case-insensitive)
-        // Prioritize "quotes" (lowercase plural) as that matches GHL template format
-        const quoteSchema = schemas.find((s: any) => {
-          const key = (s.key || s.schemaKey || s.name || '').toLowerCase();
-          return key === 'quotes' || key === 'quote' || key.includes('quote');
-        });
-        
-        if (quoteSchema) {
-          actualSchemaKey = quoteSchema.key || quoteSchema.schemaKey || quoteSchema.name;
-          console.log(`✅ Found Quote schema with key: ${actualSchemaKey}`);
-          
-          // Try to get the full schema to see field definitions
-          // We know "custom_objects.quotes" works from the debug endpoint
-          if (actualSchemaKey) {
-            try {
-              schemaFields = await getObjectSchema(actualSchemaKey, finalLocationId);
-            console.log('✅ Retrieved schema fields:', {
-              objectId: schemaFields?.object?.id,
-              objectKey: schemaFields?.object?.key,
-              fieldCount: schemaFields?.fields?.length || 0,
-              fieldKeys: schemaFields?.fields?.map((f: any) => f.fieldKey || f.key || f.name || f.id) || [],
-              sampleFields: schemaFields?.fields?.slice(0, 5).map((f: any) => ({
-                fieldKey: f.fieldKey,
-                key: f.key,
-                name: f.name,
-                id: f.id,
-                type: f.dataType || f.type,
-              })) || [],
-            });
-          } catch (schemaError) {
-            console.log('⚠️ Could not fetch schema details, trying "custom_objects.quotes" as fallback...');
-            // Try direct fetch with "custom_objects.quotes" as fallback (we know this works)
-            try {
-              schemaFields = await getObjectSchema('custom_objects.quotes', finalLocationId);
-              actualSchemaKey = 'custom_objects.quotes';
-              console.log('✅ Successfully fetched schema with "custom_objects.quotes"');
-            } catch (fallbackError) {
-              console.log('⚠️ Direct fetch also failed');
-            }
-          }
-          }
-        } else {
-          console.log('⚠️ No Quote schema found in listed schemas. Will try common variations.');
-          // Try direct fetch with known working key
-          try {
-            console.log('Trying direct fetch with "custom_objects.quotes"...');
-            schemaFields = await getObjectSchema('custom_objects.quotes', finalLocationId);
-            actualSchemaKey = 'custom_objects.quotes';
-            console.log('✅ Successfully fetched schema with "custom_objects.quotes"');
-          } catch (directError) {
-            console.log('⚠️ Direct fetch failed, will try common variations');
-          }
-        }
-      } else {
-        console.log('⚠️ No schemas found (endpoint may not be available). Will try common schema key variations.');
-        // If we can't list schemas, try to directly fetch the "quotes" schema
-        // We know "custom_objects.quotes" works from the debug endpoint
-        try {
-          console.log('Attempting to directly fetch "custom_objects.quotes" schema...');
-          schemaFields = await getObjectSchema('custom_objects.quotes', finalLocationId);
-          actualSchemaKey = 'custom_objects.quotes';
-          console.log('✅ Successfully fetched "custom_objects.quotes" schema directly');
-        } catch (directFetchError) {
-          console.log('⚠️ Could not fetch "custom_objects.quotes" schema directly, will try variations when creating record');
-        }
-      }
-    } catch (listError) {
-      // Schema listing is optional - continue with common variations
-      console.log('⚠️ Could not list schemas (non-blocking), will try common variations:', listError instanceof Error ? listError.message : String(listError));
+      schemaFields = await getObjectSchema(schemaKeyToFetch, finalLocationId);
+      actualSchemaKey = schemaKeyToFetch;
+      console.log('✅ Successfully retrieved object schema from: /objects/' + schemaKeyToFetch);
+    } catch (fetchErr) {
+      console.log('⚠️ Could not fetch schema (will use fallbacks):', fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
     }
 
     // Convert customFields object to array format required by GHL API
