@@ -202,7 +202,17 @@ export async function storeGHLConfig(config: {
   createQuoteObject?: boolean;  // Create Quote custom object in GHL (default true when undefined)
   pipelineId?: string;
   pipelineStageId?: string;
-  pipelineRoutingRules?: Array<{ utmParam: string; match: string; value: string; pipelineId: string; pipelineStageId: string }>;
+  pipelineRoutingRules?: Array<{ 
+    utmParam: string; 
+    match: string; 
+    value: string; 
+    pipelineId: string; 
+    pipelineStageId: string;
+    opportunityStatus?: string;
+    opportunityAssignedTo?: string;
+    opportunitySource?: string;
+    opportunityTags?: string[];
+  }>;
   opportunityStatus?: string;
   opportunityMonetaryValue?: number;
   useDynamicPricingForValue?: boolean;
@@ -240,7 +250,17 @@ export async function getGHLConfig(): Promise<{
   createQuoteObject?: boolean;  // Create Quote custom object in GHL (default true when undefined)
   pipelineId?: string;
   pipelineStageId?: string;
-  pipelineRoutingRules?: Array<{ utmParam: string; match: string; value: string; pipelineId: string; pipelineStageId: string }>;
+  pipelineRoutingRules?: Array<{ 
+    utmParam: string; 
+    match: string; 
+    value: string; 
+    pipelineId: string; 
+    pipelineStageId: string;
+    opportunityStatus?: string;
+    opportunityAssignedTo?: string;
+    opportunitySource?: string;
+    opportunityTags?: string[];
+  }>;
   opportunityStatus?: string;
   opportunityMonetaryValue?: number;
   useDynamicPricingForValue?: boolean;

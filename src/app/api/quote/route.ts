@@ -593,6 +593,10 @@ export async function POST(request: NextRequest) {
           // Resolve pipeline and stage using routing rules
           let resolvedPipelineId = ghlConfig.pipelineId;
           let resolvedPipelineStageId = ghlConfig.pipelineStageId;
+          let resolvedOpportunityStatus = (ghlConfig.opportunityStatus as 'open' | 'won' | 'lost' | 'abandoned') || 'open';
+          let resolvedOpportunityAssignedTo = ghlConfig.opportunityAssignedTo;
+          let resolvedOpportunitySource = ghlConfig.opportunitySource;
+          let resolvedOpportunityTags = ghlConfig.opportunityTags;
           
           if (ghlConfig.pipelineRoutingRules && Array.isArray(ghlConfig.pipelineRoutingRules) && ghlConfig.pipelineRoutingRules.length > 0) {
             for (const rule of ghlConfig.pipelineRoutingRules) {
@@ -620,6 +624,21 @@ export async function POST(request: NextRequest) {
               if (matches) {
                 resolvedPipelineId = rule.pipelineId;
                 resolvedPipelineStageId = rule.pipelineStageId;
+                
+                // Apply per-rule opportunity settings if configured
+                if (rule.opportunityStatus) {
+                  resolvedOpportunityStatus = rule.opportunityStatus as 'open' | 'won' | 'lost' | 'abandoned';
+                }
+                if (rule.opportunityAssignedTo) {
+                  resolvedOpportunityAssignedTo = rule.opportunityAssignedTo;
+                }
+                if (rule.opportunitySource) {
+                  resolvedOpportunitySource = rule.opportunitySource;
+                }
+                if (rule.opportunityTags && rule.opportunityTags.length > 0) {
+                  resolvedOpportunityTags = rule.opportunityTags;
+                }
+                
                 console.log(`✅ Pipeline routing: rule matched (${rule.utmParam} ${rule.match} "${rule.value}") -> pipeline ${rule.pipelineId}`);
                 break; // First match wins
               }
@@ -632,10 +651,10 @@ export async function POST(request: NextRequest) {
             value: opportunityValue,
             pipelineId: resolvedPipelineId,
             pipelineStageId: resolvedPipelineStageId,
-            status: (ghlConfig.opportunityStatus as 'open' | 'won' | 'lost' | 'abandoned') || 'open',
-            assignedTo: ghlConfig.opportunityAssignedTo,
-            source: ghlConfig.opportunitySource,
-            tags: ghlConfig.opportunityTags && ghlConfig.opportunityTags.length > 0 ? ghlConfig.opportunityTags : undefined,
+            status: resolvedOpportunityStatus,
+            assignedTo: resolvedOpportunityAssignedTo,
+            source: resolvedOpportunitySource,
+            tags: resolvedOpportunityTags && resolvedOpportunityTags.length > 0 ? resolvedOpportunityTags : undefined,
             customFields: opportunityCustomFields,
           });
         }

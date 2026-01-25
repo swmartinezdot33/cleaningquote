@@ -76,7 +76,17 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Validate and clean pipelineRoutingRules
-    let validatedRules: Array<{ utmParam: string; match: string; value: string; pipelineId: string; pipelineStageId: string }> | undefined;
+    let validatedRules: Array<{ 
+      utmParam: string; 
+      match: string; 
+      value: string; 
+      pipelineId: string; 
+      pipelineStageId: string;
+      opportunityStatus?: string;
+      opportunityAssignedTo?: string;
+      opportunitySource?: string;
+      opportunityTags?: string[];
+    }> | undefined;
     if (Array.isArray(pipelineRoutingRules)) {
       validatedRules = pipelineRoutingRules.filter((rule: any) => {
         // Each rule must have: utmParam, match, value (non-empty), pipelineId, pipelineStageId
@@ -87,7 +97,17 @@ export async function POST(request: NextRequest) {
           rule.pipelineId && String(rule.pipelineId).trim() &&
           rule.pipelineStageId && String(rule.pipelineStageId).trim()
         );
-      });
+      }).map((rule: any) => ({
+        utmParam: rule.utmParam,
+        match: rule.match,
+        value: rule.value,
+        pipelineId: rule.pipelineId,
+        pipelineStageId: rule.pipelineStageId,
+        opportunityStatus: rule.opportunityStatus || undefined,
+        opportunityAssignedTo: rule.opportunityAssignedTo || undefined,
+        opportunitySource: rule.opportunitySource || undefined,
+        opportunityTags: Array.isArray(rule.opportunityTags) ? rule.opportunityTags : undefined,
+      }));
       // Only include if there are valid rules
       if (validatedRules.length === 0) {
         validatedRules = undefined;

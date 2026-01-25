@@ -62,7 +62,18 @@ export default function SettingsPage() {
   const [createOpportunity, setCreateOpportunity] = useState(false);
   const [createNote, setCreateNote] = useState(true);
   const [createQuoteObject, setCreateQuoteObject] = useState(true);
-  const [pipelineRoutingRules, setPipelineRoutingRules] = useState<Array<{ utmParam: string; match: string; value: string; pipelineId: string; pipelineStageId: string }>>([]);
+  const [pipelineRoutingRules, setPipelineRoutingRules] = useState<Array<{ 
+    utmParam: string; 
+    match: string; 
+    value: string; 
+    pipelineId: string; 
+    pipelineStageId: string;
+    opportunityStatus?: string;
+    opportunityAssignedTo?: string;
+    opportunitySource?: string;
+    opportunityTags?: string[];
+  }>>([]);
+  const [expandedRuleIndex, setExpandedRuleIndex] = useState<number | null>(null);
   const [pipelines, setPipelines] = useState<any[]>([]);
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>('');
   const [selectedStageId, setSelectedStageId] = useState<string>('');
@@ -1669,7 +1680,17 @@ export default function SettingsPage() {
                                     onClick={() => {
                                       setPipelineRoutingRules([
                                         ...pipelineRoutingRules,
-                                        { utmParam: 'utm_source', match: 'contains', value: '', pipelineId: '', pipelineStageId: '' }
+                                        { 
+                                          utmParam: 'utm_source', 
+                                          match: 'contains', 
+                                          value: '', 
+                                          pipelineId: '', 
+                                          pipelineStageId: '',
+                                          opportunityStatus: undefined,
+                                          opportunityAssignedTo: undefined,
+                                          opportunitySource: undefined,
+                                          opportunityTags: undefined,
+                                        }
                                       ]);
                                     }}
                                     className="bg-green-600 hover:bg-green-700 text-white"
@@ -1783,8 +1804,100 @@ export default function SettingsPage() {
                                           </div>
                                         </div>
 
+                                        {/* Per-Rule Opportunity Settings (Collapsible) */}
+                                        <div className="border-t border-gray-200 pt-3 mt-3">
+                                          <button
+                                            type="button"
+                                            onClick={() => setExpandedRuleIndex(expandedRuleIndex === idx ? null : idx)}
+                                            className="text-sm font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                                          >
+                                            {expandedRuleIndex === idx ? '▼' : '▶'} Opportunity Settings for This Rule (Optional)
+                                          </button>
+
+                                          {expandedRuleIndex === idx && (
+                                            <div className="mt-3 space-y-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                                              {/* Status for this rule */}
+                                              <div>
+                                                <label className="block text-xs font-semibold text-gray-700 mb-1">Status</label>
+                                                <select
+                                                  value={rule.opportunityStatus || ''}
+                                                  onChange={(e) => {
+                                                    const newRules = [...pipelineRoutingRules];
+                                                    newRules[idx].opportunityStatus = e.target.value || undefined;
+                                                    setPipelineRoutingRules(newRules);
+                                                  }}
+                                                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white"
+                                                >
+                                                  <option value="">-- Use default --</option>
+                                                  <option value="open">Open</option>
+                                                  <option value="won">Won</option>
+                                                  <option value="lost">Lost</option>
+                                                  <option value="abandoned">Abandoned</option>
+                                                </select>
+                                              </div>
+
+                                              {/* Assigned User for this rule */}
+                                              <div>
+                                                <label className="block text-xs font-semibold text-gray-700 mb-1">Assign to User</label>
+                                                <select
+                                                  value={rule.opportunityAssignedTo || ''}
+                                                  onChange={(e) => {
+                                                    const newRules = [...pipelineRoutingRules];
+                                                    newRules[idx].opportunityAssignedTo = e.target.value || undefined;
+                                                    setPipelineRoutingRules(newRules);
+                                                  }}
+                                                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white"
+                                                >
+                                                  <option value="">-- Use default --</option>
+                                                  {users.map((user) => (
+                                                    <option key={user.id} value={user.id}>
+                                                      {user.name} {user.email ? `(${user.email})` : ''}
+                                                    </option>
+                                                  ))}
+                                                </select>
+                                              </div>
+
+                                              {/* Source for this rule */}
+                                              <div>
+                                                <label className="block text-xs font-semibold text-gray-700 mb-1">Source</label>
+                                                <input
+                                                  type="text"
+                                                  value={rule.opportunitySource || ''}
+                                                  onChange={(e) => {
+                                                    const newRules = [...pipelineRoutingRules];
+                                                    newRules[idx].opportunitySource = e.target.value || undefined;
+                                                    setPipelineRoutingRules(newRules);
+                                                  }}
+                                                  placeholder="e.g., Google Ads"
+                                                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                                />
+                                              </div>
+
+                                              {/* Tags for this rule */}
+                                              <div>
+                                                <label className="block text-xs font-semibold text-gray-700 mb-1">Tags</label>
+                                                <div className="relative">
+                                                  <input
+                                                    type="text"
+                                                    placeholder="Search tags..."
+                                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                                    onChange={(e) => {
+                                                      // For now, just a search input - we can implement full multi-select if needed
+                                                    }}
+                                                  />
+                                                  <p className="text-xs text-gray-500 mt-1">
+                                                    {rule.opportunityTags && rule.opportunityTags.length > 0
+                                                      ? `${rule.opportunityTags.length} tag(s) selected`
+                                                      : 'No tags selected (uses default)'}
+                                                  </p>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+
                                         {/* Remove Button */}
-                                        <div className="flex justify-end">
+                                        <div className="flex justify-end pt-2 border-t border-gray-200 mt-3">
                                           <Button
                                             type="button"
                                             onClick={() => {
