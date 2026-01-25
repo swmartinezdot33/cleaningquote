@@ -891,10 +891,12 @@ export async function createCustomObject(
     const propertiesFullPath: Record<string, any> = {};
     const propertiesShortName: Record<string, any> = {};
     
-    // Coerce 'type' to string when it's an array (GHL expects one of: initial_cleaning, general_cleaning, deep_clean, move_in, move_out, recurring_cleaning).
+    // GHL Quote 'type' expects an array (e.g. ["move_out"]), not a string. Wrap string in array; keep array as-is.
     const asTypeValue = (v: any, key: string): any => {
       if (key !== 'type') return v;
-      return Array.isArray(v) ? (v[0] != null ? String(v[0]) : '') : (v != null ? String(v) : '');
+      if (Array.isArray(v)) return v.length ? v.map((x) => (x != null ? String(x) : '')).filter(Boolean) : ['general_cleaning'];
+      if (v != null && String(v).trim() !== '') return [String(v).trim()];
+      return ['general_cleaning'];
     };
 
     if (validFields && validFields.length > 0) {
