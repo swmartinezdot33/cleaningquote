@@ -3,6 +3,7 @@ import { createOrUpdateContact } from '@/lib/ghl/client';
 import { ghlTokenExists, getGHLConfig } from '@/lib/kv';
 import { getSurveyQuestions } from '@/lib/survey/manager';
 import { SurveyQuestion } from '@/lib/survey/schema';
+import { parseAddress } from '@/lib/utils/parseAddress';
 
 /**
  * POST /api/contacts/create-or-update
@@ -20,7 +21,7 @@ import { SurveyQuestion } from '@/lib/survey/schema';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { firstName, lastName, email, phone, address, city, state, postalCode, country } = body;
+    const { firstName, lastName, email, phone, address, address2, city, state, postalCode, country } = body;
 
     // Validate required contact fields
     if (!firstName || !lastName || !email || !phone || !address) {
@@ -57,22 +58,45 @@ export async function POST(request: NextRequest) {
       // When no utm_source, use landing URL (sourceUrl) as source for attribution
       const effectiveSource = (body.sourceUrl && String(body.sourceUrl).trim()) || 'Website Quote Form';
 
+      // Combine address and address2 if address2 exists (GHL only has one address line)
+      const fullAddress = address2 
+        ? `${address} ${address2}`.trim()
+        : address;
+
+      // Parse address if city, state, or postalCode are missing
+      // This handles cases where the full address is in a single string
+      let parsedStreetAddress = fullAddress;
+      let parsedCity = city || '';
+      let parsedState = state || '';
+      let parsedPostalCode = postalCode || '';
+
+      // If any address component is missing, try to parse the full address string
+      if (fullAddress && (!city || !state || !postalCode)) {
+        const parsed = parseAddress(fullAddress);
+        
+        // Only use parsed values if the corresponding field is missing
+        parsedStreetAddress = parsed.streetAddress || fullAddress;
+        parsedCity = city || parsed.city || '';
+        parsedState = state || parsed.state || '';
+        parsedPostalCode = postalCode || parsed.zipCode || '';
+      }
+
       // Build contact data using field mappings
       const contactData: any = {
         firstName,
         lastName,
         email,
         phone,
-        address1: address,
+        address1: parsedStreetAddress,
         source: effectiveSource,
         tags: ['Quote Request'],
         customFields: {},
       };
 
-      // Add optional address fields
-      if (city) contactData.city = city;
-      if (state) contactData.state = state;
-      if (postalCode) contactData.postalCode = postalCode;
+      // Add parsed address fields
+      if (parsedCity) contactData.city = parsedCity;
+      if (parsedState) contactData.state = parsedState;
+      if (parsedPostalCode) contactData.postalCode = parsedPostalCode;
       if (country) contactData.country = country;
 
       // Build a map of field IDs (both original and sanitized) to their GHL custom field mappings
@@ -90,10 +114,13 @@ export async function POST(request: NextRequest) {
         lastName,
         email,
         phone,
-        address,
-        city,
-        state,
-        postalCode,
+        originalAddress: address,
+        parsedAddress: {
+          address1: parsedStreetAddress,
+          city: parsedCity,
+          state: parsedState,
+          postalCode: parsedPostalCode,
+        },
       });
 
       // Create or update contact in GHL

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGHLToken, getGHLLocationId, getGHLConfig } from '@/lib/kv';
 import { createOrUpdateContact } from '@/lib/ghl/client';
+import { parseAddress } from '@/lib/utils/parseAddress';
 
 /**
  * POST /api/service-area/out-of-service
@@ -18,7 +19,7 @@ import { createOrUpdateContact } from '@/lib/ghl/client';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { firstName, lastName, email, phone, address } = body;
+    const { firstName, lastName, email, phone, address, address2 } = body;
 
     if (!firstName || !lastName || !email || !phone) {
       return NextResponse.json(
@@ -46,15 +47,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Combine address and address2 if address2 exists (GHL only has one address line)
+    const fullAddress = address2 
+      ? `${address || ''} ${address2}`.trim()
+      : address || '';
+
+    // Parse address if provided
+    let parsedStreetAddress = fullAddress;
+    let parsedCity = '';
+    let parsedState = '';
+    let parsedPostalCode = '';
+
+    if (fullAddress) {
+      const parsed = parseAddress(fullAddress);
+      parsedStreetAddress = parsed.streetAddress || fullAddress;
+      parsedCity = parsed.city || '';
+      parsedState = parsed.state || '';
+      parsedPostalCode = parsed.zipCode || '';
+    }
+
     // Create contact with out-of-service tags
+    const contactData: any = {
+      firstName,
+      lastName,
+      email,
+      phone,
+    };
+
+    if (parsedStreetAddress) contactData.address1 = parsedStreetAddress;
+    if (parsedCity) contactData.city = parsedCity;
+    if (parsedState) contactData.state = parsedState;
+    if (parsedPostalCode) contactData.postalCode = parsedPostalCode;
+
     const contactId = await createOrUpdateContact(
-      {
-        firstName,
-        lastName,
-        email,
-        phone,
-        address1: address,
-      },
+      contactData,
       token,
       locationId,
       config?.outOfServiceTags

@@ -7,6 +7,7 @@ import { ghlTokenExists, getGHLConfig, getKV } from '@/lib/kv';
 import { getSurveyQuestions } from '@/lib/survey/manager';
 import { SurveyQuestion } from '@/lib/survey/schema';
 import { sanitizeCustomFields } from '@/lib/ghl/field-normalizer';
+import { parseAddress } from '@/lib/utils/parseAddress';
 
 /**
  * Generate a human-readable, unique Quote ID
@@ -224,18 +225,41 @@ export async function POST(request: NextRequest) {
           contactData.tags.push(...ghlConfig.quoteCompletedTags);
         }
 
-        // Add address information if provided
-        if (body.address) {
-          contactData.address1 = body.address;
+        // Combine address and address2 if address2 exists (GHL only has one address line)
+        const fullAddress = body.address2 
+          ? `${body.address || ''} ${body.address2}`.trim()
+          : body.address || '';
+
+        // Parse address if city, state, or postalCode are missing
+        // This handles cases where the full address is in a single string
+        let parsedStreetAddress = fullAddress;
+        let parsedCity = body.city || '';
+        let parsedState = body.state || '';
+        let parsedPostalCode = body.postalCode || '';
+
+        // If any address component is missing and we have an address, try to parse it
+        if (fullAddress && (!body.city || !body.state || !body.postalCode)) {
+          const parsed = parseAddress(fullAddress);
+          
+          // Only use parsed values if the corresponding field is missing
+          parsedStreetAddress = parsed.streetAddress || fullAddress;
+          parsedCity = body.city || parsed.city || '';
+          parsedState = body.state || parsed.state || '';
+          parsedPostalCode = body.postalCode || parsed.zipCode || '';
         }
-        if (body.city) {
-          contactData.city = body.city;
+
+        // Add parsed address information
+        if (parsedStreetAddress) {
+          contactData.address1 = parsedStreetAddress;
         }
-        if (body.state) {
-          contactData.state = body.state;
+        if (parsedCity) {
+          contactData.city = parsedCity;
         }
-        if (body.postalCode) {
-          contactData.postalCode = body.postalCode;
+        if (parsedState) {
+          contactData.state = parsedState;
+        }
+        if (parsedPostalCode) {
+          contactData.postalCode = parsedPostalCode;
         }
         if (body.country) {
           contactData.country = body.country;
