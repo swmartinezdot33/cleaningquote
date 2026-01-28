@@ -34,11 +34,16 @@ export async function GET(
         const parsed = stored && (typeof stored === 'string' ? JSON.parse(stored) : stored);
         if (parsed && (parsed.ranges || parsed.ghlContactId)) {
           const ghlContactId = parsed.ghlContactId;
+          const oneTimeTypes = ['move-in', 'move-out', 'deep'];
+          const st = String(parsed.serviceType || '').toLowerCase().trim();
+          const normFreq = oneTimeTypes.includes(st) ? '' : (parsed.frequency ?? '');
           console.log('✅ Serving quote from KV (QT-* id, skipping GHL):', quoteId);
           return NextResponse.json({
             ...parsed,
             quoteId,
             ghlContactId: ghlContactId || parsed.ghlContactId,
+            serviceType: parsed.serviceType,
+            frequency: normFreq,
           });
         }
       } catch (e) {
@@ -201,11 +206,16 @@ export async function GET(
 
     // If we have KV data but no GHL object, use KV data directly
     if (quoteDataFromKV && !quoteObject) {
+      const oneTimeTypes = ['move-in', 'move-out', 'deep'];
+      const st = String(quoteDataFromKV.serviceType || '').toLowerCase().trim();
+      const normFreq = oneTimeTypes.includes(st) ? '' : (quoteDataFromKV.frequency ?? '');
       console.log('Using quote data from KV storage (GHL fetch failed)');
       return NextResponse.json({
         ...quoteDataFromKV,
         quoteId: quoteId,
-        ghlContactId: ghlContactId || quoteDataFromKV.ghlContactId, // Ensure ghlContactId is included
+        ghlContactId: ghlContactId || quoteDataFromKV.ghlContactId,
+        serviceType: quoteDataFromKV.serviceType,
+        frequency: normFreq,
       });
     }
 
@@ -250,7 +260,12 @@ export async function GET(
     if (serviceType && serviceTypeReverseMap[serviceType]) {
       serviceType = serviceTypeReverseMap[serviceType];
     }
-    
+    // For one-time types, never return a recurring frequency (so quote summary shows correct selection)
+    const oneTimeTypes = ['move-in', 'move-out', 'deep'];
+    if (oneTimeTypes.includes(serviceType)) {
+      frequency = '';
+    }
+
     // Parse numeric fields - use null if field doesn't exist, otherwise parse the value
     const parseNumericField = (value: any): number | null => {
       if (value === null || value === undefined || value === '') return null;
@@ -346,20 +361,21 @@ export async function GET(
       cleanedWithin3Months: cleanedWithin3Months ?? quoteResult.inputs?.cleanedWithin3Months,
     };
     
+    const outFrequency = oneTimeTypes.includes(serviceType) ? '' : frequency;
     return NextResponse.json({
       outOfLimits: false,
       multiplier: quoteResult.multiplier,
-      inputs: actualInputs, // Use actual values from GHL custom object
+      inputs: actualInputs,
       ranges: quoteResult.ranges,
       initialCleaningRequired: quoteResult.initialCleaningRequired,
       initialCleaningRecommended: quoteResult.initialCleaningRecommended,
       summaryText,
       smsText,
-      ghlContactId: ghlContactId, // Use the ghlContactId we found (from KV or GHL object)
+      ghlContactId: ghlContactId,
       quoteId: quoteId,
       contactData,
       serviceType: serviceType,
-      frequency: frequency,
+      frequency: outFrequency,
     });
   } catch (error) {
     console.error('Error fetching quote:', error);

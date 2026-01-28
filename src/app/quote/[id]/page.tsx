@@ -502,81 +502,58 @@ export default function QuotePage() {
                         </motion.div>
                       )}
 
-                      {/* YOUR SELECTED SERVICE - Green Background */}
+                      {/* YOUR SELECTED SERVICE - Always show what the user selected, then other options below */}
                       {quoteResult.ranges && (() => {
-                        // Normalize serviceType and frequency values (handle both formats)
-                        let serviceType = (quoteResult.serviceType || '').toLowerCase().trim();
+                        const rawServiceType = (quoteResult.serviceType || '').toLowerCase().trim().replace(/\s+/g, ' ');
                         let frequency = (quoteResult.frequency || '').toLowerCase().trim();
                         
-                        // Normalize serviceType formats
-                        if (serviceType.includes('general') || serviceType === 'general_cleaning') {
-                          serviceType = 'general';
-                        } else if (serviceType.includes('deep')) {
-                          serviceType = 'deep';
-                        } else if (serviceType.includes('move-in') || serviceType === 'move_in') {
-                          serviceType = 'move-in';
-                        } else if (serviceType.includes('move-out') || serviceType === 'move_out') {
+                        // Normalize serviceType: handle move_in, move-in, move in, moveout, move out, etc.
+                        let serviceType = rawServiceType;
+                        if (serviceType.includes('move') && (serviceType.includes('out') || serviceType === 'move_out' || serviceType === 'moveout')) {
                           serviceType = 'move-out';
+                        } else if (serviceType.includes('move') || serviceType === 'move_in' || serviceType === 'movein') {
+                          serviceType = 'move-in';
+                        } else if (serviceType.includes('deep') || serviceType === 'deep_clean') {
+                          serviceType = 'deep';
+                        } else if (serviceType.includes('general') || serviceType === 'general_cleaning') {
+                          serviceType = 'general';
+                        } else if (serviceType.includes('initial') || serviceType === 'initial_cleaning') {
+                          serviceType = 'initial';
                         }
                         
-                        // Normalize frequency: treat 'one-time' and empty as no recurring frequency
-                        const recurringFrequencies = ['weekly', 'bi-weekly', 'biweekly', 'four-week', 'fourweek', 'monthly'];
-                        const hasRecurringFrequency = recurringFrequencies.includes(frequency);
                         if (frequency === 'biweekly') frequency = 'bi-weekly';
                         else if (frequency === 'fourweek' || frequency === 'monthly') frequency = 'four-week';
+                        const hasRecurringFrequency = ['weekly', 'bi-weekly', 'four-week'].includes(frequency);
+                        const isRecurringService = hasRecurringFrequency;
                         
-                        // Determine selected service and price range.
-                        // PRIORITY 1: One-time service types (move-in, move-out, deep) — always show what user selected, ignore frequency.
-                        // PRIORITY 2: Recurring by frequency (weekly, bi-weekly, four-week).
-                        // PRIORITY 3: One-time general.
+                        // STEP 1: Determine ONLY what the user selected — one source of truth from serviceType + frequency
                         let selectedServiceName = '';
                         let selectedRange: { low: number; high: number } | null = null;
                         
-                        const isOneTimeServiceType = ['deep', 'move-in', 'move-out'].includes(serviceType);
-                        const isRecurringService = hasRecurringFrequency && (frequency === 'weekly' || frequency === 'bi-weekly' || frequency === 'four-week');
-                        
-                        // If user selected a one-time service type, ALWAYS show it (ignore any stale frequency like bi-weekly)
-                        if (isOneTimeServiceType) {
-                          if (serviceType === 'move-in') {
-                            selectedServiceName = 'Move In/Move Out Basic clean';
-                            selectedRange = quoteResult.ranges.moveInOutBasic;
-                          } else if (serviceType === 'move-out') {
-                            selectedServiceName = 'Move In/Move Out Deep clean';
-                            selectedRange = quoteResult.ranges.moveInOutFull;
-                          } else if (serviceType === 'deep') {
-                            selectedServiceName = 'Deep Clean';
-                            selectedRange = quoteResult.ranges.deep;
-                          }
-                        }
-                        // Recurring services (only if we didn't already match a one-time type)
-                        if (!selectedRange && frequency === 'weekly') {
+                        if (serviceType === 'move-in') {
+                          selectedServiceName = 'Move In/Move Out Basic clean';
+                          selectedRange = quoteResult.ranges.moveInOutBasic;
+                        } else if (serviceType === 'move-out') {
+                          selectedServiceName = 'Move In/Move Out Deep clean';
+                          selectedRange = quoteResult.ranges.moveInOutFull;
+                        } else if (serviceType === 'deep') {
+                          selectedServiceName = 'Deep Clean';
+                          selectedRange = quoteResult.ranges.deep;
+                        } else if (frequency === 'weekly') {
                           selectedServiceName = 'Weekly Cleaning';
                           selectedRange = quoteResult.ranges.weekly;
-                        } else if (!selectedRange && frequency === 'bi-weekly') {
+                        } else if (frequency === 'bi-weekly') {
                           selectedServiceName = 'Bi-Weekly Cleaning';
                           selectedRange = quoteResult.ranges.biWeekly;
-                        } else if (!selectedRange && frequency === 'four-week') {
+                        } else if (frequency === 'four-week') {
                           selectedServiceName = 'Every 4 Weeks Cleaning';
                           selectedRange = quoteResult.ranges.fourWeek;
-                        }
-                        // One-time general or initial (no recurring frequency)
-                        if (!selectedRange) {
-                          if (serviceType === 'general' || serviceType === 'initial') {
-                            selectedServiceName = 'General Clean';
-                            selectedRange = quoteResult.ranges.general;
-                          } else if (serviceType === 'deep') {
-                            selectedServiceName = 'Deep Clean';
-                            selectedRange = quoteResult.ranges.deep;
-                          } else if (serviceType === 'move-in') {
-                            selectedServiceName = 'Move In/Move Out Basic clean';
-                            selectedRange = quoteResult.ranges.moveInOutBasic;
-                          } else if (serviceType === 'move-out') {
-                            selectedServiceName = 'Move In/Move Out Deep clean';
-                            selectedRange = quoteResult.ranges.moveInOutFull;
-                          } else {
-                            selectedServiceName = 'General Clean';
-                            selectedRange = quoteResult.ranges.general;
-                          }
+                        } else if (serviceType === 'general' || serviceType === 'initial') {
+                          selectedServiceName = 'General Clean';
+                          selectedRange = quoteResult.ranges.general;
+                        } else {
+                          selectedServiceName = 'General Clean';
+                          selectedRange = quoteResult.ranges.general;
                         }
 
                         return (

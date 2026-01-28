@@ -902,6 +902,8 @@ export async function POST(request: NextRequest) {
             // Frontend redirects with generatedQuoteId, but GHL uses ghlObjectId
             try {
               const kv = getKV();
+              const oneTimeTypes = ['move-in', 'move-out', 'deep'];
+              const kvFreq = oneTimeTypes.includes(String(body.serviceType || '').toLowerCase()) ? '' : (body.frequency ?? '');
               const kvData = {
                 outOfLimits: false,
                 multiplier: result.multiplier,
@@ -913,7 +915,7 @@ export async function POST(request: NextRequest) {
                 smsText,
                 ghlContactId,
                 serviceType: body.serviceType,
-                frequency: body.frequency,
+                frequency: kvFreq,
                 createdAt: new Date().toISOString(),
                 ghlQuoteCreated: true,
                 ghlObjectId: ghlObjectId, // Store GHL object ID for reference
@@ -997,6 +999,8 @@ export async function POST(request: NextRequest) {
     if (!ghlQuoteCreated) {
       try {
         const kv = getKV();
+        const oneTimeTypes = ['move-in', 'move-out', 'deep'];
+        const storedFrequency = oneTimeTypes.includes(String(body.serviceType || '').toLowerCase()) ? '' : (body.frequency ?? '');
         const quoteData = {
           outOfLimits: false,
           multiplier: result.multiplier,
@@ -1008,7 +1012,7 @@ export async function POST(request: NextRequest) {
           smsText,
           ghlContactId,
           serviceType: body.serviceType,
-          frequency: body.frequency,
+          frequency: storedFrequency,
           createdAt: new Date().toISOString(),
           // Store GHL quote creation status for debugging
           ghlQuoteCreated: false,
@@ -1051,6 +1055,8 @@ export async function POST(request: NextRequest) {
         const existing = await kv.get(`quote:${generatedQuoteId}`);
         if (!existing) {
           console.warn(`⚠️ GHL quote created but KV storage missing - storing now...`);
+          const oneTimeTypes = ['move-in', 'move-out', 'deep'];
+          const storedFreq = oneTimeTypes.includes(String(body.serviceType || '').toLowerCase()) ? '' : (body.frequency ?? '');
           const quoteData = {
             outOfLimits: false,
             multiplier: result.multiplier,
@@ -1062,7 +1068,7 @@ export async function POST(request: NextRequest) {
             smsText,
             ghlContactId,
             serviceType: body.serviceType,
-            frequency: body.frequency,
+            frequency: storedFreq,
             createdAt: new Date().toISOString(),
             ghlQuoteCreated: true,
             generatedQuoteId: generatedQuoteId,
