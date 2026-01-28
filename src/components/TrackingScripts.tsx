@@ -14,6 +14,11 @@ interface TrackingScriptsProps {
   };
 }
 
+/** True when on a quote results page (e.g. /quote/QT-123456-ABCDE). Conversion events must only fire here, not on landing. */
+function isQuotePage(pathname: string | null): boolean {
+  return !!pathname?.match(/^\/quote\/[^/]+$/);
+}
+
 export function TrackingScripts({ trackingCodes }: TrackingScriptsProps) {
   const pathname = usePathname();
   const isAdminPage = pathname?.startsWith('/admin') || false;
@@ -85,7 +90,7 @@ export function TrackingScripts({ trackingCodes }: TrackingScriptsProps) {
       console.log('✅ Google Tag Manager loaded:', trackingCodes.googleTagManagerId);
     }
 
-    // Meta Pixel / Facebook Pixel
+    // Meta Pixel / Facebook Pixel – init + PageView only. Lead fires only on /quote/[id] (see quote page).
     if (trackingCodes.metaPixelId && !addedScripts.has('fbpixel')) {
       addedScripts.add('fbpixel');
       const script = document.createElement('script');
@@ -106,14 +111,17 @@ export function TrackingScripts({ trackingCodes }: TrackingScriptsProps) {
       console.log('✅ Meta Pixel loaded:', trackingCodes.metaPixelId);
     }
 
-    // Custom Head Code - can contain any HTML/scripts
-    if (trackingCodes.customHeadCode && !addedScripts.has('custom')) {
+    // Custom Head Code – inject only on quote page so conversion/Lead in custom code never run on landing.
+    // Conversion/Lead must only fire on /quote/[id] after form submit; landing must not trigger them.
+    if (
+      trackingCodes.customHeadCode &&
+      !addedScripts.has('custom') &&
+      isQuotePage(pathname ?? null)
+    ) {
       addedScripts.add('custom');
-      // Create a temporary container to parse the HTML
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = trackingCodes.customHeadCode;
-      
-      // Extract and insert all script tags
+
       const scripts = tempDiv.querySelectorAll('script');
       scripts.forEach((script, index) => {
         const newScript = document.createElement('script');
@@ -127,30 +135,28 @@ export function TrackingScripts({ trackingCodes }: TrackingScriptsProps) {
         newScript.id = `custom-head-script-${index}`;
         document.head.appendChild(newScript);
       });
-      
-      // Insert any non-script elements (like meta tags, links, etc.)
+
       const otherElements = Array.from(tempDiv.children).filter(el => el.tagName !== 'SCRIPT');
       otherElements.forEach((el, index) => {
         const cloned = el.cloneNode(true) as HTMLElement;
         cloned.id = cloned.id || `custom-head-element-${index}`;
         document.head.appendChild(cloned);
       });
-      
-      // If no script tags found, insert the raw HTML as innerHTML
+
       if (scripts.length === 0 && otherElements.length === 0) {
         const script = document.createElement('script');
         script.id = 'custom-head-code';
         script.innerHTML = trackingCodes.customHeadCode;
         document.head.appendChild(script);
       }
-      
-      console.log('✅ Custom Head Code loaded:', {
+
+      console.log('✅ Custom Head Code loaded (quote page only):', {
         scriptsFound: scripts.length,
         otherElementsFound: otherElements.length,
         preview: trackingCodes.customHeadCode.substring(0, 100) + '...'
       });
     }
-  }, [isAdminPage, trackingCodes]);
+  }, [isAdminPage, pathname, trackingCodes]);
 
   return null;
 }

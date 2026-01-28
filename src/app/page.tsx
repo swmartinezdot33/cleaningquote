@@ -262,8 +262,6 @@ export default function Home() {
   const [widgetTitle, setWidgetTitle] = useState('Raleigh Cleaning Company');
   const [widgetSubtitle, setWidgetSubtitle] = useState("Let's get your professional cleaning price!");
   const [primaryColor, setPrimaryColor] = useState('#f61590');
-  const [googleAdsConversionId, setGoogleAdsConversionId] = useState('');
-  const [googleAdsConversionLabel, setGoogleAdsConversionLabel] = useState('');
   // Start with empty array, will be filled from unified API
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [quoteSchema, setQuoteSchema] = useState<z.ZodObject<any>>(generateSchemaFromQuestions([]));
@@ -285,7 +283,6 @@ export default function Home() {
     loadSurveyQuestions();
     loadFormSettings();
     loadRedirectSettings();
-    loadTrackingCodes();
   }, []);
 
   // Auto-scroll when appointment form opens
@@ -434,22 +431,6 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Failed to load redirect settings:', error);
-    }
-  };
-
-  // Load tracking codes to get Google Ads conversion ID and label
-  const loadTrackingCodes = async () => {
-    try {
-      const response = await fetch('/api/admin/tracking-codes');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.trackingCodes) {
-          setGoogleAdsConversionId(data.trackingCodes.googleAdsConversionId || '');
-          setGoogleAdsConversionLabel(data.trackingCodes.googleAdsConversionLabel || '');
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load tracking codes:', error);
     }
   };
 
@@ -1043,10 +1024,8 @@ export default function Home() {
 
           // In-service area - check if we should open survey in new tab
           console.log('Service area check - in-service. openSurveyInNewTab:', openSurveyInNewTab, 'createdContactId:', createdContactId);
-          
-          // Trigger Google Ads conversion for in-service lead
-          triggerGoogleAdsConversion();
-          
+
+          // Conversion fires only on /quote/[id] after form submit – not on landing.
           // Only open new tab if we're in an iframe (widget mode)
           const isInIframe = window.self !== window.top;
           
@@ -1116,7 +1095,6 @@ export default function Home() {
               return;
             }
 
-            triggerGoogleAdsConversion();
             setServiceAreaChecked(true);
             const isInIframe = window.self !== window.top;
             if (openSurveyInNewTab && createdContactId && !tabOpened && isInIframe) {
@@ -1183,33 +1161,7 @@ export default function Home() {
     }
   };
 
-  // Helper function to trigger Google Ads conversion
-  const triggerGoogleAdsConversion = () => {
-    if (!googleAdsConversionId) {
-      console.log('Google Ads Conversion ID not configured');
-      return;
-    }
-
-    try {
-      // Use gtag to send conversion event if available
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        console.log('Triggering Google Ads conversion:', googleAdsConversionId, 'label:', googleAdsConversionLabel);
-        (window as any).gtag('event', 'conversion', {
-          'allow_custom_scripts': true,
-          'send_to': googleAdsConversionId,
-          ...(googleAdsConversionLabel && { 'conversion_label': googleAdsConversionLabel })
-        });
-      } else {
-        console.log('gtag not available, trying alternative method');
-        // Fallback: create a pixel request if gtag is not available
-        const conversionId = googleAdsConversionId.replace('AW-', '');
-        const img = new Image();
-        img.src = `https://googleads.g.doubleclick.net/pagead/conversion/${conversionId}/?label=${googleAdsConversionLabel || 'in_service_lead'}&guid=ON&script=0`;
-      }
-    } catch (error) {
-      console.error('Error triggering Google Ads conversion:', error);
-    }
-  };
+  // Conversion fires only on /quote/[id] after form submit – not on landing.
 
   const handleFormSubmit = async () => {
     setIsLoading(true);
@@ -2703,8 +2655,7 @@ export default function Home() {
                                     console.log('Auto-advance: Service area check result:', result);
                                     
                                     if (result.inServiceArea) {
-                                      // Trigger Google Ads conversion for in-service lead
-                                      triggerGoogleAdsConversion();
+                                      // Conversion fires only on /quote/[id] after form submit – not on landing.
 
                                       // In service area - check if we should open survey in new tab
                                       console.log('Auto-advance: In-service area. openSurveyInNewTab:', openSurveyInNewTab, 'createdContactId:', createdContactId);

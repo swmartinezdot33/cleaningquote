@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -117,6 +117,8 @@ export default function QuotePage() {
   const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
   const [callConfirmed, setCallConfirmed] = useState(false);
   const calendarRef = React.useRef<HTMLDivElement>(null);
+  /** Tracks if conversion events (Google Ads, Facebook Lead) have been fired for this quote. Fires only once per quote load, only on /quote/[id] after form submission. */
+  const conversionEventsFiredRef = useRef(false);
 
   // Load widget settings and tracking codes in parallel
   useEffect(() => {
@@ -180,48 +182,50 @@ export default function QuotePage() {
     fetchQuote();
   }, [quoteId]);
 
-  // Fire tracking events on page load (quote completion)
+  // Fire conversion events only once per quote, only when quote data is valid (post form submission).
+  // Do NOT fire on landing page; only on /quote/[id] after successful form submit.
   useEffect(() => {
-    if (!isLoading && quoteResult && !quoteResult.outOfLimits) {
-      // Google Analytics - Quote Completed Event
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'quote_completed', {
-          quote_id: quoteId,
-          service_type: quoteResult.serviceType || 'unknown',
-          frequency: quoteResult.frequency || 'unknown',
-          event_category: 'Quote',
-          event_label: 'Quote Generated',
-        });
+    if (conversionEventsFiredRef.current) return;
+    if (isLoading || !quoteResult || quoteResult.outOfLimits) return;
+    if (!quoteId) return;
+    // Require valid quote context (e.g. contact created) to avoid firing on direct/invalid access.
+    if (!quoteResult.quoteId && !quoteResult.ghlContactId) return;
 
-        // Track pageview with quote completion URL
-        (window as any).gtag('config', 'GA_MEASUREMENT_ID', {
-          page_path: `/quote/${quoteId}`,
-          page_title: 'Quote Generated',
-        });
-      }
+    conversionEventsFiredRef.current = true;
 
-      // Google Ads conversion
-      if (googleAdsConversionId) {
-        try {
-          if (typeof window !== 'undefined' && (window as any).gtag) {
-            (window as any).gtag('event', 'conversion', {
-              'allow_custom_scripts': true,
-              'send_to': googleAdsConversionId,
-              ...(googleAdsConversionLabel && { 'conversion_label': googleAdsConversionLabel }),
-            });
-          }
-        } catch (error) {
-          console.error('Error triggering Google Ads conversion:', error);
-        }
-      }
+    if (typeof window === 'undefined') return;
 
-      // Meta Pixel
-      if (typeof window !== 'undefined' && (window as any).fbq) {
-        (window as any).fbq('track', 'Lead', {
-          content_name: 'Quote Completed',
-          quote_id: quoteId,
-        });
+    // Google Analytics - Quote Completed Event
+    if ((window as any).gtag) {
+      (window as any).gtag('event', 'quote_completed', {
+        quote_id: quoteId,
+        service_type: quoteResult.serviceType || 'unknown',
+        frequency: quoteResult.frequency || 'unknown',
+        event_category: 'Quote',
+        event_label: 'Quote Generated',
+      });
+    }
+
+    // Google Ads conversion – only on quote page after form submit
+    if (googleAdsConversionId && (window as any).gtag) {
+      try {
+        const payload: Record<string, string | boolean> = {
+          allow_custom_scripts: true,
+          send_to: googleAdsConversionId,
+        };
+        if (googleAdsConversionLabel) payload.conversion_label = googleAdsConversionLabel;
+        (window as any).gtag('event', 'conversion', payload);
+      } catch (e) {
+        console.error('Error triggering Google Ads conversion:', e);
       }
+    }
+
+    // Meta Pixel Lead – only on quote page after form submit
+    if ((window as any).fbq) {
+      (window as any).fbq('track', 'Lead', {
+        content_name: 'Quote Completed',
+        quote_id: quoteId,
+      });
     }
   }, [isLoading, quoteResult, quoteId, googleAdsConversionId, googleAdsConversionLabel]);
 
