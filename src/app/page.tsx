@@ -1250,6 +1250,10 @@ export default function Home() {
 
       // Build the API payload, mapping sanitized fields back to original IDs
       const urlContactId = params.get('contactId') || params.get('ghlContactId');
+      // For one-time services (move-in, move-out, deep), send empty frequency so quote summary shows correct selection
+      const oneTimeServiceTypes = ['move-in', 'move-out', 'deep'];
+      const payloadServiceType = formData.serviceType || '';
+      const payloadFrequency = oneTimeServiceTypes.includes(payloadServiceType) ? '' : (formData.frequency || '');
       const apiPayload: any = {
         ghlContactId: ghlContactId || urlContactId || undefined, // From state (address step or contactId pre-fill) or URL param
         ...(urlContactId && { contactId: urlContactId }), // Fallback for quote API when ghlContactId not in state
@@ -1262,8 +1266,8 @@ export default function Home() {
         state: formData.state,
         postalCode: formData.postalCode,
         country: formData.country,
-        serviceType: formData.serviceType,
-        frequency: formData.frequency,
+        serviceType: payloadServiceType,
+        frequency: payloadFrequency,
         // Convert square footage range to numeric value
         squareFeet: convertSquareFootageToNumber(formData.squareFeet),
         fullBaths: Number(formData.fullBaths),

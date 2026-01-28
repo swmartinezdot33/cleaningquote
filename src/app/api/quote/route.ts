@@ -1092,7 +1092,8 @@ export async function POST(request: NextRequest) {
       smsText,
       ghlContactId,
       serviceType: body.serviceType, // Echo back the service type for verification
-      frequency: body.frequency, // Echo back the frequency for verification
+      // For one-time services (move-in, move-out, deep), echo empty frequency so quote summary shows correct selection
+      frequency: ['move-in', 'move-out', 'deep'].includes(String(body.serviceType || '').toLowerCase()) ? '' : (body.frequency ?? ''),
       quoteId: generatedQuoteId, // Always use generated UUID for frontend redirect (stored in KV with this ID)
       // Also include GHL object ID if available (for reference/debugging)
       ...(quoteId !== generatedQuoteId && { ghlObjectId: quoteId }),

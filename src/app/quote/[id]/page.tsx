@@ -505,8 +505,8 @@ export default function QuotePage() {
                       {/* YOUR SELECTED SERVICE - Green Background */}
                       {quoteResult.ranges && (() => {
                         // Normalize serviceType and frequency values (handle both formats)
-                        let serviceType = (quoteResult.serviceType || '').toLowerCase();
-                        let frequency = (quoteResult.frequency || '').toLowerCase();
+                        let serviceType = (quoteResult.serviceType || '').toLowerCase().trim();
+                        let frequency = (quoteResult.frequency || '').toLowerCase().trim();
                         
                         // Normalize serviceType formats
                         if (serviceType.includes('general') || serviceType === 'general_cleaning') {
@@ -519,48 +519,49 @@ export default function QuotePage() {
                           serviceType = 'move-out';
                         }
                         
-                        // Normalize frequency formats
-                        if (frequency === 'biweekly' || frequency === 'bi-weekly') {
-                          frequency = 'bi-weekly';
-                        } else if (frequency === 'fourweek' || frequency === 'four-week' || frequency === 'monthly') {
-                          frequency = 'four-week';
-                        }
+                        // Normalize frequency: treat 'one-time' and empty as no recurring frequency
+                        const recurringFrequencies = ['weekly', 'bi-weekly', 'biweekly', 'four-week', 'fourweek', 'monthly'];
+                        const hasRecurringFrequency = recurringFrequencies.includes(frequency);
+                        if (frequency === 'biweekly') frequency = 'bi-weekly';
+                        else if (frequency === 'fourweek' || frequency === 'monthly') frequency = 'four-week';
                         
-                        // Determine selected service and price range
-                        // Priority: frequency-based services first, then one-time services
+                        // Determine selected service and price range.
+                        // PRIORITY 1: One-time service types (move-in, move-out, deep) — always show what user selected, ignore frequency.
+                        // PRIORITY 2: Recurring by frequency (weekly, bi-weekly, four-week).
+                        // PRIORITY 3: One-time general.
                         let selectedServiceName = '';
                         let selectedRange: { low: number; high: number } | null = null;
                         
-                        // Check if it's a one-time service (deep, move-in, move-out) WITHOUT frequency
-                        const isOneTimeService = ['deep', 'move-in', 'move-out'].includes(serviceType) && !frequency;
-                        // Check if it's a recurring service (has frequency)
-                        const isRecurringService = !!frequency && (frequency === 'weekly' || frequency === 'bi-weekly' || frequency === 'four-week' || frequency === 'monthly');
+                        const isOneTimeServiceType = ['deep', 'move-in', 'move-out'].includes(serviceType);
+                        const isRecurringService = hasRecurringFrequency && (frequency === 'weekly' || frequency === 'bi-weekly' || frequency === 'four-week');
                         
-                        // Debug logging
-                        console.log('🔍 Quote Display Logic:', {
-                          originalServiceType: quoteResult.serviceType,
-                          originalFrequency: quoteResult.frequency,
-                          normalizedServiceType: serviceType,
-                          normalizedFrequency: frequency,
-                          isOneTimeService,
-                          isRecurringService,
-                          selectedServiceName,
-                        });
-                        
-                        // Check for recurring services first
-                        if (frequency === 'weekly') {
+                        // If user selected a one-time service type, ALWAYS show it (ignore any stale frequency like bi-weekly)
+                        if (isOneTimeServiceType) {
+                          if (serviceType === 'move-in') {
+                            selectedServiceName = 'Move In/Move Out Basic clean';
+                            selectedRange = quoteResult.ranges.moveInOutBasic;
+                          } else if (serviceType === 'move-out') {
+                            selectedServiceName = 'Move In/Move Out Deep clean';
+                            selectedRange = quoteResult.ranges.moveInOutFull;
+                          } else if (serviceType === 'deep') {
+                            selectedServiceName = 'Deep Clean';
+                            selectedRange = quoteResult.ranges.deep;
+                          }
+                        }
+                        // Recurring services (only if we didn't already match a one-time type)
+                        if (!selectedRange && frequency === 'weekly') {
                           selectedServiceName = 'Weekly Cleaning';
                           selectedRange = quoteResult.ranges.weekly;
-                        } else if (frequency === 'bi-weekly') {
+                        } else if (!selectedRange && frequency === 'bi-weekly') {
                           selectedServiceName = 'Bi-Weekly Cleaning';
                           selectedRange = quoteResult.ranges.biWeekly;
-                        } else if (frequency === 'four-week') {
+                        } else if (!selectedRange && frequency === 'four-week') {
                           selectedServiceName = 'Every 4 Weeks Cleaning';
                           selectedRange = quoteResult.ranges.fourWeek;
-                        } 
-                        // Then check for one-time services (only if no frequency)
-                        else if (!frequency) {
-                          if (serviceType === 'general') {
+                        }
+                        // One-time general or initial (no recurring frequency)
+                        if (!selectedRange) {
+                          if (serviceType === 'general' || serviceType === 'initial') {
                             selectedServiceName = 'General Clean';
                             selectedRange = quoteResult.ranges.general;
                           } else if (serviceType === 'deep') {
@@ -573,14 +574,9 @@ export default function QuotePage() {
                             selectedServiceName = 'Move In/Move Out Deep clean';
                             selectedRange = quoteResult.ranges.moveInOutFull;
                           } else {
-                            // Default to general if nothing matches
                             selectedServiceName = 'General Clean';
                             selectedRange = quoteResult.ranges.general;
                           }
-                        } else {
-                          // Has frequency but not recognized - default to general
-                          selectedServiceName = 'General Clean';
-                          selectedRange = quoteResult.ranges.general;
                         }
 
                         return (
@@ -662,8 +658,8 @@ export default function QuotePage() {
                               </motion.div>
                             )}
 
-                            {/* ALWAYS show Bi-Weekly suggestion if not already selected */}
-                            {frequency !== 'bi-weekly' && quoteResult.ranges?.biWeekly && (
+                            {/* Show Bi-Weekly as most popular only when user selected a recurring service (not one-time) */}
+                            {isRecurringService && frequency !== 'bi-weekly' && quoteResult.ranges?.biWeekly && (
                               <motion.div
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
