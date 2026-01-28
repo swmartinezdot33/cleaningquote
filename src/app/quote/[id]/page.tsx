@@ -530,8 +530,30 @@ export default function QuotePage() {
                         const hasRecurringFrequency = ['weekly', 'bi-weekly', 'four-week'].includes(frequency);
                         const isRecurringService = hasRecurringFrequency;
                         
-                        const getServiceLabel = (value: string) => quoteResult.serviceTypeOptions?.find(o => o.value === value || o.value.toLowerCase() === value)?.label;
-                        const getFreqLabel = (value: string) => quoteResult.frequencyOptions?.find(o => o.value === value || o.value.toLowerCase() === value || (value === 'biweekly' && o.value === 'bi-weekly'))?.label;
+                        // Human-friendly fallbacks when Survey Builder label isn't found (never show raw keys like "four-week" or "general")
+                        const serviceLabelFallback: Record<string, string> = {
+                          'initial': 'Initial Deep Cleaning',
+                          'general': 'General Clean',
+                          'deep': 'Deep Clean',
+                          'move-in': 'Move In Clean',
+                          'move-out': 'Move Out Clean',
+                        };
+                        const freqLabelFallback: Record<string, string> = {
+                          'weekly': 'Weekly',
+                          'bi-weekly': 'Bi-Weekly (Every 2 Weeks)',
+                          'biweekly': 'Bi-Weekly (Every 2 Weeks)',
+                          'four-week': 'Every 4 Weeks',
+                          'monthly': 'Every 4 Weeks',
+                          'every-4-weeks': 'Every 4 Weeks',
+                        };
+                        const getServiceLabel = (value: string) =>
+                          quoteResult.serviceTypeOptions?.find(o => o.value === value || o.value.toLowerCase() === value)?.label
+                          ?? serviceLabelFallback[value?.toLowerCase()]
+                          ?? (value ? value.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : value);
+                        const getFreqLabel = (value: string) =>
+                          quoteResult.frequencyOptions?.find(o => o.value === value || o.value.toLowerCase() === value || (value === 'biweekly' && o.value === 'bi-weekly'))?.label
+                          ?? freqLabelFallback[value?.toLowerCase()]
+                          ?? (value ? value.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : value);
                         
                         let selectedRange: { low: number; high: number } | null = null;
                         if (serviceType === 'move-in') selectedRange = quoteResult.ranges.moveInOutBasic;
@@ -543,8 +565,8 @@ export default function QuotePage() {
                         else selectedRange = quoteResult.ranges.general;
                         
                         const selectedServiceName = isRecurringService
-                          ? (quoteResult.frequencyLabel || getFreqLabel(frequency) || frequency)
-                          : (quoteResult.serviceTypeLabel || getServiceLabel(serviceType) || serviceType);
+                          ? (quoteResult.frequencyLabel || getFreqLabel(frequency))
+                          : (quoteResult.serviceTypeLabel || getServiceLabel(serviceType));
                         const isOneTimeService = ['move-in', 'move-out', 'deep'].includes(serviceType);
 
                         return (
@@ -591,7 +613,7 @@ export default function QuotePage() {
                                   </div>
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="font-semibold text-gray-900">{getServiceLabel('initial') ?? 'Initial'}:</span>
+                                      <span className="font-semibold text-gray-900">{getServiceLabel('initial')}:</span>
                                       <span className="text-gray-700">${quoteResult.ranges.initial.low} to ${quoteResult.ranges.initial.high}</span>
                                     </div>
                                     <p className="text-xs text-orange-800 font-medium mt-1">📌 Required before your recurring service begins</p>
@@ -617,7 +639,7 @@ export default function QuotePage() {
                                   </div>
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="font-semibold text-gray-900">{getServiceLabel('general') ?? 'General'}:</span>
+                                      <span className="font-semibold text-gray-900">{getServiceLabel('general')}:</span>
                                       <span className="text-gray-700">${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}</span>
                                     </div>
                                     <p className="text-xs text-blue-800 font-medium mt-1">💡 Recommended for best results before your recurring service</p>
@@ -642,7 +664,7 @@ export default function QuotePage() {
                                   </div>
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="font-semibold text-gray-900">{getFreqLabel('bi-weekly') ?? getFreqLabel('biweekly') ?? 'bi-weekly'}:</span>
+                                      <span className="font-semibold text-gray-900">{getFreqLabel('bi-weekly')}:</span>
                                       <span className="text-gray-700">${quoteResult.ranges.biWeekly.low} to ${quoteResult.ranges.biWeekly.high}</span>
                                     </div>
                                     <p className="text-xs text-yellow-800 font-medium mt-1">⭐ Most Popular</p>
@@ -666,7 +688,7 @@ export default function QuotePage() {
                                   <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
                                     <span className="text-sm text-gray-400">✨</span>
                                     <div className="flex-1">
-                                      <span className="font-semibold text-gray-900">{getServiceLabel('general') ?? 'general'}:</span>{' '}
+                                      <span className="font-semibold text-gray-900">{getServiceLabel('general')}:</span>{' '}
                                       <span className="text-gray-700">${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}</span>
                                     </div>
                                   </div>
@@ -675,7 +697,7 @@ export default function QuotePage() {
                                   <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
                                     <span className="text-sm text-gray-400">🧹</span>
                                     <div className="flex-1">
-                                      <span className="font-semibold text-gray-900">{getServiceLabel('deep') ?? 'deep'}:</span>{' '}
+                                      <span className="font-semibold text-gray-900">{getServiceLabel('deep')}:</span>{' '}
                                       <span className="text-gray-700">${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}</span>
                                     </div>
                                   </div>
@@ -684,7 +706,7 @@ export default function QuotePage() {
                                   <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
                                     <span className="text-sm text-gray-400">🚚</span>
                                     <div className="flex-1">
-                                      <span className="font-semibold text-gray-900">{getServiceLabel('move-in') ?? 'move-in'}:</span>{' '}
+                                      <span className="font-semibold text-gray-900">{getServiceLabel('move-in')}:</span>{' '}
                                       <span className="text-gray-700">${quoteResult.ranges.moveInOutBasic.low} to ${quoteResult.ranges.moveInOutBasic.high}</span>
                                     </div>
                                   </div>
@@ -693,7 +715,7 @@ export default function QuotePage() {
                                   <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
                                     <span className="text-sm text-gray-400">🚚</span>
                                     <div className="flex-1">
-                                      <span className="font-semibold text-gray-900">{getServiceLabel('move-out') ?? 'move-out'}:</span>{' '}
+                                      <span className="font-semibold text-gray-900">{getServiceLabel('move-out')}:</span>{' '}
                                       <span className="text-gray-700">${quoteResult.ranges.moveInOutFull.low} to ${quoteResult.ranges.moveInOutFull.high}</span>
                                     </div>
                                   </div>
@@ -704,26 +726,17 @@ export default function QuotePage() {
                                       <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
                                         <span className="text-sm text-gray-400">📅</span>
                                         <div className="flex-1">
-                                          <span className="font-semibold text-gray-900">{getFreqLabel('weekly') ?? 'weekly'}:</span>{' '}
+                                          <span className="font-semibold text-gray-900">{getFreqLabel('weekly')}:</span>{' '}
                                           <span className="text-gray-700">${quoteResult.ranges.weekly.low} to ${quoteResult.ranges.weekly.high}</span>
                                         </div>
                                       </div>
                                     )}
-                                    {frequency !== 'bi-weekly' && (
-                                      <div className="bg-yellow-50 border-2 border-yellow-300 px-4 py-3 rounded-lg flex items-center gap-3">
-                                        <span className="text-sm">⭐</span>
-                                        <div className="flex-1">
-                                          <span className="font-semibold text-gray-900">{getFreqLabel('bi-weekly') ?? getFreqLabel('biweekly') ?? 'bi-weekly'}:</span>{' '}
-                                          <span className="text-gray-700">${quoteResult.ranges.biWeekly.low} to ${quoteResult.ranges.biWeekly.high}</span>
-                                          <span className="text-xs text-yellow-800 font-medium ml-1">(Most Popular)</span>
-                                        </div>
-                                      </div>
-                                    )}
+                                    {/* Bi-Weekly omitted here — already shown as "Most Popular" at top */}
                                     {frequency !== 'four-week' && (
                                       <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
                                         <span className="text-sm text-gray-400">📅</span>
                                         <div className="flex-1">
-                                          <span className="font-semibold text-gray-900">{getFreqLabel('four-week') ?? getFreqLabel('monthly') ?? 'four-week'}:</span>{' '}
+                                          <span className="font-semibold text-gray-900">{getFreqLabel('four-week')}:</span>{' '}
                                           <span className="text-gray-700">${quoteResult.ranges.fourWeek.low} to ${quoteResult.ranges.fourWeek.high}</span>
                                         </div>
                                       </div>
