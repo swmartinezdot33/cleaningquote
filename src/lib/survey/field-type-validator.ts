@@ -19,6 +19,8 @@ interface GHLFieldInfo {
 interface FieldTypeValidation {
   valid: boolean;
   error?: string;
+  /** Shown when field not found in GHL; save is still allowed so you can create the field later */
+  warning?: string;
   ghlFieldType?: string;
   compatibleSurveyTypes?: string[];
 }
@@ -143,8 +145,8 @@ export async function validateFieldTypeCompatibility(
     
     if (!ghlFieldInfo) {
       return {
-        valid: false,
-        error: `GHL field "${ghlFieldMapping}" not found. Please check that the field exists in GHL.`,
+        valid: true,
+        warning: `GHL field "${ghlFieldMapping}" not found. You can still save; create this field in GHL (Settings → Custom Fields → Contact) or update the mapping later. Data won't sync for this field until it exists in GHL.`,
       };
     }
 

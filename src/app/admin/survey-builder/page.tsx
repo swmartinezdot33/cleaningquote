@@ -40,7 +40,7 @@ export default function SurveyBuilderPage() {
   const [isLoadingFields, setIsLoadingFields] = useState(false);
   const [ghlFieldSearchTerm, setGhlFieldSearchTerm] = useState('');
   const [ghlFieldDropdownOpen, setGhlFieldDropdownOpen] = useState(false);
-  const [fieldTypeValidation, setFieldTypeValidation] = useState<{ valid: boolean; error?: string; ghlFieldType?: string; compatibleSurveyTypes?: string[] } | null>(null);
+  const [fieldTypeValidation, setFieldTypeValidation] = useState<{ valid: boolean; error?: string; warning?: string; ghlFieldType?: string; compatibleSurveyTypes?: string[] } | null>(null);
   const [compatibleTypes, setCompatibleTypes] = useState<string[]>(['text', 'email', 'tel', 'number', 'select', 'address']);
   
   // Schema validation states
@@ -864,14 +864,23 @@ export default function SurveyBuilderPage() {
                     {editingQuestion.ghlFieldMapping && (
                       <div className="mt-2 space-y-2">
                         {fieldTypeValidation?.valid ? (
-                          <div className="p-2 bg-green-50 border border-green-200 rounded-lg">
-                            <p className="text-xs text-green-700 font-medium">
-                              ✓ Field type is compatible
-                            </p>
-                            <p className="text-xs text-green-600 mt-1">
-                              GHL field type: <strong>{fieldTypeValidation.ghlFieldType}</strong>
-                            </p>
-                          </div>
+                          <>
+                            <div className="p-2 bg-green-50 border border-green-200 rounded-lg">
+                              <p className="text-xs text-green-700 font-medium">
+                                ✓ You can save this question
+                              </p>
+                              {fieldTypeValidation.ghlFieldType && (
+                                <p className="text-xs text-green-600 mt-1">
+                                  GHL field type: <strong>{fieldTypeValidation.ghlFieldType}</strong>
+                                </p>
+                              )}
+                            </div>
+                            {fieldTypeValidation.warning && (
+                              <div className="p-2 bg-amber-50 border border-amber-300 rounded-lg">
+                                <p className="text-xs text-amber-800 font-medium">⚠️ {fieldTypeValidation.warning}</p>
+                              </div>
+                            )}
+                          </>
                         ) : fieldTypeValidation?.error ? (
                           <div className="p-2 bg-red-50 border border-red-200 rounded-lg">
                             <p className="text-xs text-red-700 font-medium">

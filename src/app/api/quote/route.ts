@@ -4,7 +4,7 @@ import { generateSummaryText, generateSmsText } from '@/lib/pricing/format';
 import { QuoteInputs, QuoteRanges } from '@/lib/pricing/types';
 import { createOrUpdateContact, updateContact, createOpportunity, createNote, createCustomObject } from '@/lib/ghl/client';
 import { ghlTokenExists, getGHLConfig, getKV } from '@/lib/kv';
-import { getSurveyQuestions } from '@/lib/survey/manager';
+import { getSurveyQuestions, getSurveyDisplayLabels } from '@/lib/survey/manager';
 import { SurveyQuestion } from '@/lib/survey/schema';
 import { sanitizeCustomFields } from '@/lib/ghl/field-normalizer';
 import { parseAddress } from '@/lib/utils/parseAddress';
@@ -178,8 +178,13 @@ export async function POST(request: NextRequest) {
       : typeof body.squareFeet === 'string' && body.squareFeet.toLowerCase().includes('less than')
       ? body.squareFeet
       : undefined;
-    const summaryText = generateSummaryText({ ...result, ranges: result.ranges }, body.serviceType, body.frequency, squareFeetRange);
-    const smsText = generateSmsText({ ...result, ranges: result.ranges });
+    let summaryLabels: { serviceTypeLabels: Record<string, string>; frequencyLabels: Record<string, string> } | undefined;
+    try {
+      const surveyQuestions = await getSurveyQuestions();
+      summaryLabels = getSurveyDisplayLabels(surveyQuestions);
+    } catch (_) { /* use built-in labels */ }
+    const summaryText = generateSummaryText({ ...result, ranges: result.ranges }, body.serviceType, body.frequency, squareFeetRange, summaryLabels);
+    const smsText = generateSmsText({ ...result, ranges: result.ranges }, summaryLabels);
 
     // Generate readable quoteId early for tracking/redirect purposes
     // Format: QT-YYMMDD-XXXXX (e.g., QT-260124-A9F2X)
@@ -1087,6 +1092,26 @@ export async function POST(request: NextRequest) {
         }
     }
 
+    // Labels from stored survey (single source of truth) so UI changes in Survey Builder are reflected
+    let serviceTypeLabel = '';
+    let frequencyLabel = '';
+    let serviceTypeOptions: Array<{ value: string; label: string }> = [];
+    let frequencyOptions: Array<{ value: string; label: string }> = [];
+    try {
+      const surveyQuestions = await getSurveyQuestions();
+      const { serviceTypeLabels, frequencyLabels } = getSurveyDisplayLabels(surveyQuestions);
+      const st = String(body.serviceType || '').trim().toLowerCase();
+      const freq = ['move-in', 'move-out', 'deep'].includes(st) ? '' : String(body.frequency ?? '').trim().toLowerCase();
+      serviceTypeLabel = serviceTypeLabels[body.serviceType || ''] || serviceTypeLabels[st] || body.serviceType || '';
+      frequencyLabel = freq ? (frequencyLabels[body.frequency || ''] || frequencyLabels[freq] || frequencyLabels[freq === 'biweekly' ? 'bi-weekly' : freq] || body.frequency || '') : '';
+      const serviceTypeQ = surveyQuestions.find(q => q.id === 'serviceType');
+      const frequencyQ = surveyQuestions.find(q => q.id === 'frequency');
+      if (serviceTypeQ?.options) serviceTypeOptions = serviceTypeQ.options.filter(o => o.value?.trim()).map(o => ({ value: o.value!.trim(), label: o.label || o.value! }));
+      if (frequencyQ?.options) frequencyOptions = frequencyQ.options.filter(o => o.value?.trim()).map(o => ({ value: o.value!.trim(), label: o.label || o.value! }));
+    } catch (e) {
+      console.warn('Could not load survey labels for quote response:', e);
+    }
+
     return NextResponse.json({
       outOfLimits: false,
       multiplier: result.multiplier,
@@ -1097,11 +1122,13 @@ export async function POST(request: NextRequest) {
       summaryText,
       smsText,
       ghlContactId,
-      serviceType: body.serviceType, // Echo back the service type for verification
-      // For one-time services (move-in, move-out, deep), echo empty frequency so quote summary shows correct selection
+      serviceType: body.serviceType,
       frequency: ['move-in', 'move-out', 'deep'].includes(String(body.serviceType || '').toLowerCase()) ? '' : (body.frequency ?? ''),
-      quoteId: generatedQuoteId, // Always use generated UUID for frontend redirect (stored in KV with this ID)
-      // Also include GHL object ID if available (for reference/debugging)
+      serviceTypeLabel,
+      frequencyLabel,
+      serviceTypeOptions,
+      frequencyOptions,
+      quoteId: generatedQuoteId,
       ...(quoteId !== generatedQuoteId && { ghlObjectId: quoteId }),
     });
   } catch (error) {

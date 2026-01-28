@@ -4,6 +4,32 @@ import { calcQuote } from '@/lib/pricing/calcQuote';
 import { generateSummaryText, generateSmsText } from '@/lib/pricing/format';
 import { QuoteInputs } from '@/lib/pricing/types';
 import { getKV } from '@/lib/kv';
+import { getSurveyQuestions, getSurveyDisplayLabels } from '@/lib/survey/manager';
+
+async function getQuoteLabelsFromSurvey(serviceType: string, frequency: string): Promise<{
+  serviceTypeLabel: string;
+  frequencyLabel: string;
+  serviceTypeOptions: Array<{ value: string; label: string }>;
+  frequencyOptions: Array<{ value: string; label: string }>;
+  serviceTypeLabels: Record<string, string>;
+  frequencyLabels: Record<string, string>;
+}> {
+  try {
+    const questions = await getSurveyQuestions();
+    const { serviceTypeLabels, frequencyLabels } = getSurveyDisplayLabels(questions);
+    const st = (serviceType || '').trim().toLowerCase();
+    const freq = (frequency || '').trim().toLowerCase();
+    const serviceTypeLabel = serviceTypeLabels[serviceType] || serviceTypeLabels[st] || '';
+    const frequencyLabel = frequencyLabels[frequency] || frequencyLabels[freq] || frequencyLabels[freq === 'biweekly' ? 'bi-weekly' : freq] || '';
+    const serviceTypeQ = questions.find(q => q.id === 'serviceType');
+    const frequencyQ = questions.find(q => q.id === 'frequency');
+    const serviceTypeOptions = serviceTypeQ?.options?.filter(o => o.value?.trim()).map(o => ({ value: o.value!.trim(), label: o.label || o.value! })) ?? [];
+    const frequencyOptions = frequencyQ?.options?.filter(o => o.value?.trim()).map(o => ({ value: o.value!.trim(), label: o.label || o.value! })) ?? [];
+    return { serviceTypeLabel, frequencyLabel, serviceTypeOptions, frequencyOptions, serviceTypeLabels, frequencyLabels };
+  } catch {
+    return { serviceTypeLabel: '', frequencyLabel: '', serviceTypeOptions: [], frequencyOptions: [], serviceTypeLabels: {}, frequencyLabels: {} };
+  }
+}
 
 /**
  * GET /api/quote/[id]
@@ -37,6 +63,7 @@ export async function GET(
           const oneTimeTypes = ['move-in', 'move-out', 'deep'];
           const st = String(parsed.serviceType || '').toLowerCase().trim();
           const normFreq = oneTimeTypes.includes(st) ? '' : (parsed.frequency ?? '');
+          const labels = await getQuoteLabelsFromSurvey(parsed.serviceType, normFreq);
           console.log('✅ Serving quote from KV (QT-* id, skipping GHL):', quoteId);
           return NextResponse.json({
             ...parsed,
@@ -44,6 +71,7 @@ export async function GET(
             ghlContactId: ghlContactId || parsed.ghlContactId,
             serviceType: parsed.serviceType,
             frequency: normFreq,
+            ...labels,
           });
         }
       } catch (e) {
@@ -209,6 +237,7 @@ export async function GET(
       const oneTimeTypes = ['move-in', 'move-out', 'deep'];
       const st = String(quoteDataFromKV.serviceType || '').toLowerCase().trim();
       const normFreq = oneTimeTypes.includes(st) ? '' : (quoteDataFromKV.frequency ?? '');
+      const labels = await getQuoteLabelsFromSurvey(quoteDataFromKV.serviceType, normFreq);
       console.log('Using quote data from KV storage (GHL fetch failed)');
       return NextResponse.json({
         ...quoteDataFromKV,
@@ -216,6 +245,7 @@ export async function GET(
         ghlContactId: ghlContactId || quoteDataFromKV.ghlContactId,
         serviceType: quoteDataFromKV.serviceType,
         frequency: normFreq,
+        ...labels,
       });
     }
 
@@ -338,14 +368,16 @@ export async function GET(
       });
     }
 
-    // Generate summary text
+    const labels = await getQuoteLabelsFromSurvey(serviceType, frequency);
+    const summaryLabels = { serviceTypeLabels: labels.serviceTypeLabels, frequencyLabels: labels.frequencyLabels };
     const summaryText = generateSummaryText(
       { ...quoteResult, ranges: quoteResult.ranges },
       serviceType,
       frequency,
-      customFields.square_footage // Pass original square footage string if it was a range
+      customFields.square_footage,
+      summaryLabels
     );
-    const smsText = generateSmsText({ ...quoteResult, ranges: quoteResult.ranges });
+    const smsText = generateSmsText({ ...quoteResult, ranges: quoteResult.ranges }, summaryLabels);
 
     // Return inputs with actual values from GHL (not recalculated ones) to preserve original form data
     const actualInputs: QuoteInputs = {
@@ -360,7 +392,6 @@ export async function GET(
       hasPreviousService: hasPreviousService ?? quoteResult.inputs?.hasPreviousService,
       cleanedWithin3Months: cleanedWithin3Months ?? quoteResult.inputs?.cleanedWithin3Months,
     };
-    
     return NextResponse.json({
       outOfLimits: false,
       multiplier: quoteResult.multiplier,
@@ -375,6 +406,7 @@ export async function GET(
       contactData,
       serviceType: serviceType,
       frequency: frequency,
+      ...labels,
     });
   } catch (error) {
     console.error('Error fetching quote:', error);

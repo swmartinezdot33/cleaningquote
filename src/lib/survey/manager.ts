@@ -335,3 +335,40 @@ export async function getQuestion(id: string): Promise<SurveyQuestion | null> {
     throw error;
   }
 }
+
+/**
+ * Get display labels for serviceType and frequency from stored survey (single source of truth).
+ * Used by quote API and quote summary so all labels come from Survey Builder, not hardcoded.
+ */
+export function getSurveyDisplayLabels(questions: SurveyQuestion[]): {
+  serviceTypeLabels: Record<string, string>;
+  frequencyLabels: Record<string, string>;
+} {
+  const serviceTypeLabels: Record<string, string> = {};
+  const frequencyLabels: Record<string, string> = {};
+  const serviceTypeQuestion = questions.find(q => q.id === 'serviceType');
+  const frequencyQuestion = questions.find(q => q.id === 'frequency');
+  if (serviceTypeQuestion?.options) {
+    for (const opt of serviceTypeQuestion.options) {
+      if (opt.value?.trim()) {
+        const v = opt.value.trim();
+        serviceTypeLabels[v] = opt.label || opt.value;
+        serviceTypeLabels[v.toLowerCase()] = opt.label || opt.value;
+      }
+    }
+  }
+  if (frequencyQuestion?.options) {
+    for (const opt of frequencyQuestion.options) {
+      if (opt.value?.trim()) {
+        const v = opt.value.trim();
+        frequencyLabels[v] = opt.label || opt.value;
+        frequencyLabels[v.toLowerCase()] = opt.label || opt.value;
+        if (v.toLowerCase() === 'bi-weekly') frequencyLabels['biweekly'] = opt.label || opt.value;
+        if (v.toLowerCase() === 'four-week' || v.toLowerCase() === 'monthly') {
+          frequencyLabels['four-week'] = frequencyLabels['monthly'] = opt.label || opt.value;
+        }
+      }
+    }
+  }
+  return { serviceTypeLabels, frequencyLabels };
+}

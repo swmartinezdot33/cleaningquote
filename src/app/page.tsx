@@ -219,6 +219,11 @@ interface QuoteResponse {
   summaryText?: string;
   smsText?: string;
   ghlContactId?: string;
+  /** Labels from Survey Builder — use for all display names */
+  serviceTypeLabel?: string;
+  frequencyLabel?: string;
+  serviceTypeOptions?: Array<{ value: string; label: string }>;
+  frequencyOptions?: Array<{ value: string; label: string }>;
 }
 
 // Default questions (fallback if none are configured)
@@ -1791,41 +1796,22 @@ export default function Home() {
 
                         {/* Display quote based on user selection */}
                         {quoteResult.ranges && (() => {
-                          // Helper function to get frequency display info
+                          const getServiceLabel = (value: string) => quoteResult.serviceTypeOptions?.find(o => o.value === value || o.value.toLowerCase() === value)?.label ?? value;
+                          const getFreqLabel = (value: string) => quoteResult.frequencyOptions?.find(o => o.value === value || o.value.toLowerCase() === value || (value === 'biweekly' && o.value === 'bi-weekly'))?.label ?? value;
                           const getFrequencyInfo = (freq: string) => {
-                            if (freq === 'weekly') {
-                              return { name: 'Weekly Cleaning', range: quoteResult.ranges!.weekly, icon: '📅' };
-                            } else if (freq === 'bi-weekly') {
-                              return { name: 'Bi-Weekly Cleaning', range: quoteResult.ranges!.biWeekly, icon: '📅' };
-                            } else if (freq === 'monthly' || freq === 'four-week' || freq === 'every-4-weeks') {
-                              return { name: 'Every 4 Weeks Cleaning', range: quoteResult.ranges!.fourWeek, icon: '📅' };
-                            }
+                            if (freq === 'weekly') return { name: getFreqLabel('weekly'), range: quoteResult.ranges!.weekly, icon: '📅' };
+                            if (freq === 'bi-weekly') return { name: getFreqLabel('bi-weekly') ?? getFreqLabel('biweekly'), range: quoteResult.ranges!.biWeekly, icon: '📅' };
+                            if (freq === 'monthly' || freq === 'four-week' || freq === 'every-4-weeks') return { name: getFreqLabel('four-week') ?? getFreqLabel('monthly') ?? 'four-week', range: quoteResult.ranges!.fourWeek, icon: '📅' };
                             return null;
                           };
-                          
-                          // Get service type info for one-time services
-                          // Check if service type indicates one-time (move-in, move-out, deep)
-                          const isOneTimeService = (serviceType: string) => {
-                            return ['move-in', 'move-out', 'deep'].includes(serviceType);
-                          };
-                          
+                          const isOneTimeService = (serviceType: string) => ['move-in', 'move-out', 'deep'].includes(serviceType);
                           const getServiceTypeInfo = (serviceType: string, freq: string) => {
-                            // If frequency is one-time OR service type is a one-time service type, treat as one-time
                             if (freq === 'one-time' || isOneTimeService(serviceType)) {
-                              if (serviceType === 'move-in') {
-                                return { name: 'Move In/Move Out Basic Clean', range: quoteResult.ranges!.moveInOutBasic, icon: '🚚' };
-                              } else if (serviceType === 'move-out') {
-                                return { name: 'Move In/Move Out Deep Clean', range: quoteResult.ranges!.moveInOutFull, icon: '🚚' };
-                              } else if (serviceType === 'deep') {
-                                return { name: 'Deep Clean', range: quoteResult.ranges!.deep, icon: '🧹' };
-                              }
-                            } else if (serviceType === 'initial') {
-                              // Initial cleaning for recurring service
-                              return { name: 'Initial Deep Cleaning', range: quoteResult.ranges!.initial, icon: '✨' };
-                            } else if (serviceType === 'general') {
-                              // General cleaning for recurring service
-                              return { name: 'Initial General Clean', range: quoteResult.ranges!.general, icon: '✨' };
-                            }
+                              if (serviceType === 'move-in') return { name: getServiceLabel('move-in'), range: quoteResult.ranges!.moveInOutBasic, icon: '🚚' };
+                              if (serviceType === 'move-out') return { name: getServiceLabel('move-out'), range: quoteResult.ranges!.moveInOutFull, icon: '🚚' };
+                              if (serviceType === 'deep') return { name: getServiceLabel('deep'), range: quoteResult.ranges!.deep, icon: '🧹' };
+                            } else if (serviceType === 'initial') return { name: getServiceLabel('initial'), range: quoteResult.ranges!.initial, icon: '✨' };
+                            else if (serviceType === 'general') return { name: getServiceLabel('general'), range: quoteResult.ranges!.general, icon: '✨' };
                             return null;
                           };
 
@@ -1915,7 +1901,7 @@ export default function Home() {
                                       <div className="flex items-center gap-3">
                                         <span className="text-2xl">🧹</span>
                                         <span className="font-black text-xl md:text-2xl bg-gradient-to-r from-blue-700 via-cyan-600 to-blue-700 bg-clip-text text-transparent tracking-wide">
-                                          Deep Clean: ${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}
+                                          {getServiceLabel('deep')}: ${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}
                                         </span>
                                       </div>
                                     </div>
@@ -1927,7 +1913,7 @@ export default function Home() {
                                       <div className="flex items-center gap-3">
                                         <span className="text-2xl">✨</span>
                                         <span className="font-black text-xl md:text-2xl bg-gradient-to-r from-blue-700 via-cyan-600 to-blue-700 bg-clip-text text-transparent tracking-wide">
-                                          General Clean: ${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}
+                                          {getServiceLabel('general')}: ${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}
                                         </span>
                                       </div>
                                     </div>
@@ -1950,7 +1936,7 @@ export default function Home() {
                                         <div className="flex items-center gap-3">
                                           <span className="text-xl">📅</span>
                                           <span className="font-bold text-lg text-gray-700">
-                                            Weekly Cleaning: ${quoteResult.ranges.weekly.low} to ${quoteResult.ranges.weekly.high}
+                                            {getFreqLabel('weekly')}: ${quoteResult.ranges.weekly.low} to ${quoteResult.ranges.weekly.high}
                                           </span>
                                         </div>
                                       </div>
@@ -1960,7 +1946,7 @@ export default function Home() {
                                         <div className="flex items-center gap-3">
                                           <span className="text-xl">{selectedFrequency === 'four-week' ? '⭐' : '📅'}</span>
                                           <span className={`font-bold text-lg ${selectedFrequency === 'four-week' ? 'text-yellow-800' : 'text-gray-700'}`}>
-                                            Bi-Weekly Cleaning: ${quoteResult.ranges.biWeekly.low} to ${quoteResult.ranges.biWeekly.high} {selectedFrequency === 'four-week' ? '(Most Popular)' : ''}
+                                            {getFreqLabel('bi-weekly') ?? getFreqLabel('biweekly')}: ${quoteResult.ranges.biWeekly.low} to ${quoteResult.ranges.biWeekly.high} {selectedFrequency === 'four-week' ? '(Most Popular)' : ''}
                                           </span>
                                         </div>
                                       </div>
@@ -1970,7 +1956,7 @@ export default function Home() {
                                         <div className="flex items-center gap-3">
                                           <span className="text-xl">📅</span>
                                           <span className="font-bold text-lg text-gray-700">
-                                            Every 4 Weeks Cleaning: ${quoteResult.ranges.fourWeek.low} to ${quoteResult.ranges.fourWeek.high}
+                                            {getFreqLabel('four-week') ?? getFreqLabel('monthly')}: ${quoteResult.ranges.fourWeek.low} to ${quoteResult.ranges.fourWeek.high}
                                           </span>
                                         </div>
                                       </div>
@@ -1990,7 +1976,7 @@ export default function Home() {
                                         <div className="flex items-center gap-3">
                                           <span className="text-xl">🧹</span>
                                           <span className="font-bold text-lg text-blue-700">
-                                            Deep Clean: ${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}
+                                            {getServiceLabel('deep')}: ${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}
                                           </span>
                                         </div>
                                       </div>
@@ -2000,7 +1986,7 @@ export default function Home() {
                                         <div className="flex items-center gap-3">
                                           <span className="text-xl">✨</span>
                                           <span className="font-bold text-lg text-blue-700">
-                                            General Clean: ${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}
+                                            {getServiceLabel('general')}: ${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}
                                           </span>
                                         </div>
                                       </div>
@@ -2024,7 +2010,7 @@ export default function Home() {
                                       <div>
                                         <div className="text-xs font-semibold text-yellow-700 mb-1">RECURRING OPTION</div>
                                         <span className="font-bold text-lg text-yellow-800">
-                                          Bi-Weekly Cleaning: ${quoteResult.ranges.biWeekly.low} to ${quoteResult.ranges.biWeekly.high} (Most Popular)
+                                          {getFreqLabel('bi-weekly') ?? getFreqLabel('biweekly')}: ${quoteResult.ranges.biWeekly.low} to ${quoteResult.ranges.biWeekly.high} (Most Popular)
                                         </span>
                                       </div>
                                     </div>
@@ -2042,7 +2028,7 @@ export default function Home() {
                                         <div className="flex items-center gap-3">
                                           <span className="text-xl">🧹</span>
                                           <span className="font-bold text-lg text-gray-700">
-                                            Deep Clean: ${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}
+                                            {getServiceLabel('deep')}: ${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}
                                           </span>
                                         </div>
                                       </div>
@@ -2052,7 +2038,7 @@ export default function Home() {
                                         <div className="flex items-center gap-3">
                                           <span className="text-xl">✨</span>
                                           <span className="font-bold text-lg text-gray-700">
-                                            General Clean: ${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}
+                                            {getServiceLabel('general')}: ${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}
                                           </span>
                                         </div>
                                       </div>
@@ -2063,7 +2049,7 @@ export default function Home() {
                                           <div className="flex items-center gap-3">
                                             <span className="text-xl">🚚</span>
                                             <span className="font-bold text-lg text-gray-700">
-                                              Move In/Move Out Basic Clean: ${quoteResult.ranges.moveInOutBasic.low} to ${quoteResult.ranges.moveInOutBasic.high}
+                                              {getServiceLabel('move-in')}: ${quoteResult.ranges.moveInOutBasic.low} to ${quoteResult.ranges.moveInOutBasic.high}
                                             </span>
                                           </div>
                                         </div>
@@ -2071,7 +2057,7 @@ export default function Home() {
                                           <div className="flex items-center gap-3">
                                             <span className="text-xl">🚚</span>
                                             <span className="font-bold text-lg text-gray-700">
-                                              Move In/Move Out Deep Clean: ${quoteResult.ranges.moveInOutFull.low} to ${quoteResult.ranges.moveInOutFull.high}
+                                              {getServiceLabel('move-out')}: ${quoteResult.ranges.moveInOutFull.low} to ${quoteResult.ranges.moveInOutFull.high}
                                             </span>
                                           </div>
                                         </div>
@@ -2935,7 +2921,7 @@ export default function Home() {
                           ];
                         }
                         
-                        // Use custom options from question
+                        // Use custom options from question — labels always from stored survey (Survey Builder); no hardcoding
                         return (currentQuestion.options || [])
                           .filter(option => option.value && option.value.trim() !== '')
                           .map(option => ({

@@ -48,6 +48,11 @@ interface QuoteResponse {
   };
   serviceType?: string;
   frequency?: string;
+  /** Labels from stored survey (Survey Builder) — single source of truth */
+  serviceTypeLabel?: string;
+  frequencyLabel?: string;
+  serviceTypeOptions?: Array<{ value: string; label: string }>;
+  frequencyOptions?: Array<{ value: string; label: string }>;
 }
 
 // Helper function to convert hex to rgba
@@ -502,12 +507,11 @@ export default function QuotePage() {
                         </motion.div>
                       )}
 
-                      {/* YOUR SELECTED SERVICE - Always show what the user selected, then other options below */}
+                      {/* YOUR SELECTED SERVICE - Labels from API (stored survey); no hardcoding */}
                       {quoteResult.ranges && (() => {
                         const rawServiceType = (quoteResult.serviceType || '').toLowerCase().trim().replace(/\s+/g, ' ');
                         let frequency = (quoteResult.frequency || '').toLowerCase().trim();
                         
-                        // Normalize serviceType: handle move_in, move-in, move in, moveout, move out, etc.
                         let serviceType = rawServiceType;
                         if (serviceType.includes('move') && (serviceType.includes('out') || serviceType === 'move_out' || serviceType === 'moveout')) {
                           serviceType = 'move-out';
@@ -526,37 +530,22 @@ export default function QuotePage() {
                         const hasRecurringFrequency = ['weekly', 'bi-weekly', 'four-week'].includes(frequency);
                         const isRecurringService = hasRecurringFrequency;
                         
-                        // STEP 1: Determine ONLY what the user selected — one source of truth from serviceType + frequency
-                        let selectedServiceName = '';
-                        let selectedRange: { low: number; high: number } | null = null;
+                        const getServiceLabel = (value: string) => quoteResult.serviceTypeOptions?.find(o => o.value === value || o.value.toLowerCase() === value)?.label;
+                        const getFreqLabel = (value: string) => quoteResult.frequencyOptions?.find(o => o.value === value || o.value.toLowerCase() === value || (value === 'biweekly' && o.value === 'bi-weekly'))?.label;
                         
-                        if (serviceType === 'move-in') {
-                          selectedServiceName = 'Move In/Move Out Basic Clean';
-                          selectedRange = quoteResult.ranges.moveInOutBasic;
-                        } else if (serviceType === 'move-out') {
-                          selectedServiceName = 'Move In/Move Out Deep Clean';
-                          selectedRange = quoteResult.ranges.moveInOutFull;
-                        } else if (serviceType === 'deep') {
-                          selectedServiceName = 'Deep Clean';
-                          selectedRange = quoteResult.ranges.deep;
-                        } else if (frequency === 'weekly') {
-                          selectedServiceName = 'Weekly Cleaning';
-                          selectedRange = quoteResult.ranges.weekly;
-                        } else if (frequency === 'bi-weekly') {
-                          selectedServiceName = 'Bi-Weekly Cleaning';
-                          selectedRange = quoteResult.ranges.biWeekly;
-                        } else if (frequency === 'four-week') {
-                          selectedServiceName = 'Every 4 Weeks Cleaning';
-                          selectedRange = quoteResult.ranges.fourWeek;
-                        } else if (serviceType === 'general' || serviceType === 'initial') {
-                          selectedServiceName = 'General Clean';
-                          selectedRange = quoteResult.ranges.general;
-                        } else {
-                          selectedServiceName = 'General Clean';
-                          selectedRange = quoteResult.ranges.general;
-                        }
-
-                        const isOneTimeService = ['Move In/Move Out Basic Clean', 'Move In/Move Out Deep Clean', 'Deep Clean'].includes(selectedServiceName);
+                        let selectedRange: { low: number; high: number } | null = null;
+                        if (serviceType === 'move-in') selectedRange = quoteResult.ranges.moveInOutBasic;
+                        else if (serviceType === 'move-out') selectedRange = quoteResult.ranges.moveInOutFull;
+                        else if (serviceType === 'deep') selectedRange = quoteResult.ranges.deep;
+                        else if (frequency === 'weekly') selectedRange = quoteResult.ranges.weekly;
+                        else if (frequency === 'bi-weekly') selectedRange = quoteResult.ranges.biWeekly;
+                        else if (frequency === 'four-week') selectedRange = quoteResult.ranges.fourWeek;
+                        else selectedRange = quoteResult.ranges.general;
+                        
+                        const selectedServiceName = isRecurringService
+                          ? (quoteResult.frequencyLabel || getFreqLabel(frequency) || frequency)
+                          : (quoteResult.serviceTypeLabel || getServiceLabel(serviceType) || serviceType);
+                        const isOneTimeService = ['move-in', 'move-out', 'deep'].includes(serviceType);
 
                         return (
                           <>
@@ -602,7 +591,7 @@ export default function QuotePage() {
                                   </div>
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="font-semibold text-gray-900">Initial Deep Cleaning:</span>
+                                      <span className="font-semibold text-gray-900">{getServiceLabel('initial') ?? 'Initial'}:</span>
                                       <span className="text-gray-700">${quoteResult.ranges.initial.low} to ${quoteResult.ranges.initial.high}</span>
                                     </div>
                                     <p className="text-xs text-orange-800 font-medium mt-1">📌 Required before your recurring service begins</p>
@@ -628,7 +617,7 @@ export default function QuotePage() {
                                   </div>
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="font-semibold text-gray-900">Initial General Clean:</span>
+                                      <span className="font-semibold text-gray-900">{getServiceLabel('general') ?? 'General'}:</span>
                                       <span className="text-gray-700">${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}</span>
                                     </div>
                                     <p className="text-xs text-blue-800 font-medium mt-1">💡 Recommended for best results before your recurring service</p>
@@ -637,8 +626,8 @@ export default function QuotePage() {
                               </motion.div>
                             )}
 
-                            {/* Show Bi-Weekly as most popular only when user selected a recurring service (not one-time) */}
-                            {isRecurringService && frequency !== 'bi-weekly' && quoteResult.ranges?.biWeekly && (
+                            {/* Always show Bi-Weekly with star as Most Popular when not selected (one-time and recurring) */}
+                            {frequency !== 'bi-weekly' && quoteResult.ranges?.biWeekly && (
                               <motion.div
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
@@ -647,14 +636,13 @@ export default function QuotePage() {
                               >
                                 <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">⭐ MOST POPULAR RECURRING CHOICE:</p>
                                 
-                                {/* Bi-Weekly as Most Popular - Always show with star if not selected */}
                                 <div className="bg-yellow-50 border-2 border-yellow-300 px-4 py-3 rounded-lg flex items-center gap-3">
                                   <div className="w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center flex-shrink-0">
                                     <span className="text-yellow-900 text-xs font-bold">⭐</span>
                                   </div>
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="font-semibold text-gray-900">Bi-Weekly Cleaning:</span>
+                                      <span className="font-semibold text-gray-900">{getFreqLabel('bi-weekly') ?? getFreqLabel('biweekly') ?? 'bi-weekly'}:</span>
                                       <span className="text-gray-700">${quoteResult.ranges.biWeekly.low} to ${quoteResult.ranges.biWeekly.high}</span>
                                     </div>
                                     <p className="text-xs text-yellow-800 font-medium mt-1">⭐ Most Popular</p>
@@ -673,67 +661,69 @@ export default function QuotePage() {
                               >
                                 <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">OTHER SERVICE OPTIONS:</p>
                                 
-                                {/* General Cleaning - Only show if not selected */}
-                                {selectedServiceName !== 'General Clean' && (
+                                {/* Other options — labels from API (stored survey) */}
+                                {serviceType !== 'general' && serviceType !== 'initial' && (
                                   <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
                                     <span className="text-sm text-gray-400">✨</span>
                                     <div className="flex-1">
-                                      <span className="font-semibold text-gray-900">General Clean:</span>{' '}
+                                      <span className="font-semibold text-gray-900">{getServiceLabel('general') ?? 'general'}:</span>{' '}
                                       <span className="text-gray-700">${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}</span>
                                     </div>
                                   </div>
                                 )}
-                                
-                                {/* Deep Cleaning - Only show if not selected */}
-                                {selectedServiceName !== 'Deep Clean' && (
+                                {serviceType !== 'deep' && (
                                   <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
                                     <span className="text-sm text-gray-400">🧹</span>
                                     <div className="flex-1">
-                                      <span className="font-semibold text-gray-900">Deep Clean:</span>{' '}
+                                      <span className="font-semibold text-gray-900">{getServiceLabel('deep') ?? 'deep'}:</span>{' '}
                                       <span className="text-gray-700">${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}</span>
                                     </div>
                                   </div>
                                 )}
-
-                                {/* Move In/Move Out Basic Clean - show in OTHER OPTIONS when they selected Deep Clean */}
-                                {selectedServiceName !== 'Move In/Move Out Basic Clean' && (
+                                {serviceType !== 'move-in' && (
                                   <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
                                     <span className="text-sm text-gray-400">🚚</span>
                                     <div className="flex-1">
-                                      <span className="font-semibold text-gray-900">Move In/Move Out Basic Clean:</span>{' '}
+                                      <span className="font-semibold text-gray-900">{getServiceLabel('move-in') ?? 'move-in'}:</span>{' '}
                                       <span className="text-gray-700">${quoteResult.ranges.moveInOutBasic.low} to ${quoteResult.ranges.moveInOutBasic.high}</span>
                                     </div>
                                   </div>
                                 )}
-
-                                {/* Move In/Move Out Deep Clean - show in OTHER OPTIONS when they selected Basic Clean */}
-                                {selectedServiceName !== 'Move In/Move Out Deep Clean' && (
+                                {serviceType !== 'move-out' && (
                                   <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
                                     <span className="text-sm text-gray-400">🚚</span>
                                     <div className="flex-1">
-                                      <span className="font-semibold text-gray-900">Move In/Move Out Deep Clean:</span>{' '}
+                                      <span className="font-semibold text-gray-900">{getServiceLabel('move-out') ?? 'move-out'}:</span>{' '}
                                       <span className="text-gray-700">${quoteResult.ranges.moveInOutFull.low} to ${quoteResult.ranges.moveInOutFull.high}</span>
                                     </div>
                                   </div>
                                 )}
-
-                                {/* Show other recurring options if they selected a one-time service */}
                                 {isOneTimeService && (
                                   <>
-                                    {selectedServiceName !== 'Weekly Cleaning' && (
+                                    {frequency !== 'weekly' && (
                                       <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
                                         <span className="text-sm text-gray-400">📅</span>
                                         <div className="flex-1">
-                                          <span className="font-semibold text-gray-900">Weekly Cleaning:</span>{' '}
+                                          <span className="font-semibold text-gray-900">{getFreqLabel('weekly') ?? 'weekly'}:</span>{' '}
                                           <span className="text-gray-700">${quoteResult.ranges.weekly.low} to ${quoteResult.ranges.weekly.high}</span>
                                         </div>
                                       </div>
                                     )}
-                                    {selectedServiceName !== 'Every 4 Weeks Cleaning' && (
+                                    {frequency !== 'bi-weekly' && (
+                                      <div className="bg-yellow-50 border-2 border-yellow-300 px-4 py-3 rounded-lg flex items-center gap-3">
+                                        <span className="text-sm">⭐</span>
+                                        <div className="flex-1">
+                                          <span className="font-semibold text-gray-900">{getFreqLabel('bi-weekly') ?? getFreqLabel('biweekly') ?? 'bi-weekly'}:</span>{' '}
+                                          <span className="text-gray-700">${quoteResult.ranges.biWeekly.low} to ${quoteResult.ranges.biWeekly.high}</span>
+                                          <span className="text-xs text-yellow-800 font-medium ml-1">(Most Popular)</span>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {frequency !== 'four-week' && (
                                       <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
                                         <span className="text-sm text-gray-400">📅</span>
                                         <div className="flex-1">
-                                          <span className="font-semibold text-gray-900">Every 4 Weeks Cleaning:</span>{' '}
+                                          <span className="font-semibold text-gray-900">{getFreqLabel('four-week') ?? getFreqLabel('monthly') ?? 'four-week'}:</span>{' '}
                                           <span className="text-gray-700">${quoteResult.ranges.fourWeek.low} to ${quoteResult.ranges.fourWeek.high}</span>
                                         </div>
                                       </div>

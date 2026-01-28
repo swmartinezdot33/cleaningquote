@@ -109,81 +109,92 @@ function getSquareFootageRangeDisplay(squareFeet: number): string {
   }
 }
 
+export type SummaryLabels = {
+  serviceTypeLabels: Record<string, string>;
+  frequencyLabels: Record<string, string>;
+};
+
+function serviceLabel(labels: SummaryLabels | undefined, key: string): string {
+  if (!labels) return getServiceTypeDisplayName(key);
+  const k = key.toLowerCase();
+  return labels.serviceTypeLabels[key] ?? labels.serviceTypeLabels[k] ?? getServiceTypeDisplayName(key);
+}
+
+function freqLabel(labels: SummaryLabels | undefined, key: string): string {
+  if (!labels) return getServiceName(key);
+  const k = key.toLowerCase();
+  return labels.frequencyLabels[key] ?? labels.frequencyLabels[k] ?? labels.frequencyLabels[key === 'biweekly' ? 'bi-weekly' : key] ?? getServiceName(key);
+}
+
 /**
- * Generate pricing summary text - shows selected service type and frequency correctly
+ * Generate pricing summary text - shows selected service type and frequency correctly.
+ * Optional labels from Survey Builder are used when provided so all text matches admin labels.
  */
-export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges }, serviceType?: string, frequency?: string, squareFeetRange?: string): string {
+export function generateSummaryText(
+  result: QuoteResult & { ranges: QuoteRanges },
+  serviceType?: string,
+  frequency?: string,
+  squareFeetRange?: string,
+  labels?: SummaryLabels
+): string {
   const { inputs, ranges, initialCleaningRequired } = result;
-  
+
   if (!inputs || !ranges) {
     return '';
   }
 
-  // Get square footage range for display (use provided range or calculate from number)
   const squareFeetDisplay = squareFeetRange || getSquareFootageRangeDisplay(inputs.squareFeet);
-  
-  // Build summary
+
   let summary = `✨ YOUR QUOTE\n\n`;
   summary += `Home Size: ${squareFeetDisplay} sq ft\n\n`;
-  
-  // Handle one-time services (move-in, move-out, initial, deep, general)
+
   if (serviceType && (frequency === 'one-time' || !frequency)) {
     const selectedRange = getSelectedQuoteRange(ranges, serviceType, frequency || 'one-time');
-    
+
     if (selectedRange) {
-      const serviceName = getServiceTypeDisplayName(serviceType);
-      summary += `🎯 ${serviceName}: ${formatPriceRange(selectedRange)}\n\n`;
-      
-      // For one-time services, also show other relevant options
+      summary += `🎯 ${serviceLabel(labels, serviceType)}: ${formatPriceRange(selectedRange)}\n\n`;
+
       if (serviceType === 'move-in' || serviceType === 'move-out') {
         summary += `OTHER SERVICE OPTIONS\n\n`;
-        summary += `🧹 Deep Clean: ${formatPriceRange(ranges.deep)}\n`;
-        summary += `✨ General Clean: ${formatPriceRange(ranges.general)}\n\n`;
+        summary += `🧹 ${serviceLabel(labels, 'deep')}: ${formatPriceRange(ranges.deep)}\n`;
+        summary += `✨ ${serviceLabel(labels, 'general')}: ${formatPriceRange(ranges.general)}\n\n`;
       } else {
         summary += `RECURRING SERVICE OPTIONS\n\n`;
-        summary += `📅 Weekly Cleaning: ${formatPriceRange(ranges.weekly)}\n`;
-        summary += `⭐ Bi-Weekly Cleaning: ${formatPriceRange(ranges.biWeekly)} (Most Popular)\n`;
-        summary += `📅 Monthly Cleaning (Every 4 Weeks): ${formatPriceRange(ranges.fourWeek)}\n\n`;
+        summary += `📅 ${freqLabel(labels, 'weekly')}: ${formatPriceRange(ranges.weekly)}\n`;
+        summary += `⭐ ${freqLabel(labels, 'bi-weekly')}: ${formatPriceRange(ranges.biWeekly)} (Most Popular)\n`;
+        summary += `📅 ${freqLabel(labels, 'four-week')}: ${formatPriceRange(ranges.fourWeek)}\n\n`;
       }
     }
-  } 
-  // Handle recurring services (weekly, bi-weekly, monthly)
-  else if (frequency && frequency !== 'one-time') {
+  } else if (frequency && frequency !== 'one-time') {
     const selectedRange = getSelectedQuoteRange(ranges, serviceType || 'recurring', frequency);
-    
+
     if (selectedRange) {
-      const serviceName = getServiceName(frequency);
-      summary += `🎯 ${serviceName}: ${formatPriceRange(selectedRange)}\n\n`;
+      summary += `🎯 ${freqLabel(labels, frequency)}: ${formatPriceRange(selectedRange)}\n\n`;
     }
-    
-    // Always show all recurring options for comparison
+
     summary += `ALL RECURRING OPTIONS\n\n`;
-    summary += `📅 Weekly Cleaning: ${formatPriceRange(ranges.weekly)}\n`;
-    summary += `⭐ Bi-Weekly Cleaning: ${formatPriceRange(ranges.biWeekly)} (Most Popular)\n`;
-    summary += `📅 Every 4 Weeks Cleaning: ${formatPriceRange(ranges.fourWeek)}\n\n`;
-    
-    // Also show one-time service options
+    summary += `📅 ${freqLabel(labels, 'weekly')}: ${formatPriceRange(ranges.weekly)}\n`;
+    summary += `⭐ ${freqLabel(labels, 'bi-weekly')}: ${formatPriceRange(ranges.biWeekly)} (Most Popular)\n`;
+    summary += `📅 ${freqLabel(labels, 'four-week')}: ${formatPriceRange(ranges.fourWeek)}\n\n`;
+
     summary += `ONE-TIME SERVICE OPTIONS\n\n`;
-    summary += `🧹 Deep Clean: ${formatPriceRange(ranges.deep)}\n`;
-    summary += `✨ General Clean: ${formatPriceRange(ranges.general)}\n`;
-    summary += `🚚 Move In/Move Out Basic Clean: ${formatPriceRange(ranges.moveInOutBasic)}\n`;
-    summary += `🚚 Move In/Move Out Deep Clean: ${formatPriceRange(ranges.moveInOutFull)}\n\n`;
-  }
-  // Default: show all options
-  else {
+    summary += `🧹 ${serviceLabel(labels, 'deep')}: ${formatPriceRange(ranges.deep)}\n`;
+    summary += `✨ ${serviceLabel(labels, 'general')}: ${formatPriceRange(ranges.general)}\n`;
+    summary += `🚚 ${serviceLabel(labels, 'move-in')}: ${formatPriceRange(ranges.moveInOutBasic)}\n`;
+    summary += `🚚 ${serviceLabel(labels, 'move-out')}: ${formatPriceRange(ranges.moveInOutFull)}\n\n`;
+  } else {
     summary += `RECURRING SERVICE OPTIONS\n\n`;
-    summary += `📅 Weekly Cleaning: ${formatPriceRange(ranges.weekly)}\n`;
-    summary += `⭐ Bi-Weekly Cleaning: ${formatPriceRange(ranges.biWeekly)} (Most Popular)\n`;
-    summary += `📅 Monthly Cleaning (Every 4 Weeks): ${formatPriceRange(ranges.fourWeek)}\n\n`;
-    
+    summary += `📅 ${freqLabel(labels, 'weekly')}: ${formatPriceRange(ranges.weekly)}\n`;
+    summary += `⭐ ${freqLabel(labels, 'bi-weekly')}: ${formatPriceRange(ranges.biWeekly)} (Most Popular)\n`;
+    summary += `📅 ${freqLabel(labels, 'four-week')}: ${formatPriceRange(ranges.fourWeek)}\n\n`;
+
     summary += `ONE-TIME SERVICE OPTIONS\n\n`;
-    summary += `🧹 Deep Clean: ${formatPriceRange(ranges.deep)}\n`;
-    summary += `✨ General Clean: ${formatPriceRange(ranges.general)}\n`;
-    summary += `🚚 Move In/Move Out Basic Clean: ${formatPriceRange(ranges.moveInOutBasic)}\n`;
-    summary += `🚚 Move In/Move Out Deep Clean: ${formatPriceRange(ranges.moveInOutFull)}\n\n`;
+    summary += `🧹 ${serviceLabel(labels, 'deep')}: ${formatPriceRange(ranges.deep)}\n`;
+    summary += `✨ ${serviceLabel(labels, 'general')}: ${formatPriceRange(ranges.general)}\n`;
+    summary += `🚚 ${serviceLabel(labels, 'move-in')}: ${formatPriceRange(ranges.moveInOutBasic)}\n`;
+    summary += `🚚 ${serviceLabel(labels, 'move-out')}: ${formatPriceRange(ranges.moveInOutFull)}\n\n`;
   }
-  
-  // Add Initial Cleaning messaging if applicable
+
   if (initialCleaningRequired && serviceType !== 'initial') {
     summary += `📌 Note: An initial cleaning is required as your first service.\n`;
     summary += `This gets your home to our maintenance standards.\n`;
@@ -193,41 +204,49 @@ export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges 
 }
 
 /**
- * Generate SMS text message (exact template)
+ * Generate SMS text message. Optional labels from Survey Builder are used when provided.
  */
-export function generateSmsText(result: QuoteResult & { ranges: QuoteRanges }): string {
+export function generateSmsText(result: QuoteResult & { ranges: QuoteRanges }, labels?: SummaryLabels): string {
   const { ranges, initialCleaningRequired } = result;
-  
+
   if (!ranges) {
     return '';
   }
 
+  const biWeeklyLabel = labels ? (labels.frequencyLabels['bi-weekly'] ?? labels.frequencyLabels['biweekly'] ?? 'bi weekly') : 'bi weekly';
+  const weeklyLabel = labels ? (labels.frequencyLabels['weekly'] ?? 'weekly') : 'weekly';
+  const fourWeekLabel = labels ? (labels.frequencyLabels['four-week'] ?? labels.frequencyLabels['monthly'] ?? 'every 4 weeks') : 'every 4 weeks';
+  const generalLabel = labels ? (labels.serviceTypeLabels['general'] ?? 'general clean') : 'general clean';
+  const deepLabel = labels ? (labels.serviceTypeLabels['deep'] ?? 'deep clean') : 'deep clean';
+  const moveInLabel = labels ? (labels.serviceTypeLabels['move-in'] ?? 'move in move out basic clean') : 'move in move out basic clean';
+  const moveOutLabel = labels ? (labels.serviceTypeLabels['move-out'] ?? 'move in move out deep clean') : 'move in move out deep clean';
+  const initialLabel = labels ? (labels.serviceTypeLabels['initial'] ?? 'Initial Cleaning') : 'Initial Cleaning';
+
   let sms = 'For a home your size, pricing varies based on cleaning frequency and the overall condition of the home.\n\n';
-  
-  // Show Initial Cleaning first if required
+
   if (initialCleaningRequired) {
-    sms += `INITIAL CLEANING (First Service): $${ranges.initial.low} to $${ranges.initial.high}\n`;
+    sms += `${initialLabel.toUpperCase()} (First Service): $${ranges.initial.low} to $${ranges.initial.high}\n`;
     sms += `This thorough first cleaning gets your home to our maintenance standards.\n\n`;
   }
-  
-  sms += `For bi weekly service, which is our most popular option and works best for maintaining a consistently clean home, pricing typically ranges from $${ranges.biWeekly.low} to $${ranges.biWeekly.high} per visit.\n\n`;
-  
-  sms += `For weekly service, pricing typically ranges from $${ranges.weekly.low} to $${ranges.weekly.high} per visit.\n\n`;
-  
-  sms += `For every 4 weeks service, pricing typically ranges from $${ranges.fourWeek.low} to $${ranges.fourWeek.high} per visit.\n\n`;
-  
-  sms += `For a general clean, pricing typically ranges from $${ranges.general.low} to $${ranges.general.high} per visit.\n\n`;
-  
-  sms += `For a deep clean, pricing typically ranges from $${ranges.deep.low} to $${ranges.deep.high} per visit.\n\n`;
-  
-  sms += `For a move in move out basic clean, pricing typically ranges from $${ranges.moveInOutBasic.low} to $${ranges.moveInOutBasic.high} per visit.\n\n`;
-  
-  sms += `For a move in move out deep clean, pricing typically ranges from $${ranges.moveInOutFull.low} to $${ranges.moveInOutFull.high} per visit.\n\n`;
-  
+
+  sms += `For ${biWeeklyLabel.toLowerCase()} service, which is our most popular option and works best for maintaining a consistently clean home, pricing typically ranges from $${ranges.biWeekly.low} to $${ranges.biWeekly.high} per visit.\n\n`;
+
+  sms += `For ${weeklyLabel.toLowerCase()} service, pricing typically ranges from $${ranges.weekly.low} to $${ranges.weekly.high} per visit.\n\n`;
+
+  sms += `For ${fourWeekLabel.toLowerCase()} service, pricing typically ranges from $${ranges.fourWeek.low} to $${ranges.fourWeek.high} per visit.\n\n`;
+
+  sms += `For a ${generalLabel.toLowerCase()}, pricing typically ranges from $${ranges.general.low} to $${ranges.general.high} per visit.\n\n`;
+
+  sms += `For a ${deepLabel.toLowerCase()}, pricing typically ranges from $${ranges.deep.low} to $${ranges.deep.high} per visit.\n\n`;
+
+  sms += `For a ${moveInLabel.toLowerCase()}, pricing typically ranges from $${ranges.moveInOutBasic.low} to $${ranges.moveInOutBasic.high} per visit.\n\n`;
+
+  sms += `For a ${moveOutLabel.toLowerCase()}, pricing typically ranges from $${ranges.moveInOutFull.low} to $${ranges.moveInOutFull.high} per visit.\n\n`;
+
   sms += `After your first two cleanings, we're able to lock in your ongoing price based on the average scope of the work.\n\n`;
-  
-  sms += `Would bi weekly or weekly service work better for you?\n\n`;
-  
+
+  sms += `Would ${biWeeklyLabel.toLowerCase()} or ${weeklyLabel.toLowerCase()} service work better for you?\n\n`;
+
   sms += `Click Here For Whats Included:\nhttps://my.raleighcleaningcompany.com/widget/form/UVSF5Lh25ENVpDJBtniu?notrack=true`;
 
   return sms;
