@@ -30,8 +30,8 @@ export function getServiceTypeDisplayName(serviceType: string): string {
     'initial': 'Initial Cleaning',
     'general': 'General Clean',
     'deep': 'Deep Clean',
-    'move-in': 'Move In/Move Out Basic clean',
-    'move-out': 'Move In/Move Out Deep clean',
+    'move-in': 'Move In/Move Out Basic Clean',
+    'move-out': 'Move In/Move Out Deep Clean',
     'recurring': 'Recurring Service',
   };
   return typeMap[serviceType] || serviceType;
@@ -166,8 +166,8 @@ export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges 
     summary += `ONE-TIME SERVICE OPTIONS\n\n`;
     summary += `🧹 Deep Clean: ${formatPriceRange(ranges.deep)}\n`;
     summary += `✨ General Clean: ${formatPriceRange(ranges.general)}\n`;
-    summary += `🚚 Move In/Move Out Basic clean: ${formatPriceRange(ranges.moveInOutBasic)}\n`;
-    summary += `🚚 Move In/Move Out Deep clean: ${formatPriceRange(ranges.moveInOutFull)}\n\n`;
+    summary += `🚚 Move In/Move Out Basic Clean: ${formatPriceRange(ranges.moveInOutBasic)}\n`;
+    summary += `🚚 Move In/Move Out Deep Clean: ${formatPriceRange(ranges.moveInOutFull)}\n\n`;
   }
   // Default: show all options
   else {
@@ -179,8 +179,8 @@ export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges 
     summary += `ONE-TIME SERVICE OPTIONS\n\n`;
     summary += `🧹 Deep Clean: ${formatPriceRange(ranges.deep)}\n`;
     summary += `✨ General Clean: ${formatPriceRange(ranges.general)}\n`;
-    summary += `🚚 Move In/Move Out Basic clean: ${formatPriceRange(ranges.moveInOutBasic)}\n`;
-    summary += `🚚 Move In/Move Out Deep clean: ${formatPriceRange(ranges.moveInOutFull)}\n\n`;
+    summary += `🚚 Move In/Move Out Basic Clean: ${formatPriceRange(ranges.moveInOutBasic)}\n`;
+    summary += `🚚 Move In/Move Out Deep Clean: ${formatPriceRange(ranges.moveInOutFull)}\n\n`;
   }
   
   // Add Initial Cleaning messaging if applicable

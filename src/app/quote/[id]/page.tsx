@@ -531,10 +531,10 @@ export default function QuotePage() {
                         let selectedRange: { low: number; high: number } | null = null;
                         
                         if (serviceType === 'move-in') {
-                          selectedServiceName = 'Move In/Move Out Basic clean';
+                          selectedServiceName = 'Move In/Move Out Basic Clean';
                           selectedRange = quoteResult.ranges.moveInOutBasic;
                         } else if (serviceType === 'move-out') {
-                          selectedServiceName = 'Move In/Move Out Deep clean';
+                          selectedServiceName = 'Move In/Move Out Deep Clean';
                           selectedRange = quoteResult.ranges.moveInOutFull;
                         } else if (serviceType === 'deep') {
                           selectedServiceName = 'Deep Clean';
@@ -555,6 +555,8 @@ export default function QuotePage() {
                           selectedServiceName = 'General Clean';
                           selectedRange = quoteResult.ranges.general;
                         }
+
+                        const isOneTimeService = ['Move In/Move Out Basic Clean', 'Move In/Move Out Deep Clean', 'Deep Clean'].includes(selectedServiceName);
 
                         return (
                           <>
@@ -693,23 +695,23 @@ export default function QuotePage() {
                                   </div>
                                 )}
 
-                                {/* Move In/Move Out Basic clean - show in OTHER OPTIONS when they selected Deep clean */}
-                                {selectedServiceName !== 'Move In/Move Out Basic clean' && (
+                                {/* Move In/Move Out Basic Clean - show in OTHER OPTIONS when they selected Deep Clean */}
+                                {selectedServiceName !== 'Move In/Move Out Basic Clean' && (
                                   <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
                                     <span className="text-sm text-gray-400">🚚</span>
                                     <div className="flex-1">
-                                      <span className="font-semibold text-gray-900">Move In/Move Out Basic clean:</span>{' '}
+                                      <span className="font-semibold text-gray-900">Move In/Move Out Basic Clean:</span>{' '}
                                       <span className="text-gray-700">${quoteResult.ranges.moveInOutBasic.low} to ${quoteResult.ranges.moveInOutBasic.high}</span>
                                     </div>
                                   </div>
                                 )}
 
-                                {/* Move In/Move Out Deep clean - show in OTHER OPTIONS when they selected Basic clean */}
-                                {selectedServiceName !== 'Move In/Move Out Deep clean' && (
+                                {/* Move In/Move Out Deep Clean - show in OTHER OPTIONS when they selected Basic Clean */}
+                                {selectedServiceName !== 'Move In/Move Out Deep Clean' && (
                                   <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
                                     <span className="text-sm text-gray-400">🚚</span>
                                     <div className="flex-1">
-                                      <span className="font-semibold text-gray-900">Move In/Move Out Deep clean:</span>{' '}
+                                      <span className="font-semibold text-gray-900">Move In/Move Out Deep Clean:</span>{' '}
                                       <span className="text-gray-700">${quoteResult.ranges.moveInOutFull.low} to ${quoteResult.ranges.moveInOutFull.high}</span>
                                     </div>
                                   </div>

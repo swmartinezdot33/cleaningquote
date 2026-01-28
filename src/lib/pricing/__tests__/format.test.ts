@@ -34,8 +34,8 @@ describe('generateSummaryText', () => {
     expect(summary).toContain('Every 4 Weeks Clean: $158 to $193');
     expect(summary).toContain('General Clean: $170 to $240');
     expect(summary).toContain('Deep Clean: $250 to $350');
-    expect(summary).toContain('Move In/Move Out Basic clean: $200 to $320');
-    expect(summary).toContain('Move In/Move Out Deep clean: $250 to $420');
+    expect(summary).toContain('Move In/Move Out Basic Clean: $200 to $320');
+    expect(summary).toContain('Move In/Move Out Deep Clean: $250 to $420');
   });
 });
 

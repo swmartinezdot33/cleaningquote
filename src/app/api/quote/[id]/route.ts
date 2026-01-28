@@ -260,11 +260,6 @@ export async function GET(
     if (serviceType && serviceTypeReverseMap[serviceType]) {
       serviceType = serviceTypeReverseMap[serviceType];
     }
-    // For one-time types, never return a recurring frequency (so quote summary shows correct selection)
-    const oneTimeTypes = ['move-in', 'move-out', 'deep'];
-    if (oneTimeTypes.includes(serviceType)) {
-      frequency = '';
-    }
 
     // Parse numeric fields - use null if field doesn't exist, otherwise parse the value
     const parseNumericField = (value: any): number | null => {
@@ -293,6 +288,11 @@ export async function GET(
     };
     if (frequency && frequencyReverseMap[frequency]) {
       frequency = frequencyReverseMap[frequency];
+    }
+    // For one-time types, never return a recurring frequency (so quote summary shows correct selection)
+    const oneTimeTypes = ['move-in', 'move-out', 'deep'];
+    if (oneTimeTypes.includes(serviceType)) {
+      frequency = '';
     }
 
     // Reconstruct quote inputs - use 0 as fallback for required numeric fields if null
@@ -361,7 +361,6 @@ export async function GET(
       cleanedWithin3Months: cleanedWithin3Months ?? quoteResult.inputs?.cleanedWithin3Months,
     };
     
-    const outFrequency = oneTimeTypes.includes(serviceType) ? '' : frequency;
     return NextResponse.json({
       outOfLimits: false,
       multiplier: quoteResult.multiplier,
@@ -375,7 +374,7 @@ export async function GET(
       quoteId: quoteId,
       contactData,
       serviceType: serviceType,
-      frequency: outFrequency,
+      frequency: frequency,
     });
   } catch (error) {
     console.error('Error fetching quote:', error);
