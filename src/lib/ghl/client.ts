@@ -318,6 +318,102 @@ export async function createOrUpdateContact(
 }
 
 /**
+ * Update an existing contact in GHL by ID (PUT /contacts/:contactId).
+ * Use when the contact was already created (e.g. after email step) and you are adding address/quote data.
+ */
+export async function updateContact(
+  contactId: string,
+  contactData: GHLContact,
+  token?: string,
+  locationId?: string,
+  additionalTags?: string[]
+): Promise<GHLContactResponse> {
+  try {
+    const finalToken = token || (await getGHLToken());
+    const finalLocationId = locationId || (await getGHLLocationId());
+
+    if (!finalToken) {
+      throw new Error('GHL API token is required but not configured');
+    }
+    if (!contactId) {
+      throw new Error('Contact ID is required to update contact');
+    }
+
+    const allTags = [
+      ...(contactData.tags || []),
+      ...(additionalTags || []),
+    ];
+
+    let customFieldsArray: Array<{ key: string; value: string }> | undefined;
+    if (contactData.customFields && Object.keys(contactData.customFields).length > 0) {
+      customFieldsArray = Object.entries(contactData.customFields)
+        .filter(([, value]) => value !== null && value !== undefined && value !== '')
+        .map(([key, value]) => ({
+          key,
+          value: normalizeFieldValue(value),
+        }));
+    }
+
+    const payload: Record<string, any> = {
+      firstName: contactData.firstName,
+      lastName: contactData.lastName,
+      locationId: finalLocationId,
+      ...(contactData.email && { email: contactData.email }),
+      ...(contactData.phone && { phone: contactData.phone }),
+      ...(contactData.address1 && { address1: contactData.address1 }),
+      ...(contactData.city && { city: contactData.city }),
+      ...(contactData.state && { state: contactData.state }),
+      ...(contactData.postalCode && { postalCode: contactData.postalCode }),
+      ...(contactData.country && {
+        country: contactData.country.length === 2 ? contactData.country : contactData.country === 'USA' ? 'US' : contactData.country,
+      }),
+      ...(contactData.source && { source: contactData.source }),
+      ...(allTags.length > 0 && { tags: allTags }),
+      ...(customFieldsArray && customFieldsArray.length > 0 && { customFields: customFieldsArray }),
+    };
+
+    const url = `${GHL_API_BASE}/contacts/${contactId}`;
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${finalToken}`,
+        'Content-Type': 'application/json',
+        'Version': '2021-07-28',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const responseText = await response.text();
+    if (!response.ok) {
+      let errorMessage = `GHL API Error (${response.status})`;
+      if (responseText && responseText.trim().length > 0) {
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = `${errorMessage}: ${errorData.message || errorData.error || JSON.stringify(errorData)}`;
+        } catch {
+          errorMessage = `${errorMessage}: ${responseText.substring(0, 200)}`;
+        }
+      }
+      throw new Error(errorMessage);
+    }
+
+    if (!responseText || responseText.trim().length === 0) {
+      throw new Error('Empty response from GHL API');
+    }
+
+    const data = JSON.parse(responseText);
+    const contact = data.contact || data;
+    if (!contact || !contact.id) {
+      throw new Error('Invalid response from GHL API - missing contact or contact.id');
+    }
+    return contact;
+  } catch (error) {
+    console.error('Failed to update contact:', error);
+    throw error;
+  }
+}
+
+/**
  * Create an opportunity in GHL
  * Always uses stored locationId for sub-account (location-level) API calls
  */

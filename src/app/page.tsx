@@ -916,13 +916,10 @@ export default function Home() {
         }
       }
 
-      // If this is an address question and we've passed validation, create the contact in GHL FIRST
-      // (before any service area redirects, so out-of-service customers are also created)
-      let createdContactId: string | null = null;
-      if (currentQuestion.type === 'address') {
+      // After email step: create contact in GHL with name, phone, email only (before address). Quote API will update with address later.
+      if (currentQuestion.type === 'email') {
         const data = getValues();
         try {
-          console.log('Creating contact in GHL after address validation...');
           const sp = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
           const utmForContact: Record<string, string> = {};
           ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach((k) => {
@@ -937,29 +934,21 @@ export default function Home() {
               lastName: data.lastName || '',
               email: data.email || '',
               phone: data.phone || '',
-              address: data.address || '',
-              city: data.city || '',
-              state: data.state || '',
-              postalCode: data.postalCode || '',
-              country: data.country || 'US',
               ...utmForContact,
             }),
           });
-
           const result = await response.json();
           if (result.success && result.ghlContactId) {
-            console.log('Contact created in GHL:', result.ghlContactId);
-            // Store the contact ID for later use
+            console.log('Contact created in GHL after email step:', result.ghlContactId);
             setGHLContactId(result.ghlContactId);
-            createdContactId = result.ghlContactId;
-          } else {
-            console.warn('Failed to create contact in GHL:', result.message);
           }
         } catch (contactError) {
-          console.error('Error creating contact:', contactError);
-          // Continue anyway - contact creation is not blocking
+          console.error('Error creating contact after email step:', contactError);
         }
       }
+
+      // At address step we use the contact created after email (ghlContactId in state). Quote API or out-of-service flow will update it with address.
+      const createdContactId = currentQuestion.type === 'address' ? ghlContactId : null;
 
       // Check if this is an address question - if so, check service area
       // IMPORTANT: Only check if not already checked and not in progress (prevents duplicate checks and tab opens)
@@ -998,28 +987,56 @@ export default function Home() {
           console.log('Service area check result:', result);
 
           if (!result.inServiceArea) {
-            // Out of service area - create contact and redirect
             const data = getValues();
             const addressFieldName = getFormFieldName(currentQuestion.id);
-            // Get address from sanitized field name (handles fields with dots)
             const addressValue = data[addressFieldName] || data.address || '';
-            try {
-              await fetch('/api/service-area/out-of-service', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  firstName: data.firstName || '',
-                  lastName: data.lastName || '',
-                  email: data.email || '',
-                  phone: data.phone || '',
-                  address: addressValue,
-                }),
-              });
-            } catch (contactError) {
-              console.error('Error creating out-of-service contact:', contactError);
+            // Update existing contact (created after email step) with address so GHL has it
+            if (createdContactId) {
+              try {
+                const sp = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+                const utmForContact: Record<string, string> = {};
+                ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach((k) => {
+                  const v = sp.get(k);
+                  if (v) utmForContact[k] = v;
+                });
+                await fetch('/api/contacts/create-or-update', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    firstName: data.firstName || '',
+                    lastName: data.lastName || '',
+                    email: data.email || '',
+                    phone: data.phone || '',
+                    address: addressValue,
+                    city: data.city || '',
+                    state: data.state || '',
+                    postalCode: data.postalCode || '',
+                    country: data.country || 'US',
+                    ghlContactId: createdContactId,
+                    ...utmForContact,
+                  }),
+                });
+              } catch (contactError) {
+                console.error('Error updating contact with address (out-of-service):', contactError);
+              }
+            } else {
+              try {
+                await fetch('/api/service-area/out-of-service', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    firstName: data.firstName || '',
+                    lastName: data.lastName || '',
+                    email: data.email || '',
+                    phone: data.phone || '',
+                    address: addressValue,
+                  }),
+                });
+              } catch (contactError) {
+                console.error('Error creating out-of-service contact:', contactError);
+              }
             }
 
-            // Redirect to out-of-service page with contact ID so they can start a new quote with pre-filled info
             const params = new URLSearchParams({
               address: addressValue,
               ...(createdContactId && { contactId: createdContactId }),
@@ -1078,20 +1095,50 @@ export default function Home() {
             if (!result.inServiceArea) {
               const data = getValues();
               const addressValue = data[getFormFieldName(currentQuestion.id)] || data.address || '';
-              try {
-                await fetch('/api/service-area/out-of-service', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    firstName: data.firstName || '',
-                    lastName: data.lastName || '',
-                    email: data.email || '',
-                    phone: data.phone || '',
-                    address: addressValue,
-                  }),
-                });
-              } catch (e) {
-                console.error('Error creating out-of-service contact:', e);
+              if (createdContactId) {
+                try {
+                  const sp = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+                  const utmForContact: Record<string, string> = {};
+                  ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach((k) => {
+                    const v = sp.get(k);
+                    if (v) utmForContact[k] = v;
+                  });
+                  await fetch('/api/contacts/create-or-update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      firstName: data.firstName || '',
+                      lastName: data.lastName || '',
+                      email: data.email || '',
+                      phone: data.phone || '',
+                      address: addressValue,
+                      city: data.city || '',
+                      state: data.state || '',
+                      postalCode: data.postalCode || '',
+                      country: data.country || 'US',
+                      ghlContactId: createdContactId,
+                      ...utmForContact,
+                    }),
+                  });
+                } catch (e) {
+                  console.error('Error updating contact with address (out-of-service):', e);
+                }
+              } else {
+                try {
+                  await fetch('/api/service-area/out-of-service', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      firstName: data.firstName || '',
+                      lastName: data.lastName || '',
+                      email: data.email || '',
+                      phone: data.phone || '',
+                      address: addressValue,
+                    }),
+                  });
+                } catch (e) {
+                  console.error('Error creating out-of-service contact:', e);
+                }
               }
               const params = new URLSearchParams({
                 address: addressValue,
@@ -2616,43 +2663,9 @@ export default function Home() {
                                     return;
                                   }
                                   serviceAreaCheckInProgress.current = true;
-                                  // Create contact first (before service area check)
-                                  let createdContactId: string | null = null;
                                   const data = getValues();
-                                  try {
-                                    console.log('Auto-advance: Creating contact in GHL before service area check...');
-                                    const sp = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-                                    const utmForContact: Record<string, string> = {};
-                                    ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach((k) => {
-                                      const v = sp.get(k);
-                                      if (v) utmForContact[k] = v;
-                                    });
-                                    const response = await fetch('/api/contacts/create-or-update', {
-                                      method: 'POST',
-                                      headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({
-                                        firstName: data.firstName || '',
-                                        lastName: data.lastName || '',
-                                        email: data.email || '',
-                                        phone: data.phone || '',
-                                        address: data.address || '',
-                                        city: data.city || '',
-                                        state: data.state || '',
-                                        postalCode: data.postalCode || '',
-                                        country: data.country || 'US',
-                                        ...utmForContact,
-                                      }),
-                                    });
-
-                                    const contactResult = await response.json();
-                                    if (contactResult.success && contactResult.ghlContactId) {
-                                      console.log('Auto-advance: Contact created in GHL:', contactResult.ghlContactId);
-                                      setGHLContactId(contactResult.ghlContactId);
-                                      createdContactId = contactResult.ghlContactId;
-                                    }
-                                  } catch (contactError) {
-                                    console.error('Auto-advance: Error creating contact:', contactError);
-                                  }
+                                  // Contact was created after email step; use ghlContactId from state
+                                  const createdContactId = ghlContactId;
 
                                   // Run service area check before auto-advancing
                                   try {
@@ -2690,24 +2703,52 @@ export default function Home() {
                                       console.log('Auto-advance: Address is out of service area - redirecting');
                                       const addressFieldName = getFormFieldName(currentQuestion.id);
                                       const addressValue = data[addressFieldName] || data.address || '';
-                                      
-                                      // Create out-of-service contact
-                                      try {
-                                        await fetch('/api/service-area/out-of-service', {
-                                          method: 'POST',
-                                          headers: { 'Content-Type': 'application/json' },
-                                          body: JSON.stringify({
-                                            firstName: data.firstName || '',
-                                            lastName: data.lastName || '',
-                                            email: data.email || '',
-                                            phone: data.phone || '',
-                                            address: addressValue,
-                                          }),
-                                        });
-                                      } catch (error) {
-                                        console.error('Error creating out-of-service contact:', error);
+                                      if (createdContactId) {
+                                        try {
+                                          const sp = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+                                          const utmForContact: Record<string, string> = {};
+                                          ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach((k) => {
+                                            const v = sp.get(k);
+                                            if (v) utmForContact[k] = v;
+                                          });
+                                          await fetch('/api/contacts/create-or-update', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                              firstName: data.firstName || '',
+                                              lastName: data.lastName || '',
+                                              email: data.email || '',
+                                              phone: data.phone || '',
+                                              address: addressValue,
+                                              city: data.city || '',
+                                              state: data.state || '',
+                                              postalCode: data.postalCode || '',
+                                              country: data.country || 'US',
+                                              ghlContactId: createdContactId,
+                                              ...utmForContact,
+                                            }),
+                                          });
+                                        } catch (e) {
+                                          console.error('Auto-advance: Error updating contact with address (out-of-service):', e);
+                                        }
+                                      } else {
+                                        try {
+                                          await fetch('/api/service-area/out-of-service', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                              firstName: data.firstName || '',
+                                              lastName: data.lastName || '',
+                                              email: data.email || '',
+                                              phone: data.phone || '',
+                                              address: addressValue,
+                                            }),
+                                          });
+                                        } catch (error) {
+                                          console.error('Error creating out-of-service contact:', error);
+                                        }
                                       }
-                                      
+
                                       // Redirect to out-of-service page with contactId if available
                                       const params = new URLSearchParams({
                                         address: addressValue,

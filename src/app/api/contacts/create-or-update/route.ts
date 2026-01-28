@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createOrUpdateContact } from '@/lib/ghl/client';
+import { createOrUpdateContact, updateContact } from '@/lib/ghl/client';
 import { ghlTokenExists, getGHLConfig } from '@/lib/kv';
 import { getSurveyQuestions } from '@/lib/survey/manager';
 import { SurveyQuestion } from '@/lib/survey/schema';
@@ -7,130 +7,112 @@ import { parseAddress } from '@/lib/utils/parseAddress';
 
 /**
  * POST /api/contacts/create-or-update
- * Creates or updates a contact in GHL with address information using the upsert endpoint
- * GHL automatically deduplicates based on email/phone
- * Called after the address step is completed
- * 
- * The endpoint uses GHL's /contacts/upsert which:
- * - Checks if contact exists by email/phone (GHL's deduplication logic)
- * - Updates if found
- * - Creates new if not found
- * 
- * This ensures every address submission is captured in GHL exactly once
+ * - After email step (no address): creates contact with name, phone, email only. Returns ghlContactId.
+ * - At address step with existing ghlContactId: updates that contact with address (PUT by id).
+ * - At address step without ghlContactId: creates/updates by upsert (email/phone) with address.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { firstName, lastName, email, phone, address, address2, city, state, postalCode, country } = body;
+    const { firstName, lastName, email, phone, address, address2, city, state, postalCode, country, ghlContactId } = body;
 
-    // Validate required contact fields
-    if (!firstName || !lastName || !email || !phone || !address) {
+    // Always require name, email, phone. Address is optional (required only when updating with address).
+    if (!firstName || !lastName || !email || !phone) {
       return NextResponse.json(
         {
-          error: 'Missing required fields: firstName, lastName, email, phone, address',
+          error: 'Missing required fields: firstName, lastName, email, phone',
           userMessage: 'Please fill in all required contact information.',
         },
         { status: 400 }
       );
     }
 
-    // Check if GHL is configured
-    const hasGHLToken = await ghlTokenExists().catch(() => false);
-
-    if (!hasGHLToken) {
-      // GHL not configured, but don't fail - this is okay
+    const hasAddress = Boolean(address && String(address).trim());
+    if (!hasAddress && ghlContactId) {
       return NextResponse.json(
-        {
-          success: true,
-          ghlContactId: null,
-          message: 'GHL not configured, contact saved locally',
-        }
+        { error: 'When ghlContactId is provided, address is required for update.', userMessage: 'Address is required.' },
+        { status: 400 }
+      );
+    }
+
+    const hasGHLToken = await ghlTokenExists().catch(() => false);
+    if (!hasGHLToken) {
+      return NextResponse.json(
+        { success: true, ghlContactId: null, message: 'GHL not configured, contact saved locally' }
       );
     }
 
     try {
-      // Get GHL configuration
       const ghlConfig = await getGHLConfig();
-
-      // Get survey questions to map fields
       const surveyQuestions = await getSurveyQuestions();
-
-      // Source = utm_source only when present; otherwise "Website Quote Form". Never use full URL.
       const utmSource = body.utm_source && String(body.utm_source).trim();
       const effectiveSource = utmSource || 'Website Quote Form';
 
-      // Combine address and address2 if address2 exists (GHL only has one address line)
-      const fullAddress = address2 
-        ? `${address} ${address2}`.trim()
-        : address;
-
-      // Parse address if city, state, or postalCode are missing
-      // This handles cases where the full address is in a single string
-      let parsedStreetAddress = fullAddress;
-      let parsedCity = city || '';
-      let parsedState = state || '';
-      let parsedPostalCode = postalCode || '';
-
-      // If any address component is missing, try to parse the full address string
-      if (fullAddress && (!city || !state || !postalCode)) {
-        const parsed = parseAddress(fullAddress);
-        
-        // Only use parsed values if the corresponding field is missing
-        parsedStreetAddress = parsed.streetAddress || fullAddress;
-        parsedCity = city || parsed.city || '';
-        parsedState = state || parsed.state || '';
-        parsedPostalCode = postalCode || parsed.zipCode || '';
-      }
-
-      // Build contact data using field mappings
-      const contactData: any = {
+      const baseContactData: any = {
         firstName,
         lastName,
         email,
         phone,
-        address1: parsedStreetAddress,
         source: effectiveSource,
         tags: ['Quote Request'],
         customFields: {},
       };
 
-      // Add parsed address fields
-      if (parsedCity) contactData.city = parsedCity;
-      if (parsedState) contactData.state = parsedState;
-      if (parsedPostalCode) contactData.postalCode = parsedPostalCode;
-      if (country) contactData.country = country;
+      let ghlContact: { id: string; email?: string };
 
-      // Build a map of field IDs (both original and sanitized) to their GHL custom field mappings
-      const fieldIdToMapping = new Map<string, string>();
-      surveyQuestions.forEach((question: SurveyQuestion) => {
-        if (question.ghlFieldMapping && question.ghlFieldMapping.trim() !== '') {
-          fieldIdToMapping.set(question.id, question.ghlFieldMapping.trim());
-          const sanitizedId = question.id.replace(/\./g, '_');
-          fieldIdToMapping.set(sanitizedId, question.ghlFieldMapping.trim());
+      if (hasAddress && ghlContactId) {
+        // Update existing contact (created after email step) with address
+        const fullAddress = address2 ? `${address} ${address2}`.trim() : address;
+        let parsedStreetAddress = fullAddress;
+        let parsedCity = city || '';
+        let parsedState = state || '';
+        let parsedPostalCode = postalCode || '';
+        if (fullAddress && (!city || !state || !postalCode)) {
+          const parsed = parseAddress(fullAddress);
+          parsedStreetAddress = parsed.streetAddress || fullAddress;
+          parsedCity = city || parsed.city || '';
+          parsedState = state || parsed.state || '';
+          parsedPostalCode = postalCode || parsed.zipCode || '';
         }
-      });
-
-      console.log('Creating/updating contact with address info:', {
-        firstName,
-        lastName,
-        email,
-        phone,
-        originalAddress: address,
-        parsedAddress: {
+        const updateData = {
+          ...baseContactData,
           address1: parsedStreetAddress,
-          city: parsedCity,
-          state: parsedState,
-          postalCode: parsedPostalCode,
-        },
-      });
-
-      // Create or update contact in GHL
-      const ghlContact = await createOrUpdateContact(contactData);
-
-      console.log('Contact created/updated in GHL:', {
-        ghlContactId: ghlContact.id,
-        email: ghlContact.email,
-      });
+          ...(parsedCity && { city: parsedCity }),
+          ...(parsedState && { state: parsedState }),
+          ...(parsedPostalCode && { postalCode: parsedPostalCode }),
+          ...(country && { country: country }),
+        };
+        ghlContact = await updateContact(ghlContactId, updateData);
+        console.log('Contact updated in GHL with address:', { ghlContactId: ghlContact.id });
+      } else if (hasAddress) {
+        // No existing contact: create/update by upsert with address
+        const fullAddress = address2 ? `${address} ${address2}`.trim() : address;
+        let parsedStreetAddress = fullAddress;
+        let parsedCity = city || '';
+        let parsedState = state || '';
+        let parsedPostalCode = postalCode || '';
+        if (fullAddress && (!city || !state || !postalCode)) {
+          const parsed = parseAddress(fullAddress);
+          parsedStreetAddress = parsed.streetAddress || fullAddress;
+          parsedCity = city || parsed.city || '';
+          parsedState = state || parsed.state || '';
+          parsedPostalCode = postalCode || parsed.zipCode || '';
+        }
+        const contactData = {
+          ...baseContactData,
+          address1: parsedStreetAddress,
+          ...(parsedCity && { city: parsedCity }),
+          ...(parsedState && { state: parsedState }),
+          ...(parsedPostalCode && { postalCode: parsedPostalCode }),
+          ...(country && { country: country }),
+        };
+        ghlContact = await createOrUpdateContact(contactData);
+        console.log('Contact created/updated in GHL (with address):', { ghlContactId: ghlContact.id });
+      } else {
+        // After email step: create contact with name, phone, email only
+        ghlContact = await createOrUpdateContact(baseContactData);
+        console.log('Contact created in GHL (after email step):', { ghlContactId: ghlContact.id });
+      }
 
       return NextResponse.json({
         success: true,
@@ -139,7 +121,6 @@ export async function POST(request: NextRequest) {
       });
     } catch (error) {
       console.error('Error creating/updating contact in GHL:', error);
-      // Don't fail the request if GHL update fails
       return NextResponse.json({
         success: true,
         ghlContactId: null,
@@ -150,10 +131,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error in create-or-update contact endpoint:', error);
     return NextResponse.json(
-      {
-        error: 'Failed to create/update contact',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
+      { error: 'Failed to create/update contact', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

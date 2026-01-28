@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { calcQuote } from '@/lib/pricing/calcQuote';
 import { generateSummaryText, generateSmsText } from '@/lib/pricing/format';
 import { QuoteInputs, QuoteRanges } from '@/lib/pricing/types';
-import { createOrUpdateContact, createOpportunity, createNote, createCustomObject } from '@/lib/ghl/client';
+import { createOrUpdateContact, updateContact, createOpportunity, createNote, createCustomObject } from '@/lib/ghl/client';
 import { ghlTokenExists, getGHLConfig, getKV } from '@/lib/kv';
 import { getSurveyQuestions } from '@/lib/survey/manager';
 import { SurveyQuestion } from '@/lib/survey/schema';
@@ -510,24 +510,29 @@ export async function POST(request: NextRequest) {
           })) : [],
         });
 
-        // Pass additional tags (in-service tags)
-        const contact = await createOrUpdateContact(
-          contactData, 
-          undefined, // token - will use stored token
-          undefined, // locationId - will use stored locationId
-          ghlConfig?.inServiceTags // additional tags for in-service customers
-        );
-        
+        // If contact was already created after email step, update it with address + quote data. Otherwise upsert.
+        const contact = ghlContactId
+          ? await updateContact(
+              ghlContactId,
+              contactData,
+              undefined,
+              undefined,
+              ghlConfig?.inServiceTags
+            )
+          : await createOrUpdateContact(
+              contactData,
+              undefined,
+              undefined,
+              ghlConfig?.inServiceTags
+            );
+
         if (!contact || !contact.id) {
-          console.error('Contact creation failed - no contact ID returned:', contact);
-          throw new Error('Failed to create contact - no contact ID returned');
+          console.error('Contact create/update failed - no contact ID returned:', contact);
+          throw new Error('Failed to create/update contact - no contact ID returned');
         }
-        
+
         ghlContactId = contact.id;
-        console.log('✅ Contact created in GHL:', ghlContactId);
-        
-        // Note: Contact creation happens regardless of createContact config
-        // This ensures bookings work even if contact creation is "disabled"
+        console.log(providedContactId || bodyContactId ? '✅ Contact updated in GHL:' : '✅ Contact created in GHL:', ghlContactId);
 
         // Prepare promises for parallel execution (opportunity, custom object, note)
         let opportunityPromise: Promise<any> | null = null;

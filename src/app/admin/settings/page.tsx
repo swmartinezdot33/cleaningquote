@@ -1170,9 +1170,7 @@ export default function SettingsPage() {
       if (!googleMapsApiKeyDisplay) {
         loadGoogleMapsKey();
       }
-      if (!googleAnalyticsId) {
-        loadTrackingCodes();
-      }
+      loadTrackingCodes();
       if (!firstNameParam) {
         loadFormSettings();
       }
