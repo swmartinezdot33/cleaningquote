@@ -30,8 +30,8 @@ export function getServiceTypeDisplayName(serviceType: string): string {
     'initial': 'Initial Cleaning',
     'general': 'General Clean',
     'deep': 'Deep Clean',
-    'move-in': 'Move-In Clean',
-    'move-out': 'Move-Out Clean',
+    'move-in': 'Move In/Move Out Basic clean',
+    'move-out': 'Move In/Move Out Deep clean',
     'recurring': 'Recurring Service',
   };
   return typeMap[serviceType] || serviceType;
@@ -166,8 +166,8 @@ export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges 
     summary += `ONE-TIME SERVICE OPTIONS\n\n`;
     summary += `🧹 Deep Clean: ${formatPriceRange(ranges.deep)}\n`;
     summary += `✨ General Clean: ${formatPriceRange(ranges.general)}\n`;
-    summary += `🚚 Move-In Clean: ${formatPriceRange(ranges.moveInOutBasic)}\n`;
-    summary += `🚚 Move-Out Clean: ${formatPriceRange(ranges.moveInOutFull)}\n\n`;
+    summary += `🚚 Move In/Move Out Basic clean: ${formatPriceRange(ranges.moveInOutBasic)}\n`;
+    summary += `🚚 Move In/Move Out Deep clean: ${formatPriceRange(ranges.moveInOutFull)}\n\n`;
   }
   // Default: show all options
   else {
@@ -179,8 +179,8 @@ export function generateSummaryText(result: QuoteResult & { ranges: QuoteRanges 
     summary += `ONE-TIME SERVICE OPTIONS\n\n`;
     summary += `🧹 Deep Clean: ${formatPriceRange(ranges.deep)}\n`;
     summary += `✨ General Clean: ${formatPriceRange(ranges.general)}\n`;
-    summary += `🚚 Move-In Clean: ${formatPriceRange(ranges.moveInOutBasic)}\n`;
-    summary += `🚚 Move-Out Clean: ${formatPriceRange(ranges.moveInOutFull)}\n\n`;
+    summary += `🚚 Move In/Move Out Basic clean: ${formatPriceRange(ranges.moveInOutBasic)}\n`;
+    summary += `🚚 Move In/Move Out Deep clean: ${formatPriceRange(ranges.moveInOutFull)}\n\n`;
   }
   
   // Add Initial Cleaning messaging if applicable
@@ -222,7 +222,7 @@ export function generateSmsText(result: QuoteResult & { ranges: QuoteRanges }): 
   
   sms += `For a move in move out basic clean, pricing typically ranges from $${ranges.moveInOutBasic.low} to $${ranges.moveInOutBasic.high} per visit.\n\n`;
   
-  sms += `For a move in move out full clean, pricing typically ranges from $${ranges.moveInOutFull.low} to $${ranges.moveInOutFull.high} per visit.\n\n`;
+  sms += `For a move in move out deep clean, pricing typically ranges from $${ranges.moveInOutFull.low} to $${ranges.moveInOutFull.high} per visit.\n\n`;
   
   sms += `After your first two cleanings, we're able to lock in your ongoing price based on the average scope of the work.\n\n`;
   

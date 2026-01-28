@@ -657,8 +657,8 @@ export default function AdminPage() {
                             <th className="border border-gray-300 px-4 py-2 text-center font-semibold">4 Week</th>
                             <th className="border border-gray-300 px-4 py-2 text-center font-semibold">General</th>
                             <th className="border border-gray-300 px-4 py-2 text-center font-semibold">Deep</th>
-                            <th className="border border-gray-300 px-4 py-2 text-center font-semibold">Move In/Out Basic</th>
-                            <th className="border border-gray-300 px-4 py-2 text-center font-semibold">Move In/Out Full</th>
+                            <th className="border border-gray-300 px-4 py-2 text-center font-semibold">Move In/Move Out Basic clean</th>
+                            <th className="border border-gray-300 px-4 py-2 text-center font-semibold">Move In/Move Out Deep clean</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1225,8 +1225,8 @@ export default function AdminPage() {
                                       { key: 'fourWeek', label: '4 Week Cleaning', icon: '🗓️', tooltip: 'Monthly cleaning service' },
                                       { key: 'general', label: 'General Cleaning', icon: '✨', tooltip: 'Standard one-time cleaning' },
                                       { key: 'deep', label: 'Deep Cleaning', icon: '🧹', tooltip: 'Thorough deep cleaning service' },
-                                      { key: 'moveInOutBasic', label: 'Move In/Out Basic', icon: '📦', tooltip: 'Basic move-in/out cleaning' },
-                                      { key: 'moveInOutFull', label: 'Move In/Out Full', icon: '📦📦', tooltip: 'Complete move-in/out cleaning' },
+                                      { key: 'moveInOutBasic', label: 'Move In/Move Out Basic clean', icon: '📦', tooltip: 'Basic move-in/out cleaning' },
+                                      { key: 'moveInOutFull', label: 'Move In/Move Out Deep clean', icon: '📦📦', tooltip: 'Deep move-in/out cleaning' },
                                     ].map((service) => (
                                       <div key={service.key} className="p-4 border-2 rounded-lg hover:border-[#f61590]/50 transition-colors bg-white">
                                         <Label className="text-sm font-semibold text-gray-900 mb-2 block flex items-center gap-2">

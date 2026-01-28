@@ -32,18 +32,11 @@ export default function SettingsPage() {
   const [copiedEmbed, setCopiedEmbed] = useState(false);
   const [isTokenSectionExpanded, setIsTokenSectionExpanded] = useState(false);
 
-  // Tracking Codes State
-  const [googleAnalyticsId, setGoogleAnalyticsId] = useState('');
-  const [googleTagManagerId, setGoogleTagManagerId] = useState('');
-  const [metaPixelId, setMetaPixelId] = useState('');
+  // Tracking Codes State (custom head code only – loads on quote summary page)
   const [customHeadCode, setCustomHeadCode] = useState('');
   const [isLoadingTracking, setIsLoadingTracking] = useState(false);
   const [isSavingTracking, setIsSavingTracking] = useState(false);
   const [trackingMessage, setTrackingMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  // Google Ads Conversion Tracking State
-  const [googleAdsConversionId, setGoogleAdsConversionId] = useState('');
-  const [googleAdsConversionLabel, setGoogleAdsConversionLabel] = useState('');
 
   // Form Settings State
   const [firstNameParam, setFirstNameParam] = useState('');
@@ -1053,12 +1046,7 @@ export default function SettingsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setGoogleAnalyticsId(data.trackingCodes.googleAnalyticsId || '');
-        setGoogleTagManagerId(data.trackingCodes.googleTagManagerId || '');
-        setMetaPixelId(data.trackingCodes.metaPixelId || '');
-        setCustomHeadCode(data.trackingCodes.customHeadCode || '');
-        setGoogleAdsConversionId(data.trackingCodes.googleAdsConversionId || '');
-        setGoogleAdsConversionLabel(data.trackingCodes.googleAdsConversionLabel || '');
+        setCustomHeadCode(data.trackingCodes?.customHeadCode || '');
       }
     } catch (error) {
       console.error('Error loading tracking codes:', error);
@@ -1103,14 +1091,7 @@ export default function SettingsPage() {
           'Content-Type': 'application/json',
           'x-admin-password': password,
         },
-        body: JSON.stringify({
-          googleAnalyticsId,
-          googleTagManagerId,
-          metaPixelId,
-          customHeadCode,
-          googleAdsConversionId,
-          googleAdsConversionLabel,
-        }),
+        body: JSON.stringify({ customHeadCode }),
       });
 
       const data = await response.json();
@@ -3026,7 +3007,7 @@ export default function SettingsPage() {
                     Tracking & Analytics
                   </CardTitle>
                   <CardDescription className="text-gray-600 mt-1">
-                    Add Google Analytics, Google Tag Manager, Meta Pixel, and custom tracking codes
+                    Custom tracking code that loads only on the quote summary page so you can track when quotes are given
                   </CardDescription>
                 </div>
                 <ChevronDown 
@@ -3057,107 +3038,22 @@ export default function SettingsPage() {
                 )}
 
                 <div>
-                  <Label htmlFor="ga-id" className="text-base font-semibold">
-                    Google Analytics ID
+                  <Label htmlFor="custom-code" className="text-base font-semibold">
+                    Custom Head Code
                   </Label>
-                  <Input
-                    id="ga-id"
-                    value={googleAnalyticsId}
-                    onChange={(e) => setGoogleAnalyticsId(e.target.value)}
-                    placeholder="G-XXXXXXXXXX"
-                    className="mt-3"
+                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-1">
+                    Note: This code only loads on the quote summary page — not on the landing page or confirmation pages.
+                  </p>
+                  <textarea
+                    id="custom-code"
+                    value={customHeadCode}
+                    onChange={(e) => setCustomHeadCode(e.target.value)}
+                    placeholder="&lt;script&gt;...&lt;/script&gt; Paste tracking scripts here."
+                    className="mt-2 w-full h-40 px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"
                   />
                   <p className="text-sm text-gray-600 mt-1">
-                    Your Google Analytics 4 measurement ID (starts with G-)
+                    Use this to fire conversions when a quote is shown (e.g. Google Ads, Meta Pixel, GTM). Scripts run only on /quote/[id].
                   </p>
-                </div>
-
-                <div>
-                  <Label htmlFor="gtm-id" className="text-base font-semibold">
-                    Google Tag Manager ID
-                  </Label>
-                  <Input
-                    id="gtm-id"
-                    value={googleTagManagerId}
-                    onChange={(e) => setGoogleTagManagerId(e.target.value)}
-                    placeholder="GTM-XXXXXXX"
-                    className="mt-3"
-                  />
-                  <p className="text-sm text-gray-600 mt-1">
-                    Your Google Tag Manager container ID (starts with GTM-)
-                  </p>
-                </div>
-
-                <div>
-                  <Label htmlFor="meta-pixel-id" className="text-base font-semibold">
-                    Meta Pixel ID
-                  </Label>
-                  <Input
-                    id="meta-pixel-id"
-                    value={metaPixelId}
-                    onChange={(e) => setMetaPixelId(e.target.value)}
-                    placeholder="123456789012345"
-                    className="mt-3"
-                  />
-                  <p className="text-sm text-gray-600 mt-1">
-                    Your Meta Pixel ID for Facebook/Instagram conversion tracking
-                  </p>
-                </div>
-
-                <div className="pt-4 border-t border-gray-200">
-                  <h4 className="font-semibold text-gray-900 mb-4 text-lg">Google Ads Conversion Tracking</h4>
-                  
-                  <div>
-                    <Label htmlFor="google-ads-conversion-id" className="text-base font-semibold">
-                      Google Ads Conversion ID
-                    </Label>
-                    <Input
-                      id="google-ads-conversion-id"
-                      value={googleAdsConversionId}
-                      onChange={(e) => setGoogleAdsConversionId(e.target.value)}
-                      placeholder="AW-123456789"
-                      className="mt-3"
-                    />
-                    <p className="text-sm text-gray-600 mt-1">
-                      Your Google Ads conversion ID (found in Google Ads conversion tracking setup)
-                    </p>
-                  </div>
-
-                  <div className="mt-4">
-                    <Label htmlFor="google-ads-conversion-label" className="text-base font-semibold">
-                      Google Ads Conversion Label
-                    </Label>
-                    <Input
-                      id="google-ads-conversion-label"
-                      value={googleAdsConversionLabel}
-                      onChange={(e) => setGoogleAdsConversionLabel(e.target.value)}
-                      placeholder="abCdEfGhIjKlMnOpQrSt"
-                      className="mt-3"
-                    />
-                    <p className="text-sm text-gray-600 mt-1">
-                      Your Google Ads conversion label for tracking quote submissions and appointments
-                    </p>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-gray-200">
-                  <h4 className="font-semibold text-gray-900 mb-4 text-lg">Additional Tracking</h4>
-
-                  <div>
-                    <Label htmlFor="custom-code" className="text-base font-semibold">
-                      Custom Head Code
-                    </Label>
-                    <textarea
-                      id="custom-code"
-                      value={customHeadCode}
-                      onChange={(e) => setCustomHeadCode(e.target.value)}
-                      placeholder="&lt;script&gt;...&lt;/script&gt;"
-                      className="mt-2 w-full h-32 px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"
-                    />
-                    <p className="text-sm text-gray-600 mt-1">
-                      Any additional tracking or custom scripts to add to the page head
-                    </p>
-                  </div>
                 </div>
 
                 <Button

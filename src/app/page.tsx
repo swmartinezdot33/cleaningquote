@@ -1761,9 +1761,10 @@ export default function Home() {
                           const getServiceTypeInfo = (serviceType: string, freq: string) => {
                             // If frequency is one-time OR service type is a one-time service type, treat as one-time
                             if (freq === 'one-time' || isOneTimeService(serviceType)) {
-                              if (serviceType === 'move-in' || serviceType === 'move-out') {
-                                // For move-in/move-out, use Basic option as the primary selected option
-                                return { name: 'Move-In/Out Clean', range: quoteResult.ranges!.moveInOutBasic, icon: '🚚' };
+                              if (serviceType === 'move-in') {
+                                return { name: 'Move In/Move Out Basic clean', range: quoteResult.ranges!.moveInOutBasic, icon: '🚚' };
+                              } else if (serviceType === 'move-out') {
+                                return { name: 'Move In/Move Out Deep clean', range: quoteResult.ranges!.moveInOutFull, icon: '🚚' };
                               } else if (serviceType === 'deep') {
                                 return { name: 'Deep Clean', range: quoteResult.ranges!.deep, icon: '🧹' };
                               }
@@ -2011,7 +2012,7 @@ export default function Home() {
                                           <div className="flex items-center gap-3">
                                             <span className="text-xl">🚚</span>
                                             <span className="font-bold text-lg text-gray-700">
-                                              Move-In/Out Clean - Basic: ${quoteResult.ranges.moveInOutBasic.low} to ${quoteResult.ranges.moveInOutBasic.high}
+                                              Move In/Move Out Basic clean: ${quoteResult.ranges.moveInOutBasic.low} to ${quoteResult.ranges.moveInOutBasic.high}
                                             </span>
                                           </div>
                                         </div>
@@ -2019,7 +2020,7 @@ export default function Home() {
                                           <div className="flex items-center gap-3">
                                             <span className="text-xl">🚚</span>
                                             <span className="font-bold text-lg text-gray-700">
-                                              Move-In/Out Clean - Full: ${quoteResult.ranges.moveInOutFull.low} to ${quoteResult.ranges.moveInOutFull.high}
+                                              Move In/Move Out Deep clean: ${quoteResult.ranges.moveInOutFull.low} to ${quoteResult.ranges.moveInOutFull.high}
                                             </span>
                                           </div>
                                         </div>

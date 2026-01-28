@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -20,42 +20,6 @@ export default function CallbackConfirmedPage() {
     const value = searchParams.get(param);
     if (value) utmParams.set(param, value);
   });
-
-  // Fire tracking events on page load
-  useEffect(() => {
-    // Google Analytics - Callback Confirmed Event
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'callback_confirmed', {
-        quote_id: quoteId,
-        event_category: 'Booking',
-        event_label: 'Callback Scheduled',
-      });
-
-      // Track pageview with confirmation URL
-      (window as any).gtag('config', 'GA_MEASUREMENT_ID', {
-        page_path: `/quote/${quoteId}/callback-confirmed`,
-        page_title: 'Callback Confirmed',
-      });
-    }
-
-    // Meta Pixel - Callback Confirmed
-    if (typeof window !== 'undefined' && (window as any).fbq) {
-      (window as any).fbq('track', 'Schedule', {
-        content_name: 'Callback Confirmed',
-        quote_id: quoteId,
-      });
-    }
-
-    // Google Ads - Callback Conversion
-    const googleAdsConversionId = searchParams.get('gclid');
-    if (googleAdsConversionId && typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'conversion', {
-        'send_to': googleAdsConversionId,
-        'event_category': 'Booking',
-        'event_label': 'Callback Confirmed',
-      });
-    }
-  }, [quoteId, searchParams]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center px-4">

@@ -19,13 +19,7 @@ export const metadata: Metadata = {
 }
 
 interface TrackingCodes {
-  googleAnalyticsId?: string;
-  googleTagManagerId?: string;
-  facebookPixelId?: string;
-  metaPixelId?: string;
   customHeadCode?: string;
-  googleAdsConversionId?: string;
-  googleAdsConversionLabel?: string;
 }
 
 export default async function RootLayout({
@@ -48,14 +42,8 @@ export default async function RootLayout({
     const codes = await kv.get<TrackingCodes>("admin:tracking-codes")
     trackingCodes = codes || {}
     // Log for debugging (only in development)
-    if (process.env.NODE_ENV === 'development' && Object.keys(trackingCodes).length > 0) {
-      console.log('📊 Tracking codes loaded from KV:', {
-        hasGA: !!trackingCodes.googleAnalyticsId,
-        hasGTM: !!trackingCodes.googleTagManagerId,
-        hasMetaPixel: !!trackingCodes.metaPixelId,
-        hasGAds: !!trackingCodes.googleAdsConversionId,
-        hasCustomCode: !!trackingCodes.customHeadCode,
-      });
+    if (process.env.NODE_ENV === 'development' && trackingCodes.customHeadCode) {
+      console.log('📊 Custom head code loaded from KV (runs on quote summary page only)');
     }
   } catch (error) {
     console.error("Failed to load tracking codes:", error)

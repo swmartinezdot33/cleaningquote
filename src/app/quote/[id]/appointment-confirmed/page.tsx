@@ -44,42 +44,6 @@ export default function AppointmentConfirmedPage() {
     loadRedirectSettings();
   }, []);
 
-  // Fire tracking events on page load
-  useEffect(() => {
-    // Google Analytics - Appointment Confirmed Event
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'appointment_confirmed', {
-        quote_id: quoteId,
-        event_category: 'Booking',
-        event_label: 'Appointment Booked',
-      });
-
-      // Track pageview with confirmation URL
-      (window as any).gtag('config', 'GA_MEASUREMENT_ID', {
-        page_path: `/quote/${quoteId}/appointment-confirmed`,
-        page_title: 'Appointment Confirmed',
-      });
-    }
-
-    // Meta Pixel - Appointment Confirmed
-    if (typeof window !== 'undefined' && (window as any).fbq) {
-      (window as any).fbq('track', 'Schedule', {
-        content_name: 'Appointment Confirmed',
-        quote_id: quoteId,
-      });
-    }
-
-    // Google Ads - Appointment Conversion
-    const googleAdsConversionId = searchParams.get('gclid');
-    if (googleAdsConversionId && typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'conversion', {
-        'send_to': googleAdsConversionId,
-        'event_category': 'Booking',
-        'event_label': 'Appointment Confirmed',
-      });
-    }
-  }, [quoteId, searchParams]);
-
   // Handle redirect after 5 seconds if enabled
   useEffect(() => {
     if (redirectAfterAppointment && appointmentRedirectUrl) {
