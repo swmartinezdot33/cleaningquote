@@ -138,11 +138,10 @@ export async function POST(request: NextRequest) {
       console.log('📊 UTM parameters captured:', utmParams);
     }
 
-    // When no utm_source, use landing URL (sourceUrl) as source for attribution
-    const effectiveUtmSource = utmParams.utm_source || (body.sourceUrl && String(body.sourceUrl).trim()) || null;
-    if (effectiveUtmSource && !utmParams.utm_source) {
-      console.log('📊 Using landing URL as source (no utm_source):', effectiveUtmSource);
-    }
+    // Use utm_source only for Source – never the full URL. If absent, we use "Website Quote Form" later.
+    const effectiveUtmSource = utmParams.utm_source && String(utmParams.utm_source).trim()
+      ? utmParams.utm_source.trim()
+      : null;
     
     // Convert square footage range to midpoint if it's a range string
     let squareFootage = Number(body.squareFeet);
@@ -266,7 +265,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Add UTM parameters to contact using GHL native fields (not customFields)
-        // When no utm_source, effectiveUtmSource is the landing URL (sourceUrl from client)
+        // Source = utm_source only when present; otherwise "Website Quote Form". Never use full URL.
         if (effectiveUtmSource) {
           contactData.utmSource = effectiveUtmSource;
           console.log(`✅ Added UTM source to contact (native field): ${effectiveUtmSource}`);
@@ -627,8 +626,7 @@ export async function POST(request: NextRequest) {
               // Get the UTM value to check
               let raw: string;
               if (rule.utmParam === 'utm_source') {
-                // For utm_source, also use effectiveUtmSource when utm_source is absent
-                raw = utmParams.utm_source || effectiveUtmSource || '';
+                raw = utmParams.utm_source || '';
               } else {
                 raw = utmParams[rule.utmParam as keyof typeof utmParams] || '';
               }
@@ -791,8 +789,7 @@ export async function POST(request: NextRequest) {
               'cleaned_in_last_3_months': mappedCleanedInLast3Months,
             };
             
-            // Add UTM parameters for tracking (map to schema field names)
-            // When no utm_source, effectiveUtmSource is the landing URL (sourceUrl from client)
+            // Add UTM parameters for tracking (map to schema field names). Use utm_source only – never URL.
             if (effectiveUtmSource) {
               quoteCustomFields['utm_source'] = effectiveUtmSource;
             }

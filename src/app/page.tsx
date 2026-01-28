@@ -923,6 +923,12 @@ export default function Home() {
         const data = getValues();
         try {
           console.log('Creating contact in GHL after address validation...');
+          const sp = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+          const utmForContact: Record<string, string> = {};
+          ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach((k) => {
+            const v = sp.get(k);
+            if (v) utmForContact[k] = v;
+          });
           const response = await fetch('/api/contacts/create-or-update', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -936,7 +942,7 @@ export default function Home() {
               state: data.state || '',
               postalCode: data.postalCode || '',
               country: data.country || 'US',
-              sourceUrl: typeof window !== 'undefined' ? window.location.href : undefined,
+              ...utmForContact,
             }),
           });
 
@@ -1227,8 +1233,6 @@ export default function Home() {
         // Include UTM and passthrough params (e.g. start=iframe-Staver) for attribution
         ...utmParams,
         ...passthroughToApi,
-        // When no utm_source, API uses this as source/utm_source for GHL
-        sourceUrl: typeof window !== 'undefined' ? window.location.href : undefined,
       };
 
       // Add any custom fields (those that were sanitized)
@@ -2616,6 +2620,12 @@ export default function Home() {
                                   const data = getValues();
                                   try {
                                     console.log('Auto-advance: Creating contact in GHL before service area check...');
+                                    const sp = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+                                    const utmForContact: Record<string, string> = {};
+                                    ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach((k) => {
+                                      const v = sp.get(k);
+                                      if (v) utmForContact[k] = v;
+                                    });
                                     const response = await fetch('/api/contacts/create-or-update', {
                                       method: 'POST',
                                       headers: { 'Content-Type': 'application/json' },
@@ -2629,7 +2639,7 @@ export default function Home() {
                                         state: data.state || '',
                                         postalCode: data.postalCode || '',
                                         country: data.country || 'US',
-                                        sourceUrl: typeof window !== 'undefined' ? window.location.href : undefined,
+                                        ...utmForContact,
                                       }),
                                     });
 

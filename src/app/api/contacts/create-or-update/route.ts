@@ -55,8 +55,9 @@ export async function POST(request: NextRequest) {
       // Get survey questions to map fields
       const surveyQuestions = await getSurveyQuestions();
 
-      // When no utm_source, use landing URL (sourceUrl) as source for attribution
-      const effectiveSource = (body.sourceUrl && String(body.sourceUrl).trim()) || 'Website Quote Form';
+      // Source = utm_source only when present; otherwise "Website Quote Form". Never use full URL.
+      const utmSource = body.utm_source && String(body.utm_source).trim();
+      const effectiveSource = utmSource || 'Website Quote Form';
 
       // Combine address and address2 if address2 exists (GHL only has one address line)
       const fullAddress = address2 
