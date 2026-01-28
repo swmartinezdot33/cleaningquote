@@ -53,8 +53,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch custom fields from GHL API
-    // Note: This endpoint doesn't use /v2/ prefix - it uses the v1 endpoint structure
+    // Fetch custom fields from GHL API (no cache - always get latest so new GHL fields appear on refresh)
     const response = await fetch(
       `https://services.leadconnectorhq.com/locations/${locationId}/customFields?model=contact`,
       {
@@ -64,6 +63,7 @@ export async function GET(request: NextRequest) {
           'Content-Type': 'application/json',
           'Version': '2021-07-28',
         },
+        cache: 'no-store',
       }
     );
 

@@ -822,10 +822,11 @@ export default function SettingsPage() {
     setIsLoadingCustomFields(true);
     setCustomFieldsError(null);
     try {
-      const response = await fetch('/api/admin/ghl-custom-fields', {
+      const response = await fetch(`/api/admin/ghl-custom-fields?t=${Date.now()}`, {
         headers: {
           'x-admin-password': password,
         },
+        cache: 'no-store',
       });
 
       if (response.ok) {
