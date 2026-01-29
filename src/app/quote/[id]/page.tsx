@@ -549,6 +549,7 @@ export default function QuotePage() {
                           'monthly': 'Every 4 Weeks',
                           'every-4-weeks': 'Every 4 Weeks',
                         };
+                        // Display uses option.label (left input in Survey Builder) — short, human-friendly
                         const getServiceLabel = (value: string) =>
                           quoteResult.serviceTypeLabels?.[value]
                           ?? quoteResult.serviceTypeLabels?.[value?.toLowerCase()]
@@ -562,6 +563,33 @@ export default function QuotePage() {
                           ?? quoteResult.frequencyOptions?.find(o => o.value === value || o.value.toLowerCase() === value || (value === 'biweekly' && o.value === 'bi-weekly'))?.label
                           ?? freqLabelFallback[value?.toLowerCase()]
                           ?? (value ? value.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : value);
+                        // Map option value/label to canonical key for range lookup (mirrors server inference)
+                        const getCanonicalServiceKey = (value: string, label: string): string | null => {
+                          const v = (value || '').toLowerCase().trim();
+                          const l = (label || '').toLowerCase();
+                          const combined = `${v} ${l}`;
+                          if (v === 'initial') return 'initial';
+                          if (v === 'general') return 'general';
+                          if (v === 'deep') return 'deep';
+                          if (v === 'move-in') return 'move-in';
+                          if (v === 'move-out') return 'move-out';
+                          if (combined.includes('move-out') || combined.includes('move out') || (combined.includes('deep') && combined.includes('move'))) return 'move-out';
+                          if (combined.includes('move-in') || combined.includes('move in') || (combined.includes('basic') && combined.includes('move'))) return 'move-in';
+                          if (combined.includes('initial deep') || (combined.includes('initial') && combined.includes('deep') && !combined.includes('general'))) return 'initial';
+                          if (combined.includes('initial general') || (combined.includes('initial') && combined.includes('general'))) return 'general';
+                          if (combined.includes('one time deep') || combined.includes('one time clean') || (combined.includes('deep') && !combined.includes('move') && !combined.includes('initial'))) return 'deep';
+                          return null;
+                        };
+                        const getRangeForServiceKey = (key: string): { low: number; high: number } | null => {
+                          if (!quoteResult.ranges) return null;
+                          if (key === 'initial') return quoteResult.ranges.initial;
+                          if (key === 'general') return quoteResult.ranges.general;
+                          if (key === 'deep') return quoteResult.ranges.deep;
+                          if (key === 'move-in') return quoteResult.ranges.moveInOutBasic;
+                          if (key === 'move-out') return quoteResult.ranges.moveInOutFull;
+                          return null;
+                        };
+                        const selectedServiceKey = getCanonicalServiceKey(serviceType, quoteResult.serviceTypeLabel || serviceType || '') ?? (['move-in', 'move-out', 'deep', 'initial', 'general'].includes(serviceType) ? serviceType : null);
                         
                         let selectedRange: { low: number; high: number } | null = null;
                         if (serviceType === 'move-in') selectedRange = quoteResult.ranges.moveInOutBasic;
@@ -681,7 +709,7 @@ export default function QuotePage() {
                               </motion.div>
                             )}
 
-                            {/* ALWAYS show other pricing options (Deep Clean and General Clean) */}
+                            {/* OTHER SERVICE OPTIONS: all services from Survey Builder (left input = label) + recurring options */}
                             {quoteResult.ranges && (
                               <motion.div
                                 initial={{ opacity: 0, x: -10 }}
@@ -691,66 +719,52 @@ export default function QuotePage() {
                               >
                                 <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">OTHER SERVICE OPTIONS:</p>
                                 
-                                {/* Other options — labels from API (stored survey) */}
-                                {serviceType !== 'general' && serviceType !== 'initial' && (
-                                  <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
-                                    <span className="text-sm text-gray-400">✨</span>
-                                    <div className="flex-1">
-                                      <span className="font-semibold text-gray-900">{getServiceLabel('general')}:</span>{' '}
-                                      <span className="text-gray-700">${quoteResult.ranges.general.low} to ${quoteResult.ranges.general.high}</span>
-                                    </div>
-                                  </div>
-                                )}
-                                {serviceType !== 'deep' && (
-                                  <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
-                                    <span className="text-sm text-gray-400">🧹</span>
-                                    <div className="flex-1">
-                                      <span className="font-semibold text-gray-900">{getServiceLabel('deep')}:</span>{' '}
-                                      <span className="text-gray-700">${quoteResult.ranges.deep.low} to ${quoteResult.ranges.deep.high}</span>
-                                    </div>
-                                  </div>
-                                )}
-                                {serviceType !== 'move-in' && (
-                                  <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
-                                    <span className="text-sm text-gray-400">🚚</span>
-                                    <div className="flex-1">
-                                      <span className="font-semibold text-gray-900">{getServiceLabel('move-in')}:</span>{' '}
-                                      <span className="text-gray-700">${quoteResult.ranges.moveInOutBasic.low} to ${quoteResult.ranges.moveInOutBasic.high}</span>
-                                    </div>
-                                  </div>
-                                )}
-                                {serviceType !== 'move-out' && (
-                                  <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
-                                    <span className="text-sm text-gray-400">🚚</span>
-                                    <div className="flex-1">
-                                      <span className="font-semibold text-gray-900">{getServiceLabel('move-out')}:</span>{' '}
-                                      <span className="text-gray-700">${quoteResult.ranges.moveInOutFull.low} to ${quoteResult.ranges.moveInOutFull.high}</span>
-                                    </div>
-                                  </div>
-                                )}
-                                {isOneTimeService && (
-                                  <>
-                                    {frequency !== 'weekly' && (
-                                      <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
-                                        <span className="text-sm text-gray-400">📅</span>
-                                        <div className="flex-1">
-                                          <span className="font-semibold text-gray-900">{getFreqLabel('weekly')}:</span>{' '}
-                                          <span className="text-gray-700">${quoteResult.ranges.weekly.low} to ${quoteResult.ranges.weekly.high}</span>
-                                        </div>
+                                {/* All service types from survey (display = option.label, the left input) */}
+                                {quoteResult.serviceTypeOptions?.map((opt) => {
+                                  const key = getCanonicalServiceKey(opt.value, opt.label || opt.value);
+                                  if (!key) return null;
+                                  const range = getRangeForServiceKey(key);
+                                  if (!range) return null;
+                                  if (selectedServiceKey === key) return null;
+                                  const displayLabel = opt.label || opt.value;
+                                  return (
+                                    <div key={opt.value} className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
+                                      <span className="text-sm text-gray-400">✨</span>
+                                      <div className="flex-1">
+                                        <span className="font-semibold text-gray-900">{displayLabel}:</span>{' '}
+                                        <span className="text-gray-700">${range.low} to ${range.high}</span>
                                       </div>
-                                    )}
-                                    {/* Bi-Weekly omitted here — already shown as "Most Popular" at top */}
-                                    {frequency !== 'four-week' && (
-                                      <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
-                                        <span className="text-sm text-gray-400">📅</span>
-                                        <div className="flex-1">
-                                          <span className="font-semibold text-gray-900">{getFreqLabel('four-week')}:</span>{' '}
-                                          <span className="text-gray-700">${quoteResult.ranges.fourWeek.low} to ${quoteResult.ranges.fourWeek.high}</span>
-                                        </div>
+                                    </div>
+                                  );
+                                })}
+                                
+                                {/* All recurring frequency options (Weekly, Bi-Weekly, Every 4 Weeks) — display = option.label (left input) */}
+                                {quoteResult.frequencyOptions?.filter((f) => {
+                                  const v = (f.value || '').toLowerCase();
+                                  return v !== 'one-time' && v !== 'one time' && !v.includes('one time');
+                                }).map((opt) => {
+                                  const fv = (opt.value || '').toLowerCase();
+                                  const fl = (opt.label || '').toLowerCase();
+                                  const combined = `${fv} ${fl}`;
+                                  let freqKey: string | null = null;
+                                  if (fv === 'bi-weekly' || fv === 'biweekly' || combined.includes('bi-weekly') || combined.includes('bi weekly') || combined.includes('every 2')) freqKey = 'bi-weekly';
+                                  else if (fv === 'four-week' || fv === 'monthly' || fv === 'every-4-weeks' || combined.includes('every 4') || combined.includes('4 weeks') || combined.includes('monthly')) freqKey = 'four-week';
+                                  else if (fv === 'weekly' || combined.includes('weekly')) freqKey = 'weekly';
+                                  if (!freqKey) return null;
+                                  const range = freqKey === 'weekly' ? quoteResult.ranges!.weekly : freqKey === 'bi-weekly' ? quoteResult.ranges!.biWeekly : quoteResult.ranges!.fourWeek;
+                                  const currentFreqNorm = frequency === 'biweekly' ? 'bi-weekly' : frequency === 'monthly' || frequency === 'every-4-weeks' ? 'four-week' : frequency;
+                                  if (currentFreqNorm === freqKey) return null;
+                                  const displayLabel = opt.label || opt.value;
+                                  return (
+                                    <div key={opt.value} className="bg-white border border-gray-200 px-4 py-3 rounded-lg flex items-center gap-3">
+                                      <span className="text-sm text-gray-400">📅</span>
+                                      <div className="flex-1">
+                                        <span className="font-semibold text-gray-900">{displayLabel}:</span>{' '}
+                                        <span className="text-gray-700">${range.low} to ${range.high}</span>
                                       </div>
-                                    )}
-                                  </>
-                                )}
+                                    </div>
+                                  );
+                                })}
                               </motion.div>
                             )}
 
