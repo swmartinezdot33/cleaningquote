@@ -53,6 +53,9 @@ interface QuoteResponse {
   frequencyLabel?: string;
   serviceTypeOptions?: Array<{ value: string; label: string }>;
   frequencyOptions?: Array<{ value: string; label: string }>;
+  /** Maps canonical keys (move-in, four-week) and option values to display labels from Survey Builder */
+  serviceTypeLabels?: Record<string, string>;
+  frequencyLabels?: Record<string, string>;
 }
 
 // Helper function to convert hex to rgba
@@ -547,11 +550,16 @@ export default function QuotePage() {
                           'every-4-weeks': 'Every 4 Weeks',
                         };
                         const getServiceLabel = (value: string) =>
-                          quoteResult.serviceTypeOptions?.find(o => o.value === value || o.value.toLowerCase() === value)?.label
+                          quoteResult.serviceTypeLabels?.[value]
+                          ?? quoteResult.serviceTypeLabels?.[value?.toLowerCase()]
+                          ?? quoteResult.serviceTypeOptions?.find(o => o.value === value || o.value.toLowerCase() === value)?.label
                           ?? serviceLabelFallback[value?.toLowerCase()]
                           ?? (value ? value.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : value);
                         const getFreqLabel = (value: string) =>
-                          quoteResult.frequencyOptions?.find(o => o.value === value || o.value.toLowerCase() === value || (value === 'biweekly' && o.value === 'bi-weekly'))?.label
+                          quoteResult.frequencyLabels?.[value]
+                          ?? quoteResult.frequencyLabels?.[value?.toLowerCase()]
+                          ?? quoteResult.frequencyLabels?.[value === 'biweekly' ? 'bi-weekly' : value]
+                          ?? quoteResult.frequencyOptions?.find(o => o.value === value || o.value.toLowerCase() === value || (value === 'biweekly' && o.value === 'bi-weekly'))?.label
                           ?? freqLabelFallback[value?.toLowerCase()]
                           ?? (value ? value.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : value);
                         

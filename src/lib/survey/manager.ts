@@ -337,8 +337,33 @@ export async function getQuestion(id: string): Promise<SurveyQuestion | null> {
 }
 
 /**
+ * Infer canonical service type key from option value/label so we can look up by "move-in" etc.
+ * Survey Builder may use long values like "Move-In/Move-Out Basic Clean"; app uses canonical keys.
+ */
+function inferCanonicalServiceKeys(value: string, label: string): string[] {
+  const keys: string[] = [];
+  const v = (value || '').toLowerCase().trim();
+  const l = (label || '').toLowerCase();
+  const combined = `${v} ${l}`;
+  // Exact canonical values first
+  if (v === 'initial') return ['initial'];
+  if (v === 'general') return ['general'];
+  if (v === 'deep') return ['deep'];
+  if (v === 'move-in') return ['move-in'];
+  if (v === 'move-out') return ['move-out'];
+  // Infer from wording: move-out (deep) vs move-in (basic) — only one per option
+  if (combined.includes('move-out') || combined.includes('move out') || (combined.includes('deep') && combined.includes('move'))) keys.push('move-out');
+  else if (combined.includes('move-in') || combined.includes('move in') || (combined.includes('basic') && combined.includes('move'))) keys.push('move-in');
+  if (combined.includes('initial deep') || (combined.includes('initial') && combined.includes('deep') && !combined.includes('general'))) keys.push('initial');
+  if (combined.includes('initial general') || (combined.includes('initial') && combined.includes('general'))) keys.push('general');
+  if (combined.includes('one time deep') || combined.includes('one time clean') || (combined.includes('deep') && !combined.includes('move') && !combined.includes('initial'))) keys.push('deep');
+  return [...new Set(keys)];
+}
+
+/**
  * Get display labels for serviceType and frequency from stored survey (single source of truth).
  * Used by quote API and quote summary so all labels come from Survey Builder, not hardcoded.
+ * Maps both exact option values and canonical keys (move-in, four-week, etc.) so UI always shows Survey labels.
  */
 export function getSurveyDisplayLabels(questions: SurveyQuestion[]): {
   serviceTypeLabels: Record<string, string>;
@@ -352,8 +377,12 @@ export function getSurveyDisplayLabels(questions: SurveyQuestion[]): {
     for (const opt of serviceTypeQuestion.options) {
       if (opt.value?.trim()) {
         const v = opt.value.trim();
-        serviceTypeLabels[v] = opt.label || opt.value;
-        serviceTypeLabels[v.toLowerCase()] = opt.label || opt.value;
+        const label = opt.label || opt.value;
+        serviceTypeLabels[v] = label;
+        serviceTypeLabels[v.toLowerCase()] = label;
+        for (const key of inferCanonicalServiceKeys(v, opt.label || v)) {
+          serviceTypeLabels[key] = label;
+        }
       }
     }
   }
@@ -361,12 +390,14 @@ export function getSurveyDisplayLabels(questions: SurveyQuestion[]): {
     for (const opt of frequencyQuestion.options) {
       if (opt.value?.trim()) {
         const v = opt.value.trim();
-        frequencyLabels[v] = opt.label || opt.value;
-        frequencyLabels[v.toLowerCase()] = opt.label || opt.value;
-        if (v.toLowerCase() === 'bi-weekly') frequencyLabels['biweekly'] = opt.label || opt.value;
-        if (v.toLowerCase() === 'four-week' || v.toLowerCase() === 'monthly') {
-          frequencyLabels['four-week'] = frequencyLabels['monthly'] = opt.label || opt.value;
+        const label = opt.label || opt.value;
+        frequencyLabels[v] = label;
+        frequencyLabels[v.toLowerCase()] = label;
+        if (v.toLowerCase() === 'bi-weekly') frequencyLabels['biweekly'] = label;
+        if (v.toLowerCase() === 'four-week' || v.toLowerCase() === 'monthly' || v.toLowerCase() === 'every-4-weeks') {
+          frequencyLabels['four-week'] = frequencyLabels['monthly'] = frequencyLabels['every-4-weeks'] = label;
         }
+        if (v.toLowerCase() === 'weekly') frequencyLabels['weekly'] = label;
       }
     }
   }
