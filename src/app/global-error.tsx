@@ -28,7 +28,7 @@ export default function GlobalError({
         >
           <div style={{ maxWidth: '28rem', width: '100%', textAlign: 'center' }}>
             <h1 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#0f172a', marginBottom: '0.5rem' }}>
-              CleanQuote
+              CleanQuote.io
             </h1>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>
               Something went wrong

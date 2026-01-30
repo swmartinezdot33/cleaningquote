@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
-import { Home } from '@/app/page';
+import { Home } from '@/app/quote-flow/QuoteFlowPage';
 import type { Tool } from '@/lib/supabase/types';
 
 export const dynamic = 'force-dynamic';

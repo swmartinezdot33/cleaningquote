@@ -6,8 +6,8 @@ import { TrackingScripts } from "@/components/TrackingScripts"
 const font = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-sans" })
 
 export const metadata: Metadata = {
-  title: "CleanQuote",
-  description: "Smart quoting for cleaning companies. Build and embed custom quote forms.",
+  title: "CleanQuote.io",
+  description: "CleanQuote.io — Smart quoting for cleaning companies. Build and embed custom quote forms.",
   icons: {
     icon: [
       { url: '/icon.svg', type: 'image/svg+xml' },

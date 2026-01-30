@@ -9,11 +9,11 @@ Use this checklist to get the multi-tenant quoting platform running in **product
 - [ ] **Project created** at [supabase.com/dashboard](https://supabase.com/dashboard).
 - [ ] **Tools table** migration applied (SQL Editor → run `supabase/migrations/00001_create_tools_table.sql` or equivalent).
 - [ ] **Auth → URL configuration** (Supabase Dashboard):
-  - **Site URL**: `https://your-production-domain.com`
+  - **Site URL**: `https://www.cleanquote.io`
   - **Redirect URLs**: add:
-    - `https://your-production-domain.com/auth/callback`
-    - `https://your-production-domain.com/**`
-  (Replace with your real Vercel/production URL.)
+    - `https://www.cleanquote.io/auth/callback`
+    - `https://www.cleanquote.io/**`
+  (If using a different domain, use that instead and set `NEXT_PUBLIC_APP_URL` in Vercel to match.)
 - [ ] **Env vars** set in Vercel (see [Environment variables](#environment-variables) below).
 
 ---
@@ -42,6 +42,7 @@ Set these in **Vercel → Project → Settings → Environment Variables** for *
 | `GOOGLE_MAPS_API_KEY` | Optional | If using address autocomplete |
 | `MIGRATION_USER_EMAIL` | For migration | First user email (can remove after migration) |
 | `MIGRATION_USER_PASSWORD` | For migration | First user password (user should change on first login) |
+| `NEXT_PUBLIC_APP_URL` | Recommended | Public domain, e.g. `https://www.cleanquote.io` (Vercel → Domains + this env var) |
 | `MIGRATION_SECRET` | Optional | For `x-migration-secret` when calling migration API |
 
 See [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md) for full reference.
@@ -56,11 +57,11 @@ If this is the **first** production deploy and you want to create the first user
 2. Deploy (or use a preview deploy).
 3. Run the migration once:
    ```bash
-   curl -X POST https://your-production-domain.com/api/admin/migration/to-multitenant \
+   curl -X POST https://www.cleanquote.io/api/admin/migration/to-multitenant \
      -H "x-admin-password: YOUR_ADMIN_PASSWORD"
    ```
    Or use `x-migration-secret` if you set `MIGRATION_SECRET`.
-4. First user can log in at `https://your-production-domain.com/login` with the migration email/password; change password after first login.
+4. First user can log in at `https://www.cleanquote.io/login` with the migration email/password; change password after first login.
 5. (Optional) Remove or rotate `MIGRATION_USER_PASSWORD` and `MIGRATION_SECRET` after migration.
 
 Details: [MIGRATION_OPTION_B.md](MIGRATION_OPTION_B.md).
@@ -69,18 +70,19 @@ Details: [MIGRATION_OPTION_B.md](MIGRATION_OPTION_B.md).
 
 ## 5. Post-deploy verification
 
-- [ ] **Health check**: `GET https://your-production-domain.com/api/health` returns `200` and `{"ok":true,...}`.
-- [ ] **Login**: Open `https://your-production-domain.com/login`, sign in with the first user; redirect to dashboard.
+- [ ] **Health check**: `GET https://www.cleanquote.io/api/health` returns `200` and `{"ok":true,...}`.
+- [ ] **Login**: Open `https://www.cleanquote.io/login`, sign in with the first user; redirect to dashboard.
 - [ ] **Dashboard**: Tool list and tool settings (e.g. GHL, survey, pricing) load without errors.
-- [ ] **Quote flow**: Open `https://your-production-domain.com/t/default` (or your slug); run through survey and confirm quote calculation.
+- [ ] **Quote flow**: Open `https://www.cleanquote.io/t/default` (or your slug); run through survey and confirm quote calculation.
 - [ ] **Widget**: If you use the embed, test with `data-tool="default"` (or your slug) on your production domain.
 
 ---
 
 ## 6. Optional: custom domain and security
 
-- [ ] **Custom domain**: Vercel → Settings → Domains → add domain and configure DNS.
-- [ ] **Supabase redirect URLs**: After adding a custom domain, add its callback URL to Supabase Auth redirect URLs.
+- [ ] **Custom domain**: Vercel → Settings → Domains → add `www.cleanquote.io` (and optionally `cleanquote.io` with redirect). Configure DNS as Vercel instructs.
+- [ ] **Vercel env**: Set `NEXT_PUBLIC_APP_URL=https://www.cleanquote.io` in Vercel → Environment Variables (Production) so auth and canonical URLs use your public domain.
+- [ ] **Supabase redirect URLs**: Must include `https://www.cleanquote.io/auth/callback` and `https://www.cleanquote.io/**`.
 - [ ] **Admin password**: Use a strong `ADMIN_PASSWORD`; consider rotating quarterly.
 - [ ] **JWT_SECRET**: Set a strong value different from `ADMIN_PASSWORD`; rotate periodically.
 

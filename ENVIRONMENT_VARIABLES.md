@@ -6,6 +6,30 @@ This document lists all environment variables used by the Cleaning Quote Platfor
 
 ---
 
+## Public domain (Vercel / production)
+
+### `NEXT_PUBLIC_APP_URL`
+**Required:** Recommended in production  
+**Type:** URL String (no trailing slash)  
+**Description:** Your public app URL. Set this in **Vercel → Settings → Environment Variables** to your production domain so auth redirects and canonical URLs use it (e.g. after adding the domain in Vercel → Domains).  
+**Where to Set:** Vercel → Environment Variables (Production)  
+**Example:** `https://www.cleanquote.io`  
+**Usage:** Auth callback redirects to this origin when set; leave unset in development to use request origin.
+
+---
+
+## Stripe (sell CleanQuote.io)
+
+### `NEXT_PUBLIC_STRIPE_CHECKOUT_URL`
+**Required:** Optional (only if selling via Stripe)  
+**Type:** URL String  
+**Description:** Your Stripe Payment Link or Checkout URL. When set, all “Get started” / “Get CleanQuote.io” CTAs on the marketing page open this link (new tab). Leave unset to keep CTAs pointing to `/signup`.  
+**Where to Set:** `.env.local` and Vercel → Environment Variables (Production)  
+**Example:** `https://buy.stripe.com/xxxxxxxx`  
+**How to get the URL:** Stripe Dashboard → Product catalog → Payment links → Create link (or create a product + price, then “Create payment link”). Copy the link and paste here.
+
+---
+
 ## Supabase (multi-tenant auth and tools)
 
 ### `NEXT_PUBLIC_SUPABASE_URL`

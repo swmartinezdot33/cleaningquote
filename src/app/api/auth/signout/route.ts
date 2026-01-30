@@ -5,5 +5,6 @@ export async function POST(request: Request) {
   const supabase = await createSupabaseServerSSR();
   await supabase.auth.signOut();
   const url = new URL(request.url);
-  return NextResponse.redirect(new URL('/login', url.origin), 302);
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || url.origin;
+  return NextResponse.redirect(new URL('/login', baseUrl), 302);
 }

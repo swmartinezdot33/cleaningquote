@@ -12,11 +12,11 @@ const LogoIcon = () => (
   >
     <defs>
       <linearGradient id="cq-logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#0d9488" />
-        <stop offset="100%" stopColor="#0f766e" />
+        <stop offset="0%" stopColor="#8b5cf6" />
+        <stop offset="100%" stopColor="#6d28d9" />
       </linearGradient>
     </defs>
-    <rect width="100" height="100" rx="20" fill="url(#cq-logo-gradient)" />
+    <rect width="100" height="100" rx="0" fill="url(#cq-logo-gradient)" />
     <text
       x="50"
       y="68"
@@ -37,7 +37,7 @@ export function BrandLogo({ className = '', showWordmark = true }: BrandLogoProp
       <LogoIcon />
       {showWordmark && (
         <span className="text-xl font-semibold text-foreground tracking-tight">
-          CleanQuote
+          CleanQuote.io
         </span>
       )}
     </div>

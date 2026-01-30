@@ -57,9 +57,11 @@ npx vercel --prod
    - Go to Project Settings → Environment Variables
    - Add any required variables
 
-3. **Custom Domain (optional):**
+3. **Custom domain (production):**
    - Go to Project Settings → Domains
-   - Add your custom domain
+   - Add `www.cleanquote.io` (and optionally `cleanquote.io` with redirect to www)
+   - Configure DNS as Vercel instructs
+   - In Environment Variables, set **Production**: `NEXT_PUBLIC_APP_URL` = `https://www.cleanquote.io`
 
 ## Troubleshooting
 

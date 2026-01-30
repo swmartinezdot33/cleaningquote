@@ -1,21 +1,23 @@
 'use client';
 
 import { Suspense, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createSupabaseBrowser } from '@/lib/supabase/client';
 import { BrandLogo } from '@/components/BrandLogo';
+import { Mail, Lock, Link2 } from 'lucide-react';
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') ?? '/dashboard';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [magicLinkLoading, setMagicLinkLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
@@ -23,16 +25,60 @@ function LoginForm() {
       const supabase = createSupabaseBrowser();
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) {
-        setError(signInError.message);
+        const message =
+          signInError.message === 'Invalid login credentials'
+            ? 'Invalid email or password. Please try again.'
+            : signInError.message.includes('Email not confirmed')
+              ? 'Please check your email and confirm your account before signing in.'
+              : signInError.message;
+        setError(message);
         setLoading(false);
         return;
       }
-      router.push(redirect);
-      router.refresh();
+      window.location.href = redirect;
+      return;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      const message = err instanceof Error ? err.message : 'Something went wrong';
+      setError(message.includes('Missing NEXT_PUBLIC_SUPABASE') ? 'App is not configured for sign-in. Please contact support.' : message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!email.trim()) {
+      setError('Enter your email to receive a sign-in link.');
+      return;
+    }
+    setMagicLinkLoading(true);
+    try {
+      const supabase = createSupabaseBrowser();
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(redirect)}`;
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          emailRedirectTo: redirectTo,
+          shouldCreateUser: true,
+        },
+      });
+      if (otpError) {
+        const isRedirectError = /redirect|url|allowed/i.test(otpError.message);
+        const hint = isRedirectError && typeof window !== 'undefined'
+          ? ` Add ${window.location.origin}/auth/callback to Supabase → Auth → URL Configuration → Redirect URLs.`
+          : '';
+        setError(otpError.message + hint);
+        setMagicLinkLoading(false);
+        return;
+      }
+      setMagicLinkSent(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Something went wrong';
+      setError(message.includes('Missing NEXT_PUBLIC_SUPABASE') ? 'App is not configured for sign-in. Please contact support.' : message);
+    } finally {
+      setMagicLinkLoading(false);
     }
   };
 
@@ -44,55 +90,105 @@ function LoginForm() {
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground">Sign in</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Smart quoting for cleaning companies
+              CleanQuote.io — secure sign-in
             </p>
           </div>
         </div>
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
+          {magicLinkSent ? (
+            <div className="space-y-4 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Mail className="h-6 w-6" />
               </div>
-            )}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-foreground">
-                Email
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-              />
+              <h2 className="font-semibold text-foreground">Check your email</h2>
+              <p className="text-sm text-muted-foreground">
+                We sent a sign-in link to <strong className="text-foreground">{email}</strong>. Click the link in that email to sign in. The link expires in 1 hour.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Didn&apos;t get it? Check spam or{' '}
+                <button
+                  type="button"
+                  onClick={() => setMagicLinkSent(false)}
+                  className="font-medium text-primary hover:underline"
+                >
+                  try again
+                </button>
+              </p>
             </div>
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-foreground">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
-            >
-              {loading ? 'Signing in…' : 'Sign in'}
-            </button>
-          </form>
+          ) : (
+            <>
+              <form method="post" onSubmit={handlePasswordSubmit} className="space-y-6" action="#">
+                {error && (
+                  <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive" aria-live="assertive">
+                    {error}
+                  </div>
+                )}
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-foreground">
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-foreground">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex justify-center items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
+                >
+                  <Lock className="h-4 w-4" />
+                  {loading ? 'Signing in…' : 'Sign in with password'}
+                </button>
+              </form>
+
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase tracking-wider text-muted-foreground">
+                  <span className="bg-card px-2">or</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  No password? We&apos;ll email you a one-time sign-in link.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleMagicLink}
+                  disabled={magicLinkLoading}
+                  className="w-full flex justify-center items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
+                >
+                  <Link2 className="h-4 w-4" />
+                  {magicLinkLoading ? 'Sending…' : 'Email me a magic link'}
+                </button>
+              </div>
+            </>
+          )}
+
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{' '}
             <Link href="/signup" className="font-medium text-primary hover:underline">

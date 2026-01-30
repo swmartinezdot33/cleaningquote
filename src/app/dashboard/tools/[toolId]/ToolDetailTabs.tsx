@@ -293,7 +293,7 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
               This code includes your public link and slug (<code className="rounded bg-muted px-1">/t/{embedSlug}</code>). Paste it on your site; update <code className="rounded bg-muted px-1">data-base-url</code> only if you use a different domain.
             </p>
             <pre className="overflow-x-auto rounded bg-muted p-3 text-xs">
-              {`<!-- CleanQuote embed - public link: ${embedBaseUrl}, slug: ${embedSlug} -->
+              {`<!-- CleanQuote.io embed - public link: ${embedBaseUrl}, slug: ${embedSlug} -->
 <div id="cleaning-quote-widget"></div>
 <script src="${embedBaseUrl}/widget.js"
   data-base-url="${embedBaseUrl}"

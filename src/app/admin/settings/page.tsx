@@ -398,7 +398,7 @@ export default function SettingsPage() {
 
   const getEmbedCode = () => {
     const baseUrl = window.location.origin;
-    return `<!-- CleanQuote embed -->
+    return `<!-- CleanQuote.io embed -->
 <!-- You can pass GHL contact variables as data attributes to pre-fill the form -->
 <!-- Example: data-first-name="{{contact.firstName}}" data-last-name="{{contact.lastName}}" -->
 <div id="cleaning-quote-widget"></div>

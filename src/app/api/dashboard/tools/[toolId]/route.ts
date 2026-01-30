@@ -37,6 +37,7 @@ export async function PATCH(
 
     const { data: updated, error } = await supabase
       .from('tools')
+      // @ts-expect-error Supabase SSR client types .update() param as never; payload is valid ToolUpdate
       .update({ slug, updated_at: new Date().toISOString() })
       .eq('id', toolId)
       .eq('user_id', user.id)
