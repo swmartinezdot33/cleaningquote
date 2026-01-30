@@ -5,6 +5,7 @@ import { QuoteInputs, QuoteRanges } from '@/lib/pricing/types';
 import { createOrUpdateContact, updateContact, createOpportunity, createNote, createCustomObject } from '@/lib/ghl/client';
 import { ghlTokenExists, getGHLConfig, getGHLToken, getGHLLocationId, getKV } from '@/lib/kv';
 import { getSurveyQuestions, getSurveyDisplayLabels } from '@/lib/survey/manager';
+import { createSupabaseServer } from '@/lib/supabase/server';
 import { SurveyQuestion } from '@/lib/survey/schema';
 import { sanitizeCustomFields } from '@/lib/ghl/field-normalizer';
 import { parseAddress } from '@/lib/utils/parseAddress';
@@ -911,55 +912,13 @@ export async function POST(request: NextRequest) {
           
           if (quoteResult && quoteResult.status === 'fulfilled' && quoteResult.value?.id) {
             const ghlObjectId = quoteResult.value.id;
-            quoteId = ghlObjectId; // Use GHL object ID as primary quoteId
+            quoteId = ghlObjectId; // For GHL-based retrieval
             ghlQuoteCreated = true;
             console.log('✅ Quote custom object created in GHL:', {
               objectId: ghlObjectId,
               quoteIdField: generatedQuoteId,
               contactId: ghlContactId,
             });
-            
-            // Store quote in KV with BOTH IDs for reliable retrieval
-            // Frontend redirects with generatedQuoteId, but GHL uses ghlObjectId
-            try {
-              const kv = getKV();
-              const oneTimeTypes = ['move-in', 'move-out', 'deep'];
-              const kvFreq = oneTimeTypes.includes(String(body.serviceType || '').toLowerCase()) ? '' : (body.frequency ?? '');
-              const kvData = {
-                outOfLimits: false,
-                multiplier: result.multiplier,
-                inputs: result.inputs,
-                ranges: result.ranges,
-                initialCleaningRequired: result.initialCleaningRequired,
-                initialCleaningRecommended: result.initialCleaningRecommended,
-                summaryText,
-                smsText,
-                ghlContactId,
-                serviceType: body.serviceType,
-                frequency: kvFreq,
-                createdAt: new Date().toISOString(),
-                ghlQuoteCreated: true,
-                ghlObjectId: ghlObjectId,
-                generatedQuoteId: generatedQuoteId,
-                quoteCustomFields: Object.keys(quoteCustomFields).length > 0 ? quoteCustomFields : undefined,
-                ...(toolId && { toolId }),
-              };
-              
-              // Store with generated UUID (for frontend redirect)
-              await kv.setex(`quote:${generatedQuoteId}`, 60 * 60 * 24 * 30, JSON.stringify(kvData));
-              console.log(`✅ Stored quote data in KV with generated UUID: ${generatedQuoteId}`);
-              
-              // Also store with GHL object ID (for GHL-based retrieval)
-              await kv.setex(`quote:${ghlObjectId}`, 60 * 60 * 24 * 30, JSON.stringify(kvData));
-              console.log(`✅ Stored quote data in KV with GHL object ID: ${ghlObjectId}`);
-            } catch (kvError) {
-              const errorMsg = kvError instanceof Error ? kvError.message : String(kvError);
-              console.error('⚠️ Failed to store quote in KV with both IDs:', errorMsg);
-              // If KV is not configured, this is expected in local dev - log but don't fail
-              if (errorMsg.includes('KV_REST_API_URL') || errorMsg.includes('not configured')) {
-                console.warn('⚠️ KV storage not configured - quotes will not be retrievable via API in local dev');
-              }
-            }
           } else if (quoteObjectPromise) {
             // Custom object creation failed - log detailed error
             const error = quoteResult?.status === 'rejected' ? quoteResult.reason : null;
@@ -1015,98 +974,75 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ALWAYS store quote data in KV (required for API access)
-    // This ensures quotes are always accessible via the API endpoint, even if GHL creation fails
-    // Store here if we haven't already stored it above (when GHL creation succeeded)
-    if (!ghlQuoteCreated) {
-      try {
-        const kv = getKV();
-        const oneTimeTypes = ['move-in', 'move-out', 'deep'];
-        const storedFrequency = oneTimeTypes.includes(String(body.serviceType || '').toLowerCase()) ? '' : (body.frequency ?? '');
-        const quoteData = {
-          outOfLimits: false,
-          multiplier: result.multiplier,
-          inputs: result.inputs,
-          ranges: result.ranges,
-          initialCleaningRequired: result.initialCleaningRequired,
-          initialCleaningRecommended: result.initialCleaningRecommended,
-          summaryText,
-          smsText,
-          ghlContactId,
-          serviceType: body.serviceType,
-          frequency: storedFrequency,
-          createdAt: new Date().toISOString(),
-          ghlQuoteCreated: false,
-          generatedQuoteId: generatedQuoteId,
-          quoteCustomFields: Object.keys(quoteCustomFields).length > 0 ? quoteCustomFields : undefined,
-          ...(toolId && { toolId }),
-        };
-        // Store with generated UUID (for frontend redirect)
-        const quoteDataString = JSON.stringify(quoteData);
-        await kv.setex(`quote:${generatedQuoteId}`, 60 * 60 * 24 * 30, quoteDataString);
-        
-        // Verify storage worked
-        const verifyStored = await kv.get(`quote:${generatedQuoteId}`);
-        if (verifyStored) {
-          console.log(`✅ Stored quote data in KV (always accessible via API): ${generatedQuoteId} (verified)`);
-        } else {
-          console.error(`❌ KV storage verification failed: ${generatedQuoteId}`);
-        }
-        
-        // If GHL creation failed but we have the data, log for potential retry
-        if (ghlContactId && Object.keys(quoteCustomFields).length > 0) {
-          console.warn(`⚠️ Quote ${generatedQuoteId} stored in KV but not in GHL - may need manual retry`);
-        }
-      } catch (kvError) {
-        // KV storage failure - check if it's a configuration issue
-        const errorMsg = kvError instanceof Error ? kvError.message : String(kvError);
-        if (errorMsg.includes('KV_REST_API_URL') || errorMsg.includes('not configured')) {
-          console.warn('⚠️ KV storage not configured - quotes will not be retrievable via API in local dev');
-        } else {
-          // KV storage failure is critical - log as error but don't block response
-          console.error('❌ CRITICAL: Failed to store quote in KV - quote may not be accessible via API:', errorMsg);
-        }
-        // Still return the quoteId so redirect can happen, but user should be aware
+    // Primary storage: Supabase. KV is used only for cache.
+    const oneTimeTypes = ['move-in', 'move-out', 'deep'];
+    const storedFrequency = oneTimeTypes.includes(String(body.serviceType || '').toLowerCase()) ? '' : (body.frequency ?? '');
+    const selectedRange = getSelectedQuoteRange(result.ranges, body.serviceType, body.frequency);
+    const payload = {
+      outOfLimits: false,
+      multiplier: result.multiplier,
+      inputs: result.inputs,
+      ranges: result.ranges,
+      initialCleaningRequired: result.initialCleaningRequired,
+      initialCleaningRecommended: result.initialCleaningRecommended,
+      summaryText,
+      smsText,
+      ghlContactId,
+      serviceType: body.serviceType,
+      frequency: storedFrequency,
+      createdAt: new Date().toISOString(),
+      ghlQuoteCreated,
+      generatedQuoteId,
+      quoteCustomFields: Object.keys(quoteCustomFields).length > 0 ? quoteCustomFields : undefined,
+      ...(toolId && { toolId }),
+    };
+
+    try {
+      const supabase = createSupabaseServer();
+      // @ts-expect-error Supabase generated types may not include quotes table yet
+      const { error } = await supabase.from('quotes').insert({
+        quote_id: generatedQuoteId,
+        tool_id: toolId || null,
+        first_name: body.firstName || null,
+        last_name: body.lastName || null,
+        email: body.email || null,
+        phone: body.phone || null,
+        address: body.address || null,
+        city: body.city || null,
+        state: body.state || null,
+        postal_code: body.postalCode || null,
+        country: body.country || null,
+        service_type: body.serviceType || null,
+        frequency: storedFrequency || null,
+        price_low: selectedRange?.low ?? null,
+        price_high: selectedRange?.high ?? null,
+        square_feet: String(body.squareFeet ?? ''),
+        bedrooms: Number(body.bedrooms) || null,
+        full_baths: Number(body.fullBaths) || null,
+        half_baths: Number(body.halfBaths) || null,
+        summary_text: summaryText,
+        payload,
+        ghl_contact_id: ghlContactId || null,
+        ghl_object_id: ghlQuoteCreated ? (quoteId !== generatedQuoteId ? quoteId : null) : null,
+      });
+      if (error) {
+        console.error('❌ Failed to store quote in Supabase:', error);
+      } else {
+        console.log(`✅ Stored quote in Supabase: ${generatedQuoteId}`);
       }
-    } else {
-      // GHL creation succeeded, but ensure KV storage happened (double-check)
-      // This is a safety net in case the earlier storage block didn't execute
-      try {
-        const kv = getKV();
-        const existing = await kv.get(`quote:${generatedQuoteId}`);
-        if (!existing) {
-          console.warn(`⚠️ GHL quote created but KV storage missing - storing now...`);
-          const oneTimeTypes = ['move-in', 'move-out', 'deep'];
-          const storedFreq = oneTimeTypes.includes(String(body.serviceType || '').toLowerCase()) ? '' : (body.frequency ?? '');
-          const quoteData = {
-            outOfLimits: false,
-            multiplier: result.multiplier,
-            inputs: result.inputs,
-            ranges: result.ranges,
-            initialCleaningRequired: result.initialCleaningRequired,
-            initialCleaningRecommended: result.initialCleaningRecommended,
-            summaryText,
-            smsText,
-            ghlContactId,
-            serviceType: body.serviceType,
-            frequency: storedFreq,
-            createdAt: new Date().toISOString(),
-            ghlQuoteCreated: true,
-            generatedQuoteId: generatedQuoteId,
-            quoteCustomFields: Object.keys(quoteCustomFields).length > 0 ? quoteCustomFields : undefined,
-            ...(toolId && { toolId }),
-          };
-          await kv.setex(`quote:${generatedQuoteId}`, 60 * 60 * 24 * 30, JSON.stringify(quoteData));
-          console.log(`✅ Stored quote data in KV (safety net): ${generatedQuoteId}`);
-        }
-        } catch (kvError) {
-          const errorMsg = kvError instanceof Error ? kvError.message : String(kvError);
-          if (errorMsg.includes('KV_REST_API_URL') || errorMsg.includes('not configured')) {
-            console.warn('⚠️ KV storage not configured (safety net) - quotes will not be retrievable via API in local dev');
-          } else {
-            console.error('❌ CRITICAL: Failed to store quote in KV (safety net):', errorMsg);
-          }
-        }
+    } catch (sbError) {
+      console.error('❌ Supabase quote insert failed:', sbError);
+    }
+
+    // Optional KV cache (1hr TTL) for faster quote page loads
+    try {
+      const kv = getKV();
+      await kv.setex(`quote:${generatedQuoteId}`, 60 * 60, JSON.stringify(payload));
+      if (ghlQuoteCreated && quoteId !== generatedQuoteId) {
+        await kv.setex(`quote:${quoteId}`, 60 * 60, JSON.stringify(payload));
+      }
+    } catch {
+      // KV is optional cache only; ignore failures
     }
 
     // Labels from stored survey (single source of truth) so UI changes in Survey Builder are reflected

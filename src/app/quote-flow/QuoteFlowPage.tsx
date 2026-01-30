@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { Copy, ChevronLeft, ChevronRight, Sparkles, Calendar, Clock, Loader2, Check, AlertCircle } from 'lucide-react';
 import { SurveyQuestion } from '@/lib/survey/schema';
+import type { ToolConfig } from '@/lib/tools/config';
 import { GooglePlacesAutocomplete, PlaceDetails } from '@/components/GooglePlacesAutocomplete';
 import { CalendarBooking } from '@/components/CalendarBooking';
 
@@ -230,9 +231,10 @@ interface QuoteResponse {
 // Default questions (fallback if none are configured)
 // No hardcoded defaults - all questions come from KV via the unified API
 
-export function Home(props: { slug?: string } = {}) {
-  const { slug } = props;
-  const [mounted, setMounted] = useState(false);
+export function Home(props: { slug?: string; initialConfig?: ToolConfig | null } = {}) {
+  const { slug, initialConfig } = props;
+  const hasInitialData = !!(initialConfig?.questions?.length);
+  const [mounted, setMounted] = useState(hasInitialData);
   const [currentStep, setCurrentStep] = useState(0);
   const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
   const [ghlContactId, setGHLContactId] = useState<string | null>(null);
@@ -264,19 +266,19 @@ export function Home(props: { slug?: string } = {}) {
   const [appointmentAvailability, setAppointmentAvailability] = useState<{ available: boolean; message: string; checking: boolean; fallback?: boolean; warning?: string } | null>(null);
   const [callAvailability, setCallAvailability] = useState<{ available: boolean; message: string; checking: boolean; fallback?: boolean; warning?: string } | null>(null);
   // Redirect settings from admin
-  const [redirectAfterAppointment, setRedirectAfterAppointment] = useState<boolean>(false);
-  const [appointmentRedirectUrl, setAppointmentRedirectUrl] = useState<string>('');
-  const [widgetTitle, setWidgetTitle] = useState('Get Your Quote');
-  const [widgetSubtitle, setWidgetSubtitle] = useState("Let's get your professional cleaning price!");
-  const [primaryColor, setPrimaryColor] = useState('#0d9488');
-  // Start with empty array, will be filled from unified API
-  const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
-  const [quoteSchema, setQuoteSchema] = useState<z.ZodObject<any>>(generateSchemaFromQuestions([]));
+  const [redirectAfterAppointment, setRedirectAfterAppointment] = useState<boolean>(initialConfig?.redirect?.redirectAfterAppointment ?? false);
+  const [appointmentRedirectUrl, setAppointmentRedirectUrl] = useState<string>(initialConfig?.redirect?.appointmentRedirectUrl ?? '');
+  const [widgetTitle, setWidgetTitle] = useState(initialConfig?.widget?.title ?? 'Get Your Quote');
+  const [widgetSubtitle, setWidgetSubtitle] = useState(initialConfig?.widget?.subtitle ?? "Let's get your professional cleaning price!");
+  const [primaryColor, setPrimaryColor] = useState(initialConfig?.widget?.primaryColor ?? '#0d9488');
+  const initialQuestions = (initialConfig?.questions ?? []) as SurveyQuestion[];
+  const [questions, setQuestions] = useState<SurveyQuestion[]>(initialQuestions);
+  const [quoteSchema, setQuoteSchema] = useState<z.ZodObject<any>>(generateSchemaFromQuestions(initialQuestions));
   const [addressCoordinates, setAddressCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [serviceAreaChecked, setServiceAreaChecked] = useState(false);
   const [tabOpened, setTabOpened] = useState(false); // Prevent multiple tab opens
-  const [formSettings, setFormSettings] = useState<any>({});
-  const [openSurveyInNewTab, setOpenSurveyInNewTab] = useState(false);
+  const [formSettings, setFormSettings] = useState<any>(initialConfig?.formSettings ?? {});
+  const [openSurveyInNewTab, setOpenSurveyInNewTab] = useState(!!(initialConfig?.formSettings as any)?.openSurveyInNewTab);
   const serviceAreaCheckInProgress = useRef(false); // Prevent concurrent service area checks
   const autoAdvanceTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Track auto-advance timeout
   const appointmentFormRef = useRef<HTMLDivElement>(null);
@@ -315,6 +317,10 @@ export function Home(props: { slug?: string } = {}) {
   };
 
   useEffect(() => {
+    if (hasInitialData) {
+      setMounted(true);
+      return;
+    }
     setMounted(true);
     if (slug) {
       loadConfigFromSlug(slug);
@@ -324,7 +330,7 @@ export function Home(props: { slug?: string } = {}) {
       loadFormSettings();
       loadRedirectSettings();
     }
-  }, [slug]);
+  }, [slug, hasInitialData]);
 
   // Auto-scroll when appointment form opens
   useEffect(() => {

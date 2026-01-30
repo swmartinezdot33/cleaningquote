@@ -24,6 +24,18 @@ export default async function DashboardLayout({
           </Link>
           <div className="flex items-center gap-4">
             <Link
+              href="/dashboard"
+              className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+            >
+              Tools
+            </Link>
+            <Link
+              href="/dashboard/quotes"
+              className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+            >
+              Quotes
+            </Link>
+            <Link
               href="/dashboard/profile"
               className="text-sm font-medium text-foreground hover:text-primary hover:underline"
             >

@@ -5,8 +5,9 @@ import { generateSummaryText, generateSmsText } from '@/lib/pricing/format';
 import { QuoteInputs } from '@/lib/pricing/types';
 import { getKV } from '@/lib/kv';
 import { getSurveyQuestions, getSurveyDisplayLabels } from '@/lib/survey/manager';
+import { createSupabaseServer } from '@/lib/supabase/server';
 
-async function getQuoteLabelsFromSurvey(serviceType: string, frequency: string): Promise<{
+async function getQuoteLabelsFromSurvey(serviceType: string, frequency: string, toolId?: string): Promise<{
   serviceTypeLabel: string;
   frequencyLabel: string;
   serviceTypeOptions: Array<{ value: string; label: string }>;
@@ -15,7 +16,7 @@ async function getQuoteLabelsFromSurvey(serviceType: string, frequency: string):
   frequencyLabels: Record<string, string>;
 }> {
   try {
-    const questions = await getSurveyQuestions();
+    const questions = await getSurveyQuestions(toolId);
     const { serviceTypeLabels, frequencyLabels } = getSurveyDisplayLabels(questions);
     const st = (serviceType || '').trim().toLowerCase();
     const freq = (frequency || '').trim().toLowerCase();
@@ -49,37 +50,56 @@ export async function GET(
       );
     }
 
-    // Our generated IDs are QT-YYMMDD-XXXXX. GHL record IDs are 24-char hex; /records/{id}
-    // expects the GHL id, not our quote_id. For QT-* we prefer KV and skip GHL to avoid 404s.
-    const isOurGeneratedId = /^QT-\d{6}-[A-Z0-9]{5}$/i.test(quoteId);
-
-    if (isOurGeneratedId) {
-      try {
-        const kv = getKV();
-        const stored = await kv.get(`quote:${quoteId}`);
-        const parsed = stored && (typeof stored === 'string' ? JSON.parse(stored) : stored);
-        if (parsed && (parsed.ranges || parsed.ghlContactId)) {
-          const ghlContactId = parsed.ghlContactId;
-          const oneTimeTypes = ['move-in', 'move-out', 'deep'];
-          const st = String(parsed.serviceType || '').toLowerCase().trim();
-          const normFreq = oneTimeTypes.includes(st) ? '' : (parsed.frequency ?? '');
-          const labels = await getQuoteLabelsFromSurvey(parsed.serviceType, normFreq);
-          console.log('✅ Serving quote from KV (QT-* id, skipping GHL):', quoteId);
-          return NextResponse.json({
-            ...parsed,
-            quoteId,
-            ghlContactId: ghlContactId || parsed.ghlContactId,
-            serviceType: parsed.serviceType,
-            frequency: normFreq,
-            ...labels,
-          });
-        }
-      } catch (e) {
-        // KV failed; fall through to parallel fetch
+    // 1. Supabase (primary) – source of truth for quotes
+    try {
+      const supabase = createSupabaseServer();
+      let row: { payload?: Record<string, unknown> } | null = (await supabase.from('quotes').select('*').eq('quote_id', quoteId).single()).data as any;
+      if (!row) {
+        row = (await supabase.from('quotes').select('*').eq('ghl_object_id', quoteId).single()).data as any;
       }
+      if (row?.payload && (row.payload as any).ranges) {
+        const payload = row.payload as any;
+        const oneTimeTypes = ['move-in', 'move-out', 'deep'];
+        const st = String(payload.serviceType || '').toLowerCase().trim();
+        const normFreq = oneTimeTypes.includes(st) ? '' : (payload.frequency ?? '');
+        const labels = await getQuoteLabelsFromSurvey(payload.serviceType, normFreq, payload.toolId);
+        console.log('✅ Serving quote from Supabase:', quoteId);
+        return NextResponse.json({
+          ...payload,
+          quoteId,
+          serviceType: payload.serviceType,
+          frequency: normFreq,
+          ...labels,
+        });
+      }
+    } catch (e) {
+      // Supabase failed; fall through
     }
 
-    // Fetch from KV and GHL in parallel for faster response
+    // 2. KV cache (optional, fast path)
+    try {
+      const kv = getKV();
+      const stored = await kv.get(`quote:${quoteId}`);
+      const parsed = stored && (typeof stored === 'string' ? JSON.parse(stored) : stored);
+      if (parsed && (parsed.ranges || parsed.ghlContactId)) {
+        const oneTimeTypes = ['move-in', 'move-out', 'deep'];
+        const st = String(parsed.serviceType || '').toLowerCase().trim();
+        const normFreq = oneTimeTypes.includes(st) ? '' : (parsed.frequency ?? '');
+        const labels = await getQuoteLabelsFromSurvey(parsed.serviceType, normFreq, parsed.toolId);
+        console.log('✅ Serving quote from KV cache:', quoteId);
+        return NextResponse.json({
+          ...parsed,
+          quoteId,
+          serviceType: parsed.serviceType,
+          frequency: normFreq,
+          ...labels,
+        });
+      }
+    } catch {
+      // KV is optional cache; ignore
+    }
+
+    // 3. GHL (legacy) – fetch from KV and GHL in parallel
     const [kvResult, ghlResult] = await Promise.allSettled([
       // Try to fetch from KV (backup storage for tracking)
       (async () => {

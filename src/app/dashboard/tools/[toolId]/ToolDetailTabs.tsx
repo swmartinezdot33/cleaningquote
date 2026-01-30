@@ -290,7 +290,7 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
           <div className="rounded-xl border border-border bg-card p-4">
             <h2 className="text-sm font-medium text-foreground">Embed snippet</h2>
             <p className="mt-1 text-sm text-muted-foreground mb-2">
-              This code includes your public link and slug (<code className="rounded bg-muted px-1">/t/{embedSlug}</code>). Paste it on your site; update <code className="rounded bg-muted px-1">data-base-url</code> only if you use a different domain.
+              This code includes your public link, slug (<code className="rounded bg-muted px-1">/t/{embedSlug}</code>), and GHL contact placeholders for pre-fill. Paste it in GHL or your site; remove the <code className="rounded bg-muted px-1">data-*-name</code> attributes if not using GHL.
             </p>
             <div className="relative">
               <button
@@ -302,7 +302,15 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
   data-tool="${embedSlug}"
   data-tool-slug="${embedSlug}"
   data-container-id="cleaning-quote-widget"
-  data-height="1200">
+  data-height="1200"
+  data-first-name="{{contact.firstName}}"
+  data-last-name="{{contact.lastName}}"
+  data-phone="{{contact.phone}}"
+  data-email="{{contact.email}}"
+  data-address="{{contact.address}}"
+  data-city="{{contact.city}}"
+  data-state="{{contact.state}}"
+  data-postal-code="{{contact.postalCode}}">
 </script>`, 'embed-snippet')}
                 className="absolute top-2 right-2 z-10 inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted shadow-sm"
                 title="Copy snippet"
@@ -318,7 +326,15 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
   data-tool="${embedSlug}"
   data-tool-slug="${embedSlug}"
   data-container-id="cleaning-quote-widget"
-  data-height="1200">
+  data-height="1200"
+  data-first-name="{{contact.firstName}}"
+  data-last-name="{{contact.lastName}}"
+  data-phone="{{contact.phone}}"
+  data-email="{{contact.email}}"
+  data-address="{{contact.address}}"
+  data-city="{{contact.city}}"
+  data-state="{{contact.state}}"
+  data-postal-code="{{contact.postalCode}}">
 </script>`}
               </pre>
             </div>
