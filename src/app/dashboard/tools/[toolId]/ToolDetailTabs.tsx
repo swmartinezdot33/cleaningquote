@@ -292,8 +292,26 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
             <p className="mt-1 text-sm text-muted-foreground mb-2">
               This code includes your public link and slug (<code className="rounded bg-muted px-1">/t/{embedSlug}</code>). Paste it on your site; update <code className="rounded bg-muted px-1">data-base-url</code> only if you use a different domain.
             </p>
-            <pre className="overflow-x-auto rounded bg-muted p-3 text-xs">
-              {`<!-- CleanQuote.io embed - public link: ${embedBaseUrl}, slug: ${embedSlug} -->
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => copyToClipboard(`<!-- CleanQuote.io embed - public link: ${embedBaseUrl}, slug: ${embedSlug} -->
+<div id="cleaning-quote-widget"></div>
+<script src="${embedBaseUrl}/widget.js"
+  data-base-url="${embedBaseUrl}"
+  data-tool="${embedSlug}"
+  data-tool-slug="${embedSlug}"
+  data-container-id="cleaning-quote-widget"
+  data-height="1200">
+</script>`, 'embed-snippet')}
+                className="absolute top-2 right-2 z-10 inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted shadow-sm"
+                title="Copy snippet"
+              >
+                {copyId === 'embed-snippet' ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+                {copyId === 'embed-snippet' ? 'Copied' : 'Copy'}
+              </button>
+              <pre className="overflow-x-auto rounded bg-muted p-3 pr-24 text-xs">
+                {`<!-- CleanQuote.io embed - public link: ${embedBaseUrl}, slug: ${embedSlug} -->
 <div id="cleaning-quote-widget"></div>
 <script src="${embedBaseUrl}/widget.js"
   data-base-url="${embedBaseUrl}"
@@ -302,7 +320,8 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
   data-container-id="cleaning-quote-widget"
   data-height="1200">
 </script>`}
-            </pre>
+              </pre>
+            </div>
           </div>
         </div>
       )}
