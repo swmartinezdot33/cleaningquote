@@ -1,14 +1,13 @@
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { Plus_Jakarta_Sans } from "next/font/google"
 import "./globals.css"
-import { kv } from "@vercel/kv"
 import { TrackingScripts } from "@/components/TrackingScripts"
 
-const inter = Inter({ subsets: ["latin"] })
+const font = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-sans" })
 
 export const metadata: Metadata = {
-  title: "Cleaning Quote Calculator",
-  description: "Residential cleaning company pricing calculator",
+  title: "CleanQuote",
+  description: "Smart quoting for cleaning companies. Build and embed custom quote forms.",
   icons: {
     icon: [
       { url: '/icon.svg', type: 'image/svg+xml' },
@@ -22,32 +21,32 @@ interface TrackingCodes {
   customHeadCode?: string;
 }
 
+async function getLayoutData(): Promise<{ googleMapsApiKey: string; trackingCodes: TrackingCodes }> {
+  let googleMapsApiKey = ""
+  let trackingCodes: TrackingCodes = {}
+  try {
+    const { kv } = await import("@vercel/kv")
+    const [apiKey, codes] = await Promise.all([
+      kv.get<string>("admin:google-maps-api-key"),
+      kv.get<TrackingCodes>("admin:tracking-codes"),
+    ])
+    googleMapsApiKey = apiKey || ""
+    trackingCodes = codes || {}
+    if (process.env.NODE_ENV === 'development' && trackingCodes.customHeadCode) {
+      console.log('📊 Custom head code loaded from KV (runs on quote summary page only)')
+    }
+  } catch (error) {
+    console.error("Layout: failed to load KV (Google Maps key / tracking):", error)
+  }
+  return { googleMapsApiKey, trackingCodes }
+}
+
 export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  // Get Google Maps API key from KV storage
-  let googleMapsApiKey = ""
-  try {
-    const apiKey = await kv.get<string>("admin:google-maps-api-key")
-    googleMapsApiKey = apiKey || ""
-  } catch (error) {
-    console.error("Failed to load Google Maps API key:", error)
-  }
-
-  // Get tracking codes from KV storage
-  let trackingCodes: TrackingCodes = {}
-  try {
-    const codes = await kv.get<TrackingCodes>("admin:tracking-codes")
-    trackingCodes = codes || {}
-    // Log for debugging (only in development)
-    if (process.env.NODE_ENV === 'development' && trackingCodes.customHeadCode) {
-      console.log('📊 Custom head code loaded from KV (runs on quote summary page only)');
-    }
-  } catch (error) {
-    console.error("Failed to load tracking codes:", error)
-  }
+  const { googleMapsApiKey, trackingCodes } = await getLayoutData()
 
   return (
     <html lang="en">
@@ -61,7 +60,7 @@ export default async function RootLayout({
           />
         )}
       </head>
-      <body className={inter.className}>
+      <body className={font.className}>
         {/* Tracking scripts - EXCLUDED on admin pages */}
         <TrackingScripts trackingCodes={trackingCodes} />
         {children}

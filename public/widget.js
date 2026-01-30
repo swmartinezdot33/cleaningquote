@@ -24,6 +24,10 @@
  *   data-medium-height="1200"  - Screens 481-1024px (default: tablet-height)
  *   data-large-height="900"    - Screens > 1024px (default: desktop-height)
  * 
+ * MULTI-TENANT / TOOL (white-label):
+ * data-tool="acme-cleaning"              - Tool slug for this embed (survey: /t/acme-cleaning). Default: "default"
+ * data-tool-slug="acme-cleaning"         - Alternative to data-tool (same effect)
+ *
  * OTHER CUSTOMIZATION OPTIONS:
  * data-base-url="https://yoursite.com"   - Base URL of your site (required)
  * data-container-id="my-widget"          - Container element ID (required)
@@ -70,6 +74,8 @@
   const baseUrl = scriptTag?.dataset.baseUrl || window.location.origin;
   const widgetId = scriptTag?.dataset.widgetId || 'cleaning-quote-widget';
   const containerId = scriptTag?.dataset.containerId || widgetId;
+  // Tool slug for multi-tenant: survey at /t/{slug}, quote at /t/{slug}/quote/{id}. Default "default" for backward compatibility.
+  const toolSlug = (scriptTag?.dataset.tool || scriptTag?.dataset.toolSlug || 'default').trim() || 'default';
   
   // Height configuration - supports multiple options
   // OPTION 1: Single fixed height for all devices
@@ -170,11 +176,11 @@
       document.body.appendChild(container);
     }
 
-    // Build iframe URL with query parameters
-    let iframeUrl = `${baseUrl}/?embedded=true`;
+    // Build iframe URL: /t/{slug} for survey (multi-tenant). Preserve query params (UTM, pre-fill, etc.)
+    let iframeUrl = `${baseUrl}/t/${encodeURIComponent(toolSlug)}?embedded=true`;
     const queryString = buildQueryString();
     if (queryString) {
-      iframeUrl += `&${queryString}`;
+      iframeUrl += '&' + queryString;
     }
 
     // Get initial height based on screen size

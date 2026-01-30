@@ -11,7 +11,9 @@
     "test:watch": "vitest --watch",
     "test:association": "node scripts/test-association.mjs",
     "test:e2e:appointment": "playwright test e2e/appointment-from-ui.spec.ts",
-    "test:e2e:appointment:local": "./scripts/test-appointment-e2e-local.sh"
+    "test:e2e:appointment:local": "./scripts/test-appointment-e2e-local.sh",
+    "migrate": "node scripts/migrate-to-multitenant.mjs",
+    "copy-kv-to-default": "node scripts/copy-global-kv-to-default-tool.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
@@ -21,6 +23,8 @@
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@react-google-maps/api": "^2.20.8",
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.93.3",
     "@vercel/kv": "^3.0.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",

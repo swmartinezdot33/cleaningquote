@@ -17,7 +17,7 @@ interface LocationData {
 
 export default function OutOfService() {
   const [mounted, setMounted] = useState(false);
-  const [primaryColor, setPrimaryColor] = useState('#f61590');
+  const [primaryColor, setPrimaryColor] = useState('#0d9488');
   const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [contactId, setContactId] = useState<string | null>(null);
 
@@ -49,7 +49,7 @@ export default function OutOfService() {
       const response = await fetch('/api/admin/widget-settings');
       if (response.ok) {
         const data = await response.json();
-        setPrimaryColor(data.primaryColor || '#f61590');
+        setPrimaryColor(data.primaryColor || '#0d9488');
       }
     } catch (error) {
       console.error('Failed to load widget settings:', error);
@@ -202,7 +202,7 @@ export default function OutOfService() {
             </CardContent>
           </Card>
 
-          <div className="text-center text-gray-600 text-sm">
+          <div className="text-center text-muted-foreground text-sm">
             <p className="mb-1">Get in touch</p>
             <p>
               <a href="tel:9199252378" className="underline" style={{ color: primaryColor }}>Phone: 919.925.2378</a>

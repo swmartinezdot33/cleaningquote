@@ -1,10 +1,10 @@
 import * as XLSX from 'xlsx';
 import { PricingTable, PricingRow, PriceRange } from './types';
-import { getPricingFile } from '@/lib/kv';
+import { getPricingFile, getKV, toolKey } from '@/lib/kv';
 
-// Cache parsed pricing table in memory
-let cachedTable: PricingTable | null = null;
-let cacheInvalidated = false;
+// Per-tool cache (key = toolId or '' for legacy)
+const cacheByTool = new Map<string, { table: PricingTable; invalidated: boolean }>();
+const LEGACY_CACHE_KEY = '';
 
 // Pricing file is stored in Vercel KV (Upstash Redis) under key: 'pricing:file:2026'
 
@@ -71,28 +71,28 @@ function parseSqFtRange(rangeStr: string): { min: number; max: number } | null {
 }
 
 /**
- * Load and parse the Excel pricing file from Vercel KV (Upstash Redis) storage
- * Caches results in memory after first load
+ * Load and parse the Excel pricing file from Vercel KV (Upstash Redis) storage.
+ * Caches results in memory per tool after first load.
+ * @param toolId - When provided, loads pricing for this quoting tool (multi-tenant).
  */
-export async function loadPricingTable(): Promise<PricingTable> {
-  if (cachedTable && !cacheInvalidated) {
-    return cachedTable;
+export async function loadPricingTable(toolId?: string): Promise<PricingTable> {
+  const cacheKey = toolId ?? LEGACY_CACHE_KEY;
+  const entry = cacheByTool.get(cacheKey);
+  if (entry && !entry.invalidated) {
+    return entry.table;
   }
 
   try {
-    // First, try to get structured data from KV (if saved manually)
     try {
-      const { getKV } = await import('@/lib/kv');
       const kv = getKV();
-      const structuredData = await kv.get<PricingTable>('pricing:data:table');
-      
+      const key = toolKey(toolId, 'pricing:data:table');
+      const structuredData = await kv.get<PricingTable>(key);
+
       if (structuredData && structuredData.rows && structuredData.rows.length > 0) {
-        cachedTable = structuredData;
-        cacheInvalidated = false;
-        return cachedTable;
+        cacheByTool.set(cacheKey, { table: structuredData, invalidated: false });
+        return structuredData;
       }
     } catch (kvError) {
-      // KV not configured - this is OK for local dev
       if (kvError instanceof Error && kvError.message.includes('KV')) {
         console.warn('KV not configured, skipping KV lookup');
       } else {
@@ -100,10 +100,8 @@ export async function loadPricingTable(): Promise<PricingTable> {
       }
     }
 
-    // Fall back to parsing Excel file
-    // Get file from Vercel KV (Upstash Redis) storage
     try {
-      const buffer = await getPricingFile();
+      const buffer = await getPricingFile(toolId);
 
     // Parse Excel file
     const workbook = XLSX.read(buffer, { type: 'buffer' });
@@ -343,25 +341,22 @@ export async function loadPricingTable(): Promise<PricingTable> {
       );
     }
 
-    cachedTable = { rows, maxSqFt };
-    cacheInvalidated = false;
-    
-    // Save parsed structured data to KV for faster future access
+    const table = { rows, maxSqFt };
+    cacheByTool.set(cacheKey, { table, invalidated: false });
+
     try {
-      const { getKV } = await import('@/lib/kv');
       const kv = getKV();
-      await kv.set('pricing:data:table', cachedTable);
+      const key = toolKey(toolId, 'pricing:data:table');
+      await kv.set(key, table);
     } catch (saveError) {
-      // KV not configured - this is OK for local dev
       if (saveError instanceof Error && saveError.message.includes('KV')) {
         console.warn('KV not configured, skipping save to KV');
       } else {
         console.warn('Could not save structured pricing data to KV:', saveError);
       }
-      // Continue anyway, cache will work in memory
     }
-    
-    return cachedTable;
+
+    return table;
     } catch (fileError) {
       // If file read fails (KV not configured), throw a helpful error
       if (fileError instanceof Error && fileError.message.includes('KV')) {
@@ -376,9 +371,13 @@ export async function loadPricingTable(): Promise<PricingTable> {
 }
 
 /**
- * Clear the cached pricing table (useful after uploading a new file)
+ * Clear the cached pricing table (useful after uploading a new file).
+ * @param toolId - When provided, clears only this tool's cache; otherwise clears all.
  */
-export function invalidatePricingCache() {
-  cachedTable = null;
-  cacheInvalidated = true;
+export function invalidatePricingCache(toolId?: string) {
+  if (toolId !== undefined) {
+    cacheByTool.delete(toolId);
+  } else {
+    cacheByTool.clear();
+  }
 }

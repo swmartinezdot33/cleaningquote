@@ -24,9 +24,9 @@ export default function SettingsPage() {
   const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'disconnected' | 'testing'>(
     'unknown'
   );
-  const [widgetTitle, setWidgetTitle] = useState('Raleigh Cleaning Company');
+  const [widgetTitle, setWidgetTitle] = useState('Get Your Quote');
   const [widgetSubtitle, setWidgetSubtitle] = useState("Let's get your professional cleaning price!");
-  const [widgetPrimaryColor, setWidgetPrimaryColor] = useState('#f61590');
+  const [widgetPrimaryColor, setWidgetPrimaryColor] = useState('#0d9488');
   const [isSavingWidget, setIsSavingWidget] = useState(false);
   const [widgetMessage, setWidgetMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
@@ -350,9 +350,9 @@ export default function SettingsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setWidgetTitle(data.title || 'Raleigh Cleaning Company');
+        setWidgetTitle(data.title || 'Get Your Quote');
         setWidgetSubtitle(data.subtitle || "Let's get your professional cleaning price!");
-        setWidgetPrimaryColor(data.primaryColor || '#f61590');
+        setWidgetPrimaryColor(data.primaryColor || '#0d9488');
       }
     } catch (error) {
       console.error('Failed to load widget settings:', error);
@@ -398,7 +398,7 @@ export default function SettingsPage() {
 
   const getEmbedCode = () => {
     const baseUrl = window.location.origin;
-    return `<!-- Raleigh Cleaning Company Quote Widget -->
+    return `<!-- CleanQuote embed -->
 <!-- You can pass GHL contact variables as data attributes to pre-fill the form -->
 <!-- Example: data-first-name="{{contact.firstName}}" data-last-name="{{contact.lastName}}" -->
 <div id="cleaning-quote-widget"></div>
@@ -1251,7 +1251,7 @@ export default function SettingsPage() {
           </Button>
 
           <div className="flex items-center gap-3 mb-3">
-            <Sparkles className="h-8 w-8 text-[#f61590]" />
+            <Sparkles className="h-8 w-8 text-primary" />
             <h1 className="text-4xl font-bold text-gray-900">Settings</h1>
           </div>
           <p className="text-gray-600 text-lg">Configure your quote form and integrations</p>
@@ -1284,13 +1284,13 @@ export default function SettingsPage() {
         >
           <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
             <CardHeader 
-              className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6 cursor-pointer"
+              className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-gray-200 pb-6 cursor-pointer"
               onClick={() => toggleCard('ghl-unified')}
             >
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2 text-2xl font-bold text-gray-900">
-                    <Sparkles className="h-6 w-6 text-[#f61590]" />
+                    <Sparkles className="h-6 w-6 text-primary" />
                     GoHighLevel Integration
                   </CardTitle>
                   <CardDescription className="text-gray-600 mt-1">
@@ -1357,7 +1357,7 @@ export default function SettingsPage() {
                         GHL Private Integration Token (PIT)
                       </Label>
                       <p className="text-sm text-gray-600 mt-1 mb-3">
-                        Enter your GoHighLevel Private Integration Token (PIT). <strong className="text-[#f61590]">We recommend a Location-level PIT token</strong> for better security. Keep this secret - never share it publicly.
+                        Enter your GoHighLevel Private Integration Token (PIT). <strong className="text-primary">We recommend a Location-level PIT token</strong> for better security. Keep this secret - never share it publicly.
                       </p>
                       <div className="mt-2 mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg">
                         <p className="text-xs text-blue-800">
@@ -1530,7 +1530,7 @@ export default function SettingsPage() {
                             id="create-contact"
                             checked={createContact}
                             onChange={(e) => setCreateContact(e.target.checked)}
-                            className="w-5 h-5 text-[#f61590] rounded cursor-pointer"
+                            className="w-5 h-5 text-primary rounded cursor-pointer"
                           />
                           <label htmlFor="create-contact" className="cursor-pointer flex-1">
                             <div className="font-semibold text-gray-900">Create/Update Contact</div>
@@ -1544,7 +1544,7 @@ export default function SettingsPage() {
                             id="create-note"
                             checked={createNote}
                             onChange={(e) => setCreateNote(e.target.checked)}
-                            className="w-5 h-5 text-[#f61590] rounded cursor-pointer"
+                            className="w-5 h-5 text-primary rounded cursor-pointer"
                           />
                           <label htmlFor="create-note" className="cursor-pointer flex-1">
                             <div className="font-semibold text-gray-900">Create Note</div>
@@ -1558,7 +1558,7 @@ export default function SettingsPage() {
                             id="create-quote-object"
                             checked={createQuoteObject}
                             onChange={(e) => setCreateQuoteObject(e.target.checked)}
-                            className="w-5 h-5 text-[#f61590] rounded cursor-pointer"
+                            className="w-5 h-5 text-primary rounded cursor-pointer"
                           />
                           <label htmlFor="create-quote-object" className="cursor-pointer flex-1">
                             <div className="font-semibold text-gray-900">Create Quote (Custom Object)</div>
@@ -1572,7 +1572,7 @@ export default function SettingsPage() {
                             id="create-opportunity"
                             checked={createOpportunity}
                             onChange={(e) => setCreateOpportunity(e.target.checked)}
-                            className="w-5 h-5 text-[#f61590] rounded cursor-pointer"
+                            className="w-5 h-5 text-primary rounded cursor-pointer"
                           />
                           <label htmlFor="create-opportunity" className="cursor-pointer flex-1">
                             <div className="font-semibold text-gray-900">Create Opportunity</div>
@@ -1921,7 +1921,7 @@ export default function SettingsPage() {
                                     id="use-dynamic-pricing"
                                     checked={useDynamicPricingForValue}
                                     onChange={() => setUseDynamicPricingForValue(true)}
-                                    className="w-4 h-4 text-[#f61590] cursor-pointer"
+                                    className="w-4 h-4 text-primary cursor-pointer"
                                   />
                                   <label htmlFor="use-dynamic-pricing" className="cursor-pointer flex-1">
                                     <div className="font-semibold text-gray-900">Use Dynamic Quote Price</div>
@@ -1937,7 +1937,7 @@ export default function SettingsPage() {
                                     id="use-fixed-value"
                                     checked={!useDynamicPricingForValue}
                                     onChange={() => setUseDynamicPricingForValue(false)}
-                                    className="w-4 h-4 text-[#f61590] cursor-pointer"
+                                    className="w-4 h-4 text-primary cursor-pointer"
                                   />
                                   <label htmlFor="use-fixed-value" className="cursor-pointer flex-1">
                                     <div className="font-semibold text-gray-900">Use Fixed Value</div>
@@ -3085,7 +3085,7 @@ export default function SettingsPage() {
         >
           <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
             <CardHeader 
-              className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6 cursor-pointer"
+              className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-gray-200 pb-6 cursor-pointer"
               onClick={() => toggleCard('form-settings')}
             >
               <div className="flex items-center justify-between">
@@ -3232,7 +3232,7 @@ export default function SettingsPage() {
         >
           <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
             <CardHeader 
-              className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6 cursor-pointer"
+              className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-gray-200 pb-6 cursor-pointer"
               onClick={() => toggleCard('customization')}
             >
               <div className="flex items-center justify-between">
@@ -3277,7 +3277,7 @@ export default function SettingsPage() {
                     id="widget-title"
                     value={widgetTitle}
                     onChange={(e) => setWidgetTitle(e.target.value)}
-                    placeholder="e.g., Raleigh Cleaning Company"
+                    placeholder="e.g., Acme Cleaning"
                     className="mt-3"
                   />
                   <p className="text-sm text-gray-600 mt-1">
@@ -3323,7 +3323,7 @@ export default function SettingsPage() {
                             setWidgetPrimaryColor(val);
                           }
                         }}
-                        placeholder="#f61590"
+                        placeholder="#0d9488"
                         className="font-mono"
                       />
                     </div>
@@ -3363,13 +3363,13 @@ export default function SettingsPage() {
         >
           <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
             <CardHeader 
-              className="bg-gradient-to-r from-[#f61590]/10 via-transparent to-transparent border-b border-gray-200 pb-6 cursor-pointer"
+              className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-gray-200 pb-6 cursor-pointer"
               onClick={() => toggleCard('embed')}
             >
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                    <Code className="h-5 w-5 text-[#f61590]" />
+                    <Code className="h-5 w-5 text-primary" />
                     Embed Quote Widget
                   </CardTitle>
                   <CardDescription className="text-gray-600 mt-1">

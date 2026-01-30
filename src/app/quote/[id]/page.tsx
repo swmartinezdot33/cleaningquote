@@ -97,7 +97,8 @@ export default function QuotePage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const quoteId = params.id as string;
+  const quoteId = (params.id ?? (params as { quoteId?: string }).quoteId) as string;
+  const slug = typeof params.slug === 'string' ? params.slug : undefined;
 
   // Preserve all query params (UTM, start, gclid, etc.) through appointment/callback redirects
   const getPassthroughParams = (): string => {
@@ -109,8 +110,8 @@ export default function QuotePage() {
   const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [widgetTitle, setWidgetTitle] = useState('Raleigh Cleaning Company');
-  const [primaryColor, setPrimaryColor] = useState('#f61590');
+  const [widgetTitle, setWidgetTitle] = useState('Get Your Quote');
+  const [primaryColor, setPrimaryColor] = useState('#0d9488');
   const [showAppointmentForm, setShowAppointmentForm] = useState(false);
   const [showCallForm, setShowCallForm] = useState(false);
   const [appointmentDate, setAppointmentDate] = useState('');
@@ -124,15 +125,16 @@ export default function QuotePage() {
   const [callConfirmed, setCallConfirmed] = useState(false);
   const calendarRef = React.useRef<HTMLDivElement>(null);
 
-  // Load widget settings (title, primary color). Tracking runs via custom head code on this page only.
+  // Load widget settings (title, primary color). When under /t/[slug]/quote/[id], use slug-scoped API.
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const widgetResponse = await fetch('/api/admin/widget-settings');
+        const url = slug ? `/api/tools/${slug}/widget-settings` : '/api/admin/widget-settings';
+        const widgetResponse = await fetch(url);
         if (widgetResponse.ok) {
           const widgetData = await widgetResponse.json();
-          setWidgetTitle(widgetData.title || 'Raleigh Cleaning Company');
-          setPrimaryColor(widgetData.primaryColor || '#f61590');
+          setWidgetTitle(widgetData.title || 'Get Your Quote');
+          setPrimaryColor(widgetData.primaryColor || '#0d9488');
         }
       } catch (error) {
         console.error('Failed to load settings:', error);
@@ -140,7 +142,7 @@ export default function QuotePage() {
     };
 
     loadSettings();
-  }, []);
+  }, [slug]);
 
   // Fetch quote data
   useEffect(() => {
@@ -154,6 +156,7 @@ export default function QuotePage() {
       try {
         setIsLoading(true);
         const response = await fetch(`/api/quote/${quoteId}`);
+        // When under /t/[slug]/quote/[id], widget is loaded from slug-scoped API below
 
         if (!response.ok) {
           const errorData = await response.json();
@@ -230,7 +233,8 @@ export default function QuotePage() {
       if (response.ok) {
         // Redirect to confirmation with all query params preserved (UTM, start, etc.)
         const qs = getPassthroughParams();
-        const confirmationUrl = `/quote/${quoteId}/appointment-confirmed${qs ? `?${qs}` : ''}`;
+        const base = slug ? `/t/${slug}/quote/${quoteId}` : `/quote/${quoteId}`;
+        const confirmationUrl = `${base}/appointment-confirmed${qs ? `?${qs}` : ''}`;
         
         // If embedded in iframe, notify parent and update iframe src
         if (window.location.search.includes('embedded=true') || window.self !== window.top) {
@@ -305,7 +309,8 @@ export default function QuotePage() {
       if (response.ok) {
         // Redirect to confirmation with all query params preserved (UTM, start, etc.)
         const qs = getPassthroughParams();
-        const confirmationUrl = `/quote/${quoteId}/callback-confirmed${qs ? `?${qs}` : ''}`;
+        const base = slug ? `/t/${slug}/quote/${quoteId}` : `/quote/${quoteId}`;
+        const confirmationUrl = `${base}/callback-confirmed${qs ? `?${qs}` : ''}`;
         
         // If embedded in iframe, notify parent and update iframe src
         if (window.location.search.includes('embedded=true') || window.self !== window.top) {
@@ -368,9 +373,9 @@ export default function QuotePage() {
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Quote Not Found</h2>
               <p className="text-gray-600 mb-6">{error || 'The quote you are looking for could not be found.'}</p>
               <Button onClick={() => {
-                const params = new URLSearchParams(getPassthroughParams());
-                params.set('startAt', 'address');
-                router.push(`/?${params.toString()}`);
+                const p = new URLSearchParams(getPassthroughParams());
+                p.set('startAt', 'address');
+                router.push(slug ? `/t/${slug}?${p.toString()}` : `/?${p.toString()}`);
               }}>Start New Quote</Button>
             </div>
           </CardContent>
@@ -388,10 +393,10 @@ export default function QuotePage() {
               <h2 className="text-2xl font-bold text-red-600 mb-4">Out of Limits</h2>
               <p className="text-gray-700 mb-6">{quoteResult.message}</p>
               <Button onClick={() => {
-                const params = new URLSearchParams(getPassthroughParams());
-                params.set('startAt', 'address');
-                if (quoteResult?.ghlContactId) params.set('contactId', quoteResult.ghlContactId);
-                router.push(`/?${params.toString()}`);
+                const p = new URLSearchParams(getPassthroughParams());
+                p.set('startAt', 'address');
+                if (quoteResult?.ghlContactId) p.set('contactId', quoteResult.ghlContactId);
+                router.push(slug ? `/t/${slug}?${p.toString()}` : `/?${p.toString()}`);
               }}>Start New Quote</Button>
             </div>
           </CardContent>
@@ -845,13 +850,10 @@ export default function QuotePage() {
                       <div className="pt-4 text-center">
                         <button
                           onClick={() => {
-                            // Preserve query params (UTM, start, etc.) and add contact/step
-                            const params = new URLSearchParams(getPassthroughParams());
-                            if (quoteResult?.ghlContactId) {
-                              params.set('contactId', quoteResult.ghlContactId);
-                            }
-                            params.set('startAt', 'address');
-                            router.push(`/?${params.toString()}`);
+                            const p = new URLSearchParams(getPassthroughParams());
+                            if (quoteResult?.ghlContactId) p.set('contactId', quoteResult.ghlContactId);
+                            p.set('startAt', 'address');
+                            router.push(slug ? `/t/${slug}?${p.toString()}` : `/?${p.toString()}`);
                           }}
                           className="text-sm font-medium primary-text hover:opacity-80 transition-opacity inline-flex items-center gap-1"
                           style={{ color: primaryColor }}

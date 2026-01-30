@@ -66,11 +66,12 @@ const SURVEY_TO_GHL_TYPE_MAP: Record<string, string[]> = {
 
 /**
  * Fetch GHL field information by key
+ * @param toolId - When provided, use this tool's GHL token/location (multi-tenant).
  */
-async function getGHLFieldInfo(fieldKey: string): Promise<GHLFieldInfo | null> {
+async function getGHLFieldInfo(fieldKey: string, toolId?: string): Promise<GHLFieldInfo | null> {
   try {
-    const token = await getGHLToken();
-    const locationId = await getGHLLocationId();
+    const token = await getGHLToken(toolId);
+    const locationId = await getGHLLocationId(toolId);
 
     if (!token || !locationId) {
       console.error('GHL token or location ID not configured');
@@ -129,10 +130,12 @@ async function getGHLFieldInfo(fieldKey: string): Promise<GHLFieldInfo | null> {
 
 /**
  * Validate that a survey field type is compatible with its GHL mapping
+ * @param toolId - When provided, use this tool's GHL token (multi-tenant).
  */
 export async function validateFieldTypeCompatibility(
   surveyFieldType: string,
-  ghlFieldMapping: string | undefined
+  ghlFieldMapping: string | undefined,
+  toolId?: string
 ): Promise<FieldTypeValidation> {
   // If no mapping, any survey type is valid
   if (!ghlFieldMapping || ghlFieldMapping.trim() === '') {
@@ -141,7 +144,7 @@ export async function validateFieldTypeCompatibility(
 
   try {
     // Get GHL field information
-    const ghlFieldInfo = await getGHLFieldInfo(ghlFieldMapping);
+    const ghlFieldInfo = await getGHLFieldInfo(ghlFieldMapping, toolId);
     
     if (!ghlFieldInfo) {
       return {
@@ -189,9 +192,11 @@ export async function validateFieldTypeCompatibility(
 
 /**
  * Get compatible survey types for a GHL field
+ * @param toolId - When provided, use this tool's GHL token (multi-tenant).
  */
 export async function getCompatibleSurveyTypes(
-  ghlFieldMapping: string | undefined
+  ghlFieldMapping: string | undefined,
+  toolId?: string
 ): Promise<string[]> {
   if (!ghlFieldMapping || ghlFieldMapping.trim() === '') {
     // No mapping, return all types
@@ -199,7 +204,7 @@ export async function getCompatibleSurveyTypes(
   }
 
   try {
-    const ghlFieldInfo = await getGHLFieldInfo(ghlFieldMapping);
+    const ghlFieldInfo = await getGHLFieldInfo(ghlFieldMapping, toolId);
     
     if (!ghlFieldInfo) {
       return ['text', 'email', 'tel', 'number', 'select', 'address'];
@@ -214,14 +219,15 @@ export async function getCompatibleSurveyTypes(
 
 /**
  * Get field info for UI display
+ * @param toolId - When provided, use this tool's GHL token (multi-tenant).
  */
-export async function getFieldTypeInfo(ghlFieldMapping: string | undefined) {
+export async function getFieldTypeInfo(ghlFieldMapping: string | undefined, toolId?: string) {
   if (!ghlFieldMapping || ghlFieldMapping.trim() === '') {
     return null;
   }
 
   try {
-    return await getGHLFieldInfo(ghlFieldMapping);
+    return await getGHLFieldInfo(ghlFieldMapping, toolId);
   } catch (error) {
     console.error('Error getting field type info:', error);
     return null;
@@ -230,13 +236,17 @@ export async function getFieldTypeInfo(ghlFieldMapping: string | undefined) {
 
 /**
  * Validate multiple fields at once and get compatibility report
+ * @param toolId - When provided, use this tool's GHL token (multi-tenant).
  */
-export async function validateAllFieldMappings(questions: Array<{ id: string; type: string; label: string; ghlFieldMapping?: string }>) {
+export async function validateAllFieldMappings(
+  questions: Array<{ id: string; type: string; label: string; ghlFieldMapping?: string }>,
+  toolId?: string
+) {
   const report: Record<string, { valid: boolean; error?: string; ghlFieldType?: string }> = {};
 
   for (const question of questions) {
     if (question.ghlFieldMapping && question.ghlFieldMapping.trim() !== '') {
-      const validation = await validateFieldTypeCompatibility(question.type, question.ghlFieldMapping);
+      const validation = await validateFieldTypeCompatibility(question.type, question.ghlFieldMapping, toolId);
       report[question.id] = {
         valid: validation.valid,
         error: validation.error,

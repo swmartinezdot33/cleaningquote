@@ -3,7 +3,7 @@ import { calcQuote } from '@/lib/pricing/calcQuote';
 import { generateSummaryText, generateSmsText } from '@/lib/pricing/format';
 import { QuoteInputs, QuoteRanges } from '@/lib/pricing/types';
 import { createOrUpdateContact, updateContact, createOpportunity, createNote, createCustomObject } from '@/lib/ghl/client';
-import { ghlTokenExists, getGHLConfig, getKV } from '@/lib/kv';
+import { ghlTokenExists, getGHLConfig, getGHLToken, getGHLLocationId, getKV } from '@/lib/kv';
 import { getSurveyQuestions, getSurveyDisplayLabels } from '@/lib/survey/manager';
 import { SurveyQuestion } from '@/lib/survey/schema';
 import { sanitizeCustomFields } from '@/lib/ghl/field-normalizer';
@@ -117,8 +117,21 @@ function convertSquareFootageRange(range: string): number {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { ghlContactId: providedContactId, contactId: bodyContactId } = body;
-    
+    const { ghlContactId: providedContactId, contactId: bodyContactId, toolSlug, toolId: bodyToolId } = body;
+
+    // Resolve tool for multi-tenant (toolSlug or toolId in body)
+    let toolId: string | undefined = bodyToolId;
+    if (!toolId && toolSlug && typeof toolSlug === 'string') {
+      try {
+        const { createSupabaseServerSSR } = await import('@/lib/supabase/server-ssr');
+        const supabase = await createSupabaseServerSSR();
+        const { data } = await supabase.from('tools').select('id').eq('slug', toolSlug).single();
+        toolId = (data as { id?: string } | null)?.id;
+      } catch (_) {
+        toolId = undefined;
+      }
+    }
+
     // Extract UTM parameters from request URL and body (body takes precedence if both exist)
     const url = new URL(request.url);
     const utmParams: Record<string, string> = {};
@@ -162,7 +175,7 @@ export async function POST(request: NextRequest) {
       cleanedWithin3Months: body.cleanedWithin3Months,
     };
 
-    const result = await calcQuote(inputs);
+    const result = await calcQuote(inputs, toolId);
 
     if (result.outOfLimits || !result.ranges) {
       return NextResponse.json({
@@ -180,7 +193,7 @@ export async function POST(request: NextRequest) {
       : undefined;
     let summaryLabels: { serviceTypeLabels: Record<string, string>; frequencyLabels: Record<string, string> } | undefined;
     try {
-      const surveyQuestions = await getSurveyQuestions();
+      const surveyQuestions = await getSurveyQuestions(toolId);
       summaryLabels = getSurveyDisplayLabels(surveyQuestions);
     } catch (_) { /* use built-in labels */ }
     const summaryText = generateSummaryText({ ...result, ranges: result.ranges }, body.serviceType, body.frequency, squareFeetRange, summaryLabels);
@@ -199,18 +212,17 @@ export async function POST(request: NextRequest) {
     // Attempt GHL integration (non-blocking)
     // If a contact was already created after address step or passed via contactId/ghlContactId param, use that ID
     let ghlContactId: string | undefined = providedContactId || bodyContactId;
-    const hasGHLToken = await ghlTokenExists().catch(() => false);
-    
+    const hasGHLToken = await ghlTokenExists(toolId).catch(() => false);
+
     if (hasGHLToken) {
       try {
-        // Get GHL configuration
-        const ghlConfig = await getGHLConfig();
+        const [ghlConfig, surveyQuestions, ghlToken, ghlLocationId] = await Promise.all([
+          getGHLConfig(toolId),
+          getSurveyQuestions(toolId),
+          getGHLToken(toolId),
+          getGHLLocationId(toolId),
+        ]);
 
-        // ALWAYS create/update contact when quote is given (required for bookings to work)
-        // Even if createContact is disabled, we still create it for booking functionality
-        // Get survey questions to map fields
-        const surveyQuestions = await getSurveyQuestions();
-        
         // Build contact data using field mappings
         const contactData: any = {
             firstName: 'Unknown',
@@ -520,14 +532,14 @@ export async function POST(request: NextRequest) {
           ? await updateContact(
               ghlContactId,
               contactData,
-              undefined,
-              undefined,
+              ghlToken ?? undefined,
+              ghlLocationId ?? undefined,
               ghlConfig?.inServiceTags
             )
           : await createOrUpdateContact(
               contactData,
-              undefined,
-              undefined,
+              ghlToken ?? undefined,
+              ghlLocationId ?? undefined,
               ghlConfig?.inServiceTags
             );
 
@@ -677,18 +689,21 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          opportunityPromise = createOpportunity({
-            contactId: ghlContactId,
-            name: opportunityName,
-            value: opportunityValue,
-            pipelineId: resolvedPipelineId,
-            pipelineStageId: resolvedPipelineStageId,
-            status: resolvedOpportunityStatus,
-            assignedTo: resolvedOpportunityAssignedTo,
-            source: resolvedOpportunitySource,
-            tags: resolvedOpportunityTags && resolvedOpportunityTags.length > 0 ? resolvedOpportunityTags : undefined,
-            customFields: opportunityCustomFields,
-          });
+          opportunityPromise = createOpportunity(
+            {
+              contactId: ghlContactId,
+              name: opportunityName,
+              value: opportunityValue,
+              pipelineId: resolvedPipelineId,
+              pipelineStageId: resolvedPipelineStageId,
+              status: resolvedOpportunityStatus,
+              assignedTo: resolvedOpportunityAssignedTo,
+              source: resolvedOpportunitySource,
+              tags: resolvedOpportunityTags && resolvedOpportunityTags.length > 0 ? resolvedOpportunityTags : undefined,
+              customFields: opportunityCustomFields,
+            },
+            ghlLocationId ?? undefined
+          );
         }
 
         // Create Quote custom object in GHL
@@ -836,11 +851,12 @@ export async function POST(request: NextRequest) {
               // The schemaKey should be just "quotes" (not "custom_objects.quotes")
               // The customFields keys should be just the field names (not "custom_objects.quotes.field_name")
               quoteObjectPromise = createCustomObject(
-                'quotes', // Schema key is just "quotes" (lowercase plural)
+                'quotes',
                 {
                   contactId: ghlContactId,
                   customFields: quoteCustomFields,
-                }
+                },
+                ghlLocationId ?? undefined
               );
             }
           } catch (quoteError) {
@@ -872,10 +888,10 @@ export async function POST(request: NextRequest) {
           if (notePassthrough.length) {
             noteBody += '\n\n' + notePassthrough.map(k => `${k}: ${String(body[k]).trim()}`).join(', ');
           }
-          notePromise = createNote({
-            contactId: ghlContactId,
-            body: noteBody,
-          });
+          notePromise = createNote(
+            { contactId: ghlContactId, body: noteBody },
+            ghlLocationId ?? undefined
+          );
         }
 
         // Execute all GHL operations in parallel for faster response
@@ -923,9 +939,10 @@ export async function POST(request: NextRequest) {
                 frequency: kvFreq,
                 createdAt: new Date().toISOString(),
                 ghlQuoteCreated: true,
-                ghlObjectId: ghlObjectId, // Store GHL object ID for reference
-                generatedQuoteId: generatedQuoteId, // Store original UUID for reference
+                ghlObjectId: ghlObjectId,
+                generatedQuoteId: generatedQuoteId,
                 quoteCustomFields: Object.keys(quoteCustomFields).length > 0 ? quoteCustomFields : undefined,
+                ...(toolId && { toolId }),
               };
               
               // Store with generated UUID (for frontend redirect)
@@ -1019,11 +1036,10 @@ export async function POST(request: NextRequest) {
           serviceType: body.serviceType,
           frequency: storedFrequency,
           createdAt: new Date().toISOString(),
-          // Store GHL quote creation status for debugging
           ghlQuoteCreated: false,
-          generatedQuoteId: generatedQuoteId, // Store original UUID for reference
-          // Store the original quote custom fields for potential retry
+          generatedQuoteId: generatedQuoteId,
           quoteCustomFields: Object.keys(quoteCustomFields).length > 0 ? quoteCustomFields : undefined,
+          ...(toolId && { toolId }),
         };
         // Store with generated UUID (for frontend redirect)
         const quoteDataString = JSON.stringify(quoteData);
@@ -1078,6 +1094,7 @@ export async function POST(request: NextRequest) {
             ghlQuoteCreated: true,
             generatedQuoteId: generatedQuoteId,
             quoteCustomFields: Object.keys(quoteCustomFields).length > 0 ? quoteCustomFields : undefined,
+            ...(toolId && { toolId }),
           };
           await kv.setex(`quote:${generatedQuoteId}`, 60 * 60 * 24 * 30, JSON.stringify(quoteData));
           console.log(`✅ Stored quote data in KV (safety net): ${generatedQuoteId}`);
@@ -1098,7 +1115,7 @@ export async function POST(request: NextRequest) {
     let serviceTypeOptions: Array<{ value: string; label: string }> = [];
     let frequencyOptions: Array<{ value: string; label: string }> = [];
     try {
-      const surveyQuestions = await getSurveyQuestions();
+      const surveyQuestions = await getSurveyQuestions(toolId);
       const { serviceTypeLabels, frequencyLabels } = getSurveyDisplayLabels(surveyQuestions);
       const st = String(body.serviceType || '').trim().toLowerCase();
       const freq = ['move-in', 'move-out', 'deep'].includes(st) ? '' : String(body.frequency ?? '').trim().toLowerCase();

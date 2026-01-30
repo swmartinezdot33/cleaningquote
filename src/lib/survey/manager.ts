@@ -1,9 +1,10 @@
 /**
  * Survey Manager
- * Handles all survey CRUD operations with KV as single source of truth
+ * Handles all survey CRUD operations with KV as single source of truth.
+ * Supports multi-tenant via optional toolId (tool-scoped keys).
  */
 
-import { kv } from '@vercel/kv';
+import { getKV, toolKey } from '@/lib/kv';
 import { SurveyQuestion, DEFAULT_SURVEY_QUESTIONS, validateSurveyQuestion } from './schema';
 import { validateFieldTypeCompatibility } from './field-type-validator';
 
@@ -11,16 +12,17 @@ const SURVEY_QUESTIONS_KEY = 'survey:questions:v2';
 
 /**
  * Initialize surveys - creates defaults if none exist
+ * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
-export async function initializeSurvey(): Promise<SurveyQuestion[]> {
+export async function initializeSurvey(toolId?: string): Promise<SurveyQuestion[]> {
   try {
-    const existing = await kv.get<SurveyQuestion[]>(SURVEY_QUESTIONS_KEY);
+    const kv = getKV();
+    const key = toolKey(toolId, SURVEY_QUESTIONS_KEY);
+    const existing = await kv.get<SurveyQuestion[]>(key);
     if (existing && Array.isArray(existing) && existing.length > 0) {
       return existing.sort((a, b) => a.order - b.order);
     }
-
-    // No questions exist, create defaults
-    await kv.set(SURVEY_QUESTIONS_KEY, DEFAULT_SURVEY_QUESTIONS);
+    await kv.set(key, DEFAULT_SURVEY_QUESTIONS);
     return DEFAULT_SURVEY_QUESTIONS;
   } catch (error) {
     console.error('Error initializing survey:', error);
@@ -30,19 +32,21 @@ export async function initializeSurvey(): Promise<SurveyQuestion[]> {
 
 /**
  * Get all survey questions - single source of truth
+ * @param toolId - When provided, reads from this quoting tool (multi-tenant).
  */
-export async function getSurveyQuestions(): Promise<SurveyQuestion[]> {
+export async function getSurveyQuestions(toolId?: string): Promise<SurveyQuestion[]> {
   try {
-    const questions = await kv.get<SurveyQuestion[]>(SURVEY_QUESTIONS_KEY);
+    const kv = getKV();
+    const key = toolKey(toolId, SURVEY_QUESTIONS_KEY);
+    const questions = await kv.get<SurveyQuestion[]>(key);
     if (!questions || !Array.isArray(questions)) {
-      // Check for old key for backward compatibility
-      const oldQuestions = await kv.get<SurveyQuestion[]>('survey:questions');
+      const oldKey = toolKey(toolId, 'survey:questions');
+      const oldQuestions = await kv.get<SurveyQuestion[]>(oldKey);
       if (oldQuestions && Array.isArray(oldQuestions) && oldQuestions.length > 0) {
-        // Migrate old data to new key
-        await kv.set(SURVEY_QUESTIONS_KEY, oldQuestions);
+        await kv.set(key, oldQuestions);
         return oldQuestions.sort((a, b) => a.order - b.order);
       }
-      return await initializeSurvey();
+      return await initializeSurvey(toolId);
     }
     
     // CRITICAL: Restore isCoreField for core questions if missing
@@ -58,10 +62,9 @@ export async function getSurveyQuestions(): Promise<SurveyQuestion[]> {
       return q;
     });
     
-    // If we restored any isCoreField flags, save them
     if (needsSave) {
       console.log('🔒 Restored isCoreField flags for core questions');
-      await kv.set(SURVEY_QUESTIONS_KEY, restoredQuestions);
+      await kv.set(key, restoredQuestions);
     }
     
     // Log questions with mappings for debugging (only when mappings exist)
@@ -90,8 +93,9 @@ export async function getSurveyQuestions(): Promise<SurveyQuestion[]> {
 
 /**
  * Save survey questions - overwrites all questions
+ * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
-export async function saveSurveyQuestions(questions: SurveyQuestion[]): Promise<SurveyQuestion[]> {
+export async function saveSurveyQuestions(questions: SurveyQuestion[], toolId?: string): Promise<SurveyQuestion[]> {
   try {
     // Validate all questions
     const validationErrors: string[] = [];
@@ -137,8 +141,9 @@ export async function saveSurveyQuestions(questions: SurveyQuestion[]): Promise<
       isCoreField: q.isCoreField !== undefined ? q.isCoreField : coreFieldIds.includes(q.id),
     }));
 
-    // Save to KV
-    await kv.set(SURVEY_QUESTIONS_KEY, questionsToSave);
+    const kv = getKV();
+    const key = toolKey(toolId, SURVEY_QUESTIONS_KEY);
+    await kv.set(key, questionsToSave);
 
     return sorted;
   } catch (error) {
@@ -149,15 +154,15 @@ export async function saveSurveyQuestions(questions: SurveyQuestion[]): Promise<
 
 /**
  * Add a new question
+ * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
-export async function addQuestion(question: SurveyQuestion): Promise<SurveyQuestion[]> {
+export async function addQuestion(question: SurveyQuestion, toolId?: string): Promise<SurveyQuestion[]> {
   try {
     const validation = validateSurveyQuestion(question);
     if (!validation.valid) {
       throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
     }
 
-    // Validate field type compatibility with GHL mapping
     if (question.ghlFieldMapping && question.ghlFieldMapping.trim() !== '') {
       const typeValidation = await validateFieldTypeCompatibility(question.type, question.ghlFieldMapping);
       if (!typeValidation.valid) {
@@ -171,20 +176,18 @@ export async function addQuestion(question: SurveyQuestion): Promise<SurveyQuest
       });
     }
 
-    const questions = await getSurveyQuestions();
+    const questions = await getSurveyQuestions(toolId);
 
-    // Check for duplicate ID
     if (questions.some(q => q.id === question.id)) {
       throw new Error(`Question with ID "${question.id}" already exists`);
     }
 
-    // If no order specified, add to end
     if (question.order === undefined || question.order === null) {
       question.order = Math.max(...questions.map(q => q.order), -1) + 1;
     }
 
     questions.push(question);
-    return saveSurveyQuestions(questions);
+    return saveSurveyQuestions(questions, toolId);
   } catch (error) {
     console.error('Error adding question:', error);
     throw error;
@@ -193,10 +196,11 @@ export async function addQuestion(question: SurveyQuestion): Promise<SurveyQuest
 
 /**
  * Update a question by ID
+ * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
-export async function updateQuestion(id: string, updates: Partial<SurveyQuestion>): Promise<SurveyQuestion[]> {
+export async function updateQuestion(id: string, updates: Partial<SurveyQuestion>, toolId?: string): Promise<SurveyQuestion[]> {
   try {
-    const questions = await getSurveyQuestions();
+    const questions = await getSurveyQuestions(toolId);
     const index = questions.findIndex(q => q.id === id);
 
     if (index === -1) {
@@ -256,7 +260,7 @@ export async function updateQuestion(id: string, updates: Partial<SurveyQuestion
     });
 
     questions[index] = updated;
-    return saveSurveyQuestions(questions);
+    return saveSurveyQuestions(questions, toolId);
   } catch (error) {
     console.error('Error updating question:', error);
     throw error;
@@ -265,10 +269,11 @@ export async function updateQuestion(id: string, updates: Partial<SurveyQuestion
 
 /**
  * Delete a question by ID
+ * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
-export async function deleteQuestion(id: string): Promise<SurveyQuestion[]> {
+export async function deleteQuestion(id: string, toolId?: string): Promise<SurveyQuestion[]> {
   try {
-    const questions = await getSurveyQuestions();
+    const questions = await getSurveyQuestions(toolId);
     const question = questions.find(q => q.id === id);
 
     if (!question) {
@@ -281,7 +286,7 @@ export async function deleteQuestion(id: string): Promise<SurveyQuestion[]> {
     }
 
     const filtered = questions.filter(q => q.id !== id);
-    return saveSurveyQuestions(filtered);
+    return saveSurveyQuestions(filtered, toolId);
   } catch (error) {
     console.error('Error deleting question:', error);
     throw error;
@@ -290,12 +295,12 @@ export async function deleteQuestion(id: string): Promise<SurveyQuestion[]> {
 
 /**
  * Reorder questions
+ * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
-export async function reorderQuestions(orders: Array<{ id: string; order: number }>): Promise<SurveyQuestion[]> {
+export async function reorderQuestions(orders: Array<{ id: string; order: number }>, toolId?: string): Promise<SurveyQuestion[]> {
   try {
-    const questions = await getSurveyQuestions();
+    const questions = await getSurveyQuestions(toolId);
 
-    // Update order for each question
     orders.forEach(({ id, order }) => {
       const q = questions.find(qu => qu.id === id);
       if (q) {
@@ -303,7 +308,7 @@ export async function reorderQuestions(orders: Array<{ id: string; order: number
       }
     });
 
-    return saveSurveyQuestions(questions);
+    return saveSurveyQuestions(questions, toolId);
   } catch (error) {
     console.error('Error reordering questions:', error);
     throw error;
@@ -312,10 +317,13 @@ export async function reorderQuestions(orders: Array<{ id: string; order: number
 
 /**
  * Reset to defaults
+ * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
-export async function resetToDefaults(): Promise<SurveyQuestion[]> {
+export async function resetToDefaults(toolId?: string): Promise<SurveyQuestion[]> {
   try {
-    await kv.set(SURVEY_QUESTIONS_KEY, DEFAULT_SURVEY_QUESTIONS);
+    const kv = getKV();
+    const key = toolKey(toolId, SURVEY_QUESTIONS_KEY);
+    await kv.set(key, DEFAULT_SURVEY_QUESTIONS);
     return DEFAULT_SURVEY_QUESTIONS;
   } catch (error) {
     console.error('Error resetting to defaults:', error);
@@ -325,10 +333,11 @@ export async function resetToDefaults(): Promise<SurveyQuestion[]> {
 
 /**
  * Get a single question by ID
+ * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
-export async function getQuestion(id: string): Promise<SurveyQuestion | null> {
+export async function getQuestion(id: string, toolId?: string): Promise<SurveyQuestion | null> {
   try {
-    const questions = await getSurveyQuestions();
+    const questions = await getSurveyQuestions(toolId);
     return questions.find(q => q.id === id) || null;
   } catch (error) {
     console.error('Error getting question:', error);

@@ -1,0 +1,1319 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { ChevronDown, Sparkles, MapPin, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { TagPicker } from '@/components/ui/TagPicker';
+
+type CardId = 'widget' | 'form' | 'ghl' | 'tracking' | 'maps' | 'ghl-config' | 'service-area';
+
+export default function ToolSettingsClient({ toolId }: { toolId: string }) {
+  const [widget, setWidget] = useState({ title: '', subtitle: '', primaryColor: '#0d9488' });
+  const [form, setForm] = useState<Record<string, string>>({});
+  const [ghlToken, setGhlToken] = useState('');
+  const [ghlLocationId, setGhlLocationId] = useState('');
+  const [ghlStatus, setGhlStatus] = useState<{ configured: boolean; connected?: boolean; locationId?: string } | null>(null);
+  const [customHeadCode, setCustomHeadCode] = useState('');
+  const [googleMapsKey, setGoogleMapsKey] = useState('');
+  const [googleMapsExists, setGoogleMapsExists] = useState(false);
+  const [serviceAreaStatus, setServiceAreaStatus] = useState<{ type: string; polygonCount?: number; networkLink?: string } | null>(null);
+  const [kmlContent, setKmlContent] = useState('');
+  const [serviceAreaUploading, setServiceAreaUploading] = useState(false);
+  const [ghlConfig, setGhlConfig] = useState<{
+    createContact: boolean;
+    createOpportunity: boolean;
+    createNote: boolean;
+    createQuoteObject: boolean;
+    pipelineId?: string;
+    pipelineStageId?: string;
+    useDynamicPricingForValue?: boolean;
+    opportunityAssignedTo?: string;
+    opportunitySource?: string;
+    opportunityTags?: string[];
+    inServiceTags?: string[];
+    outOfServiceTags?: string[];
+    appointmentCalendarId?: string;
+    callCalendarId?: string;
+    appointmentUserId?: string;
+    callUserId?: string;
+    quotedAmountField?: string;
+    redirectAfterAppointment?: boolean;
+    appointmentRedirectUrl?: string;
+    appointmentBookedTags?: string[];
+    quoteCompletedTags?: string[];
+    pipelineRoutingRules?: Array<{
+      utmParam: string;
+      match: string;
+      value: string;
+      pipelineId: string;
+      pipelineStageId: string;
+      opportunityStatus?: string;
+      opportunityAssignedTo?: string;
+      opportunitySource?: string;
+      opportunityTags?: string[];
+    }>;
+  }>({
+    createContact: true,
+    createOpportunity: false,
+    createNote: true,
+    createQuoteObject: true,
+    redirectAfterAppointment: false,
+    appointmentRedirectUrl: '',
+  });
+  const [pipelines, setPipelines] = useState<{ id: string; name: string; stages: { id: string; name: string }[] }[]>([]);
+  const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
+  const [calendars, setCalendars] = useState<{ id: string; name: string }[]>([]);
+  const [ghlTags, setGhlTags] = useState<{ id: string; name: string }[]>([]);
+  const [customFields, setCustomFields] = useState<{ key: string; name: string }[]>([]);
+  const [loadingGhlLists, setLoadingGhlLists] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [savingSection, setSavingSection] = useState<CardId | null>(null);
+  const [expandedRuleIndex, setExpandedRuleIndex] = useState<number | null>(null);
+  const [sectionMessage, setSectionMessage] = useState<{ card: CardId; type: 'success' | 'error'; text: string } | null>(null);
+  const [expandedCards, setExpandedCards] = useState<Set<CardId>>(new Set(['widget']));
+  const [queryLinkCopied, setQueryLinkCopied] = useState(false);
+
+  const toggleCard = (cardId: CardId) => {
+    setExpandedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(cardId)) next.delete(cardId);
+      else next.add(cardId);
+      return next;
+    });
+  };
+  const isCardExpanded = (cardId: CardId) => expandedCards.has(cardId);
+  const clearMessage = (card: CardId) => {
+    setSectionMessage((m) => (m?.card === card ? null : m));
+  };
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [wRes, fRes, ghlRes, trackRes, mapsRes, areaRes, configRes] = await Promise.all([
+          fetch(`/api/dashboard/tools/${toolId}/widget-settings`),
+          fetch(`/api/dashboard/tools/${toolId}/form-settings`),
+          fetch(`/api/dashboard/tools/${toolId}/ghl-settings`),
+          fetch(`/api/dashboard/tools/${toolId}/tracking-codes`),
+          fetch(`/api/dashboard/tools/${toolId}/google-maps-key`),
+          fetch(`/api/dashboard/tools/${toolId}/service-area/status`),
+          fetch(`/api/dashboard/tools/${toolId}/ghl-config`),
+        ]);
+        if (wRes.ok) {
+          const w = await wRes.json();
+          setWidget({ title: w.title ?? '', subtitle: w.subtitle ?? '', primaryColor: w.primaryColor ?? '#0d9488' });
+        }
+        if (fRes.ok) {
+          const { formSettings } = await fRes.json();
+          setForm(formSettings ?? {});
+        }
+        if (ghlRes.ok) {
+          const g = await ghlRes.json();
+          setGhlStatus(g);
+          if (g.locationId) setGhlLocationId(g.locationId);
+        }
+        if (trackRes.ok) {
+          const t = await trackRes.json();
+          setCustomHeadCode(t.trackingCodes?.customHeadCode ?? '');
+        }
+        if (mapsRes.ok) {
+          const m = await mapsRes.json();
+          setGoogleMapsExists(m.exists ?? false);
+        }
+        if (areaRes.ok) {
+          const a = await areaRes.json();
+          setServiceAreaStatus(a);
+        }
+        if (configRes.ok) {
+          const { config } = await configRes.json();
+          if (config) setGhlConfig((prev) => ({ ...prev, ...config }));
+        }
+      } catch {
+        setSectionMessage({ card: 'widget', type: 'error', text: 'Failed to load settings' });
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [toolId]);
+
+  useEffect(() => {
+    if (!ghlStatus?.connected) return;
+    const loadLists = async () => {
+      setLoadingGhlLists(true);
+      try {
+        const [pipeRes, usrRes, calRes, tagRes, fieldsRes] = await Promise.all([
+          fetch(`/api/dashboard/tools/${toolId}/ghl-pipelines`),
+          fetch(`/api/dashboard/tools/${toolId}/ghl-users`),
+          fetch(`/api/dashboard/tools/${toolId}/ghl-calendars`),
+          fetch(`/api/dashboard/tools/${toolId}/ghl-tags`),
+          fetch(`/api/dashboard/tools/${toolId}/ghl-custom-fields`),
+        ]);
+        if (pipeRes.ok) {
+          const d = await pipeRes.json();
+          setPipelines(d.pipelines ?? []);
+        }
+        if (usrRes.ok) {
+          const d = await usrRes.json();
+          setUsers(d.users ?? []);
+        }
+        if (calRes.ok) {
+          const d = await calRes.json();
+          setCalendars(d.calendars ?? []);
+        }
+        if (tagRes.ok) {
+          const d = await tagRes.json();
+          setGhlTags(d.tags ?? []);
+        }
+        if (fieldsRes.ok) {
+          const d = await fieldsRes.json();
+          setCustomFields(d.fields ?? []);
+        }
+      } finally {
+        setLoadingGhlLists(false);
+      }
+    };
+    loadLists();
+  }, [toolId, ghlStatus?.connected]);
+
+  const saveWidget = async () => {
+    setSavingSection('widget');
+    clearMessage('widget');
+    try {
+      const res = await fetch(`/api/dashboard/tools/${toolId}/widget-settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(widget),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSectionMessage({ card: 'widget', type: 'success', text: data.message ?? 'Widget settings saved' });
+      } else {
+        setSectionMessage({ card: 'widget', type: 'error', text: data.error ?? 'Failed to save' });
+      }
+    } catch {
+      setSectionMessage({ card: 'widget', type: 'error', text: 'Failed to save widget settings' });
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
+  const saveForm = async () => {
+    setSavingSection('form');
+    clearMessage('form');
+    try {
+      const res = await fetch(`/api/dashboard/tools/${toolId}/form-settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSectionMessage({ card: 'form', type: 'success', text: data.message ?? 'Form settings saved' });
+      } else {
+        setSectionMessage({ card: 'form', type: 'error', text: data.error ?? 'Failed to save' });
+      }
+    } catch {
+      setSectionMessage({ card: 'form', type: 'error', text: 'Failed to save form settings' });
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
+  const saveGhl = async () => {
+    if (!ghlToken.trim() || !ghlLocationId.trim()) {
+      setSectionMessage({ card: 'ghl', type: 'error', text: 'GHL token and Location ID are required' });
+      return;
+    }
+    setSavingSection('ghl');
+    clearMessage('ghl');
+    try {
+      const res = await fetch(`/api/dashboard/tools/${toolId}/ghl-settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: ghlToken.trim(), locationId: ghlLocationId.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSectionMessage({ card: 'ghl', type: 'success', text: data.message ?? 'GHL settings saved' });
+        setGhlStatus({ configured: true, connected: true, locationId: ghlLocationId.trim() });
+      } else {
+        setSectionMessage({ card: 'ghl', type: 'error', text: data.error ?? data.details ?? 'Failed to save' });
+      }
+    } catch {
+      setSectionMessage({ card: 'ghl', type: 'error', text: 'Failed to save GHL settings' });
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
+  const saveTracking = async () => {
+    setSavingSection('tracking');
+    clearMessage('tracking');
+    try {
+      const res = await fetch(`/api/dashboard/tools/${toolId}/tracking-codes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customHeadCode: customHeadCode.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSectionMessage({ card: 'tracking', type: 'success', text: data.message ?? 'Tracking codes saved' });
+      } else {
+        setSectionMessage({ card: 'tracking', type: 'error', text: data.error ?? 'Failed to save' });
+      }
+    } catch {
+      setSectionMessage({ card: 'tracking', type: 'error', text: 'Failed to save tracking codes' });
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
+  const saveGoogleMaps = async () => {
+    if (!googleMapsKey.trim()) {
+      setSectionMessage({ card: 'maps', type: 'error', text: 'Google Maps API key is required' });
+      return;
+    }
+    setSavingSection('maps');
+    clearMessage('maps');
+    try {
+      const res = await fetch(`/api/dashboard/tools/${toolId}/google-maps-key`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: googleMapsKey.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSectionMessage({ card: 'maps', type: 'success', text: data.message ?? 'Google Maps key saved' });
+        setGoogleMapsExists(true);
+        setGoogleMapsKey('');
+      } else {
+        setSectionMessage({ card: 'maps', type: 'error', text: data.error ?? 'Failed to save' });
+      }
+    } catch {
+      setSectionMessage({ card: 'maps', type: 'error', text: 'Failed to save Google Maps key' });
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
+  const saveGhlConfig = async () => {
+    setSavingSection('ghl-config');
+    clearMessage('ghl-config');
+    try {
+      const res = await fetch(`/api/dashboard/tools/${toolId}/ghl-config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ghlConfig),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSectionMessage({ card: 'ghl-config', type: 'success', text: data.message ?? 'GHL configuration saved' });
+      } else {
+        setSectionMessage({ card: 'ghl-config', type: 'error', text: data.error ?? 'Failed to save GHL config' });
+      }
+    } catch {
+      setSectionMessage({ card: 'ghl-config', type: 'error', text: 'Failed to save GHL config' });
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
+  const uploadServiceArea = async () => {
+    const content = kmlContent.trim();
+    if (!content) {
+      setSectionMessage({ card: 'service-area', type: 'error', text: 'Paste KML content or a NetworkLink URL' });
+      return;
+    }
+    setServiceAreaUploading(true);
+    clearMessage('service-area');
+    try {
+      const res = await fetch(`/api/dashboard/tools/${toolId}/service-area/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kmlContent: content }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSectionMessage({ card: 'service-area', type: 'success', text: data.message ?? 'Service area updated' });
+        setKmlContent('');
+        const statusRes = await fetch(`/api/dashboard/tools/${toolId}/service-area/status`);
+        if (statusRes.ok) {
+          const a = await statusRes.json();
+          setServiceAreaStatus(a);
+        }
+      } else {
+        setSectionMessage({ card: 'service-area', type: 'error', text: data.error ?? 'Upload failed' });
+      }
+    } catch {
+      setSectionMessage({ card: 'service-area', type: 'error', text: 'Failed to upload service area' });
+    } finally {
+      setServiceAreaUploading(false);
+    }
+  };
+
+  const selectClass = 'mt-1 block w-full rounded-md border border-input px-3 py-2 text-sm bg-background';
+  const inputClass = 'mt-3';
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Site Customization (Widget) */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
+          <CardHeader
+            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
+            onClick={() => toggleCard('widget')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-2xl font-bold">Site Customization</CardTitle>
+                <CardDescription className="text-muted-foreground mt-1">
+                  Customize the title, subtitle, and primary color for this quoting tool
+                </CardDescription>
+              </div>
+              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('widget') ? 'rotate-180' : ''}`} />
+            </div>
+          </CardHeader>
+          {isCardExpanded('widget') && (
+            <CardContent className="pt-8 pb-8">
+              <div className="space-y-6">
+                {sectionMessage?.card === 'widget' && (
+                  <div
+                    className={`p-4 rounded-lg flex items-center gap-3 ${
+                      sectionMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}
+                  >
+                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
+                    <p>{sectionMessage.text}</p>
+                  </div>
+                )}
+                <div>
+                  <Label htmlFor="widget-title" className="text-base font-semibold">Site Title</Label>
+                  <Input
+                    id="widget-title"
+                    value={widget.title}
+                    onChange={(e) => setWidget((w) => ({ ...w, title: e.target.value }))}
+                    placeholder="e.g., Acme Cleaning"
+                    className={inputClass}
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">Displayed at the top of the quote form.</p>
+                </div>
+                <div>
+                  <Label htmlFor="widget-subtitle" className="text-base font-semibold">Site Subtitle</Label>
+                  <Input
+                    id="widget-subtitle"
+                    value={widget.subtitle}
+                    onChange={(e) => setWidget((w) => ({ ...w, subtitle: e.target.value }))}
+                    placeholder="e.g., Let's get your professional cleaning price!"
+                    className={inputClass}
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">Appears below the title.</p>
+                </div>
+                <div>
+                  <Label htmlFor="widget-primary-color" className="text-base font-semibold">Primary Brand Color</Label>
+                  <div className="mt-2 flex gap-3 items-center">
+                    <input
+                      id="widget-primary-color"
+                      type="color"
+                      value={widget.primaryColor}
+                      onChange={(e) => setWidget((w) => ({ ...w, primaryColor: e.target.value }))}
+                      className="w-16 h-12 rounded-lg border-2 border-input cursor-pointer"
+                    />
+                    <Input
+                      type="text"
+                      value={widget.primaryColor}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (/^#[0-9A-Fa-f]{0,6}$/.test(val) || val.length <= 7) setWidget((w) => ({ ...w, primaryColor: val }));
+                      }}
+                      placeholder="#0d9488"
+                      className="font-mono flex-1"
+                    />
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">Used for buttons and accents.</p>
+                </div>
+                <Button onClick={saveWidget} disabled={savingSection === 'widget'} className="w-full h-11 font-semibold flex items-center gap-2">
+                  {savingSection === 'widget' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Widget Settings</>}
+                </Button>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      </motion.div>
+
+      {/* Query Parameter Settings (Form) */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
+          <CardHeader
+            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
+            onClick={() => toggleCard('form')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                  <FileText className="h-5 w-5 text-primary" />
+                  Query Parameter Settings
+                </CardTitle>
+                <CardDescription className="text-muted-foreground mt-1">
+                  Configure which URL query parameters pre-fill the form (e.g. ?firstName=John&email=test@example.com)
+                </CardDescription>
+              </div>
+              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('form') ? 'rotate-180' : ''}`} />
+            </div>
+          </CardHeader>
+          {isCardExpanded('form') && (
+            <CardContent className="pt-8 pb-8">
+              <div className="space-y-6">
+                {sectionMessage?.card === 'form' && (
+                  <div
+                    className={`p-4 rounded-lg flex items-center gap-3 ${
+                      sectionMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}
+                  >
+                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
+                    <p>{sectionMessage.text}</p>
+                  </div>
+                )}
+                {['firstNameParam', 'lastNameParam', 'emailParam', 'phoneParam', 'addressParam'].map((key) => (
+                  <div key={key}>
+                    <Label htmlFor={key} className="text-base font-semibold">{key.replace(/([A-Z])/g, ' $1').trim()}</Label>
+                    <Input
+                      id={key}
+                      value={(form[key] as string) ?? ''}
+                      onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                      placeholder={`e.g. ${key === 'emailParam' ? 'email' : key === 'phoneParam' ? 'phone' : key.toLowerCase().replace('param', '')}`}
+                      className={inputClass}
+                    />
+                  </div>
+                ))}
+                {/* Query link with placeholders — copy and replace {{...}} with your dynamic variables */}
+                {(() => {
+                  const paramKeys = ['firstNameParam', 'lastNameParam', 'emailParam', 'phoneParam', 'addressParam'] as const;
+                  const segments = paramKeys
+                    .filter((k) => (form[k] as string)?.trim())
+                    .map((k) => {
+                      const p = (form[k] as string).trim();
+                      return `${encodeURIComponent(p)}={{${p}}}`;
+                    });
+                  const queryLink = segments.length ? `?${segments.join('&')}` : '';
+                  return (
+                    <div className="space-y-2">
+                      <Label className="text-base font-semibold">Query link (copy and replace placeholders with your variables)</Label>
+                      <p className="text-sm text-muted-foreground">Append this to your survey URL. Replace each <code className="bg-muted px-1 rounded">{'{{param}}'}</code> with your CRM/email variable (e.g. GHL <code className="bg-muted px-1 rounded">{'{{contact.first_name}}'}</code>).</p>
+                      <div className="flex gap-2">
+                        <Input
+                          readOnly
+                          value={queryLink || '(configure at least one param above)'}
+                          className={`font-mono text-sm ${queryLink ? 'bg-background' : 'bg-muted/50 text-muted-foreground'}`}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="shrink-0 gap-2"
+                          disabled={!queryLink}
+                          onClick={async () => {
+                            if (!queryLink) return;
+                            await navigator.clipboard.writeText(queryLink);
+                            setQueryLinkCopied(true);
+                            setTimeout(() => setQueryLinkCopied(false), 2000);
+                          }}
+                        >
+                          <Copy className="h-4 w-4" />
+                          {queryLinkCopied ? 'Copied!' : 'Copy'}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })()}
+                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border">
+                  <input
+                    type="checkbox"
+                    id="openSurveyInNewTab"
+                    checked={form.openSurveyInNewTab === 'true'}
+                    onChange={(e) => setForm((f) => ({ ...f, openSurveyInNewTab: e.target.checked ? 'true' : 'false' }))}
+                    className="w-4 h-4 rounded border-input"
+                  />
+                  <Label htmlFor="openSurveyInNewTab" className="text-base font-medium cursor-pointer">Open survey in new tab</Label>
+                </div>
+                <Button onClick={saveForm} disabled={savingSection === 'form'} className="w-full h-11 font-semibold flex items-center gap-2">
+                  {savingSection === 'form' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Form Settings</>}
+                </Button>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      </motion.div>
+
+      {/* GHL Connection */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
+          <CardHeader
+            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
+            onClick={() => toggleCard('ghl')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-2xl font-bold text-foreground">
+                  <Sparkles className="h-6 w-6 text-primary" />
+                  GoHighLevel Integration
+                </CardTitle>
+                <CardDescription className="text-muted-foreground mt-1">
+                  Configure your GHL API token and Location ID for this tool
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-3">
+                {ghlStatus?.configured && (
+                  <span
+                    className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${
+                      ghlStatus.connected ? 'bg-green-100 text-green-800' : 'bg-muted text-gray-800'
+                    }`}
+                  >
+                    {ghlStatus.connected ? <><span className="w-2 h-2 rounded-full bg-green-600" /> Connected</> : 'Not connected'}
+                  </span>
+                )}
+                <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('ghl') ? 'rotate-180' : ''}`} />
+              </div>
+            </div>
+          </CardHeader>
+          {isCardExpanded('ghl') && (
+            <CardContent className="pt-8 pb-8">
+              <div className="space-y-6">
+                {sectionMessage?.card === 'ghl' && (
+                  <div
+                    className={`p-4 rounded-lg flex items-center gap-3 ${
+                      sectionMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}
+                  >
+                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
+                    <p>{sectionMessage.text}</p>
+                  </div>
+                )}
+                {ghlStatus?.configured && (
+                  <p className="text-sm text-muted-foreground">Location ID: {ghlStatus.locationId ?? '—'}. Enter new token/location below to update.</p>
+                )}
+                <div>
+                  <Label htmlFor="ghl-token" className="text-base font-semibold">GHL API Token</Label>
+                  <Input
+                    id="ghl-token"
+                    type="password"
+                    placeholder={ghlStatus?.configured ? '••••••••' : 'Paste your GHL API token'}
+                    value={ghlToken}
+                    onChange={(e) => setGhlToken(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="ghl-location" className="text-base font-semibold">Location ID <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="ghl-location"
+                    placeholder="GHL Location ID"
+                    value={ghlLocationId}
+                    onChange={(e) => setGhlLocationId(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <Button onClick={saveGhl} disabled={savingSection === 'ghl'} className="w-full h-11 font-semibold flex items-center gap-2">
+                  {savingSection === 'ghl' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save GHL Connection</>}
+                </Button>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      </motion.div>
+
+      {/* Service Area */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
+          <CardHeader
+            className="border-b border-border pb-6 cursor-pointer"
+            onClick={() => toggleCard('service-area')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                  <MapPin className="h-5 w-5 text-emerald-600" />
+                  Service Area
+                </CardTitle>
+                <CardDescription className="text-muted-foreground mt-1">
+                  Upload a KML file or paste KML/NetworkLink URL to define where you offer service
+                </CardDescription>
+              </div>
+              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('service-area') ? 'rotate-180' : ''}`} />
+            </div>
+          </CardHeader>
+          {isCardExpanded('service-area') && (
+            <CardContent className="pt-8 pb-8">
+              <div className="space-y-6">
+                {sectionMessage?.card === 'service-area' && (
+                  <div
+                    className={`p-4 rounded-lg flex items-center gap-3 ${
+                      sectionMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}
+                  >
+                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
+                    <p>{sectionMessage.text}</p>
+                  </div>
+                )}
+                {serviceAreaStatus && (
+                  <p className="text-sm text-muted-foreground">
+                    Type: {serviceAreaStatus.type}. {serviceAreaStatus.polygonCount != null && `${serviceAreaStatus.polygonCount} coordinates`}
+                    {serviceAreaStatus.networkLink && ` • NetworkLink: set`}
+                  </p>
+                )}
+                <div>
+                  <Label htmlFor="kml-content" className="text-base font-semibold">KML content or NetworkLink URL</Label>
+                  <p className="text-xs text-muted-foreground mt-1">Paste full KML XML or a NetworkLink URL. Leave blank to keep current.</p>
+                  <textarea
+                    id="kml-content"
+                    value={kmlContent}
+                    onChange={(e) => setKmlContent(e.target.value)}
+                    rows={6}
+                    className="mt-2 w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
+                    placeholder="Paste KML or e.g. https://example.com/service-area.kml"
+                  />
+                </div>
+                <Button onClick={uploadServiceArea} disabled={serviceAreaUploading} className="w-full h-11 font-semibold flex items-center gap-2">
+                  {serviceAreaUploading ? <><Loader2 className="h-4 w-4 animate-spin" /> Uploading...</> : <><Save className="h-4 w-4" /> Upload / update service area</>}
+                </Button>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      </motion.div>
+
+      {/* Google Maps API Key */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
+          <CardHeader
+            className="border-b border-border pb-6 cursor-pointer"
+            onClick={() => toggleCard('maps')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                  <Code className="h-5 w-5 text-blue-600" />
+                  Google Maps API Key
+                </CardTitle>
+                <CardDescription className="text-muted-foreground mt-1">
+                  Required for address autocomplete and geocoding on the quote form
+                </CardDescription>
+              </div>
+              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('maps') ? 'rotate-180' : ''}`} />
+            </div>
+          </CardHeader>
+          {isCardExpanded('maps') && (
+            <CardContent className="pt-8 pb-8">
+              <div className="space-y-6">
+                {sectionMessage?.card === 'maps' && (
+                  <div
+                    className={`p-4 rounded-lg flex items-center gap-3 ${
+                      sectionMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}
+                  >
+                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
+                    <p>{sectionMessage.text}</p>
+                  </div>
+                )}
+                {googleMapsExists && <p className="text-sm text-muted-foreground">API key is set. Enter a new value below to replace.</p>}
+                <div>
+                  <Label htmlFor="google-maps-key" className="text-base font-semibold">API key</Label>
+                  <Input
+                    id="google-maps-key"
+                    type="password"
+                    placeholder={googleMapsExists ? '••••••••' : 'Paste Google Maps API key'}
+                    value={googleMapsKey}
+                    onChange={(e) => setGoogleMapsKey(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <Button onClick={saveGoogleMaps} disabled={savingSection === 'maps'} className="w-full h-11 font-semibold flex items-center gap-2">
+                  {savingSection === 'maps' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Google Maps key</>}
+                </Button>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      </motion.div>
+
+      {/* Tracking & Analytics */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
+          <CardHeader
+            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
+            onClick={() => toggleCard('tracking')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                  <Code className="h-5 w-5 text-primary" />
+                  Tracking & Analytics
+                </CardTitle>
+                <CardDescription className="text-muted-foreground mt-1">
+                  Custom tracking code that loads only on the quote summary page
+                </CardDescription>
+              </div>
+              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('tracking') ? 'rotate-180' : ''}`} />
+            </div>
+          </CardHeader>
+          {isCardExpanded('tracking') && (
+            <CardContent className="pt-8 pb-8">
+              <div className="space-y-6">
+                {sectionMessage?.card === 'tracking' && (
+                  <div
+                    className={`p-4 rounded-lg flex items-center gap-3 ${
+                      sectionMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}
+                  >
+                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
+                    <p>{sectionMessage.text}</p>
+                  </div>
+                )}
+                <div>
+                  <Label htmlFor="custom-head-code" className="text-base font-semibold">Custom Head Code</Label>
+                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-1">
+                    This code only loads on the quote summary page — not on the landing or confirmation pages.
+                  </p>
+                  <textarea
+                    id="custom-head-code"
+                    value={customHeadCode}
+                    onChange={(e) => setCustomHeadCode(e.target.value)}
+                    rows={6}
+                    className="mt-2 w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
+                    placeholder="<script>...</script>"
+                  />
+                </div>
+                <Button onClick={saveTracking} disabled={savingSection === 'tracking'} className="w-full h-11 font-semibold flex items-center gap-2">
+                  {savingSection === 'tracking' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Tracking Codes</>}
+                </Button>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      </motion.div>
+
+      {/* GHL Integration Config */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
+          <CardHeader
+            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
+            onClick={() => toggleCard('ghl-config')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-2xl font-bold">GHL Integration Config</CardTitle>
+                <CardDescription className="text-muted-foreground mt-1">
+                  Configure CRM behavior when a quote is submitted (contacts, opportunities, notes, calendars, tags). Save GHL connection first.
+                </CardDescription>
+              </div>
+              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('ghl-config') ? 'rotate-180' : ''}`} />
+            </div>
+          </CardHeader>
+          {isCardExpanded('ghl-config') && (
+            <CardContent className="pt-8 pb-8">
+              <div className="space-y-6">
+                {sectionMessage?.card === 'ghl-config' && (
+                  <div
+                    className={`p-4 rounded-lg flex items-center gap-3 ${
+                      sectionMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}
+                  >
+                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
+                    <p>{sectionMessage.text}</p>
+                  </div>
+                )}
+                <div className="space-y-3">
+                  {[
+                    { key: 'createContact' as const, label: 'Create/update contact', desc: 'Create or update contact with customer info' },
+                    { key: 'createNote' as const, label: 'Create note', desc: 'Add a note with quote summary' },
+                    { key: 'createQuoteObject' as const, label: 'Create Quote (custom object)', desc: 'Create Quote custom object in GHL' },
+                    { key: 'createOpportunity' as const, label: 'Create opportunity', desc: 'Create sales opportunity with quote details' },
+                  ].map(({ key, label, desc }) => (
+                    <div key={key} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border">
+                      <input
+                        type="checkbox"
+                        id={key}
+                        checked={ghlConfig[key]}
+                        onChange={(e) => setGhlConfig((c) => ({ ...c, [key]: e.target.checked }))}
+                        className="w-4 h-4 rounded border-input"
+                      />
+                      <label htmlFor={key} className="flex-1 cursor-pointer">
+                        <div className="font-medium text-foreground">{label}</div>
+                        <div className="text-xs text-muted-foreground">{desc}</div>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                {ghlConfig.createOpportunity && (
+                  <>
+                    {pipelines.length === 0 ? (
+                      <div className="pt-2 border-t border-border text-sm text-muted-foreground">
+                        No pipelines found. Please create a pipeline in GHL first.
+                      </div>
+                    ) : (
+                      <>
+                        <div className="pt-2 border-t border-border">
+                          <Label className="text-base font-semibold mb-2 block">Default Pipeline</Label>
+                          <select
+                            value={ghlConfig.pipelineId ?? ''}
+                            onChange={(e) => setGhlConfig((c) => ({ ...c, pipelineId: e.target.value || undefined, pipelineStageId: undefined }))}
+                            className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                          >
+                            <option value="">— Select a pipeline —</option>
+                            {pipelines.map((p) => (
+                              <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                          </select>
+                          <div className="text-sm text-muted-foreground mt-1">Used when no UTM routing rule matches.</div>
+                        </div>
+                        {ghlConfig.pipelineId && (
+                          <div className="pt-2 border-t border-border">
+                            <Label className="text-base font-semibold mb-2 block">Default Starting Stage</Label>
+                            <select
+                              value={ghlConfig.pipelineStageId ?? ''}
+                              onChange={(e) => setGhlConfig((c) => ({ ...c, pipelineStageId: e.target.value || undefined }))}
+                              className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                            >
+                              <option value="">— Select a stage —</option>
+                              {pipelines.find((p) => p.id === ghlConfig.pipelineId)?.stages?.map((s) => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        <div className="pt-4 border-t border-input">
+                          <h5 className="font-semibold text-foreground mb-2">Pipeline Routing by UTM (Optional)</h5>
+                          <p className="text-sm text-muted-foreground mb-3">
+                            First matching rule wins. Match is case-insensitive. If none match, the default pipeline is used.
+                          </p>
+                          <Button
+                            type="button"
+                            onClick={() => {
+                              const rules = ghlConfig.pipelineRoutingRules ?? [];
+                              setGhlConfig((c) => ({
+                                ...c,
+                                pipelineRoutingRules: [
+                                  ...rules,
+                                  {
+                                    utmParam: 'utm_source',
+                                    match: 'contains',
+                                    value: '',
+                                    pipelineId: '',
+                                    pipelineStageId: '',
+                                    opportunityStatus: undefined,
+                                    opportunityAssignedTo: undefined,
+                                    opportunitySource: undefined,
+                                    opportunityTags: undefined,
+                                  },
+                                ],
+                              }));
+                            }}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            Add Rule
+                          </Button>
+                        </div>
+                        {(ghlConfig.pipelineRoutingRules?.length ?? 0) > 0 && (
+                          <div className="space-y-3 mt-3">
+                            {(ghlConfig.pipelineRoutingRules ?? []).map((rule, idx) => (
+                              <div key={idx} className="p-3 bg-muted/50 border border-border rounded-lg space-y-2">
+                                <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+                                  <div>
+                                    <label className="block text-xs font-semibold text-foreground mb-1">UTM Param</label>
+                                    <select
+                                      value={rule.utmParam}
+                                      onChange={(e) => {
+                                        const newRules = [...(ghlConfig.pipelineRoutingRules ?? [])];
+                                        newRules[idx] = { ...newRules[idx], utmParam: e.target.value };
+                                        setGhlConfig((c) => ({ ...c, pipelineRoutingRules: newRules }));
+                                      }}
+                                      className="w-full px-2 py-1 border border-input rounded text-sm bg-background"
+                                    >
+                                      <option value="utm_source">utm_source</option>
+                                      <option value="utm_medium">utm_medium</option>
+                                      <option value="utm_campaign">utm_campaign</option>
+                                      <option value="utm_term">utm_term</option>
+                                      <option value="utm_content">utm_content</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-semibold text-foreground mb-1">Match</label>
+                                    <select
+                                      value={rule.match}
+                                      onChange={(e) => {
+                                        const newRules = [...(ghlConfig.pipelineRoutingRules ?? [])];
+                                        newRules[idx] = { ...newRules[idx], match: e.target.value };
+                                        setGhlConfig((c) => ({ ...c, pipelineRoutingRules: newRules }));
+                                      }}
+                                      className="w-full px-2 py-1 border border-input rounded text-sm bg-background"
+                                    >
+                                      <option value="contains">contains</option>
+                                      <option value="equals">equals</option>
+                                      <option value="starts_with">starts_with</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-semibold text-foreground mb-1">Value</label>
+                                    <input
+                                      type="text"
+                                      value={rule.value}
+                                      onChange={(e) => {
+                                        const newRules = [...(ghlConfig.pipelineRoutingRules ?? [])];
+                                        newRules[idx] = { ...newRules[idx], value: e.target.value };
+                                        setGhlConfig((c) => ({ ...c, pipelineRoutingRules: newRules }));
+                                      }}
+                                      placeholder="e.g., google"
+                                      className="w-full px-2 py-1 border border-input rounded text-sm"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-semibold text-foreground mb-1">Pipeline</label>
+                                    <select
+                                      value={rule.pipelineId}
+                                      onChange={(e) => {
+                                        const newRules = [...(ghlConfig.pipelineRoutingRules ?? [])];
+                                        newRules[idx] = { ...newRules[idx], pipelineId: e.target.value, pipelineStageId: '' };
+                                        setGhlConfig((c) => ({ ...c, pipelineRoutingRules: newRules }));
+                                      }}
+                                      className="w-full px-2 py-1 border border-input rounded text-sm bg-background"
+                                    >
+                                      <option value="">— Select —</option>
+                                      {pipelines.map((p) => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-semibold text-foreground mb-1">Stage</label>
+                                    <select
+                                      value={rule.pipelineStageId}
+                                      onChange={(e) => {
+                                        const newRules = [...(ghlConfig.pipelineRoutingRules ?? [])];
+                                        newRules[idx] = { ...newRules[idx], pipelineStageId: e.target.value };
+                                        setGhlConfig((c) => ({ ...c, pipelineRoutingRules: newRules }));
+                                      }}
+                                      className="w-full px-2 py-1 border border-input rounded text-sm bg-background"
+                                    >
+                                      <option value="">— Select —</option>
+                                      {rule.pipelineId && pipelines
+                                        .find((p) => p.id === rule.pipelineId)
+                                        ?.stages?.map((s) => (
+                                          <option key={s.id} value={s.id}>{s.name}</option>
+                                        ))}
+                                    </select>
+                                  </div>
+                                </div>
+                                <div className="border-t border-border pt-3 mt-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => setExpandedRuleIndex(expandedRuleIndex === idx ? null : idx)}
+                                    className="text-sm font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                                  >
+                                    {expandedRuleIndex === idx ? '▼' : '▶'} Opportunity Settings for This Rule (Optional)
+                                  </button>
+                                  {expandedRuleIndex === idx && (
+                                    <div className="mt-3 space-y-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                                      <div>
+                                        <label className="block text-xs font-semibold text-foreground mb-1">Status</label>
+                                        <select
+                                          value={rule.opportunityStatus ?? ''}
+                                          onChange={(e) => {
+                                            const newRules = [...(ghlConfig.pipelineRoutingRules ?? [])];
+                                            newRules[idx] = { ...newRules[idx], opportunityStatus: e.target.value || undefined };
+                                            setGhlConfig((c) => ({ ...c, pipelineRoutingRules: newRules }));
+                                          }}
+                                          className="w-full px-2 py-1 border border-input rounded text-sm bg-background"
+                                        >
+                                          <option value="">— Use default —</option>
+                                          <option value="open">Open</option>
+                                          <option value="won">Won</option>
+                                          <option value="lost">Lost</option>
+                                          <option value="abandoned">Abandoned</option>
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label className="block text-xs font-semibold text-foreground mb-1">Assign to User</label>
+                                        <select
+                                          value={rule.opportunityAssignedTo ?? ''}
+                                          onChange={(e) => {
+                                            const newRules = [...(ghlConfig.pipelineRoutingRules ?? [])];
+                                            newRules[idx] = { ...newRules[idx], opportunityAssignedTo: e.target.value || undefined };
+                                            setGhlConfig((c) => ({ ...c, pipelineRoutingRules: newRules }));
+                                          }}
+                                          className="w-full px-2 py-1 border border-input rounded text-sm bg-background"
+                                        >
+                                          <option value="">— Use default —</option>
+                                          {users.map((u) => (
+                                            <option key={u.id} value={u.id}>{u.name} {u.email ? `(${u.email})` : ''}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label className="block text-xs font-semibold text-foreground mb-1">Source</label>
+                                        <input
+                                          type="text"
+                                          value={rule.opportunitySource ?? ''}
+                                          onChange={(e) => {
+                                            const newRules = [...(ghlConfig.pipelineRoutingRules ?? [])];
+                                            newRules[idx] = { ...newRules[idx], opportunitySource: e.target.value || undefined };
+                                            setGhlConfig((c) => ({ ...c, pipelineRoutingRules: newRules }));
+                                          }}
+                                          placeholder="e.g., Google Ads"
+                                          className="w-full px-2 py-1 border border-input rounded text-sm"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="block text-xs font-semibold text-foreground mb-1">Tags</label>
+                                        <TagPicker
+                                          value={Array.isArray(rule.opportunityTags) ? rule.opportunityTags.join(', ') : ''}
+                                          onChange={(csv) => {
+                                            const newRules = [...(ghlConfig.pipelineRoutingRules ?? [])];
+                                            newRules[idx] = { ...newRules[idx], opportunityTags: csv.split(',').map((s) => s.trim()).filter(Boolean) };
+                                            setGhlConfig((c) => ({ ...c, pipelineRoutingRules: newRules }));
+                                          }}
+                                          suggestions={ghlTags.map((t) => t.name)}
+                                          placeholder="Search or type a tag…"
+                                          className="mt-1"
+                                        />
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                          {rule.opportunityTags?.length ? `${rule.opportunityTags.length} tag(s) selected` : 'No tags selected (uses default)'}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex justify-end pt-2 border-t border-border mt-3">
+                                  <Button
+                                    type="button"
+                                    onClick={() => {
+                                      setGhlConfig((c) => ({
+                                        ...c,
+                                        pipelineRoutingRules: (ghlConfig.pipelineRoutingRules ?? []).filter((_, i) => i !== idx),
+                                      }));
+                                      if (expandedRuleIndex === idx) setExpandedRuleIndex(null);
+                                      else if (expandedRuleIndex != null && expandedRuleIndex > idx) setExpandedRuleIndex(expandedRuleIndex - 1);
+                                    }}
+                                    variant="outline"
+                                    className="text-red-600 border-red-300 hover:bg-red-50"
+                                    size="sm"
+                                  >
+                                    Remove
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+                <div className="pt-2 border-t border-border space-y-4">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="useDynamicPricing"
+                      checked={ghlConfig.useDynamicPricingForValue !== false}
+                      onChange={(e) => setGhlConfig((c) => ({ ...c, useDynamicPricingForValue: e.target.checked }))}
+                      className="rounded border-input"
+                    />
+                    <Label htmlFor="useDynamicPricing" className="text-base font-semibold cursor-pointer">Use quoted amount for opportunity value</Label>
+                  </div>
+                  <div>
+                    <Label className="text-base font-semibold">Quoted amount field (GHL custom field key)</Label>
+                    <Input
+                      value={ghlConfig.quotedAmountField ?? ''}
+                      onChange={(e) => setGhlConfig((c) => ({ ...c, quotedAmountField: e.target.value || undefined }))}
+                      placeholder="e.g. quoted_amount"
+                      className={`${inputClass} max-w-xs mt-1`}
+                    />
+                    {customFields.length > 0 && (
+                      <select
+                        className={`${selectClass} mt-2 max-w-xs`}
+                        value=""
+                        onChange={(e) => e.target.value && setGhlConfig((c) => ({ ...c, quotedAmountField: e.target.value }))}
+                      >
+                        <option value="">— Or pick custom field —</option>
+                        {customFields.map((f) => (
+                          <option key={f.key} value={f.key}>{f.name}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border">
+                  <div>
+                    <Label className="text-base font-semibold">Opportunity assigned to</Label>
+                    <select
+                      value={ghlConfig.opportunityAssignedTo ?? ''}
+                      onChange={(e) => setGhlConfig((c) => ({ ...c, opportunityAssignedTo: e.target.value || undefined }))}
+                      className={selectClass}
+                    >
+                      <option value="">— Select user —</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-base font-semibold">Opportunity source</Label>
+                    <Input
+                      value={ghlConfig.opportunitySource ?? ''}
+                      onChange={(e) => setGhlConfig((c) => ({ ...c, opportunitySource: e.target.value || undefined }))}
+                      placeholder="e.g. Quote Widget"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-base font-semibold">Opportunity tags</Label>
+                    <TagPicker
+                      value={Array.isArray(ghlConfig.opportunityTags) ? ghlConfig.opportunityTags.join(', ') : ''}
+                      onChange={(csv) => setGhlConfig((c) => ({ ...c, opportunityTags: csv.split(',').map((s) => s.trim()).filter(Boolean) }))}
+                      suggestions={ghlTags.map((t) => t.name)}
+                      placeholder="Search or type a tag…"
+                      className="mt-3"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border">
+                  <div>
+                    <Label className="text-base font-semibold">Appointment calendar</Label>
+                    <select
+                      value={ghlConfig.appointmentCalendarId ?? ''}
+                      onChange={(e) => setGhlConfig((c) => ({ ...c, appointmentCalendarId: e.target.value || undefined }))}
+                      className={selectClass}
+                    >
+                      <option value="">— Select —</option>
+                      {calendars.map((cal) => (
+                        <option key={cal.id} value={cal.id}>{cal.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-base font-semibold">Call calendar</Label>
+                    <select
+                      value={ghlConfig.callCalendarId ?? ''}
+                      onChange={(e) => setGhlConfig((c) => ({ ...c, callCalendarId: e.target.value || undefined }))}
+                      className={selectClass}
+                    >
+                      <option value="">— Select —</option>
+                      {calendars.map((cal) => (
+                        <option key={cal.id} value={cal.id}>{cal.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border">
+                  <div>
+                    <Label className="text-base font-semibold">Appointment user</Label>
+                    <select
+                      value={ghlConfig.appointmentUserId ?? ''}
+                      onChange={(e) => setGhlConfig((c) => ({ ...c, appointmentUserId: e.target.value || undefined }))}
+                      className={selectClass}
+                    >
+                      <option value="">— Select —</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-base font-semibold">Call user</Label>
+                    <select
+                      value={ghlConfig.callUserId ?? ''}
+                      onChange={(e) => setGhlConfig((c) => ({ ...c, callUserId: e.target.value || undefined }))}
+                      className={selectClass}
+                    >
+                      <option value="">— Select —</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-border space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="redirectAfterAppointment"
+                      checked={ghlConfig.redirectAfterAppointment === true}
+                      onChange={(e) => setGhlConfig((c) => ({ ...c, redirectAfterAppointment: e.target.checked }))}
+                      className="rounded border-input"
+                    />
+                    <Label htmlFor="redirectAfterAppointment" className="text-base font-semibold cursor-pointer">Redirect after appointment booking</Label>
+                  </div>
+                    {ghlConfig.redirectAfterAppointment && (
+                      <div>
+                        <Label className="text-base font-semibold">Appointment redirect URL</Label>
+                        <Input
+                          type="url"
+                          value={ghlConfig.appointmentRedirectUrl ?? ''}
+                          onChange={(e) => setGhlConfig((c) => ({ ...c, appointmentRedirectUrl: e.target.value || undefined }))}
+                          placeholder="https://..."
+                          className={inputClass}
+                        />
+                      </div>
+                    )}
+                </div>
+                <div className="pt-2 border-t border-border">
+                  <Label className="text-base font-semibold">In-service tags</Label>
+                  <TagPicker
+                    value={Array.isArray(ghlConfig.inServiceTags) ? ghlConfig.inServiceTags.join(', ') : ''}
+                    onChange={(csv) => setGhlConfig((c) => ({ ...c, inServiceTags: csv.split(',').map((s) => s.trim()).filter(Boolean) }))}
+                    suggestions={ghlTags.map((t) => t.name)}
+                    placeholder="Search or type a tag…"
+                    className="mt-3"
+                  />
+                </div>
+                <div className="pt-2 border-t border-border">
+                  <Label className="text-base font-semibold">Out-of-service tags</Label>
+                  <TagPicker
+                    value={Array.isArray(ghlConfig.outOfServiceTags) ? ghlConfig.outOfServiceTags.join(', ') : ''}
+                    onChange={(csv) => setGhlConfig((c) => ({ ...c, outOfServiceTags: csv.split(',').map((s) => s.trim()).filter(Boolean) }))}
+                    suggestions={ghlTags.map((t) => t.name)}
+                    placeholder="Search or type a tag…"
+                    className="mt-3"
+                  />
+                </div>
+                <div className="pt-2 border-t border-border">
+                  <Label className="text-base font-semibold">Appointment booked tags</Label>
+                  <TagPicker
+                    value={Array.isArray(ghlConfig.appointmentBookedTags) ? ghlConfig.appointmentBookedTags.join(', ') : ''}
+                    onChange={(csv) => setGhlConfig((c) => ({ ...c, appointmentBookedTags: csv.split(',').map((s) => s.trim()).filter(Boolean) }))}
+                    suggestions={ghlTags.map((t) => t.name)}
+                    placeholder="Search or type a tag…"
+                    className="mt-3"
+                  />
+                </div>
+                <div className="pt-2 border-t border-border">
+                  <Label className="text-base font-semibold">Quote completed tags</Label>
+                  <TagPicker
+                    value={Array.isArray(ghlConfig.quoteCompletedTags) ? ghlConfig.quoteCompletedTags.join(', ') : ''}
+                    onChange={(csv) => setGhlConfig((c) => ({ ...c, quoteCompletedTags: csv.split(',').map((s) => s.trim()).filter(Boolean) }))}
+                    suggestions={ghlTags.map((t) => t.name)}
+                    placeholder="Search or type a tag…"
+                    className="mt-3"
+                  />
+                </div>
+                {loadingGhlLists && <p className="text-sm text-muted-foreground">Loading pipelines, users, calendars…</p>}
+                <Button onClick={saveGhlConfig} disabled={savingSection === 'ghl-config'} className="w-full h-11 font-semibold flex items-center gap-2">
+                  {savingSection === 'ghl-config' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save GHL config</>}
+                </Button>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      </motion.div>
+    </div>
+  );
+}

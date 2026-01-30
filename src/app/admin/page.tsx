@@ -503,7 +503,7 @@ export default function AdminPage() {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-3">
-                <Sparkles className="h-8 w-8 text-[#f61590]" />
+                <Sparkles className="h-8 w-8 text-primary" />
                 <h1 className="text-4xl font-bold text-gray-900">Pricing Builder</h1>
               </div>
               <div className="flex gap-2 flex-wrap">
@@ -857,11 +857,11 @@ export default function AdminPage() {
             >
               <form onSubmit={handleSubmit(onSave)}>
                 <Card className="shadow-xl border-2 mb-6 bg-gradient-to-br from-white via-gray-50/50 to-white">
-                  <CardHeader className="bg-gradient-to-r from-[#f61590]/5 via-transparent to-transparent border-b">
+                  <CardHeader className="bg-gradient-to-r from-primary/5 via-transparent to-transparent border-b">
                     <div className="flex justify-between items-center">
                       <div>
                         <div className="flex items-center gap-2 mb-2">
-                          <Sparkles className="h-5 w-5 text-[#f61590]" />
+                          <Sparkles className="h-5 w-5 text-primary" />
                           <CardTitle className="text-2xl">Build Your Pricing Structure</CardTitle>
                         </div>
                         <CardDescription className="text-base">
@@ -946,7 +946,7 @@ export default function AdminPage() {
                       </div>
                     </div>
                     {fields.length > 0 && (
-                      <div className="mt-4 p-3 bg-gradient-to-r from-[#f61590]/10 to-transparent rounded-lg border border-[#f61590]/20">
+                      <div className="mt-4 p-3 bg-gradient-to-r from-primary/10 to-transparent rounded-lg border border-primary/20">
                         <p className="text-sm text-gray-700">
                           <strong>{fields.length}</strong> pricing {fields.length === 1 ? 'tier' : 'tiers'} configured • 
                           Max Square Footage: <strong>{Math.max(...watchedRows.map((r: any) => r.sqFtRange?.max || 0), 0)}</strong>
@@ -962,7 +962,7 @@ export default function AdminPage() {
                           animate={{ opacity: 1, scale: 1 }}
                           className="text-center py-16 px-8 border-2 border-dashed border-gray-300 rounded-xl bg-gradient-to-br from-gray-50 to-white"
                         >
-                          <Sparkles className="h-16 w-16 text-[#f61590] mx-auto mb-4 opacity-50" />
+                          <Sparkles className="h-16 w-16 text-primary mx-auto mb-4 opacity-50" />
                           <h3 className="text-2xl font-semibold text-gray-900 mb-2">Start Building Your Pricing Structure</h3>
                           <p className="text-gray-600 mb-6 max-w-md mx-auto">
                             Create pricing tiers based on square footage ranges. Each tier will have pricing for all service types.
@@ -1048,7 +1048,7 @@ export default function AdminPage() {
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: index * 0.05 }}
                             >
-                              <Card className={`border-2 shadow-lg hover:shadow-xl transition-shadow bg-white ${bulkEditMode && selectedRows.has(index) ? 'ring-2 ring-[#f61590] ring-offset-2' : ''}`}>
+                              <Card className={`border-2 shadow-lg hover:shadow-xl transition-shadow bg-white ${bulkEditMode && selectedRows.has(index) ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
                                 <CardContent className="pt-6">
                                   <div className="flex justify-between items-center mb-6 pb-4 border-b">
                                     <div className="flex items-center gap-4">
@@ -1056,10 +1056,10 @@ export default function AdminPage() {
                                         <button
                                           type="button"
                                           onClick={() => toggleRowSelection(index)}
-                                          className="flex items-center justify-center w-6 h-6 border-2 rounded border-gray-300 hover:border-[#f61590] transition-colors"
+                                          className="flex items-center justify-center w-6 h-6 border-2 rounded border-gray-300 hover:border-primary transition-colors"
                                         >
                                           {selectedRows.has(index) && (
-                                            <CheckSquare className="h-4 w-4 text-[#f61590]" />
+                                            <CheckSquare className="h-4 w-4 text-primary" />
                                           )}
                                         </button>
                                       )}
@@ -1072,7 +1072,7 @@ export default function AdminPage() {
                                             <p>Drag handle (up/down buttons available)</p>
                                           </TooltipContent>
                                         </Tooltip>
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#f61590] to-[#f61590]/80 flex items-center justify-center text-white font-bold shadow-lg">
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white font-bold shadow-lg">
                                           {index + 1}
                                         </div>
                                       </div>
@@ -1228,7 +1228,7 @@ export default function AdminPage() {
                                       { key: 'moveInOutBasic', label: 'Move In/Move Out Basic Clean', icon: '📦', tooltip: 'Basic move-in/out cleaning' },
                                       { key: 'moveInOutFull', label: 'Move In/Move Out Deep Clean', icon: '📦📦', tooltip: 'Deep move-in/out cleaning' },
                                     ].map((service) => (
-                                      <div key={service.key} className="p-4 border-2 rounded-lg hover:border-[#f61590]/50 transition-colors bg-white">
+                                      <div key={service.key} className="p-4 border-2 rounded-lg hover:border-primary/50 transition-colors bg-white">
                                         <Label className="text-sm font-semibold text-gray-900 mb-2 block flex items-center gap-2">
                                           <span>{service.icon}</span>
                                           <span>{service.label}</span>
@@ -1294,7 +1294,7 @@ export default function AdminPage() {
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="mt-8 p-6 bg-gradient-to-r from-[#f61590]/5 via-transparent to-transparent rounded-lg border-2 border-[#f61590]/20 flex justify-between items-center"
+                        className="mt-8 p-6 bg-gradient-to-r from-primary/5 via-transparent to-transparent rounded-lg border-2 border-primary/20 flex justify-between items-center"
                       >
                         <div>
                           <p className="font-semibold text-gray-900">Ready to save your pricing structure?</p>

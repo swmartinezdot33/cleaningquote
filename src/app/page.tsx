@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -229,7 +230,8 @@ interface QuoteResponse {
 // Default questions (fallback if none are configured)
 // No hardcoded defaults - all questions come from KV via the unified API
 
-export default function Home() {
+export function Home(props: { slug?: string } = {}) {
+  const { slug } = props;
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
@@ -264,9 +266,9 @@ export default function Home() {
   // Redirect settings from admin
   const [redirectAfterAppointment, setRedirectAfterAppointment] = useState<boolean>(false);
   const [appointmentRedirectUrl, setAppointmentRedirectUrl] = useState<string>('');
-  const [widgetTitle, setWidgetTitle] = useState('Raleigh Cleaning Company');
+  const [widgetTitle, setWidgetTitle] = useState('Get Your Quote');
   const [widgetSubtitle, setWidgetSubtitle] = useState("Let's get your professional cleaning price!");
-  const [primaryColor, setPrimaryColor] = useState('#f61590');
+  const [primaryColor, setPrimaryColor] = useState('#0d9488');
   // Start with empty array, will be filled from unified API
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [quoteSchema, setQuoteSchema] = useState<z.ZodObject<any>>(generateSchemaFromQuestions([]));
@@ -282,13 +284,47 @@ export default function Home() {
   const calendarRef = useRef<HTMLDivElement>(null);
   const addressAutocompleteRef = useRef<{ geocodeCurrentValue: () => Promise<{ lat: number; lng: number; formattedAddress: string } | null> } | null>(null);
 
+  // When slug is set (multi-tenant /t/[slug]), load all config from one endpoint
+  const loadConfigFromSlug = async (toolSlug: string) => {
+    try {
+      const response = await fetch(`/api/tools/${toolSlug}/config`, { cache: 'no-store' });
+      if (!response.ok) throw new Error('Failed to load config');
+      const data = await response.json();
+      if (data.widget) {
+        setWidgetTitle(data.widget.title || 'Quote');
+        setWidgetSubtitle(data.widget.subtitle || "Let's get your price!");
+        setPrimaryColor(data.widget.primaryColor || '#0d9488');
+      }
+      if (data.formSettings) {
+        setFormSettings(data.formSettings);
+        setOpenSurveyInNewTab(!!data.formSettings?.openSurveyInNewTab);
+      }
+      if (data.questions && Array.isArray(data.questions)) {
+        const sorted = [...data.questions].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        setQuestions(sorted);
+        setQuoteSchema(generateSchemaFromQuestions(sorted));
+      }
+      if (data.redirect) {
+        setRedirectAfterAppointment(data.redirect.redirectAfterAppointment === true);
+        setAppointmentRedirectUrl(data.redirect.appointmentRedirectUrl || '');
+      }
+    } catch (e) {
+      console.error('Failed to load tool config:', e);
+      alert('Error loading form. Please refresh the page.');
+    }
+  };
+
   useEffect(() => {
     setMounted(true);
-    loadWidgetSettings();
-    loadSurveyQuestions();
-    loadFormSettings();
-    loadRedirectSettings();
-  }, []);
+    if (slug) {
+      loadConfigFromSlug(slug);
+    } else {
+      loadWidgetSettings();
+      loadSurveyQuestions();
+      loadFormSettings();
+      loadRedirectSettings();
+    }
+  }, [slug]);
 
   // Auto-scroll when appointment form opens
   useEffect(() => {
@@ -413,9 +449,9 @@ export default function Home() {
       const response = await fetch('/api/admin/widget-settings');
       if (response.ok) {
         const data = await response.json();
-        setWidgetTitle(data.title || 'Raleigh Cleaning Company');
+        setWidgetTitle(data.title || 'Get Your Quote');
         setWidgetSubtitle(data.subtitle || "Let's get your professional cleaning price!");
-        setPrimaryColor(data.primaryColor || '#f61590');
+        setPrimaryColor(data.primaryColor || '#0d9488');
       }
     } catch (error) {
       console.error('Failed to load widget settings:', error);
@@ -1289,6 +1325,7 @@ export default function Home() {
         // Include UTM and passthrough params (e.g. start=iframe-Staver) for attribution
         ...utmParams,
         ...passthroughToApi,
+        ...(slug && { toolSlug: slug }),
       };
 
       // Add any custom fields (those that were sanitized)
@@ -1325,10 +1362,10 @@ export default function Home() {
           quoteId: result.quoteId,
         });
 
-        // Preserve all query params for tracking (UTM, start, gclid, etc.) except one-time/functional
         const redirectParams = new URLSearchParams(window.location.search);
         ['contactId', 'fromOutOfService', 'startAt'].forEach(k => redirectParams.delete(k));
-        const quoteUrl = `/quote/${result.quoteId}${redirectParams.toString() ? `?${redirectParams.toString()}` : ''}`;
+        const quotePath = slug ? `/t/${slug}/quote/${result.quoteId}` : `/quote/${result.quoteId}`;
+        const quoteUrl = `${quotePath}${redirectParams.toString() ? `?${redirectParams.toString()}` : ''}`;
         
         // If embedded in iframe, notify parent and update iframe src
         if (window.location.search.includes('embedded=true') || window.self !== window.top) {
@@ -3138,3 +3175,6 @@ export default function Home() {
     </div>
   );
 }
+
+/** Default index (/) = marketing landing at cleanquote.io. Login → dashboard. Quote flow uses tool slugs at /t/[slug]. */
+export { default } from './MarketingPage';

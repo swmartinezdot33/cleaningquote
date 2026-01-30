@@ -33,9 +33,9 @@ export async function GET(request: NextRequest) {
       if (!settings) {
         // Return defaults
         return NextResponse.json({
-          title: 'Raleigh Cleaning Company',
+          title: 'Get Your Quote',
           subtitle: "Let's get your professional cleaning price!",
-          primaryColor: '#f61590',
+          primaryColor: '#0d9488',
         });
       }
 
@@ -43,9 +43,9 @@ export async function GET(request: NextRequest) {
     } catch (kvError) {
       // KV not configured in local dev
       return NextResponse.json({
-        title: 'Raleigh Cleaning Company',
+        title: 'Get Your Quote',
         subtitle: "Let's get your professional cleaning price!",
-        primaryColor: '#f61590',
+        primaryColor: '#0d9488',
       });
     }
   } catch (error) {
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate color is a hex color
-    const colorToUse = primaryColor || '#f61590';
+    const colorToUse = primaryColor || '#0d9488';
     const hexColorRegex = /^#[0-9A-F]{6}$/i;
     if (!hexColorRegex.test(colorToUse)) {
       return NextResponse.json(

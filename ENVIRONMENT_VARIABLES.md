@@ -1,8 +1,73 @@
 # Environment Variables Reference
 
-**Last Updated:** January 22, 2026
+**Last Updated:** January 29, 2026
 
 This document lists all environment variables used by the Cleaning Quote Platform and how to configure them.
+
+---
+
+## Supabase (multi-tenant auth and tools)
+
+### `NEXT_PUBLIC_SUPABASE_URL`
+**Required:** Yes (for multi-tenant auth and dashboard)  
+**Type:** URL String  
+**Description:** Your Supabase project URL  
+**Where to Set:** `.env.local` and Vercel → Environment Variables  
+**Example:** `https://xxxxxxxx.supabase.co`
+
+### `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+**Required:** Yes (for multi-tenant auth and dashboard)  
+**Type:** String  
+**Description:** Supabase anon (public) key; safe for client and SSR with RLS  
+**Where to Set:** `.env.local` and Vercel → Environment Variables
+
+### `SUPABASE_SERVICE_ROLE_KEY`
+**Required:** Optional (for server-only tool resolution, e.g. getToolBySlug in scripts)  
+**Type:** String  
+**Description:** Supabase service role key; bypasses RLS. Never expose to the client.  
+**Where to Set:** `.env.local` and Vercel → Environment Variables (server only)
+
+See [SUPABASE_MULTITENANT_SETUP.md](SUPABASE_MULTITENANT_SETUP.md) for creating the project and running the `tools` table migration.
+
+---
+
+## Migration (Option B — first user and default tool)
+
+Used by the migration script and API to create the first user and first quoting tool and copy existing global KV config into that tool.
+
+### `MIGRATION_USER_EMAIL`
+**Required:** For running migration  
+**Type:** String  
+**Description:** Email for the first user created by the migration  
+**Where to Set:** `.env.local` and Vercel (temporarily, for migration)  
+**Example:** `admin@yourcompany.com`
+
+### `MIGRATION_USER_PASSWORD`
+**Required:** For running migration  
+**Type:** String  
+**Description:** Password for the first user; user should change on first login  
+**Where to Set:** `.env.local` and Vercel (temporarily, for migration)
+
+### `MIGRATION_DEFAULT_SLUG`
+**Required:** Optional  
+**Type:** String  
+**Description:** Slug for the default quoting tool (used at `/t/{slug}`). Default: `default`  
+**Where to Set:** `.env.local`  
+**Example:** `default` or `acme-cleaning`
+
+### `RUN_MIGRATION`
+**Required:** Optional  
+**Type:** String  
+**Description:** Set to `true` to allow migration to run even when tools already exist (re-copies KV into first tool)  
+**Where to Set:** `.env.local` or request header / env when calling migration API
+
+### `MIGRATION_SECRET`
+**Required:** Optional  
+**Type:** String  
+**Description:** Secret for `x-migration-secret` header when calling `POST /api/admin/migration/to-multitenant`  
+**Where to Set:** Vercel → Environment Variables
+
+See [MIGRATION_OPTION_B.md](MIGRATION_OPTION_B.md) for full migration steps.
 
 ---
 

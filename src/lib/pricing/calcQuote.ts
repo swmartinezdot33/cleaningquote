@@ -1,6 +1,6 @@
 import { PricingTable, QuoteInputs, QuoteRanges, QuoteResult } from './types';
 import { loadPricingTable } from './loadPricingTable';
-import { getKV } from '@/lib/kv';
+import { getKV, toolKey } from '@/lib/kv';
 
 // Re-export for backward compatibility
 export { loadPricingTable } from './loadPricingTable';
@@ -27,11 +27,13 @@ const DEFAULT_INITIAL_CLEANING_CONFIG: InitialCleaningConfig = {
 
 /**
  * Get Initial Cleaning configuration (from KV or defaults)
+ * @param toolId - When provided, reads from this quoting tool (multi-tenant).
  */
-export async function getInitialCleaningConfig(): Promise<InitialCleaningConfig> {
+export async function getInitialCleaningConfig(toolId?: string): Promise<InitialCleaningConfig> {
   try {
     const kv = getKV();
-    const config = await kv.get<InitialCleaningConfig>('admin:initial-cleaning-config');
+    const key = toolKey(toolId, 'admin:initial-cleaning-config');
+    const config = await kv.get<InitialCleaningConfig>(key);
     return {
       ...DEFAULT_INITIAL_CLEANING_CONFIG,
       ...(config || {}),
@@ -218,11 +220,11 @@ function applyMultiplier(range: { low: number; high: number }, multiplier: numbe
 
 /**
  * Calculate quote based on inputs
- * Note: Now requires async call to load pricing table from Supabase and config from KV
+ * @param toolId - When provided, uses this quoting tool's pricing and config (multi-tenant).
  */
-export async function calcQuote(inputs: QuoteInputs): Promise<QuoteResult> {
-  const table = await loadPricingTable();
-  const config = await getInitialCleaningConfig();
+export async function calcQuote(inputs: QuoteInputs, toolId?: string): Promise<QuoteResult> {
+  const table = await loadPricingTable(toolId);
+  const config = await getInitialCleaningConfig(toolId);
 
   // Check if square footage exceeds limits
   if (inputs.squareFeet > table.maxSqFt) {

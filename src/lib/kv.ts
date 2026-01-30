@@ -9,6 +9,13 @@ const WIDGET_SETTINGS_KEY = 'widget:settings';
 const SURVEY_QUESTIONS_KEY = 'survey:questions';
 const SERVICE_AREA_POLYGON_KEY = 'service:area:polygon';
 const SERVICE_AREA_NETWORK_LINK_KEY = 'service:area:network:link';
+const FORM_SETTINGS_KEY = 'admin:form-settings';
+
+/** Multi-tenant: build tool-scoped key. When toolId is omitted, use legacy global key for backward compat. */
+export function toolKey(toolId: string | undefined, key: string): string {
+  if (!toolId) return key;
+  return `tool:${toolId}:${key}`;
+}
 
 /**
  * Check if KV is configured
@@ -35,15 +42,14 @@ export function getKV() {
 
 /**
  * Store pricing file buffer in KV storage
+ * @param toolId - When provided, data is scoped to this quoting tool (multi-tenant).
  */
-export async function storePricingFile(buffer: Buffer): Promise<void> {
+export async function storePricingFile(buffer: Buffer, toolId?: string): Promise<void> {
   const kv = getKV();
-  
-  // Convert buffer to base64 string for storage
+  const k = toolKey(toolId, PRICING_KEY);
   const base64Data = buffer.toString('base64');
-  
-  await kv.set(PRICING_KEY, base64Data);
-  await kv.set(`${PRICING_KEY}:metadata`, {
+  await kv.set(k, base64Data);
+  await kv.set(`${k}:metadata`, {
     uploadedAt: new Date().toISOString(),
     size: buffer.length,
     contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -52,36 +58,39 @@ export async function storePricingFile(buffer: Buffer): Promise<void> {
 
 /**
  * Get pricing file buffer from KV storage
+ * @param toolId - When provided, reads from this quoting tool (multi-tenant).
  */
-export async function getPricingFile(): Promise<Buffer> {
+export async function getPricingFile(toolId?: string): Promise<Buffer> {
   const kv = getKV();
-  
-  const base64Data = await kv.get<string>(PRICING_KEY);
-  
+  const k = toolKey(toolId, PRICING_KEY);
+  const base64Data = await kv.get<string>(k);
   if (!base64Data) {
     throw new Error(
       `Pricing file not found in KV storage. Please upload a pricing file using the /api/admin/upload-pricing endpoint.`
     );
   }
-  
   return Buffer.from(base64Data, 'base64');
 }
 
 /**
  * Get pricing file metadata
+ * @param toolId - When provided, reads from this quoting tool (multi-tenant).
  */
-export async function getPricingFileMetadata() {
+export async function getPricingFileMetadata(toolId?: string) {
   const kv = getKV();
-  return await kv.get(`${PRICING_KEY}:metadata`);
+  const k = toolKey(toolId, PRICING_KEY);
+  return await kv.get(`${k}:metadata`);
 }
 
 /**
  * Check if pricing file exists
+ * @param toolId - When provided, checks this quoting tool (multi-tenant).
  */
-export async function pricingFileExists(): Promise<boolean> {
+export async function pricingFileExists(toolId?: string): Promise<boolean> {
   try {
     const kv = getKV();
-    const exists = await kv.exists(PRICING_KEY);
+    const k = toolKey(toolId, PRICING_KEY);
+    const exists = await kv.exists(k);
     return exists === 1;
   } catch {
     return false;
@@ -90,11 +99,12 @@ export async function pricingFileExists(): Promise<boolean> {
 
 /**
  * Store network path for pricing file
+ * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
-export async function storeNetworkPricingPath(path: string): Promise<void> {
+export async function storeNetworkPricingPath(path: string, toolId?: string): Promise<void> {
   try {
     const kv = getKV();
-    await kv.set(PRICING_NETWORK_PATH_KEY, path);
+    await kv.set(toolKey(toolId, PRICING_NETWORK_PATH_KEY), path);
   } catch (error) {
     console.error('Error storing network pricing path:', error);
     throw error;
@@ -103,11 +113,12 @@ export async function storeNetworkPricingPath(path: string): Promise<void> {
 
 /**
  * Get network path for pricing file
+ * @param toolId - When provided, reads from this quoting tool (multi-tenant).
  */
-export async function getNetworkPricingPath(): Promise<string | null> {
+export async function getNetworkPricingPath(toolId?: string): Promise<string | null> {
   try {
     const kv = getKV();
-    const path = await kv.get<string>(PRICING_NETWORK_PATH_KEY);
+    const path = await kv.get<string>(toolKey(toolId, PRICING_NETWORK_PATH_KEY));
     return path || null;
   } catch {
     return null;
@@ -116,11 +127,12 @@ export async function getNetworkPricingPath(): Promise<string | null> {
 
 /**
  * Delete network path for pricing file
+ * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
-export async function deleteNetworkPricingPath(): Promise<void> {
+export async function deleteNetworkPricingPath(toolId?: string): Promise<void> {
   try {
     const kv = getKV();
-    await kv.del(PRICING_NETWORK_PATH_KEY);
+    await kv.del(toolKey(toolId, PRICING_NETWORK_PATH_KEY));
   } catch (error) {
     console.error('Error deleting network pricing path:', error);
     throw error;
@@ -138,19 +150,21 @@ export async function deleteNetworkPricingPath(): Promise<void> {
 
 /**
  * Store GHL API token
+ * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
-export async function storeGHLToken(token: string): Promise<void> {
+export async function storeGHLToken(token: string, toolId?: string): Promise<void> {
   const kv = getKV();
-  await kv.set(GHL_TOKEN_KEY, token);
+  await kv.set(toolKey(toolId, GHL_TOKEN_KEY), token);
 }
 
 /**
  * Get GHL API token
+ * @param toolId - When provided, reads from this quoting tool (multi-tenant).
  */
-export async function getGHLToken(): Promise<string | null> {
+export async function getGHLToken(toolId?: string): Promise<string | null> {
   try {
     const kv = getKV();
-    const token = await kv.get<string>(GHL_TOKEN_KEY);
+    const token = await kv.get<string>(toolKey(toolId, GHL_TOKEN_KEY));
     return token || null;
   } catch (error) {
     console.error('Error retrieving GHL token:', error);
@@ -160,11 +174,12 @@ export async function getGHLToken(): Promise<string | null> {
 
 /**
  * Check if GHL token exists
+ * @param toolId - When provided, checks this quoting tool (multi-tenant).
  */
-export async function ghlTokenExists(): Promise<boolean> {
+export async function ghlTokenExists(toolId?: string): Promise<boolean> {
   try {
     const kv = getKV();
-    const exists = await kv.exists(GHL_TOKEN_KEY);
+    const exists = await kv.exists(toolKey(toolId, GHL_TOKEN_KEY));
     return exists === 1;
   } catch {
     return false;
@@ -173,19 +188,21 @@ export async function ghlTokenExists(): Promise<boolean> {
 
 /**
  * Store GHL Location ID
+ * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
-export async function storeGHLLocationId(locationId: string): Promise<void> {
+export async function storeGHLLocationId(locationId: string, toolId?: string): Promise<void> {
   const kv = getKV();
-  await kv.set(GHL_LOCATION_ID_KEY, locationId);
+  await kv.set(toolKey(toolId, GHL_LOCATION_ID_KEY), locationId);
 }
 
 /**
  * Get GHL Location ID
+ * @param toolId - When provided, reads from this quoting tool (multi-tenant).
  */
-export async function getGHLLocationId(): Promise<string | null> {
+export async function getGHLLocationId(toolId?: string): Promise<string | null> {
   try {
     const kv = getKV();
-    const locationId = await kv.get<string>(GHL_LOCATION_ID_KEY);
+    const locationId = await kv.get<string>(toolKey(toolId, GHL_LOCATION_ID_KEY));
     return locationId || null;
   } catch {
     return null;
@@ -230,10 +247,10 @@ export async function storeGHLConfig(config: {
   appointmentRedirectUrl?: string; // URL to redirect to after appointment booking
   appointmentBookedTags?: string[]; // Tags to add when appointment is booked
   quoteCompletedTags?: string[]; // Tags to add when quote is completed
-}): Promise<void> {
+}, toolId?: string): Promise<void> {
   try {
     const kv = getKV();
-    await kv.set(GHL_CONFIG_KEY, config);
+    await kv.set(toolKey(toolId, GHL_CONFIG_KEY), config);
   } catch (error) {
     console.error('Error storing GHL config:', error);
     throw error;
@@ -242,8 +259,9 @@ export async function storeGHLConfig(config: {
 
 /**
  * Get GHL configuration
+ * @param toolId - When provided, reads from this quoting tool (multi-tenant).
  */
-export async function getGHLConfig(): Promise<{
+export async function getGHLConfig(toolId?: string): Promise<{
   createContact: boolean;
   createOpportunity: boolean;
   createNote: boolean;
@@ -281,7 +299,7 @@ export async function getGHLConfig(): Promise<{
 } | null> {
   try {
     const kv = getKV();
-    const config = await kv.get(GHL_CONFIG_KEY);
+    const config = await kv.get(toolKey(toolId, GHL_CONFIG_KEY));
     return config as any;
   } catch {
     return null;
@@ -310,16 +328,15 @@ export interface SurveyQuestion {
 
 /**
  * DEPRECATED: Use @/lib/survey/manager instead
- * 
  * Store survey questions
+ * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
-export async function storeSurveyQuestions(questions: SurveyQuestion[]): Promise<void> {
+export async function storeSurveyQuestions(questions: SurveyQuestion[], toolId?: string): Promise<void> {
   console.warn('⚠️ storeSurveyQuestions is deprecated. Use survey/manager.saveSurveyQuestions instead');
   try {
     const kv = getKV();
-    // Sort by order before storing
     const sortedQuestions = [...questions].sort((a, b) => a.order - b.order);
-    await kv.set(SURVEY_QUESTIONS_KEY, sortedQuestions);
+    await kv.set(toolKey(toolId, SURVEY_QUESTIONS_KEY), sortedQuestions);
   } catch (error) {
     console.error('Error storing survey questions:', error);
     throw error;
@@ -328,18 +345,17 @@ export async function storeSurveyQuestions(questions: SurveyQuestion[]): Promise
 
 /**
  * DEPRECATED: Use @/lib/survey/manager instead
- * 
  * Get survey questions
+ * @param toolId - When provided, reads from this quoting tool (multi-tenant).
  */
-export async function getSurveyQuestions(): Promise<SurveyQuestion[]> {
+export async function getSurveyQuestions(toolId?: string): Promise<SurveyQuestion[]> {
   console.warn('⚠️ getSurveyQuestions is deprecated. Use survey/manager.getSurveyQuestions instead');
   try {
     const kv = getKV();
-    const questions = await kv.get<SurveyQuestion[]>(SURVEY_QUESTIONS_KEY);
+    const questions = await kv.get<SurveyQuestion[]>(toolKey(toolId, SURVEY_QUESTIONS_KEY));
     if (!questions || !Array.isArray(questions)) {
       return [];
     }
-    // Ensure sorted by order
     return questions.sort((a, b) => a.order - b.order);
   } catch {
     return [];
@@ -353,11 +369,12 @@ export type ServiceAreaPolygon = Array<[number, number]>;
 
 /**
  * Store service area polygon
+ * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
-export async function storeServiceAreaPolygon(polygon: ServiceAreaPolygon): Promise<void> {
+export async function storeServiceAreaPolygon(polygon: ServiceAreaPolygon, toolId?: string): Promise<void> {
   try {
     const kv = getKV();
-    await kv.set(SERVICE_AREA_POLYGON_KEY, polygon);
+    await kv.set(toolKey(toolId, SERVICE_AREA_POLYGON_KEY), polygon);
   } catch (error) {
     console.error('Error storing service area polygon:', error);
     throw error;
@@ -366,11 +383,12 @@ export async function storeServiceAreaPolygon(polygon: ServiceAreaPolygon): Prom
 
 /**
  * Get service area polygon
+ * @param toolId - When provided, reads from this quoting tool (multi-tenant).
  */
-export async function getServiceAreaPolygon(): Promise<ServiceAreaPolygon | null> {
+export async function getServiceAreaPolygon(toolId?: string): Promise<ServiceAreaPolygon | null> {
   try {
     const kv = getKV();
-    const polygon = await kv.get<ServiceAreaPolygon>(SERVICE_AREA_POLYGON_KEY);
+    const polygon = await kv.get<ServiceAreaPolygon>(toolKey(toolId, SERVICE_AREA_POLYGON_KEY));
     return polygon || null;
   } catch {
     return null;
@@ -379,11 +397,12 @@ export async function getServiceAreaPolygon(): Promise<ServiceAreaPolygon | null
 
 /**
  * Check if service area polygon exists
+ * @param toolId - When provided, checks this quoting tool (multi-tenant).
  */
-export async function serviceAreaPolygonExists(): Promise<boolean> {
+export async function serviceAreaPolygonExists(toolId?: string): Promise<boolean> {
   try {
     const kv = getKV();
-    const exists = await kv.exists(SERVICE_AREA_POLYGON_KEY);
+    const exists = await kv.exists(toolKey(toolId, SERVICE_AREA_POLYGON_KEY));
     return exists === 1;
   } catch {
     return false;
@@ -392,11 +411,12 @@ export async function serviceAreaPolygonExists(): Promise<boolean> {
 
 /**
  * Store service area network link URL
+ * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
-export async function storeServiceAreaNetworkLink(url: string): Promise<void> {
+export async function storeServiceAreaNetworkLink(url: string, toolId?: string): Promise<void> {
   try {
     const kv = getKV();
-    await kv.set(SERVICE_AREA_NETWORK_LINK_KEY, url);
+    await kv.set(toolKey(toolId, SERVICE_AREA_NETWORK_LINK_KEY), url);
   } catch (error) {
     console.error('Error storing service area network link:', error);
     throw error;
@@ -405,11 +425,12 @@ export async function storeServiceAreaNetworkLink(url: string): Promise<void> {
 
 /**
  * Get service area network link URL
+ * @param toolId - When provided, reads from this quoting tool (multi-tenant).
  */
-export async function getServiceAreaNetworkLink(): Promise<string | null> {
+export async function getServiceAreaNetworkLink(toolId?: string): Promise<string | null> {
   try {
     const kv = getKV();
-    const url = await kv.get<string>(SERVICE_AREA_NETWORK_LINK_KEY);
+    const url = await kv.get<string>(toolKey(toolId, SERVICE_AREA_NETWORK_LINK_KEY));
     return url || null;
   } catch {
     return null;
@@ -418,13 +439,66 @@ export async function getServiceAreaNetworkLink(): Promise<string | null> {
 
 /**
  * Delete service area network link
+ * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
-export async function deleteServiceAreaNetworkLink(): Promise<void> {
+export async function deleteServiceAreaNetworkLink(toolId?: string): Promise<void> {
   try {
     const kv = getKV();
-    await kv.del(SERVICE_AREA_NETWORK_LINK_KEY);
+    await kv.del(toolKey(toolId, SERVICE_AREA_NETWORK_LINK_KEY));
   } catch (error) {
     console.error('Error deleting service area network link:', error);
     throw error;
   }
+}
+
+/** Widget settings shape (title, subtitle, primaryColor). */
+export type WidgetSettings = { title: string; subtitle: string; primaryColor: string };
+
+/**
+ * Get widget settings
+ * @param toolId - When provided, reads from this quoting tool (multi-tenant).
+ */
+export async function getWidgetSettings(toolId?: string): Promise<WidgetSettings | null> {
+  try {
+    const kv = getKV();
+    const settings = await kv.get<WidgetSettings>(toolKey(toolId, WIDGET_SETTINGS_KEY));
+    return settings || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Set widget settings
+ * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
+ */
+export async function setWidgetSettings(
+  settings: { title: string; subtitle: string; primaryColor: string },
+  toolId?: string
+): Promise<void> {
+  const kv = getKV();
+  await kv.set(toolKey(toolId, WIDGET_SETTINGS_KEY), settings);
+}
+
+/**
+ * Get form settings (param names for first name, last name, etc.)
+ * @param toolId - When provided, reads from this quoting tool (multi-tenant).
+ */
+export async function getFormSettings(toolId?: string): Promise<Record<string, unknown> | null> {
+  try {
+    const kv = getKV();
+    const settings = await kv.get<Record<string, unknown>>(toolKey(toolId, FORM_SETTINGS_KEY));
+    return settings || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Set form settings
+ * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
+ */
+export async function setFormSettings(settings: Record<string, unknown>, toolId?: string): Promise<void> {
+  const kv = getKV();
+  await kv.set(toolKey(toolId, FORM_SETTINGS_KEY), settings);
 }
