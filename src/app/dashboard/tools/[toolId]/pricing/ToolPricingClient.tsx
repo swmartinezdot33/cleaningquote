@@ -557,100 +557,166 @@ export default function ToolPricingClient({ toolId }: { toolId: string }) {
         )}
       </AnimatePresence>
 
-      {/* Initial Cleaning Configuration */}
+      {/* Initial Cleaning Configuration - matches main admin app */}
       {uploadMode === 'view' && (
-        <Card className="shadow-lg border border-border">
-          <CardHeader className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-b">
-            <CardTitle className="flex items-center gap-2 text-xl font-bold">
-              <Sparkles className="h-5 w-5 text-purple-600" />
-              Initial Cleaning Configuration
-            </CardTitle>
-            <CardDescription>
-              Multiplier and home conditions for Initial Cleaning (first deep clean to reach maintenance standards)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6 space-y-6">
-            {initialMessage && (
-              <div className={`p-4 rounded-lg ${initialMessage.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-                {initialMessage.text}
-              </div>
-            )}
-            <div>
-              <Label className="text-base font-semibold text-foreground block">Initial Cleaning multiplier</Label>
-              <p className="text-xs text-muted-foreground mt-0.5">Applied to General Clean price (1.5 = 50% more)</p>
-              <Input
-                type="number"
-                min={1}
-                max={3}
-                step={0.1}
-                value={initialCleaning.multiplier}
-                onChange={(e) => setInitialCleaning((prev) => ({ ...prev, multiplier: parseFloat(e.target.value) || 1.5 }))}
-                className="mt-1 max-w-[8rem]"
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label className="text-sm font-medium text-foreground">Shedding pets multiplier</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={2}
-                  step={0.05}
-                  value={initialCleaning.sheddingPetsMultiplier}
-                  onChange={(e) => setInitialCleaning((prev) => ({ ...prev, sheddingPetsMultiplier: parseFloat(e.target.value) || 1.1 }))}
-                  className="mt-1 max-w-[8rem]"
-                />
-              </div>
-              <div>
-                <Label className="text-sm font-medium text-foreground">People multiplier</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={2}
-                  step={0.05}
-                  value={initialCleaning.peopleMultiplier}
-                  onChange={(e) => setInitialCleaning((prev) => ({ ...prev, peopleMultiplier: parseFloat(e.target.value) || 1.05 }))}
-                  className="mt-1 max-w-[8rem]"
-                />
-              </div>
-            </div>
-            <div>
-              <Label className="text-sm font-medium text-foreground">Conditions requiring Initial Cleaning</Label>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {CONDITIONS.map((c) => (
-                  <label key={c} className="inline-flex items-center gap-1.5 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={initialCleaning.requiredConditions.includes(c)}
-                      onChange={() => toggleCondition('requiredConditions', c)}
-                      className="rounded border-input"
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="mt-8"
+        >
+          <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
+            <CardHeader className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-b pb-6">
+              <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                <Sparkles className="h-5 w-5 text-purple-600" />
+                Initial Cleaning Configuration
+              </CardTitle>
+              <CardDescription>
+                Configure pricing multiplier and home conditions for Initial Cleaning (first deep clean to reach maintenance standards)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-8 pb-8">
+              <div className="space-y-6">
+                {initialMessage && (
+                  <div
+                    className={`p-4 rounded-lg ${
+                      initialMessage.type === 'success'
+                        ? 'bg-green-50 text-green-800 border border-green-200'
+                        : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}
+                  >
+                    {initialMessage.text}
+                  </div>
+                )}
+
+                <div>
+                  <Label htmlFor="multiplier" className="text-base font-semibold">
+                    Initial Cleaning Multiplier
+                  </Label>
+                  <p className="text-sm text-muted-foreground mt-1 mb-3">
+                    Price multiplier applied to General Clean price (1.0 = same as General, 1.5 = 50% more)
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="multiplier"
+                      type="number"
+                      min={1.0}
+                      max={3.0}
+                      step={0.1}
+                      value={initialCleaning.multiplier}
+                      onChange={(e) => setInitialCleaning((prev) => ({ ...prev, multiplier: parseFloat(e.target.value) || 1.5 }))}
+                      className="flex-1 h-10 max-w-[8rem]"
                     />
-                    <span className="capitalize">{c.replace('-', ' ')}</span>
-                  </label>
-                ))}
+                    <span className="text-sm font-semibold text-muted-foreground">×</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="shedding-pets-multiplier" className="text-base font-semibold">
+                      Shedding Pets Multiplier
+                    </Label>
+                    <p className="text-sm text-muted-foreground mt-1 mb-3">
+                      Price multiplier per shedding pet (1.0 = no extra charge, 1.1 = 10% more per pet)
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="shedding-pets-multiplier"
+                        type="number"
+                        min={1.0}
+                        max={2.0}
+                        step={0.05}
+                        value={initialCleaning.sheddingPetsMultiplier}
+                        onChange={(e) => setInitialCleaning((prev) => ({ ...prev, sheddingPetsMultiplier: parseFloat(e.target.value) || 1.1 }))}
+                        className="flex-1 h-10 max-w-[8rem]"
+                      />
+                      <span className="text-sm font-semibold text-muted-foreground">×</span>
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="people-multiplier" className="text-base font-semibold">
+                      People Multiplier
+                    </Label>
+                    <p className="text-sm text-muted-foreground mt-1 mb-3">
+                      Price multiplier per person (1.0 = no extra charge, 1.05 = 5% more per person)
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="people-multiplier"
+                        type="number"
+                        min={1.0}
+                        max={2.0}
+                        step={0.05}
+                        value={initialCleaning.peopleMultiplier}
+                        onChange={(e) => setInitialCleaning((prev) => ({ ...prev, peopleMultiplier: parseFloat(e.target.value) || 1.05 }))}
+                        className="flex-1 h-10 max-w-[8rem]"
+                      />
+                      <span className="text-sm font-semibold text-muted-foreground">×</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-base font-semibold">Home Conditions Requiring Initial Cleaning</Label>
+                  <p className="text-sm text-muted-foreground mt-1 mb-3">
+                    Select which home conditions REQUIRE Initial Cleaning
+                  </p>
+                  <div className="space-y-2">
+                    {CONDITIONS.map((condition) => (
+                      <label key={condition} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={initialCleaning.requiredConditions.includes(condition)}
+                          onChange={() => toggleCondition('requiredConditions', condition)}
+                          className="w-4 h-4 rounded"
+                        />
+                        <span className="text-sm capitalize">{condition.replace('-', ' ')}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-base font-semibold">Home Conditions Recommending Initial Cleaning</Label>
+                  <p className="text-sm text-muted-foreground mt-1 mb-3">
+                    Select which home conditions RECOMMEND Initial Cleaning (not required, but suggested)
+                  </p>
+                  <div className="space-y-2">
+                    {CONDITIONS.map((condition) => (
+                      <label key={condition} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={initialCleaning.recommendedConditions.includes(condition)}
+                          onChange={() => toggleCondition('recommendedConditions', condition)}
+                          className="w-4 h-4 rounded"
+                        />
+                        <span className="text-sm capitalize">{condition.replace('-', ' ')}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <Button
+                  onClick={saveInitialCleaning}
+                  disabled={savingInitial}
+                  className="w-full h-11 font-semibold flex items-center gap-2"
+                >
+                  {savingInitial ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      Save Initial Cleaning Config
+                    </>
+                  )}
+                </Button>
               </div>
-            </div>
-            <div>
-              <Label className="text-sm font-medium text-foreground">Conditions recommending Initial Cleaning</Label>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {CONDITIONS.map((c) => (
-                  <label key={c} className="inline-flex items-center gap-1.5 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={initialCleaning.recommendedConditions.includes(c)}
-                      onChange={() => toggleCondition('recommendedConditions', c)}
-                      className="rounded border-input"
-                    />
-                    <span className="capitalize">{c.replace('-', ' ')}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <Button onClick={saveInitialCleaning} disabled={savingInitial}>
-              {savingInitial ? 'Saving…' : 'Save Initial Cleaning config'}
-            </Button>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </motion.div>
       )}
     </div>
   );
