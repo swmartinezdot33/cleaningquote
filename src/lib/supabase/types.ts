@@ -6,15 +6,15 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export type OrgRole = 'owner' | 'admin' | 'member';
+export type OrgRole = 'admin' | 'member';
 
 export interface Database {
   public: {
     Tables: {
       organizations: {
-        Row: { id: string; name: string; slug: string; created_at: string; updated_at: string };
-        Insert: { id?: string; name: string; slug: string; created_at?: string; updated_at?: string };
-        Update: { id?: string; name?: string; slug?: string; created_at?: string; updated_at?: string };
+        Row: { id: string; name: string; slug: string; created_at: string; updated_at: string; stripe_customer_id: string | null; stripe_subscription_id: string | null; subscription_status: string | null };
+        Insert: { id?: string; name: string; slug: string; created_at?: string; updated_at?: string; stripe_customer_id?: string | null; stripe_subscription_id?: string | null; subscription_status?: string | null };
+        Update: { id?: string; name?: string; slug?: string; created_at?: string; updated_at?: string; stripe_customer_id?: string | null; stripe_subscription_id?: string | null; subscription_status?: string | null };
       };
       organization_members: {
         Row: { id: string; org_id: string; user_id: string; role: OrgRole; created_at: string };

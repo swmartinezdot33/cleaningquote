@@ -1,6 +1,9 @@
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import type { Organization, OrganizationMember } from '@/lib/supabase/types';
 
+/** Subscription statuses that grant dashboard access */
+const ACTIVE_SUBSCRIPTION_STATUSES = ['active', 'trialing'];
+
 const SUPER_ADMIN_EMAILS = (process.env.SUPER_ADMIN_EMAILS ?? '')
   .split(',')
   .map((e) => e.trim().toLowerCase())
@@ -61,6 +64,18 @@ export async function canAccessTool(
   return !!data;
 }
 
+/** Check if org has Stripe and requires an active subscription for access */
+export function orgRequiresSubscription(org: Pick<Organization, 'stripe_customer_id' | 'subscription_status'>): boolean {
+  return !!org?.stripe_customer_id;
+}
+
+/** Check if org has access (no Stripe, or Stripe with active/trialing subscription) */
+export function orgHasActiveAccess(org: Pick<Organization, 'stripe_customer_id' | 'subscription_status'> | null): boolean {
+  if (!org) return false;
+  if (!org.stripe_customer_id) return true;
+  return ACTIVE_SUBSCRIPTION_STATUSES.includes(org.subscription_status ?? '');
+}
+
 /** Resolve current org from cookie or default to first membership */
 export function getSelectedOrgIdFromCookie(cookieHeader: string | null): string | null {
   if (!cookieHeader) return null;
@@ -78,9 +93,9 @@ function slugToSafe(s: string): string {
     .replace(/^-|-$/g, '');
 }
 
-/** Ensure user has at least one org; create Personal if none. Returns orgs with roles. */
+/** Ensure user has at least one org; create Personal if none. Returns orgs with roles (includes stripe fields for subscription gating). */
 export async function ensureUserOrgs(userId: string, userEmail: string | undefined): Promise<
-  Array<{ id: string; name: string; slug: string; role: string }>
+  Array<Organization & { role: string }>
 > {
   const supabase = await createSupabaseServerSSR();
   const { data: membershipsRaw } = await supabase
@@ -96,7 +111,7 @@ export async function ensureUserOrgs(userId: string, userEmail: string | undefin
       .select('*')
       .in('id', orgIds)
       .order('name');
-    const orgs = (orgsRaw ?? []) as Array<{ id: string; name: string; slug: string }>;
+    const orgs = (orgsRaw ?? []) as Organization[];
     const roleByOrg = new Map(memberships.map((m) => [m.org_id, m.role]));
     return orgs.map((o) => ({ ...o, role: roleByOrg.get(o.id) ?? 'member' }));
   }
@@ -113,10 +128,10 @@ export async function ensureUserOrgs(userId: string, userEmail: string | undefin
 
   if (orgErr || !orgRaw) return [];
 
-  const org = orgRaw as { id: string; name: string; slug: string };
+  const org = orgRaw as Organization;
   await supabase
     .from('organization_members')
-    .insert({ org_id: org.id, user_id: userId, role: 'owner' } as any);
+    .insert({ org_id: org.id, user_id: userId, role: 'admin' } as any);
 
-  return [{ ...org, role: 'owner' }];
+  return [{ ...org, role: 'admin' }];
 }

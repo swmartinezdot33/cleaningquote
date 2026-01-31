@@ -11,7 +11,8 @@ import { Mail, Lock, Link2 } from 'lucide-react';
 function LoginForm() {
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') ?? '/dashboard';
-  const [email, setEmail] = useState('');
+  const prefilledEmail = searchParams.get('email') ?? '';
+  const [email, setEmail] = useState(prefilledEmail);
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

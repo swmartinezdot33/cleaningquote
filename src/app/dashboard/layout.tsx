@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
-import { ensureUserOrgs, isSuperAdminEmail } from '@/lib/org-auth';
+import { ensureUserOrgs, isSuperAdminEmail, orgHasActiveAccess } from '@/lib/org-auth';
 import { BrandLogo } from '@/components/BrandLogo';
 import { OrgSwitcher } from '@/components/OrgSwitcher';
 
@@ -20,7 +20,19 @@ export default async function DashboardLayout({
 
   const orgs = await ensureUserOrgs(user.id, user.email ?? undefined);
   const cookieStore = await cookies();
-  const selectedOrgId = cookieStore.get('selected_org_id')?.value ?? orgs[0]?.id ?? null;
+  let selectedOrgId = cookieStore.get('selected_org_id')?.value ?? orgs[0]?.id ?? null;
+  let selectedOrg = orgs.find((o) => o.id === selectedOrgId) ?? orgs[0] ?? null;
+
+  // Require active Stripe subscription for paid orgs (super admins bypass)
+  if (selectedOrg && !isSuperAdminEmail(user.email ?? undefined) && !orgHasActiveAccess(selectedOrg)) {
+    const orgWithAccess = orgs.find((o) => orgHasActiveAccess(o));
+    if (orgWithAccess) {
+      selectedOrgId = orgWithAccess.id;
+      selectedOrg = orgWithAccess;
+    } else {
+      redirect('/subscribe');
+    }
+  }
 
   return (
     <div className="min-h-screen bg-muted/30">

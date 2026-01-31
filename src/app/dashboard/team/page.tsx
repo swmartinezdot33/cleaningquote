@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Trash2 } from 'lucide-react';
 
 interface Member {
   user_id: string;
@@ -26,6 +27,31 @@ export default function TeamPage() {
   const [inviteMessage, setInviteMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  const refreshMembers = () => {
+    if (!orgId) return;
+    fetch(`/api/dashboard/orgs/${orgId}/members`)
+      .then((r) => r.json())
+      .then((d) => {
+        setMembers(d.members ?? []);
+        setInvitations(d.invitations ?? []);
+      })
+      .catch(() => {});
+  };
+
+  const cancelInvite = async (invitationId: string) => {
+    if (!orgId) return;
+    setCancellingId(invitationId);
+    try {
+      const res = await fetch(`/api/dashboard/orgs/${orgId}/invitations/${invitationId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) refreshMembers();
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   useEffect(() => {
     fetch('/api/dashboard/orgs/selected')
@@ -163,9 +189,18 @@ export default function TeamPage() {
           <h2 className="text-lg font-semibold">Pending invitations</h2>
           <ul className="mt-2 space-y-2">
             {invitations.map((i) => (
-              <li key={i.id} className="flex items-center justify-between rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
-                <span>{i.email}</span>
+              <li key={i.id} className="flex items-center justify-between gap-2 rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                <span className="flex-1">{i.email}</span>
                 <span>{i.role}</span>
+                <button
+                  type="button"
+                  onClick={() => cancelInvite(i.id)}
+                  disabled={cancellingId === i.id}
+                  className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                  title="Cancel invite"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </li>
             ))}
           </ul>

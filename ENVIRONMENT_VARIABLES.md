@@ -28,6 +28,25 @@ This document lists all environment variables used by the Cleaning Quote Platfor
 **Example:** `https://buy.stripe.com/xxxxxxxx`  
 **How to get the URL:** Stripe Dashboard → Product catalog → Payment links → Create link (or create a product + price, then “Create payment link”). Copy the link and paste here.
 
+### `STRIPE_SECRET_KEY`
+**Required:** Yes (when using Stripe for subscriptions)  
+**Type:** String (sk_live_... or sk_test_...)  
+**Description:** Stripe secret key for API calls and webhook verification. Never expose to the client.  
+**Where to Set:** `.env.local` and Vercel → Environment Variables (server only).
+
+### `STRIPE_WEBHOOK_SECRET`
+**Required:** Yes (when using Stripe for subscriptions)  
+**Type:** String (whsec_...)  
+**Description:** Stripe webhook signing secret. For local testing use Stripe CLI: `stripe listen --forward-to localhost:3000/api/webhooks/stripe`.  
+**How to get:** Stripe Dashboard → Developers → Webhooks → Add endpoint → `https://your-domain.com/api/webhooks/stripe` → select events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed` → copy Signing secret.
+
+### `NEXT_PUBLIC_STRIPE_BILLING_PORTAL_URL`
+**Required:** Optional (when using Stripe subscriptions)  
+**Type:** URL String  
+**Description:** Stripe Customer Billing Portal URL. When set, org admins see a "Manage billing" card on the Profile page that opens this URL (e.g. to update payment method, view invoices, cancel).  
+**Where to Set:** `.env.local` and Vercel → Environment Variables  
+**Example:** `https://pay.cleanquote.io/p/login/dRmdRa4XldYmf9P7eu7bW00`
+
 ---
 
 ## Supabase (multi-tenant auth and tools)

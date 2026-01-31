@@ -3,9 +3,9 @@ import { createSupabaseServer } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-/** GET - Fetch invite details by token (public, for accept page) */
+/** GET - Fetch invite details by token (public, for accept page). Includes session status for UX. */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
   const { token } = await params;
@@ -38,10 +38,27 @@ export async function GET(
     .single();
   const org = orgRaw as { name: string } | null;
 
+  const invitedEmail = inv.email.toLowerCase().trim();
+  let authenticated = false;
+  let emailMatches = false;
+  try {
+    const { createSupabaseServerSSR } = await import('@/lib/supabase/server-ssr');
+    const ssr = await createSupabaseServerSSR();
+    const { data: { user } } = await ssr.auth.getUser();
+    if (user?.email) {
+      authenticated = true;
+      emailMatches = (user.email.toLowerCase().trim() === invitedEmail);
+    }
+  } catch {
+    // ignore session errors
+  }
+
   return NextResponse.json({
     orgName: org?.name ?? 'Unknown',
     email: inv.email,
     role: inv.role,
+    authenticated,
+    emailMatches,
   });
 }
 

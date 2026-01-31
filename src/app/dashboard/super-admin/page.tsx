@@ -29,7 +29,7 @@ export default function SuperAdminPage() {
   const [assigning, setAssigning] = useState<string | null>(null);
   const [newAssign, setNewAssign] = useState({ user_id: '', org_id: '', role: 'member' });
   const [showCreateOrg, setShowCreateOrg] = useState(false);
-  const [newOrg, setNewOrg] = useState({ name: '', slug: '', owner_id: '' });
+  const [newOrg, setNewOrg] = useState({ name: '', slug: '', admin_id: '' });
   const [creatingOrg, setCreatingOrg] = useState(false);
   const [editingOrg, setEditingOrg] = useState<string | null>(null);
   const [editOrg, setEditOrg] = useState({ name: '', slug: '' });
@@ -137,14 +137,14 @@ export default function SuperAdminPage() {
         body: JSON.stringify({
           name: newOrg.name.trim(),
           slug: newOrg.slug.trim() || undefined,
-          owner_id: newOrg.owner_id || undefined,
+          admin_id: newOrg.admin_id || undefined,
         }),
       });
       const data = await res.json();
       if (res.ok) {
         setOrgs((prev) => [...prev, data.org]);
         setShowCreateOrg(false);
-        setNewOrg({ name: '', slug: '', owner_id: '' });
+        setNewOrg({ name: '', slug: '', admin_id: '' });
         load();
       } else {
         setMessage({ type: 'error', text: data.error ?? 'Failed to create org' });
@@ -266,11 +266,11 @@ export default function SuperAdminPage() {
                 className="rounded border px-3 py-2 text-sm w-32"
               />
               <select
-                value={newOrg.owner_id}
-                onChange={(e) => setNewOrg((p) => ({ ...p, owner_id: e.target.value }))}
+                value={newOrg.admin_id}
+                onChange={(e) => setNewOrg((p) => ({ ...p, admin_id: e.target.value }))}
                 className="rounded border px-3 py-2 text-sm w-48"
               >
-                <option value="">No owner (add later)</option>
+                <option value="">No admin (add later)</option>
                 {users.map((u) => (
                   <option key={u.id} value={u.id}>{u.email ?? u.id}</option>
                 ))}
@@ -388,7 +388,6 @@ export default function SuperAdminPage() {
               >
                 <option value="member">Member</option>
                 <option value="admin">Admin</option>
-                <option value="owner">Owner</option>
               </select>
               <button onClick={createUser} disabled={creatingUser || !newUser.email || newUser.password.length < 6} className="rounded bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50">
                 {creatingUser ? 'Creating…' : 'Create'}
@@ -416,14 +415,13 @@ export default function SuperAdminPage() {
                       <span key={m.org_id} className="mr-2 inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs">
                         {orgById[m.org_id]?.name ?? m.org_id}
                         <select
-                          value={m.role}
+                          value={m.role === 'owner' ? 'admin' : m.role}
                           onChange={(e) => updateRole(u.id, m.org_id, e.target.value)}
                           disabled={!!assigning}
                           className="ml-1 rounded border-0 bg-transparent text-xs py-0"
                         >
                           <option value="member">member</option>
                           <option value="admin">admin</option>
-                          <option value="owner">owner</option>
                         </select>
                         <button
                           type="button"
@@ -473,7 +471,6 @@ export default function SuperAdminPage() {
           >
             <option value="member">Member</option>
             <option value="admin">Admin</option>
-            <option value="owner">Owner</option>
           </select>
           <button
             type="button"

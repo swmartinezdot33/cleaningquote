@@ -17,7 +17,8 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const userId = body.user_id;
   const orgId = body.org_id;
-  const role = (body.role ?? 'member') as OrgRole;
+  const rawRole = body.role ?? 'member';
+  const role: OrgRole = rawRole === 'admin' ? 'admin' : 'member';
 
   if (!userId || !orgId) {
     return NextResponse.json({ error: 'user_id and org_id required' }, { status: 400 });

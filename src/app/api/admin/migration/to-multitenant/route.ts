@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
       }
       const orgData = orgDataRaw as { id: string };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await supabase.from('organization_members').insert({ org_id: orgData.id, user_id: userId, role: 'owner' } as any);
+      await supabase.from('organization_members').insert({ org_id: orgData.id, user_id: userId, role: 'admin' } as any);
 
       const insertPayload: ToolInsert = {
         org_id: orgData.id,

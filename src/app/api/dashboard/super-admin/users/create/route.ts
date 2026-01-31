@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
   }
 
   const orgId = body.org_id;
-  const role = (body.role ?? 'member') as 'member' | 'admin' | 'owner';
+  const role = (body.role ?? 'member') as 'member' | 'admin';
   if (orgId && data.user) {
     await admin.from('organization_members').insert({
       org_id: orgId,

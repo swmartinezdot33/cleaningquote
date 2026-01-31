@@ -75,3 +75,36 @@
 .pac-item-selected {
   background-color: #f3f4f6 !important;
 }
+
+@keyframes success-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes success-check {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-success-pop {
+  animation: success-pop 0.5s ease-out;
+}
+
+.animate-success-check {
+  animation: success-check 0.4s ease-out 0.2s both;
+}

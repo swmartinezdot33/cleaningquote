@@ -4,16 +4,28 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
+interface InviteData {
+  orgName: string;
+  email: string;
+  role: string;
+  authenticated?: boolean;
+  emailMatches?: boolean;
+}
+
 export default function InviteAcceptPage() {
   const params = useParams();
   const router = useRouter();
   const token = params.token as string;
-  const [invite, setInvite] = useState<{ orgName: string; email: string; role: string } | null>(null);
+  const [invite, setInvite] = useState<InviteData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [accepting, setAccepting] = useState(false);
 
   useEffect(() => {
     if (!token) return;
+    // Clear Supabase auth hash (e.g. error=access_denied) so we show a clean invite UI
+    if (typeof window !== 'undefined' && window.location.hash) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
     fetch(`/api/invite/${token}`)
       .then((r) => r.json())
       .then((d) => {
@@ -23,15 +35,20 @@ export default function InviteAcceptPage() {
       .catch(() => setError('Failed to load invitation'));
   }, [token]);
 
+  const loginUrl = `/login?redirect=${encodeURIComponent(`/invite/${token}`)}&email=${encodeURIComponent(invite?.email ?? '')}`;
+
   const accept = async () => {
     setAccepting(true);
+    setError(null);
     try {
       const res = await fetch(`/api/invite/${token}`, { method: 'POST', credentials: 'include' });
       const data = await res.json();
       if (res.ok) {
         document.cookie = `selected_org_id=; path=/; max-age=0`;
-        router.push('/dashboard');
-        router.refresh();
+        const orgParam = invite?.orgName ? `?org=${encodeURIComponent(invite.orgName)}` : '';
+        router.push(`/invite/success${orgParam}`);
+      } else if (res.status === 401) {
+        window.location.href = loginUrl;
       } else {
         setError(data.error ?? 'Failed to accept');
       }
@@ -59,6 +76,8 @@ export default function InviteAcceptPage() {
     );
   }
 
+  const needsSignIn = !invite.authenticated || !invite.emailMatches;
+
   return (
     <div className="mx-auto max-w-md px-4 py-16">
       <div className="rounded-lg border bg-card p-6 text-center">
@@ -66,15 +85,36 @@ export default function InviteAcceptPage() {
         <p className="mt-2 text-muted-foreground">
           Join <strong>{invite.orgName}</strong> as {invite.role}
         </p>
-        <button
-          type="button"
-          onClick={accept}
-          disabled={accepting}
-          className="mt-6 w-full rounded-md bg-primary py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-        >
-          {accepting ? 'Accepting…' : 'Accept invitation'}
-        </button>
-        {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+        {invite.email && (
+          <p className="mt-1 text-sm text-muted-foreground">Invited as {invite.email}</p>
+        )}
+        {needsSignIn ? (
+          <>
+            <p className="mt-4 text-sm text-muted-foreground">
+              {invite.authenticated && !invite.emailMatches
+                ? `Please sign in with ${invite.email} to accept.`
+                : 'Sign in to accept this invitation.'}
+            </p>
+            <Link
+              href={loginUrl}
+              className="mt-6 block w-full rounded-md bg-primary py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+            >
+              Sign in to accept
+            </Link>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={accept}
+              disabled={accepting}
+              className="mt-6 w-full rounded-md bg-primary py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              {accepting ? 'Accepting…' : 'Accept invitation'}
+            </button>
+            {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+          </>
+        )}
         <Link href="/dashboard" className="mt-4 inline-block text-sm text-muted-foreground hover:underline">
           Decline and go to dashboard
         </Link>

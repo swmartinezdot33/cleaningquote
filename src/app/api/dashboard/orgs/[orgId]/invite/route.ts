@@ -38,8 +38,8 @@ export async function POST(
     .single();
   const member = memberRaw as { role: string } | null;
 
-  if (!member || !['owner', 'admin'].includes(member.role)) {
-    return NextResponse.json({ error: 'Only owners and admins can invite' }, { status: 403 });
+  if (!member || member.role !== 'admin') {
+    return NextResponse.json({ error: 'Only admins can invite' }, { status: 403 });
   }
 
   const body = await request.json().catch(() => ({}));

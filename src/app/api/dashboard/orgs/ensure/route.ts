@@ -60,6 +60,6 @@ export async function POST() {
   }
 
   return NextResponse.json({
-    orgs: [{ ...org, role: 'owner' }],
+    orgs: [{ ...org, role: 'admin' }],
   });
 }

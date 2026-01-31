@@ -43,12 +43,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  const ownerId = body.owner_id || user.id;
-  if (ownerId) {
+  const adminId = body.admin_id ?? body.owner_id ?? user.id;
+  if (adminId) {
     await admin.from('organization_members').insert({
       org_id: (org as { id: string }).id,
-      user_id: ownerId,
-      role: 'owner',
+      user_id: adminId,
+      role: 'admin',
     } as any);
   }
 
