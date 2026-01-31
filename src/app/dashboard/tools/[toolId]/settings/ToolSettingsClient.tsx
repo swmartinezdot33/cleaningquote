@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ChevronDown, Sparkles, MapPin, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy } from 'lucide-react';
+import { ChevronDown, Sparkles, MapPin, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { TagPicker } from '@/components/ui/TagPicker';
 
@@ -21,7 +21,7 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
   const [googleMapsKey, setGoogleMapsKey] = useState('');
   const [googleMapsExists, setGoogleMapsExists] = useState(false);
   const [serviceAreaStatus, setServiceAreaStatus] = useState<{ type: string; polygonCount?: number; networkLink?: string } | null>(null);
-  const [kmlContent, setKmlContent] = useState('');
+  const [serviceAreaFile, setServiceAreaFile] = useState<File | null>(null);
   const [serviceAreaUploading, setServiceAreaUploading] = useState(false);
   const [ghlConfig, setGhlConfig] = useState<{
     createContact: boolean;
@@ -323,14 +323,14 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
   };
 
   const uploadServiceArea = async () => {
-    const content = kmlContent.trim();
-    if (!content) {
-      setSectionMessage({ card: 'service-area', type: 'error', text: 'Paste KML content or a NetworkLink URL' });
+    if (!serviceAreaFile) {
+      setSectionMessage({ card: 'service-area', type: 'error', text: 'Please select a KML file' });
       return;
     }
     setServiceAreaUploading(true);
     clearMessage('service-area');
     try {
+      const content = await serviceAreaFile.text();
       const res = await fetch(`/api/dashboard/tools/${toolId}/service-area/upload`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -339,7 +339,7 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
       const data = await res.json();
       if (res.ok && data.success) {
         setSectionMessage({ card: 'service-area', type: 'success', text: data.message ?? 'Service area updated' });
-        setKmlContent('');
+        setServiceAreaFile(null);
         const statusRes = await fetch(`/api/dashboard/tools/${toolId}/service-area/status`);
         if (statusRes.ok) {
           const a = await statusRes.json();
@@ -632,21 +632,21 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
         </Card>
       </motion.div>
 
-      {/* Service Area */}
+      {/* Service Area Configuration - matches main admin app */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
         <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
           <CardHeader
-            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
+            className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-b border-border pb-6 cursor-pointer"
             onClick={() => toggleCard('service-area')}
           >
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                  <MapPin className="h-5 w-5 text-primary" />
-                  Service Area
+                  <MapPin className="h-5 w-5 text-emerald-600" />
+                  Service Area Configuration
                 </CardTitle>
                 <CardDescription className="text-muted-foreground mt-1">
-                  Upload a KML file or paste KML/NetworkLink URL to define where you offer service
+                  Upload a KML file with your service area polygon, and configure tags for in-service and out-of-service customers
                 </CardDescription>
               </div>
               <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('service-area') ? 'rotate-180' : ''}`} />
@@ -656,36 +656,110 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
             <CardContent className="pt-8 pb-8">
               <div className="space-y-6">
                 {sectionMessage?.card === 'service-area' && (
-                  <div
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
                     className={`p-4 rounded-lg flex items-center gap-3 ${
-                      sectionMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+                      sectionMessage.type === 'success'
+                        ? 'bg-green-50 text-green-800 border border-green-200'
+                        : 'bg-red-50 text-red-800 border border-red-200'
                     }`}
                   >
-                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
+                    {sectionMessage.type === 'success' ? (
+                      <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                    )}
                     <p>{sectionMessage.text}</p>
-                  </div>
+                  </motion.div>
                 )}
-                {serviceAreaStatus && (
-                  <p className="text-sm text-muted-foreground">
-                    Type: {serviceAreaStatus.type}. {serviceAreaStatus.polygonCount != null && `${serviceAreaStatus.polygonCount} coordinates`}
-                    {serviceAreaStatus.networkLink && ` • NetworkLink: set`}
-                  </p>
-                )}
+
+                {/* KML Upload */}
                 <div>
-                  <Label htmlFor="kml-content" className="text-base font-semibold">KML content or NetworkLink URL</Label>
-                  <p className="text-xs text-muted-foreground mt-1">Paste full KML XML or a NetworkLink URL. Leave blank to keep current.</p>
-                  <textarea
-                    id="kml-content"
-                    value={kmlContent}
-                    onChange={(e) => setKmlContent(e.target.value)}
-                    rows={6}
-                    className="mt-2 w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
-                    placeholder="Paste KML or e.g. https://example.com/service-area.kml"
-                  />
+                  <Label className="text-base font-semibold">Upload Service Area Polygon (KML)</Label>
+
+                  {/* Status Display */}
+                  {serviceAreaStatus && serviceAreaStatus.type !== 'none' && (
+                    <div
+                      className={`mt-3 p-4 rounded-lg border-2 ${
+                        serviceAreaStatus.type === 'network'
+                          ? 'bg-blue-50 border-blue-200'
+                          : 'bg-emerald-50 border-emerald-200'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <p
+                            className={`font-semibold ${
+                              serviceAreaStatus.type === 'network' ? 'text-blue-900' : 'text-emerald-900'
+                            }`}
+                          >
+                            {serviceAreaStatus.type === 'network'
+                              ? '🔗 NetworkLink Active'
+                              : '✓ Direct Polygon Active'}
+                          </p>
+                          <p
+                            className={`text-sm mt-1 ${
+                              serviceAreaStatus.type === 'network' ? 'text-blue-800' : 'text-emerald-800'
+                            }`}
+                          >
+                            {serviceAreaStatus.type === 'network'
+                              ? `Automatically fetching from: ${serviceAreaStatus.networkLink ?? 'URL'}`
+                              : `${serviceAreaStatus.polygonCount ?? 0} coordinates loaded`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-3 p-4 border-2 border-dashed border-border rounded-lg text-center">
+                    <input
+                      type="file"
+                      accept=".kml,.kmz"
+                      onChange={(e) => setServiceAreaFile(e.target.files?.[0] ?? null)}
+                      className="hidden"
+                      id="kml-file-input"
+                    />
+                    <label htmlFor="kml-file-input" className="cursor-pointer block">
+                      <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="font-semibold text-foreground">Click to select KML file</p>
+                      <p className="text-sm text-muted-foreground">or drag and drop</p>
+                      {serviceAreaFile && (
+                        <p className="text-sm text-emerald-600 mt-2">📁 {serviceAreaFile.name}</p>
+                      )}
+                    </label>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Export your service area as a KML file from Google Maps or other mapping software. The system supports:
+                  </p>
+                  <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1 ml-2 mt-1">
+                    <li>
+                      <strong>Direct KML files</strong> - Traditional KML with polygon coordinates. Uploads once and stores the data.
+                    </li>
+                    <li>
+                      <strong>NetworkLink references</strong> - KML files that link to a remote server. The system will automatically fetch and update the polygon data periodically, so you don&apos;t need to re-upload when your map changes!
+                    </li>
+                  </ul>
+                  {serviceAreaFile && (
+                    <Button
+                      onClick={uploadServiceArea}
+                      disabled={serviceAreaUploading}
+                      className="w-full mt-4 h-10 font-semibold flex items-center gap-2"
+                    >
+                      {serviceAreaUploading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4" />
+                          Upload Polygon
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
-                <Button onClick={uploadServiceArea} disabled={serviceAreaUploading} className="w-full h-11 font-semibold flex items-center gap-2">
-                  {serviceAreaUploading ? <><Loader2 className="h-4 w-4 animate-spin" /> Uploading...</> : <><Save className="h-4 w-4" /> Upload / update service area</>}
-                </Button>
               </div>
             </CardContent>
           )}
