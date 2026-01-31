@@ -17,7 +17,23 @@ function getBaseUrl(request: NextRequest): string {
   return (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
 }
 
-/** POST - Invite user by email to join org. Creates Supabase auth invite and sends email. */
+/** Find Supabase auth user id by email (admin listUsers, paginated). */
+async function findUserIdByEmail(admin: ReturnType<typeof createSupabaseServer>, email: string): Promise<string | null> {
+  const normalized = email.trim().toLowerCase();
+  let page = 0;
+  const perPage = 100;
+  while (true) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error || !data?.users) return null;
+    const found = data.users.find((u) => (u.email ?? '').toLowerCase() === normalized);
+    if (found) return found.id;
+    if (data.users.length < perPage) break;
+    page++;
+  }
+  return null;
+}
+
+/** POST - Invite user by email to join org. If user exists, add them to org. Otherwise create invite and send email. */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ orgId: string }> }
@@ -49,6 +65,41 @@ export async function POST(
     return NextResponse.json({ error: 'Email is required' }, { status: 400 });
   }
 
+  const existingUserId = await findUserIdByEmail(admin, email);
+
+  if (existingUserId) {
+    const { data: existingMember } = await admin
+      .from('organization_members')
+      .select('id')
+      .eq('org_id', orgId)
+      .eq('user_id', existingUserId)
+      .maybeSingle();
+
+    if (existingMember) {
+      return NextResponse.json({
+        added: false,
+        alreadyMember: true,
+        message: `${email} is already a member of this organization.`,
+      });
+    }
+
+    const { error: insertError } = await admin.from('organization_members').insert({
+      org_id: orgId,
+      user_id: existingUserId,
+      role,
+    } as any);
+
+    if (insertError) {
+      return NextResponse.json({ error: insertError.message }, { status: 400 });
+    }
+
+    return NextResponse.json({
+      added: true,
+      existingUser: true,
+      message: `Added ${email} to this organization. They already have an account and can switch to this org from the dashboard.`,
+    });
+  }
+
   const token = randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -68,7 +119,7 @@ export async function POST(
   const baseUrl = getBaseUrl(request);
   const inviteUrl = `${baseUrl}/invite/${token}`;
 
-  const { data: inviteAuth, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
+  const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
     redirectTo: inviteUrl,
     data: { invite_token: token },
   });

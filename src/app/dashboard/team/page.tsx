@@ -87,16 +87,20 @@ export default function TeamPage() {
       const data = await res.json();
       if (res.ok) {
         setInviteMessage(data.message ?? (data.emailSent ? `Invite email sent to ${inviteEmail.trim()}` : 'Invite created'));
-        if (!data.emailSent && data.inviteUrl) setInviteUrl(data.inviteUrl);
-        setInvitations((prev) => [
-          ...prev,
-          {
-            id: data.invitation?.id ?? 'new',
-            email: inviteEmail.trim(),
-            role: inviteRole,
-            expires_at: data.invitation?.expires_at ?? '',
-          },
-        ]);
+        if (data.added && data.existingUser) {
+          refreshMembers();
+        } else if (data.invitation) {
+          if (!data.emailSent && data.inviteUrl) setInviteUrl(data.inviteUrl);
+          setInvitations((prev) => [
+            ...prev,
+            {
+              id: data.invitation.id ?? 'new',
+              email: inviteEmail.trim(),
+              role: inviteRole,
+              expires_at: data.invitation.expires_at ?? '',
+            },
+          ]);
+        }
         setInviteEmail('');
       } else {
         setInviteMessage(data.error ?? 'Failed to send invite');

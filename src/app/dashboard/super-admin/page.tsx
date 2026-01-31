@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, KeyRound, Link2, Copy } from 'lucide-react';
 
 interface User {
   id: string;
@@ -38,6 +38,13 @@ export default function SuperAdminPage() {
   const [newUser, setNewUser] = useState({ email: '', password: '', org_id: '', role: 'member' });
   const [creatingUser, setCreatingUser] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [setPasswordUserId, setSetPasswordUserId] = useState<string | null>(null);
+  const [setPasswordValue, setSetPasswordValue] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [resetLinkUserId, setResetLinkUserId] = useState<string | null>(null);
+  const [resetLinkResult, setResetLinkResult] = useState<{ link: string; email: string } | null>(null);
+  const [loadingResetLink, setLoadingResetLink] = useState(false);
 
   const load = () => {
     setMessage(null);
@@ -208,6 +215,73 @@ export default function SuperAdminPage() {
       }
     } finally {
       setCreatingUser(false);
+    }
+  };
+
+  const deleteUser = async (userId: string) => {
+    if (!confirm('Permanently delete this user? They will lose access and cannot be recovered.')) return;
+    setDeletingUserId(userId);
+    try {
+      const res = await fetch(`/api/dashboard/super-admin/users/${encodeURIComponent(userId)}`, { method: 'DELETE' });
+      if (res.ok) {
+        setUsers((prev) => prev.filter((u) => u.id !== userId));
+        setMembers((prev) => prev.filter((m) => m.user_id !== userId));
+        setMessage({ type: 'success', text: 'User deleted.' });
+      } else {
+        const d = await res.json();
+        setMessage({ type: 'error', text: d.error ?? 'Failed to delete user' });
+      }
+    } finally {
+      setDeletingUserId(null);
+    }
+  };
+
+  const saveNewPassword = async () => {
+    if (!setPasswordUserId || !setPasswordValue || setPasswordValue.length < 6) return;
+    setSavingPassword(true);
+    try {
+      const res = await fetch(`/api/dashboard/super-admin/users/${encodeURIComponent(setPasswordUserId)}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: setPasswordValue }),
+      });
+      if (res.ok) {
+        setMessage({ type: 'success', text: 'Password updated.' });
+        setSetPasswordUserId(null);
+        setSetPasswordValue('');
+      } else {
+        const d = await res.json();
+        setMessage({ type: 'error', text: d.error ?? 'Failed to set password' });
+      }
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
+  const sendResetLink = async (userId: string) => {
+    setResetLinkUserId(userId);
+    setResetLinkResult(null);
+    setLoadingResetLink(true);
+    try {
+      const res = await fetch(`/api/dashboard/super-admin/users/${encodeURIComponent(userId)}/send-reset-link`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (res.ok && data.link) {
+        setResetLinkResult({ link: data.link, email: data.email ?? '' });
+      } else {
+        setMessage({ type: 'error', text: data.error ?? 'Failed to generate reset link' });
+      }
+    } finally {
+      setLoadingResetLink(false);
+      setResetLinkUserId(null);
+    }
+  };
+
+  const copyResetLink = () => {
+    if (resetLinkResult?.link) {
+      navigator.clipboard.writeText(resetLinkResult.link);
+      setMessage({ type: 'success', text: 'Link copied to clipboard.' });
     }
   };
 
@@ -404,6 +478,7 @@ export default function SuperAdminPage() {
               <tr className="border-b bg-muted/50">
                 <th className="p-3 text-left">Email</th>
                 <th className="p-3 text-left">Organizations</th>
+                <th className="p-3 text-left">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -434,12 +509,117 @@ export default function SuperAdminPage() {
                       </span>
                     ))}
                   </td>
+                  <td className="p-3">
+                    <div className="flex flex-wrap items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setSetPasswordUserId(u.id)}
+                        className="inline-flex items-center gap-1 rounded border border-input bg-background px-2 py-1 text-xs hover:bg-muted"
+                        title="Set new password"
+                      >
+                        <KeyRound className="h-3.5 w-3.5" />
+                        Set password
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => sendResetLink(u.id)}
+                        disabled={!!loadingResetLink}
+                        className="inline-flex items-center gap-1 rounded border border-input bg-background px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
+                        title="Generate reset link to copy"
+                      >
+                        <Link2 className="h-3.5 w-3.5" />
+                        Reset link
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteUser(u.id)}
+                        disabled={!!deletingUserId}
+                        className="inline-flex items-center gap-1 rounded border border-destructive/50 bg-destructive/10 px-2 py-1 text-xs text-destructive hover:bg-destructive/20 disabled:opacity-50"
+                        title="Delete user"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </section>
+
+      {/* Set password modal */}
+      {setPasswordUserId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-lg border border-border bg-card p-4 shadow-lg">
+            <h3 className="font-semibold text-foreground">Set new password</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {users.find((u) => u.id === setPasswordUserId)?.email ?? setPasswordUserId}
+            </p>
+            <input
+              type="password"
+              placeholder="New password (min 6 chars)"
+              value={setPasswordValue}
+              onChange={(e) => setSetPasswordValue(e.target.value)}
+              minLength={6}
+              className="mt-3 w-full rounded border border-input bg-background px-3 py-2 text-sm"
+            />
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={saveNewPassword}
+                disabled={savingPassword || setPasswordValue.length < 6}
+                className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
+              >
+                {savingPassword ? 'Saving…' : 'Save'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setSetPasswordUserId(null); setSetPasswordValue(''); }}
+                className="rounded border border-input px-3 py-1.5 text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset link modal */}
+      {resetLinkResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-lg border border-border bg-card p-4 shadow-lg">
+            <h3 className="font-semibold text-foreground">Password reset link</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Copy this link and send it to {resetLinkResult.email || 'the user'}.
+            </p>
+            <div className="mt-3 flex gap-2">
+              <input
+                type="text"
+                readOnly
+                value={resetLinkResult.link}
+                className="flex-1 rounded border border-input bg-muted/50 px-3 py-2 text-xs"
+              />
+              <button
+                type="button"
+                onClick={copyResetLink}
+                className="inline-flex items-center gap-1 rounded bg-primary px-3 py-2 text-sm text-primary-foreground hover:opacity-90"
+              >
+                <Copy className="h-4 w-4" />
+                Copy
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setResetLinkResult(null)}
+              className="mt-4 rounded border border-input px-3 py-1.5 text-sm"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       <section>
         <h2 className="text-lg font-semibold">Assign user to organization</h2>
