@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ExternalLink, Share2, Copy, CopyPlus, Trash2, Check } from 'lucide-react';
+import { ExternalLink, Share2, Copy, CopyPlus, Trash2, Check, CodeXml } from 'lucide-react';
 interface Org {
   id: string;
   name: string;
@@ -160,7 +160,7 @@ export function ToolCardActions({ toolId, toolName, toolSlug, toolOrgId }: ToolC
         {copyId === 'share' ? <Check className="h-4 w-4 text-primary" /> : <Share2 className="h-4 w-4" />}
       </IconButton>
       <IconButton onClick={copyEmbed} title="Copy embed snippet">
-        {copyId === 'embed' ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
+        {copyId === 'embed' ? <Check className="h-4 w-4 text-primary" /> : <CodeXml className="h-4 w-4" />}
       </IconButton>
       <IconButton onClick={handleCloneOpen} title="Clone">
         <CopyPlus className="h-4 w-4" />

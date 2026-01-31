@@ -274,14 +274,6 @@ export default function ToolPricingClient({ toolId }: { toolId: string }) {
 
       <div className="flex gap-2 flex-wrap">
         <Button
-          variant={uploadMode === 'manual' ? 'default' : 'outline'}
-          onClick={() => loadPricingData('manual')}
-          className="gap-2"
-        >
-          <Sparkles className="h-4 w-4" />
-          Build Pricing Structure
-        </Button>
-        <Button
           variant={uploadMode === 'view' ? 'default' : 'outline'}
           onClick={() => loadPricingData('view')}
           className="gap-2"
@@ -289,16 +281,22 @@ export default function ToolPricingClient({ toolId }: { toolId: string }) {
           <Table className="h-4 w-4" />
           View Structure
         </Button>
+        <Button
+          variant={uploadMode === 'manual' ? 'default' : 'outline'}
+          onClick={() => loadPricingData('manual')}
+          className="gap-2"
+        >
+          <Sparkles className="h-4 w-4" />
+          Build Pricing Structure
+        </Button>
         <Button variant={uploadMode === 'upload' ? 'default' : 'outline'} onClick={() => setUploadMode('upload')} className="gap-2">
           <Upload className="h-4 w-4" />
           Import from Excel
         </Button>
-        {uploadMode === 'manual' && (
-          <Button variant="outline" onClick={() => window.open(`/api/dashboard/tools/${toolId}/download-template`, '_blank')} className="gap-2">
-            <Download className="h-4 w-4" />
-            Download Template
-          </Button>
-        )}
+        <Button variant="outline" onClick={() => window.open(`/api/dashboard/tools/${toolId}/download-template`, '_blank')} className="gap-2">
+          <Download className="h-4 w-4" />
+          Download Template
+        </Button>
       </div>
 
       <AnimatePresence mode="wait">

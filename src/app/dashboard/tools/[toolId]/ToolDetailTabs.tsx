@@ -7,7 +7,7 @@ import type { Tool } from '@/lib/supabase/types';
 import ToolSettingsClient from './settings/ToolSettingsClient';
 import ToolSurveyClient from './survey/ToolSurveyClient';
 import ToolPricingClient from './pricing/ToolPricingClient';
-import { ExternalLink, Copy, Check, Loader2, Share2, Pencil } from 'lucide-react';
+import { ExternalLink, Copy, Check, Loader2, Share2, Pencil, CodeXml } from 'lucide-react';
 import { CloneToolButton } from '@/components/CloneToolButton';
 
 type TabId = 'overview' | 'settings' | 'survey' | 'pricing';
@@ -391,7 +391,7 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
                 className="absolute top-2 right-2 z-10 inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted shadow-sm"
                 title="Copy snippet"
               >
-                {copyId === 'embed-snippet' ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+                {copyId === 'embed-snippet' ? <Check className="h-3.5 w-3.5 text-primary" /> : <CodeXml className="h-3.5 w-3.5" />}
                 {copyId === 'embed-snippet' ? 'Copied' : 'Copy'}
               </button>
               <pre className="overflow-x-auto rounded bg-muted p-3 pr-24 text-xs">
