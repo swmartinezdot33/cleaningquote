@@ -12,6 +12,11 @@ function getBaseUrl(): string {
   return 'https://www.cleanquote.io';
 }
 
+/**
+ * Create Stripe customer and redirect to checkout or payment link.
+ * Does NOT create Supabase user or org — those are created only in the webhook
+ * after payment is completed (checkout.session.completed or customer.subscription.created).
+ */
 export async function POST(request: NextRequest) {
   if (!stripeSecret) {
     return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 });
@@ -30,6 +35,7 @@ export async function POST(request: NextRequest) {
 
     const stripe = new Stripe(stripeSecret);
 
+    // Create/update Stripe customer only. No Supabase account until payment completes (webhook).
     // Check if customer already exists with this email
     const existingCustomers = await stripe.customers.list({ email, limit: 1 });
     let customer: Stripe.Customer;
@@ -94,13 +100,13 @@ export async function POST(request: NextRequest) {
         checkoutUrl: session.url,
       });
     } else {
-      // Fallback: redirect to payment link with customer info
+      // Fallback: redirect to payment link. User completes payment on Stripe; webhook creates account after subscription exists.
       const paymentLinkUrl = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_URL?.trim();
       if (paymentLinkUrl) {
         const url = new URL(paymentLinkUrl);
         url.searchParams.set('prefilled_email', email);
         url.searchParams.set('client_reference_id', customer.id);
-        
+
         return NextResponse.json({
           customerId: customer.id,
           email: customer.email,

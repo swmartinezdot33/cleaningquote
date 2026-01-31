@@ -219,6 +219,8 @@ export async function POST(request: NextRequest) {
 
   console.log('Stripe webhook: received event', event.type, event.id);
 
+  // We only create Supabase user + org when payment is completed and we have a subscription ID.
+  // Ignore: payment_method.*, customer.created, etc. — never create account before subscription exists.
   let admin: ReturnType<typeof createSupabaseServer>;
   try {
     admin = createSupabaseServer();
@@ -230,6 +232,7 @@ export async function POST(request: NextRequest) {
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
+        // Create Supabase user + org when checkout is completed (we have session email, customer, and subscription).
         const session = event.data.object as Stripe.Checkout.Session;
         const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null;
         let subscriptionId: string | null = typeof session.subscription === 'string' ? session.subscription : (session.subscription as Stripe.Subscription)?.id ?? null;
@@ -243,18 +246,23 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'No customer in session' }, { status: 400 });
         }
 
-        // If session has no subscription ID yet (e.g. trial), fetch customer's subscriptions and use the latest
+        // If session has no subscription ID yet (e.g. trial), fetch customer's subscriptions — retry with delay
         if (!subscriptionId) {
           const stripeApi = new Stripe(stripeSecret);
-          const subs = await stripeApi.subscriptions.list({ customer: customerId, status: 'all', limit: 1 });
-          if (subs.data.length > 0) {
-            subscriptionId = subs.data[0].id;
-            console.log('Stripe webhook: resolved subscription from customer list', { subscriptionId });
+          const delays = [0, 2000, 4000];
+          for (const delayMs of delays) {
+            if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
+            const subs = await stripeApi.subscriptions.list({ customer: customerId, status: 'all', limit: 1 });
+            if (subs.data.length > 0) {
+              subscriptionId = subs.data[0].id;
+              console.log('Stripe webhook: resolved subscription from customer list', { subscriptionId, afterDelayMs: delayMs });
+              break;
+            }
           }
         }
 
         if (!subscriptionId) {
-          console.warn('Stripe webhook: checkout.session.completed — no subscription ID; account will be created when customer.subscription.created fires', { email, customerId });
+          console.log('Stripe webhook: checkout.session.completed — no subscription ID yet; will create account on customer.subscription.created', { email, customerId });
           return NextResponse.json({ received: true });
         }
 
@@ -285,7 +293,7 @@ export async function POST(request: NextRequest) {
       }
 
       case 'customer.subscription.created': {
-        // Fallback for trial signups: checkout.session.completed sometimes has no subscription ID yet; this event always has the new subscription.
+        // Fallback: create user + org if checkout.session.completed didn't have subscription ID yet (e.g. trial timing).
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id ?? null;
         if (!customerId) return NextResponse.json({ received: true });
@@ -332,8 +340,18 @@ export async function POST(request: NextRequest) {
             orgId: result.orgId,
             isNewUser: result.isNewUser,
           });
+          return NextResponse.json({ received: true });
         }
-        return NextResponse.json({ received: true });
+        // Failed to create user/org — return 500 so Stripe retries the webhook
+        console.error('Stripe webhook: customer.subscription.created — ensureUserAndOrgFromStripe returned null (account not created)', {
+          email,
+          customerId,
+          subscriptionId: subscription.id,
+        });
+        return NextResponse.json(
+          { error: 'Failed to create user/org from subscription' },
+          { status: 500 }
+        );
       }
 
       case 'customer.subscription.updated':
@@ -362,6 +380,10 @@ export async function POST(request: NextRequest) {
       }
 
       default:
+        // Ignore payment_method.*, customer.created, etc. We never create Supabase account until we have a subscription.
+        if (event.type.startsWith('payment_method.')) {
+          console.log('Stripe webhook: ignoring (no account creation)', event.type);
+        }
         return NextResponse.json({ received: true });
     }
   } catch (err) {
