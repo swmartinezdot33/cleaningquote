@@ -47,3 +47,28 @@ export async function PATCH(
   }
   return NextResponse.json({ org });
 }
+
+/** DELETE - Delete organization (super admin only). Cascades: members, invitations, tools. */
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ orgId: string }> }
+) {
+  const supabase = await createSupabaseServerSSR();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !isSuperAdminEmail(user.email ?? undefined)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const { orgId } = await params;
+  if (!orgId) {
+    return NextResponse.json({ error: 'Org ID required' }, { status: 400 });
+  }
+
+  const admin = createSupabaseServer();
+  const { error } = await admin.from('organizations').delete().eq('id', orgId);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+  return NextResponse.json({ deleted: true });
+}

@@ -34,6 +34,7 @@ export default function SuperAdminPage() {
   const [editingOrg, setEditingOrg] = useState<string | null>(null);
   const [editOrg, setEditOrg] = useState({ name: '', slug: '' });
   const [savingOrg, setSavingOrg] = useState(false);
+  const [deletingOrgId, setDeletingOrgId] = useState<string | null>(null);
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [newUser, setNewUser] = useState({ email: '', password: '', org_id: '', role: 'member' });
   const [creatingUser, setCreatingUser] = useState(false);
@@ -184,6 +185,27 @@ export default function SuperAdminPage() {
       }
     } finally {
       setSavingOrg(false);
+    }
+  };
+
+  const deleteOrg = async (orgId: string) => {
+    const org = orgs.find((o) => o.id === orgId);
+    const memberCount = stats.memberCount[orgId] ?? 0;
+    const toolCount = stats.toolCount[orgId] ?? 0;
+    if (!confirm(`Permanently delete org "${org?.name ?? orgId}"? This will remove ${memberCount} member(s) and ${toolCount} tool(s). Cannot be recovered.`)) return;
+    setDeletingOrgId(orgId);
+    try {
+      const res = await fetch(`/api/dashboard/super-admin/orgs/${encodeURIComponent(orgId)}`, { method: 'DELETE' });
+      if (res.ok) {
+        setOrgs((prev) => prev.filter((o) => o.id !== orgId));
+        setMembers((prev) => prev.filter((m) => m.org_id !== orgId));
+        setMessage({ type: 'success', text: 'Organization deleted.' });
+      } else {
+        const d = await res.json();
+        setMessage({ type: 'error', text: d.error ?? 'Failed to delete org' });
+      }
+    } finally {
+      setDeletingOrgId(null);
     }
   };
 
@@ -394,8 +416,18 @@ export default function SuperAdminPage() {
                       <td className="p-3">{stats.memberCount[o.id] ?? 0}</td>
                       <td className="p-3">{stats.toolCount[o.id] ?? 0}</td>
                       <td className="p-3">
-                        <button onClick={saveOrg} disabled={savingOrg} className="text-primary text-xs">Save</button>
-                        <button onClick={() => setEditingOrg(null)} className="ml-2 text-muted-foreground text-xs">Cancel</button>
+                        <div className="flex items-center gap-2">
+                          <button onClick={saveOrg} disabled={savingOrg} className="text-primary text-xs">Save</button>
+                          <button onClick={() => setEditingOrg(null)} className="text-muted-foreground text-xs">Cancel</button>
+                          <button
+                            type="button"
+                            onClick={() => { setEditingOrg(null); deleteOrg(o.id); }}
+                            disabled={!!deletingOrgId}
+                            className="text-destructive text-xs disabled:opacity-50"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </>
                   ) : (
@@ -405,9 +437,20 @@ export default function SuperAdminPage() {
                       <td className="p-3">{stats.memberCount[o.id] ?? 0}</td>
                       <td className="p-3">{stats.toolCount[o.id] ?? 0}</td>
                       <td className="p-3">
-                        <button type="button" onClick={() => startEditOrg(o)} className="text-muted-foreground hover:text-foreground" title="Edit">
-                          <Pencil className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button type="button" onClick={() => startEditOrg(o)} className="text-muted-foreground hover:text-foreground" title="Edit">
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteOrg(o.id)}
+                            disabled={!!deletingOrgId}
+                            className="text-destructive/80 hover:text-destructive disabled:opacity-50"
+                            title="Delete org"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </>
                   )}
