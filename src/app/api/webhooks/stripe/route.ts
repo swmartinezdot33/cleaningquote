@@ -9,7 +9,12 @@ export const dynamic = 'force-dynamic';
 function getStripeConfig() {
   const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim();
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
-  return { stripeSecret: stripeSecret || undefined, webhookSecret: webhookSecret || undefined };
+  const webhookSecretAlt = process.env.STRIPE_WEBHOOK_SECRET_ALT?.trim();
+  return {
+    stripeSecret: stripeSecret || undefined,
+    webhookSecret: webhookSecret || undefined,
+    webhookSecretAlt: webhookSecretAlt || undefined,
+  };
 }
 
 const resendApiKey = process.env.RESEND_API_KEY;
@@ -171,12 +176,15 @@ async function ensureUserAndOrgFromStripe(
 }
 
 export async function POST(request: NextRequest) {
-  const { stripeSecret, webhookSecret } = getStripeConfig();
-  if (!stripeSecret || !webhookSecret) {
-    console.error('Stripe webhook: STRIPE_SECRET_KEY or STRIPE_WEBHOOK_SECRET not set (check Production env in Vercel)');
+  const { stripeSecret, webhookSecret, webhookSecretAlt } = getStripeConfig();
+  const hasPrimary = !!webhookSecret;
+  const hasAlt = !!webhookSecretAlt;
+  if (!stripeSecret || (!hasPrimary && !hasAlt)) {
+    console.error('Stripe webhook: STRIPE_SECRET_KEY and at least one of STRIPE_WEBHOOK_SECRET or STRIPE_WEBHOOK_SECRET_ALT must be set (check Production env in Vercel)');
     return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 });
   }
 
+  // Must use raw body for signature verification (do not parse JSON first)
   let rawBody: string;
   try {
     rawBody = await request.text();
@@ -190,14 +198,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing stripe-signature' }, { status: 400 });
   }
 
-  let event: Stripe.Event;
-  try {
-    const stripe = new Stripe(stripeSecret);
-    event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Invalid signature';
-    console.error('Stripe webhook: signature verification failed', message);
-    return NextResponse.json({ error: message }, { status: 400 });
+  const stripe = new Stripe(stripeSecret);
+  const secretsToTry = [webhookSecret, webhookSecretAlt].filter(Boolean) as string[];
+  let event: Stripe.Event | null = null;
+  for (const secret of secretsToTry) {
+    try {
+      event = stripe.webhooks.constructEvent(rawBody, signature, secret);
+      break;
+    } catch {
+      continue;
+    }
+  }
+  if (!event) {
+    console.error('Stripe webhook: signature verification failed (tried all configured secrets)');
+    return NextResponse.json(
+      { error: 'No signatures found matching the expected signature for payload. Are you passing the raw request body you received from Stripe?' },
+      { status: 400 }
+    );
   }
 
   console.log('Stripe webhook: received event', event.type, event.id);

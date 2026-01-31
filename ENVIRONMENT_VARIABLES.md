@@ -40,6 +40,11 @@ This document lists all environment variables used by the Cleaning Quote Platfor
 **Description:** Stripe webhook signing secret. For local testing use Stripe CLI: `stripe listen --forward-to localhost:3000/api/webhooks/stripe`.  
 **How to get:** Stripe Dashboard → Developers → Webhooks → Add endpoint → `https://your-domain.com/api/webhooks/stripe` (use your production URL, e.g. `https://www.cleanquote.io/api/webhooks/stripe`) → select events: **`checkout.session.completed`**, **`customer.subscription.created`** (required for account creation; fallback when checkout has no subscription ID), `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed` → copy Signing secret. Ensure `STRIPE_WEBHOOK_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` are set in the same environment (e.g. Vercel) so the webhook can create users and orgs.
 
+### `STRIPE_WEBHOOK_SECRET_ALT`
+**Required:** Optional (only if a second webhook destination hits the same URL)  
+**Type:** String (whsec_...)  
+**Description:** Signing secret for a second Stripe webhook endpoint (e.g. Workbench destination like "cleanquote-thin") that posts to the same `/api/webhooks/stripe` URL. The handler tries both `STRIPE_WEBHOOK_SECRET` and `STRIPE_WEBHOOK_SECRET_ALT` when verifying the signature. If you see "No signatures found matching the expected signature" for events from a second destination, add that destination’s signing secret here (Stripe → Workbench → Webhooks → [destination] → Reveal signing secret).
+
 ### `NEXT_PUBLIC_STRIPE_BILLING_PORTAL_URL`
 **Required:** Optional (when using Stripe subscriptions)  
 **Type:** URL String  
