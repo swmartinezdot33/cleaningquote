@@ -6,13 +6,51 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
+export type OrgRole = 'owner' | 'admin' | 'member';
+
 export interface Database {
   public: {
     Tables: {
+      organizations: {
+        Row: { id: string; name: string; slug: string; created_at: string; updated_at: string };
+        Insert: { id?: string; name: string; slug: string; created_at?: string; updated_at?: string };
+        Update: { id?: string; name?: string; slug?: string; created_at?: string; updated_at?: string };
+      };
+      organization_members: {
+        Row: { id: string; org_id: string; user_id: string; role: OrgRole; created_at: string };
+        Insert: { id?: string; org_id: string; user_id: string; role?: OrgRole; created_at?: string };
+        Update: { id?: string; org_id?: string; user_id?: string; role?: OrgRole; created_at?: string };
+      };
+      invitations: {
+        Row: {
+          id: string;
+          org_id: string;
+          email: string;
+          role: OrgRole;
+          token: string;
+          invited_by: string | null;
+          expires_at: string;
+          accepted_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          email: string;
+          role?: OrgRole;
+          token: string;
+          invited_by?: string | null;
+          expires_at: string;
+          accepted_at?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['invitations']['Insert']>;
+      };
       tools: {
         Row: {
           id: string;
           user_id: string;
+          org_id: string;
           name: string;
           slug: string;
           created_at: string;
@@ -20,7 +58,8 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          user_id: string;
+          user_id?: string;
+          org_id: string;
           name: string;
           slug: string;
           created_at?: string;
@@ -29,6 +68,7 @@ export interface Database {
         Update: {
           id?: string;
           user_id?: string;
+          org_id?: string;
           name?: string;
           slug?: string;
           created_at?: string;
@@ -124,6 +164,10 @@ export interface Database {
     Enums: Record<string, never>;
   };
 }
+
+export type Organization = Database['public']['Tables']['organizations']['Row'];
+export type OrganizationMember = Database['public']['Tables']['organization_members']['Row'];
+export type Invitation = Database['public']['Tables']['invitations']['Row'];
 
 export type Tool = Database['public']['Tables']['tools']['Row'];
 export type ToolInsert = Database['public']['Tables']['tools']['Insert'];

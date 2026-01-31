@@ -53,6 +53,13 @@ This document lists all environment variables used by the Cleaning Quote Platfor
 
 See [SUPABASE_MULTITENANT_SETUP.md](SUPABASE_MULTITENANT_SETUP.md) for creating the project and running the `tools` table migration.
 
+### `SUPER_ADMIN_EMAILS`
+**Required:** No (optional, for super admin access)  
+**Type:** Comma-separated list of email addresses  
+**Description:** Emails that can access the Super Admin dashboard at `/dashboard/super-admin` to manage all users and subaccounts (assign users to orgs, view orgs, etc.).  
+**Where to Set:** `.env.local` and Vercel → Environment Variables  
+**Example:** `admin@example.com,owner@cleanquote.io`
+
 ---
 
 ## Migration (Option B — first user and default tool)

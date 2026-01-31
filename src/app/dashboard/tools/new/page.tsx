@@ -1,16 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { slugToSafe } from '@/lib/supabase/tools';
 
 export default function NewToolPage() {
   const router = useRouter();
+  const [orgId, setOrgId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/dashboard/orgs/selected')
+      .then((r) => r.json())
+      .then((d) => setOrgId(d.org?.id ?? null))
+      .catch(() => {});
+  }, []);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value;
@@ -31,10 +39,16 @@ export default function NewToolPage() {
         setLoading(false);
         return;
       }
+      if (!orgId) {
+        setError('No organization selected. Please refresh and try again.');
+        setLoading(false);
+        return;
+      }
       const res = await fetch('/api/dashboard/tools', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          org_id: orgId,
           name: name.trim() || safeSlug,
           slug: safeSlug,
         }),
@@ -105,7 +119,7 @@ export default function NewToolPage() {
         <div>
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !orgId}
             className="w-full flex justify-center rounded-md bg-primary py-2 px-4 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
           >
             {loading ? 'Creating…' : 'Create quoting tool'}

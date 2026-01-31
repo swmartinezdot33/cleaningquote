@@ -1,15 +1,42 @@
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { createSupabaseServer } from '@/lib/supabase/server';
+import { ensureUserOrgs, isSuperAdminEmail } from '@/lib/org-auth';
+import { CloneToolButton } from '@/components/CloneToolButton';
 import type { Tool } from '@/lib/supabase/types';
 
 export default async function DashboardPage() {
   const supabase = await createSupabaseServerSSR();
-  const { data: tools } = await supabase
-    .from('tools')
-    .select('*')
-    .order('created_at', { ascending: false });
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
 
-  const list = (tools ?? []) as Tool[];
+  const orgs = await ensureUserOrgs(user.id, user.email ?? undefined);
+  const cookieStore = await cookies();
+  const selectedOrgId = cookieStore.get('selected_org_id')?.value ?? orgs[0]?.id;
+  const isSuperAdmin = isSuperAdminEmail(user.email ?? undefined);
+
+  let list: Tool[];
+  let orgByToolId: Record<string, string> = {};
+  if (isSuperAdmin) {
+    const admin = createSupabaseServer();
+    const { data: allTools } = await admin
+      .from('tools')
+      .select('*')
+      .order('created_at', { ascending: false });
+    list = (allTools ?? []) as Tool[];
+    const orgIds = [...new Set(list.map((t) => t.org_id))];
+    const { data: orgsData } = await admin.from('organizations').select('id, name').in('id', orgIds);
+    const orgMap = new Map((orgsData ?? []).map((o: { id: string; name: string }) => [o.id, o.name]));
+    orgByToolId = Object.fromEntries(list.map((t) => [t.id, orgMap.get(t.org_id) ?? 'Unknown']));
+  } else {
+    const { data: tools } = await supabase
+      .from('tools')
+      .select('*')
+      .eq('org_id', selectedOrgId ?? '')
+      .order('created_at', { ascending: false });
+    list = (tools ?? []) as Tool[];
+  }
 
   return (
     <div className="space-y-8">
@@ -38,10 +65,13 @@ export default async function DashboardPage() {
           {list.map((tool) => (
             <li key={tool.id}>
               <div className="block rounded-xl border border-border bg-card p-6 shadow-sm hover:border-primary/40 hover:shadow-md transition-shadow">
-                <Link href={`/dashboard/tools/${tool.id}`} className="block">
-                  <h2 className="font-semibold text-foreground">{tool.name}</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">/{tool.slug}</p>
-                </Link>
+                <div className="flex items-start justify-between gap-2">
+                  <Link href={`/dashboard/tools/${tool.id}`} className="block flex-1 min-w-0">
+                    <h2 className="font-semibold text-foreground">{tool.name}</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">/{tool.slug}</p>
+                  </Link>
+                  <CloneToolButton toolId={tool.id} />
+                </div>
                 <p className="mt-2 text-xs text-muted-foreground/80">
                   Survey:{' '}
                   <Link
@@ -52,6 +82,9 @@ export default async function DashboardPage() {
                   >
                     /t/{tool.slug}
                   </Link>
+                  {isSuperAdmin && orgByToolId[tool.id] && (
+                    <span className="ml-2 text-muted-foreground/60">({orgByToolId[tool.id]})</span>
+                  )}
                 </p>
               </div>
             </li>

@@ -3,6 +3,7 @@ import { createSupabaseServer } from './server';
 
 /**
  * Get a tool by slug (public; used for /t/[slug] resolution).
+ * Slug is unique per org - returns first match. For multi-org, caller may need org context.
  */
 export async function getToolBySlug(slug: string): Promise<Tool | null> {
   const supabase = createSupabaseServer();
@@ -30,31 +31,33 @@ export async function getToolById(id: string): Promise<Tool | null> {
 }
 
 /**
- * List tools for a user (by auth user id).
+ * List tools for an organization.
  */
-export async function listToolsByUserId(userId: string): Promise<Tool[]> {
+export async function listToolsByOrgId(orgId: string): Promise<Tool[]> {
   const supabase = createSupabaseServer();
   const { data, error } = await supabase
     .from('tools')
     .select('*')
-    .eq('user_id', userId)
+    .eq('org_id', orgId)
     .order('created_at', { ascending: false });
   if (error) return [];
   return (data ?? []) as Tool[];
 }
 
 /**
- * Create a new tool. Returns the created tool or null on error.
+ * Create a new tool in an organization.
  */
 export async function createTool(
-  userId: string,
-  input: { name: string; slug: string }
+  orgId: string,
+  input: { name: string; slug: string },
+  userId?: string
 ): Promise<Tool | null> {
   const supabase = createSupabaseServer();
   const insert: ToolInsert = {
-    user_id: userId,
+    org_id: orgId,
     name: input.name,
     slug: input.slug,
+    ...(userId && { user_id: userId }),
   };
   const { data, error } = await supabase
     .from('tools')
@@ -66,11 +69,18 @@ export async function createTool(
 }
 
 /**
- * Check if a slug is available (no existing tool with that slug).
+ * Check if a slug is available globally (for backward compat /t/[slug] must be unique).
+ * In multi-org, slug is unique per org; for public /t/slug we need globally unique.
+ * So we keep global slug uniqueness for the quote flow URL.
  */
 export async function isSlugAvailable(slug: string): Promise<boolean> {
-  const existing = await getToolBySlug(slug);
-  return !existing;
+  const supabase = createSupabaseServer();
+  const { data } = await supabase
+    .from('tools')
+    .select('id')
+    .eq('slug', slug)
+    .maybeSingle();
+  return !data;
 }
 
 /**

@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { canAccessTool } from '@/lib/org-auth';
 import type { Tool } from '@/lib/supabase/types';
 import { ToolDetailTabs } from './ToolDetailTabs';
 
@@ -20,7 +21,6 @@ export default async function ToolDetailPage({
     .from('tools')
     .select('*')
     .eq('id', toolId)
-    .eq('user_id', user.id)
     .single();
 
   if (error || !data) {
@@ -28,5 +28,9 @@ export default async function ToolDetailPage({
   }
 
   const tool = data as Tool;
+  const allowed = await canAccessTool(user.id, user.email ?? undefined, tool.org_id);
+  if (!allowed) {
+    notFound();
+  }
   return <ToolDetailTabs tool={tool} />;
 }

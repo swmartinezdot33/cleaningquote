@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { canAccessTool } from '@/lib/org-auth';
 import type { Tool } from '@/lib/supabase/types';
 export type DashboardAuthResult = { user: { id: string; email?: string }; tool: Tool };
 
@@ -8,9 +9,8 @@ export type DashboardAuthResultWithClient = DashboardAuthResult & {
 };
 
 /**
- * Get the current Supabase user and verify they own the given tool.
- * Use in dashboard API routes under /api/dashboard/tools/[toolId]/.
- * Returns { user, tool } on success, or a NextResponse error to return.
+ * Get the current Supabase user and verify they can access the given tool
+ * (org member or super admin).
  */
 export async function getDashboardUserAndTool(
   toolId: string
@@ -22,8 +22,7 @@ export async function getDashboardUserAndTool(
 }
 
 /**
- * Same as getDashboardUserAndTool but returns the Supabase client so the caller
- * can run further queries with the same session (e.g. updates).
+ * Same as getDashboardUserAndTool but returns the Supabase client.
  */
 export async function getDashboardUserAndToolWithClient(
   toolId: string
@@ -33,9 +32,7 @@ export async function getDashboardUserAndToolWithClient(
   }
 
   const supabase = await createSupabaseServerSSR();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
     return NextResponse.json(
@@ -48,7 +45,6 @@ export async function getDashboardUserAndToolWithClient(
     .from('tools')
     .select('*')
     .eq('id', toolId)
-    .eq('user_id', user.id)
     .single();
 
   if (error || !data) {
@@ -58,9 +54,18 @@ export async function getDashboardUserAndToolWithClient(
     );
   }
 
+  const tool = data as Tool;
+  const allowed = await canAccessTool(user.id, user.email ?? undefined, tool.org_id);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: 'Not found', message: 'Tool not found or access denied.' },
+      { status: 404 }
+    );
+  }
+
   return {
     user: { id: user.id, email: user.email },
-    tool: data as Tool,
+    tool,
     supabase,
   };
 }

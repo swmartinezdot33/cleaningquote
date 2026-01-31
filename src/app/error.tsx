@@ -1,8 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { BrandLogo } from '@/components/BrandLogo';
 
 export default function Error({
   error,
@@ -16,21 +14,70 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-muted/30 px-4">
-      <div className="max-w-md w-full text-center space-y-6">
-        <BrandLogo className="justify-center" />
-        <h1 className="text-2xl font-bold text-foreground">Something went wrong</h1>
-        <p className="text-muted-foreground">
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem',
+        fontFamily: 'system-ui, sans-serif',
+        background: '#f9fafb',
+      }}
+    >
+      <div style={{ maxWidth: '28rem', width: '100%', textAlign: 'center' }}>
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#0f172a', marginBottom: '0.5rem' }}>
+          CleanQuote.io
+        </h1>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>
+          Something went wrong
+        </h2>
+        <p style={{ marginTop: '1rem', color: '#64748b' }}>
           The page could not load. This is often due to a missing configuration or a temporary issue.
         </p>
-        <p className="text-sm text-muted-foreground font-mono truncate" title={error.message}>
+        <p
+          style={{
+            marginTop: '0.5rem',
+            fontSize: '0.875rem',
+            color: '#94a3b8',
+            wordBreak: 'break-all',
+          }}
+          title={error.message}
+        >
           {error.message}
         </p>
-        <div className="flex gap-3 justify-center">
-          <Button onClick={() => reset()}>Try again</Button>
-          <Button variant="outline" onClick={() => (window.location.href = '/')}>
+        <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+          <button
+            type="button"
+            onClick={() => reset()}
+            style={{
+              padding: '0.5rem 1rem',
+              background: '#7c3aed',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.5rem',
+              fontWeight: 500,
+              cursor: 'pointer',
+            }}
+          >
+            Try again
+          </button>
+          <button
+            type="button"
+            onClick={() => (window.location.href = '/')}
+            style={{
+              padding: '0.5rem 1rem',
+              background: 'white',
+              color: '#7c3aed',
+              border: '1px solid #e2e8f0',
+              borderRadius: '0.5rem',
+              fontWeight: 500,
+              cursor: 'pointer',
+            }}
+          >
             Go home
-          </Button>
+          </button>
         </div>
       </div>
     </div>

@@ -8,6 +8,7 @@ import ToolSettingsClient from './settings/ToolSettingsClient';
 import ToolSurveyClient from './survey/ToolSurveyClient';
 import ToolPricingClient from './pricing/ToolPricingClient';
 import { ExternalLink, Copy, Check, Loader2, Share2 } from 'lucide-react';
+import { CloneToolButton } from '@/components/CloneToolButton';
 
 type TabId = 'overview' | 'settings' | 'survey' | 'pricing';
 
@@ -127,7 +128,10 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
           ← Back to tools
         </Link>
       </div>
-      <h1 className="text-2xl font-bold text-foreground">{tool.name}</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold text-foreground">{tool.name}</h1>
+        <CloneToolButton toolId={tool.id} />
+      </div>
 
       <div className="border-b border-border">
         <nav className="-mb-px flex gap-6" aria-label="Tabs">

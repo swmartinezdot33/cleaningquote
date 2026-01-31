@@ -1,0 +1,123 @@
+import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { createSupabaseServer } from '@/lib/supabase/server';
+import type { Organization, OrganizationMember } from '@/lib/supabase/types';
+
+const SUPER_ADMIN_EMAILS = (process.env.SUPER_ADMIN_EMAILS ?? '')
+  .split(',')
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
+/** Check if the given email is a super admin */
+export function isSuperAdminEmail(email: string | undefined): boolean {
+  if (!email) return false;
+  return SUPER_ADMIN_EMAILS.includes(email.trim().toLowerCase());
+}
+
+/** Get organizations the current user is a member of */
+export async function getUserOrganizations(userId: string): Promise<
+  Array<Organization & { role: OrganizationMember['role'] }>
+> {
+  const supabase = createSupabaseServer();
+  const { data: dataRaw } = await supabase
+    .from('organization_members')
+    .select('org_id, role')
+    .eq('user_id', userId);
+  const data = (dataRaw ?? []) as Array<{ org_id: string; role: string }>;
+  if (!data.length) return [];
+  const orgIds = data.map((r) => r.org_id);
+  const { data: orgsRaw } = await supabase.from('organizations').select('*').in('id', orgIds);
+  const orgs = (orgsRaw ?? []) as Array<{ id: string; name: string; slug: string }>;
+  const roleByOrg = new Map(data.map((r) => [r.org_id, r.role]));
+  return orgs.map((o) => ({ ...o, role: (roleByOrg.get(o.id) ?? 'member') as OrganizationMember['role'] })) as (Organization & { role: OrganizationMember['role'] })[];
+}
+
+/** Get the current user's org memberships (for org switcher) */
+export async function getCurrentUserOrgMemberships(): Promise<
+  Array<{ org: Organization; role: OrganizationMember['role'] }>
+> {
+  const supabase = await createSupabaseServerSSR();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+  const orgs = await getUserOrganizations(user.id);
+  return orgs.map((o) => {
+    const { role, ...org } = o;
+    return { org: org as Organization, role };
+  });
+}
+
+/** Check if user can access a tool (member of tool's org, or super admin) */
+export async function canAccessTool(
+  userId: string,
+  userEmail: string | undefined,
+  toolOrgId: string
+): Promise<boolean> {
+  if (isSuperAdminEmail(userEmail)) return true;
+  const supabase = createSupabaseServer();
+  const { data } = await supabase
+    .from('organization_members')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('org_id', toolOrgId)
+    .maybeSingle();
+  return !!data;
+}
+
+/** Resolve current org from cookie or default to first membership */
+export function getSelectedOrgIdFromCookie(cookieHeader: string | null): string | null {
+  if (!cookieHeader) return null;
+  const match = cookieHeader.match(/selected_org_id=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+/** Slug helper for org creation */
+function slugToSafe(s: string): string {
+  return s
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+/** Ensure user has at least one org; create Personal if none. Returns orgs with roles. */
+export async function ensureUserOrgs(userId: string, userEmail: string | undefined): Promise<
+  Array<{ id: string; name: string; slug: string; role: string }>
+> {
+  const supabase = createSupabaseServer();
+  const { data: membershipsRaw } = await supabase
+    .from('organization_members')
+    .select('org_id, role')
+    .eq('user_id', userId);
+  const memberships = (membershipsRaw ?? []) as Array<{ org_id: string; role: string }>;
+
+  if (memberships.length > 0) {
+    const orgIds = memberships.map((m) => m.org_id);
+    const { data: orgsRaw } = await supabase
+      .from('organizations')
+      .select('*')
+      .in('id', orgIds)
+      .order('name');
+    const orgs = (orgsRaw ?? []) as Array<{ id: string; name: string; slug: string }>;
+    const roleByOrg = new Map(memberships.map((m) => [m.org_id, m.role]));
+    return orgs.map((o) => ({ ...o, role: roleByOrg.get(o.id) ?? 'member' }));
+  }
+
+  const emailPart = (userEmail ?? 'user').split('@')[0];
+  let slug = slugToSafe(emailPart) || 'personal';
+  slug = slug + '-' + Date.now().toString(36).slice(-6);
+
+  const { data: orgRaw, error: orgErr } = await supabase
+    .from('organizations')
+    .insert({ name: 'Personal', slug } as any)
+    .select()
+    .single();
+
+  if (orgErr || !orgRaw) return [];
+
+  const org = orgRaw as { id: string; name: string; slug: string };
+  await supabase
+    .from('organization_members')
+    .insert({ org_id: org.id, user_id: userId, role: 'owner' } as any);
+
+  return [{ ...org, role: 'owner' }];
+}

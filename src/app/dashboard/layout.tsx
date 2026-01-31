@@ -1,7 +1,10 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { ensureUserOrgs, isSuperAdminEmail } from '@/lib/org-auth';
 import { BrandLogo } from '@/components/BrandLogo';
+import { OrgSwitcher } from '@/components/OrgSwitcher';
 
 export default async function DashboardLayout({
   children,
@@ -15,6 +18,10 @@ export default async function DashboardLayout({
     redirect('/login?redirect=/dashboard');
   }
 
+  const orgs = await ensureUserOrgs(user.id, user.email ?? undefined);
+  const cookieStore = await cookies();
+  const selectedOrgId = cookieStore.get('selected_org_id')?.value ?? orgs[0]?.id ?? null;
+
   return (
     <div className="min-h-screen bg-muted/30">
       <header className="border-b border-border bg-card">
@@ -23,6 +30,17 @@ export default async function DashboardLayout({
             <BrandLogo />
           </Link>
           <div className="flex items-center gap-4">
+            {orgs.length > 0 && (
+              <OrgSwitcher orgs={orgs} selectedOrgId={selectedOrgId} />
+            )}
+            {isSuperAdminEmail(user.email ?? undefined) && (
+              <Link
+                href="/dashboard/super-admin"
+                className="text-sm font-medium text-amber-600 hover:text-amber-700 hover:underline"
+              >
+                Super Admin
+              </Link>
+            )}
             <Link
               href="/dashboard"
               className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
@@ -34,6 +52,12 @@ export default async function DashboardLayout({
               className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
             >
               Quotes
+            </Link>
+            <Link
+              href="/dashboard/team"
+              className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+            >
+              Team
             </Link>
             <Link
               href="/dashboard/profile"

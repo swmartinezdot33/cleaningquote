@@ -104,8 +104,22 @@ export async function POST(request: NextRequest) {
         userId = userData.user.id;
       }
 
+      const orgSlug = slug + '-' + Date.now().toString(36).slice(-6);
+      const { data: orgDataRaw, error: orgError } = await supabase
+        .from('organizations')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .insert({ name: 'Personal', slug: orgSlug } as any)
+        .select('id')
+        .single();
+      if (orgError || !orgDataRaw) {
+        return NextResponse.json({ error: 'Failed to create org: ' + (orgError?.message ?? 'unknown') }, { status: 500 });
+      }
+      const orgData = orgDataRaw as { id: string };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await supabase.from('organization_members').insert({ org_id: orgData.id, user_id: userId, role: 'owner' } as any);
+
       const insertPayload: ToolInsert = {
-        user_id: userId,
+        org_id: orgData.id,
         name: 'Default quoting tool',
         slug,
         updated_at: new Date().toISOString(),

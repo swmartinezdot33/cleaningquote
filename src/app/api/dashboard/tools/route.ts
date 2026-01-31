@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { ToolInsert } from '@/lib/supabase/types';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { slugToSafe } from '@/lib/supabase/tools';
+import { canAccessTool } from '@/lib/org-auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,6 +13,16 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    const orgId = body.org_id;
+    if (!orgId || typeof orgId !== 'string') {
+      return NextResponse.json({ error: 'Organization is required' }, { status: 400 });
+    }
+
+    const allowed = await canAccessTool(user.id, user.email ?? undefined, orgId);
+    if (!allowed) {
+      return NextResponse.json({ error: 'Access denied to this organization' }, { status: 403 });
+    }
+
     const name = typeof body.name === 'string' ? body.name.trim() : '';
     const slugRaw = typeof body.slug === 'string' ? body.slug.trim() : '';
     const slug = slugToSafe(slugRaw || name || 'tool');
@@ -25,7 +36,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Slug "${slug}" is already in use` }, { status: 400 });
     }
 
-    const insert: ToolInsert = { user_id: user.id, name: name || slug, slug };
+    const insert: ToolInsert = { org_id: orgId, name: name || slug, slug };
     const { data: tool, error } = await supabase
       .from('tools')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

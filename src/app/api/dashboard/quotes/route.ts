@@ -1,5 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { createSupabaseServer } from '@/lib/supabase/server';
+import { ensureUserOrgs, isSuperAdminEmail } from '@/lib/org-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,7 +10,7 @@ export const dynamic = 'force-dynamic';
  * GET /api/dashboard/quotes
  * List quotes for the current user's tools (from Supabase).
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createSupabaseServerSSR();
     const { data: { user } } = await supabase.auth.getUser();
@@ -16,20 +19,45 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Fetch user's tools first (RLS: user sees own tools)
-    const { data: userTools } = await supabase
-      .from('tools')
-      .select('id, name, slug')
-      .eq('user_id', user.id);
-    const toolMap = new Map((userTools ?? []).map((t: { id: string; name: string; slug: string }) => [t.id, { name: t.name, slug: t.slug }]));
+    const orgs = await ensureUserOrgs(user.id, user.email ?? undefined);
+    const cookieStore = await cookies();
+    const selectedOrgId = cookieStore.get('selected_org_id')?.value ?? orgs[0]?.id;
+    const isSuperAdmin = isSuperAdminEmail(user.email ?? undefined);
+
+    let toolMap: Map<string, { name: string; slug: string }>;
+    if (isSuperAdmin) {
+      const admin = createSupabaseServer();
+      const { data: allTools } = await admin.from('tools').select('id, name, slug');
+      toolMap = new Map((allTools ?? []).map((t: { id: string; name: string; slug: string }) => [t.id, { name: t.name, slug: t.slug }]));
+    } else {
+      const { data: userTools } = await supabase
+        .from('tools')
+        .select('id, name, slug')
+        .eq('org_id', selectedOrgId ?? '');
+      toolMap = new Map((userTools ?? []).map((t: { id: string; name: string; slug: string }) => [t.id, { name: t.name, slug: t.slug }]));
+    }
     const toolIds = new Set(toolMap.keys());
 
-    // RLS on quotes: users see quotes for their tools (or tool_id is null for legacy)
-    const { data: quotes, error } = await supabase
-      .from('quotes')
-      .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at')
-      .order('created_at', { ascending: false })
-      .limit(500);
+    let quotes: unknown[];
+    let error: { message: string } | null = null;
+    if (isSuperAdmin) {
+      const admin = createSupabaseServer();
+      const result = await admin
+        .from('quotes')
+        .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at')
+        .order('created_at', { ascending: false })
+        .limit(500);
+      quotes = result.data ?? [];
+      error = result.error;
+    } else {
+      const result = await supabase
+        .from('quotes')
+        .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at')
+        .order('created_at', { ascending: false })
+        .limit(500);
+      quotes = result.data ?? [];
+      error = result.error;
+    }
 
     if (error) {
       console.error('Dashboard quotes fetch error:', error);

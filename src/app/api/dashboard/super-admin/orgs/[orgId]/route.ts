@@ -1,0 +1,49 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { createSupabaseServer } from '@/lib/supabase/server';
+import { isSuperAdminEmail } from '@/lib/org-auth';
+import { slugToSafe } from '@/lib/supabase/tools';
+
+export const dynamic = 'force-dynamic';
+
+/** PATCH - Update organization (super admin only) */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ orgId: string }> }
+) {
+  const supabase = await createSupabaseServerSSR();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !isSuperAdminEmail(user.email ?? undefined)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const { orgId } = await params;
+  const body = await request.json().catch(() => ({}));
+
+  const updates: { name?: string; slug?: string } = {};
+  if (typeof body.name === 'string' && body.name.trim()) {
+    updates.name = body.name.trim();
+  }
+  if (typeof body.slug === 'string') {
+    const slug = slugToSafe(body.slug);
+    if (slug) updates.slug = slug;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: 'No valid updates' }, { status: 400 });
+  }
+
+  const admin = createSupabaseServer();
+  const { data: org, error } = await admin
+    .from('organizations')
+    // @ts-expect-error organizations update type
+    .update(updates)
+    .eq('id', orgId)
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+  return NextResponse.json({ org });
+}
