@@ -3,6 +3,7 @@
 import './globals.css';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { BrandLogo } from '@/components/BrandLogo';
 import { Button } from '@/components/ui/button';
 import { SignupModal } from '@/components/SignupModal';
@@ -455,7 +456,19 @@ function Footer({ onSignupClick }: { onSignupClick: () => void }) {
 }
 
 export default function MarketingPage() {
+  const searchParams = useSearchParams();
   const [signupModalOpen, setSignupModalOpen] = useState(false);
+
+  // Open signup modal when arriving from login "Sign up" link (?signup=1)
+  useEffect(() => {
+    if (searchParams.get('signup') === '1') {
+      setSignupModalOpen(true);
+      // Remove ?signup=1 from URL so the modal can be closed without it reopening
+      const url = new URL(window.location.href);
+      url.searchParams.delete('signup');
+      window.history.replaceState({}, '', url.pathname + (url.search || ''));
+    }
+  }, [searchParams]);
 
   return (
     <div className="min-h-screen flex flex-col">
