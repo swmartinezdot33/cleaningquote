@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Slug "${slug}" is already in use` }, { status: 400 });
     }
 
-    const insert: ToolInsert = { org_id: orgId, name: name || slug, slug };
+    const insert: ToolInsert = { org_id: orgId, user_id: user.id, name: name || slug, slug };
     const { data: tool, error } = await supabase
       .from('tools')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
