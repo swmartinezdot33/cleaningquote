@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { FileDown, ExternalLink, Loader2 } from 'lucide-react';
+import { FileDown, ExternalLink, Loader2, ArrowRightLeft } from 'lucide-react';
 
 interface QuoteRow {
   id: string;
@@ -52,18 +52,70 @@ function escapeCsv(val: string | number | null | undefined): string {
   return s;
 }
 
+interface ToolOption {
+  id: string;
+  name: string;
+  slug: string;
+  org_id: string;
+  org_name: string;
+}
+
 export default function DashboardQuotesPage() {
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [reassignQuote, setReassignQuote] = useState<QuoteRow | null>(null);
+  const [toolsForReassign, setToolsForReassign] = useState<ToolOption[]>([]);
+  const [selectedToolId, setSelectedToolId] = useState<string>('');
+  const [reassigning, setReassigning] = useState(false);
+  const [reassignMessage, setReassignMessage] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadQuotes = () => {
     fetch('/api/dashboard/quotes')
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load'))))
-      .then((data) => setQuotes(data.quotes ?? []))
+      .then((data) => {
+        setQuotes(data.quotes ?? []);
+        setIsSuperAdmin(!!data.isSuperAdmin);
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadQuotes();
   }, []);
+
+  const openReassign = (q: QuoteRow) => {
+    setReassignQuote(q);
+    setSelectedToolId(q.tool_id ?? '');
+    setReassignMessage(null);
+    fetch('/api/dashboard/super-admin/tools')
+      .then((r) => (r.ok ? r.json() : { tools: [] }))
+      .then((d) => setToolsForReassign(d.tools ?? []));
+  };
+
+  const submitReassign = async () => {
+    if (!reassignQuote) return;
+    setReassigning(true);
+    setReassignMessage(null);
+    try {
+      const res = await fetch(`/api/dashboard/super-admin/quotes/${reassignQuote.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tool_id: selectedToolId || null }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setReassignQuote(null);
+        loadQuotes();
+      } else {
+        setReassignMessage(data.error ?? 'Failed to reassign');
+      }
+    } finally {
+      setReassigning(false);
+    }
+  };
 
   const exportCsv = () => {
     const headers = [
@@ -181,19 +233,78 @@ export default function DashboardQuotesPage() {
                     </td>
                     <td className="px-4 py-3">{formatPrice(q.price_low, q.price_high)}</td>
                     <td className="px-4 py-3">
-                      <a
-                        href={`${baseUrl}/quote/${q.quote_id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-primary hover:underline"
-                      >
-                        View <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`${baseUrl}/quote/${q.quote_id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-primary hover:underline"
+                        >
+                          View <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                        {isSuperAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => openReassign(q)}
+                            className="inline-flex items-center gap-1 rounded border border-amber-500/50 bg-amber-500/10 px-2 py-1 text-xs text-amber-700 hover:bg-amber-500/20 dark:text-amber-400"
+                            title="Reassign to another org’s tool"
+                          >
+                            <ArrowRightLeft className="h-3.5 w-3.5" />
+                            Reassign
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {reassignQuote && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-lg border border-border bg-card p-4 shadow-lg">
+            <h3 className="font-semibold text-foreground">Reassign quote to org</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {reassignQuote.first_name} {reassignQuote.last_name} · {reassignQuote.quote_id}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Choose the tool (org) this quote should belong to. It will then show in that org’s quotes.
+            </p>
+            <select
+              value={selectedToolId}
+              onChange={(e) => setSelectedToolId(e.target.value)}
+              className="mt-3 w-full rounded border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">— No tool (legacy) —</option>
+              {toolsForReassign.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.org_name} → {t.name}
+                </option>
+              ))}
+            </select>
+            {reassignMessage && (
+              <p className="mt-2 text-sm text-destructive">{reassignMessage}</p>
+            )}
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={submitReassign}
+                disabled={reassigning}
+                className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
+              >
+                {reassigning ? 'Saving…' : 'Reassign'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setReassignQuote(null); setReassignMessage(null); }}
+                className="rounded border border-input px-3 py-1.5 text-sm"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

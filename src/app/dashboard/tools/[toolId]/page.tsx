@@ -32,5 +32,13 @@ export default async function ToolDetailPage({
   if (!allowed) {
     notFound();
   }
-  return <ToolDetailTabs tool={tool} />;
+
+  // Org slug for unambiguous embed URLs (/t/orgSlug/toolSlug) so quotes always associate to this org
+  let orgSlug: string | null = null;
+  const { data: org } = await supabase.from('organizations').select('slug').eq('id', tool.org_id).single();
+  if (org && typeof (org as { slug?: string }).slug === 'string') {
+    orgSlug = (org as { slug: string }).slug;
+  }
+
+  return <ToolDetailTabs tool={tool} orgSlug={orgSlug} />;
 }

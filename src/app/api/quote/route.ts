@@ -120,14 +120,26 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { ghlContactId: providedContactId, contactId: bodyContactId, toolSlug, toolId: bodyToolId } = body;
 
-    // Resolve tool for multi-tenant (toolSlug or toolId in body)
-    let toolId: string | undefined = bodyToolId;
+    // Resolve tool for multi-tenant: prefer toolId (unambiguous). If only toolSlug, resolve by slug but fail if multiple orgs use same slug.
+    let toolId: string | undefined = typeof bodyToolId === 'string' && bodyToolId.trim() ? bodyToolId.trim() : undefined;
     if (!toolId && toolSlug && typeof toolSlug === 'string') {
+      const slug = toolSlug.trim();
       try {
-        const { createSupabaseServerSSR } = await import('@/lib/supabase/server-ssr');
-        const supabase = await createSupabaseServerSSR();
-        const { data } = await supabase.from('tools').select('id').eq('slug', toolSlug).single();
-        toolId = (data as { id?: string } | null)?.id;
+        const supabase = createSupabaseServer();
+        const { data: toolsWithSlug } = await supabase.from('tools').select('id').eq('slug', slug);
+        const list = (toolsWithSlug ?? []) as { id: string }[];
+        if (list.length > 1) {
+          return NextResponse.json(
+            {
+              error: 'Multiple tools use this slug. Use an org-scoped embed URL so quotes go to the right org: /t/{orgSlug}/{toolSlug} (e.g. /t/raleighcleaningcompany/default).',
+              code: 'AMBIGUOUS_SLUG',
+            },
+            { status: 400 }
+          );
+        }
+        if (list.length === 1) {
+          toolId = list[0].id;
+        }
       } catch (_) {
         toolId = undefined;
       }

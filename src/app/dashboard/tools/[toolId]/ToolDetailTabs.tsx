@@ -12,7 +12,7 @@ import { CloneToolButton } from '@/components/CloneToolButton';
 
 type TabId = 'overview' | 'settings' | 'survey' | 'pricing';
 
-export function ToolDetailTabs({ tool }: { tool: Tool }) {
+export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?: string | null }) {
   const router = useRouter();
   const [tab, setTab] = useState<TabId>('overview');
   const toolId = tool.id;
@@ -57,13 +57,16 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
     return () => { cancelled = true; };
   }, [tab, toolId]);
 
+  // Unambiguous org-scoped paths (recommended): quotes always associate to this org even if another org reuses this tool slug
+  const surveyPathOrgScoped = orgSlug ? `/t/${orgSlug}/${tool.slug}` : null;
+  const quoteResultPathOrgScoped = orgSlug ? `/t/${orgSlug}/${tool.slug}/quote/[id]` : null;
   const surveyPath = `/t/${tool.slug}`;
   const quoteResultPath = `/t/${tool.slug}/quote/[id]`;
   const origin = overviewMounted && typeof window !== 'undefined' ? window.location.origin : '';
   const baseUrl = publicBaseUrl || origin;
-  const surveyFullUrl = baseUrl ? `${baseUrl}${surveyPath}` : surveyPath;
-  const quoteResultFullUrl = baseUrl ? `${baseUrl}${quoteResultPath}` : quoteResultPath;
-  // Embed snippet always uses custom public link (when set) and this tool's slug; never empty
+  const surveyFullUrl = baseUrl ? `${baseUrl}${(surveyPathOrgScoped ?? surveyPath)}` : (surveyPathOrgScoped ?? surveyPath);
+  const quoteResultFullUrl = baseUrl ? `${baseUrl}${(quoteResultPathOrgScoped ?? quoteResultPath)}` : (quoteResultPathOrgScoped ?? quoteResultPath);
+  // Embed snippet: prefer org-scoped so quotes never associate with the wrong org when slugs are reused
   const embedBaseUrl = baseUrl || (typeof window !== 'undefined' ? window.location.origin : '') || 'https://your-site.com';
   const embedSlug = tool.slug;
 
@@ -301,6 +304,11 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
             <h2 className="text-sm font-medium text-foreground">Public links</h2>
             <p className="mt-0.5 text-sm text-muted-foreground mb-3">
               Share these URLs. Quote result uses <code className="rounded bg-muted px-1">[id]</code> as the quote ID.
+              {orgSlug && (
+                <span className="block mt-1 text-xs text-green-600 dark:text-green-400">
+                  Using org-scoped paths (<code className="rounded bg-muted px-1">/t/{orgSlug}/{tool.slug}</code>) so quotes always associate with this organization, even if another org reuses this tool slug.
+                </span>
+              )}
             </p>
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
@@ -362,23 +370,27 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
             </div>
           </div>
 
-          {/* Embed snippet - always uses this tool's custom public link and slug */}
+          {/* Embed snippet - prefer org-scoped so quotes never go to wrong org when slugs are reused */}
           <div className="rounded-xl border border-border bg-card p-4">
             <h2 className="text-sm font-medium text-foreground">Embed snippet</h2>
             <p className="mt-1 text-sm text-muted-foreground mb-2">
-              This code includes your public link, slug (<code className="rounded bg-muted px-1">/t/{embedSlug}</code>), and GHL contact placeholders for pre-fill. Paste it in GHL or your site; remove the <code className="rounded bg-muted px-1">data-*-name</code> attributes if not using GHL.
+              {orgSlug
+                ? <>Uses org-scoped URL (<code className="rounded bg-muted px-1">/t/{orgSlug}/{embedSlug}</code>) so quotes always stay with this organization. Includes GHL contact placeholders; remove <code className="rounded bg-muted px-1">data-*-name</code> if not using GHL.</>
+                : <>This code includes your public link, slug (<code className="rounded bg-muted px-1">/t/{embedSlug}</code>), and GHL contact placeholders for pre-fill. Paste it in GHL or your site; remove the <code className="rounded bg-muted px-1">data-*-name</code> attributes if not using GHL.</>
+              }
             </p>
             <div className="relative">
               <button
                 type="button"
-                onClick={() => copyToClipboard(`<!-- CleanQuote.io embed - public link: ${embedBaseUrl}, slug: ${embedSlug} -->
+                onClick={() => copyToClipboard(
+                  `<!-- CleanQuote.io embed - public link: ${embedBaseUrl}${orgSlug ? `, org-scoped: /t/${orgSlug}/${embedSlug}` : `, slug: ${embedSlug}`} -->
 <div id="cleaning-quote-widget"></div>
 <script src="${embedBaseUrl}/widget.js"
   data-base-url="${embedBaseUrl}"
-  data-tool="${embedSlug}"
-  data-tool-slug="${embedSlug}"
   data-container-id="cleaning-quote-widget"
   data-height="1200"
+  ${orgSlug ? `data-org-slug="${orgSlug}"\n  ` : ''}data-tool="${embedSlug}"
+  data-tool-slug="${embedSlug}"
   data-first-name="{{contact.firstName}}"
   data-last-name="{{contact.lastName}}"
   data-phone="{{contact.phone}}"
@@ -387,7 +399,9 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
   data-city="{{contact.city}}"
   data-state="{{contact.state}}"
   data-postal-code="{{contact.postalCode}}">
-</script>`, 'embed-snippet')}
+</script>`,
+                  'embed-snippet'
+                )}
                 className="absolute top-2 right-2 z-10 inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted shadow-sm"
                 title="Copy snippet"
               >
@@ -395,14 +409,14 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
                 {copyId === 'embed-snippet' ? 'Copied' : 'Copy'}
               </button>
               <pre className="overflow-x-auto rounded bg-muted p-3 pr-24 text-xs">
-                {`<!-- CleanQuote.io embed - public link: ${embedBaseUrl}, slug: ${embedSlug} -->
+                {`<!-- CleanQuote.io embed - public link: ${embedBaseUrl}${orgSlug ? `, org-scoped: /t/${orgSlug}/${embedSlug}` : `, slug: ${embedSlug}`} -->
 <div id="cleaning-quote-widget"></div>
 <script src="${embedBaseUrl}/widget.js"
   data-base-url="${embedBaseUrl}"
-  data-tool="${embedSlug}"
-  data-tool-slug="${embedSlug}"
   data-container-id="cleaning-quote-widget"
   data-height="1200"
+  ${orgSlug ? `data-org-slug="${orgSlug}"\n  ` : ''}data-tool="${embedSlug}"
+  data-tool-slug="${embedSlug}"
   data-first-name="{{contact.firstName}}"
   data-last-name="{{contact.lastName}}"
   data-phone="{{contact.phone}}"

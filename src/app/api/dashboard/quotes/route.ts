@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({ quotes: withToolInfo });
+    return NextResponse.json({ quotes: withToolInfo, isSuperAdmin: !!isSuperAdmin });
   } catch (err) {
     console.error('Dashboard quotes error:', err);
     return NextResponse.json(

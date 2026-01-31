@@ -231,8 +231,8 @@ interface QuoteResponse {
 // Default questions (fallback if none are configured)
 // No hardcoded defaults - all questions come from KV via the unified API
 
-export function Home(props: { slug?: string; initialConfig?: ToolConfig | null } = {}) {
-  const { slug, initialConfig } = props;
+export function Home(props: { slug?: string; toolId?: string; initialConfig?: ToolConfig | null; pathBase?: string } = {}) {
+  const { slug, toolId, initialConfig, pathBase } = props;
   const hasInitialData = !!(initialConfig?.questions?.length);
   const [mounted, setMounted] = useState(hasInitialData);
   const [currentStep, setCurrentStep] = useState(0);
@@ -1332,6 +1332,7 @@ export function Home(props: { slug?: string; initialConfig?: ToolConfig | null }
         ...utmParams,
         ...passthroughToApi,
         ...(slug && { toolSlug: slug }),
+        ...(toolId && { toolId }),
       };
 
       // Add any custom fields (those that were sanitized)
@@ -1370,7 +1371,7 @@ export function Home(props: { slug?: string; initialConfig?: ToolConfig | null }
 
         const redirectParams = new URLSearchParams(window.location.search);
         ['contactId', 'fromOutOfService', 'startAt'].forEach(k => redirectParams.delete(k));
-        const quotePath = slug ? `/t/${slug}/quote/${result.quoteId}` : `/quote/${result.quoteId}`;
+        const quotePath = pathBase ? `${pathBase}/quote/${result.quoteId}` : (slug ? `/t/${slug}/quote/${result.quoteId}` : `/quote/${result.quoteId}`);
         const quoteUrl = `${quotePath}${redirectParams.toString() ? `?${redirectParams.toString()}` : ''}`;
         
         // If embedded in iframe, notify parent and update iframe src
