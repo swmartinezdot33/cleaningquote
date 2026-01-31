@@ -636,13 +636,13 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
         <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
           <CardHeader
-            className="border-b border-border pb-6 cursor-pointer"
+            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
             onClick={() => toggleCard('service-area')}
           >
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                  <MapPin className="h-5 w-5 text-emerald-600" />
+                  <MapPin className="h-5 w-5 text-primary" />
                   Service Area
                 </CardTitle>
                 <CardDescription className="text-muted-foreground mt-1">
@@ -696,13 +696,13 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
         <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
           <CardHeader
-            className="border-b border-border pb-6 cursor-pointer"
+            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
             onClick={() => toggleCard('maps')}
           >
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                  <Code className="h-5 w-5 text-blue-600" />
+                  <Code className="h-5 w-5 text-primary" />
                   Google Maps API Key
                 </CardTitle>
                 <CardDescription className="text-muted-foreground mt-1">

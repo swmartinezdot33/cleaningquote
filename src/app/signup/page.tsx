@@ -1,14 +1,22 @@
 'use client';
 
 import '../globals.css';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createSupabaseBrowser } from '@/lib/supabase/client';
 import { BrandLogo } from '@/components/BrandLogo';
 
+const stripeCheckoutUrl = process.env.NEXT_PUBLIC_STRIPE_CHECKOUT_URL ?? '';
+
 export default function SignupPage() {
   const router = useRouter();
+
+  useEffect(() => {
+    if (stripeCheckoutUrl.startsWith('http')) {
+      window.location.href = stripeCheckoutUrl;
+    }
+  }, []);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +44,17 @@ export default function SignupPage() {
       setLoading(false);
     }
   };
+
+  if (stripeCheckoutUrl.startsWith('http')) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
+        <div className="text-center">
+          <BrandLogo />
+          <p className="mt-4 text-muted-foreground">Redirecting to checkout…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">

@@ -88,13 +88,9 @@ export function ToolCardActions({ toolId, toolName, toolSlug, toolOrgId }: ToolC
 
   const handleShare = async () => {
     try {
-      if (typeof navigator !== 'undefined' && navigator.share) {
-        await navigator.share({ url: surveyUrl, title: toolName, text: 'Check out this survey' });
-      } else {
-        await navigator.clipboard.writeText(surveyUrl);
-        setCopyId('share');
-        setTimeout(() => setCopyId(null), 2000);
-      }
+      await navigator.clipboard.writeText(surveyUrl);
+      setCopyId('share');
+      setTimeout(() => setCopyId(null), 2000);
     } catch {}
   };
 
@@ -160,7 +156,7 @@ export function ToolCardActions({ toolId, toolName, toolSlug, toolOrgId }: ToolC
       <IconButton onClick={() => window.open(surveyUrl, '_blank')} title="Open quote form">
         <ExternalLink className="h-4 w-4" />
       </IconButton>
-      <IconButton onClick={handleShare} title="Share">
+      <IconButton onClick={handleShare} title={copyId === 'share' ? 'Link copied' : 'Copy link'}>
         {copyId === 'share' ? <Check className="h-4 w-4 text-primary" /> : <Share2 className="h-4 w-4" />}
       </IconButton>
       <IconButton onClick={copyEmbed} title="Copy embed snippet">

@@ -31,6 +31,12 @@ function Header() {
           >
             Features
           </a>
+          <a
+            href="#pricing"
+            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Pricing
+          </a>
           <Link href="/login">
             <Button variant="ghost" size="sm" className="rounded-none font-medium">
               Log in
@@ -39,13 +45,13 @@ function Header() {
           {isStripeCheckout ? (
             <a href={getStartedHref} target="_blank" rel="noopener noreferrer">
               <Button size="sm" className="rounded-none font-medium">
-                Get started
+                Sign up
               </Button>
             </a>
           ) : (
             <Link href={getStartedHref}>
               <Button size="sm" className="rounded-none font-medium">
-                Get started
+                Sign up
               </Button>
             </Link>
           )}
@@ -81,14 +87,14 @@ function Hero() {
           {isStripeCheckout ? (
             <a href={getStartedHref} target="_blank" rel="noopener noreferrer">
               <Button size="lg" className="gap-2 rounded-none text-base font-semibold shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 transition-shadow">
-                Get CleanQuote.io
+                Start 14-day free trial
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </a>
           ) : (
             <Link href={getStartedHref}>
               <Button size="lg" className="gap-2 rounded-none text-base font-semibold shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 transition-shadow">
-                Start free
+                Start 14-day free trial
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
@@ -100,7 +106,7 @@ function Hero() {
           </Link>
         </div>
         <p className="mt-6 text-sm text-muted-foreground">
-          {isStripeCheckout ? 'Secure checkout via Stripe · Cancel anytime' : 'No credit card required · Set up in under 2 minutes · Cancel anytime'}
+          {isStripeCheckout ? '14-day free trial · $297/mo after · Cancel anytime · Secure checkout via Stripe' : '14-day free trial · $297/mo after · No credit card required to start'}
         </p>
       </div>
     </section>
@@ -228,6 +234,51 @@ function Features() {
   );
 }
 
+function Pricing() {
+  return (
+    <section id="pricing" className="relative border-t border-white/20 py-20 sm:py-28 overflow-hidden">
+      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-muted/30 via-background to-muted/20" />
+      <div className="mx-auto max-w-4xl px-4 text-center sm:px-6">
+        <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          Simple, predictable pricing
+        </h2>
+        <p className="mt-3 text-lg text-muted-foreground max-w-xl mx-auto">
+          Full access to all tools. No hidden fees. Cancel anytime.
+        </p>
+        <div className="mt-12 inline-block rounded-none border-2 border-primary/30 bg-white/70 p-8 shadow-2xl shadow-primary/10 backdrop-blur-md">
+          <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-10">
+            <div className="text-left">
+              <p className="text-4xl font-bold text-foreground">$297<span className="text-lg font-medium text-muted-foreground">/month</span></p>
+              <p className="mt-2 text-sm font-medium text-primary">14-day free trial</p>
+              <p className="mt-4 text-sm text-muted-foreground max-w-xs">
+                Unlimited quote tools, GHL integration, custom surveys, service areas, and more.
+              </p>
+            </div>
+            <div className="flex-shrink-0">
+              {isStripeCheckout ? (
+                <a href={getStartedHref} target="_blank" rel="noopener noreferrer">
+                  <Button size="lg" className="gap-2 rounded-none text-base font-semibold shadow-xl shadow-primary/25">
+                    Start free trial
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </a>
+              ) : (
+                <Link href={getStartedHref}>
+                  <Button size="lg" className="gap-2 rounded-none text-base font-semibold shadow-xl shadow-primary/25">
+                    Start free trial
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              )}
+              <p className="mt-3 text-xs text-muted-foreground">No credit card required to start</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function CTA() {
   return (
     <section className="relative py-20 sm:py-28 overflow-hidden">
@@ -239,20 +290,20 @@ function CTA() {
             Ready to close more leads?
           </h2>
           <p className="mt-4 text-lg text-muted-foreground max-w-xl mx-auto">
-            Create your account in under a minute. Connect your pricing, add your quote form, and start sending instant estimates today—no credit card required to start.
+            Start your 14-day free trial. Full access to quote tools, GHL integration, and more. $297/month after trial—cancel anytime.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             {isStripeCheckout ? (
               <a href={getStartedHref} target="_blank" rel="noopener noreferrer">
                 <Button size="lg" className="gap-2 rounded-none text-base font-semibold shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 transition-shadow">
-                  Get CleanQuote.io
+                  Sign up — Start free trial
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </a>
             ) : (
               <Link href={getStartedHref}>
                 <Button size="lg" className="gap-2 rounded-none text-base font-semibold shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 transition-shadow">
-                  Get started
+                  Sign up — Start free trial
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
@@ -286,6 +337,9 @@ function Footer() {
             <a href="#features" className="hover:text-foreground transition-colors">
               Features
             </a>
+            <a href="#pricing" className="hover:text-foreground transition-colors">
+              Pricing
+            </a>
             <Link href="/privacy" className="hover:text-foreground transition-colors">
               Privacy
             </Link>
@@ -297,11 +351,11 @@ function Footer() {
             </Link>
             {isStripeCheckout ? (
               <a href={getStartedHref} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">
-                Get CleanQuote.io
+                Sign up
               </a>
             ) : (
               <Link href={getStartedHref} className="font-medium text-primary hover:underline">
-                Sign up free
+                Sign up
               </Link>
             )}
           </div>
@@ -320,6 +374,7 @@ export default function MarketingPage() {
         <WhySection />
         <HowItWorks />
         <Features />
+        <Pricing />
         <CTA />
       </main>
       <Footer />

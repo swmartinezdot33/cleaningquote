@@ -100,17 +100,9 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
 
   const handleShare = async () => {
     try {
-      if (typeof navigator !== 'undefined' && navigator.share) {
-        await navigator.share({
-          url: surveyFullUrl,
-          title: tool.name,
-          text: 'Check out this survey',
-        });
-      } else {
-        await navigator.clipboard.writeText(surveyFullUrl);
-        setShareCopied(true);
-        setTimeout(() => setShareCopied(false), 2000);
-      }
+      await navigator.clipboard.writeText(surveyFullUrl);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
     } catch {}
   };
 
@@ -187,9 +179,10 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
                   type="button"
                   onClick={handleShare}
                   className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+                  title="Copy link"
                 >
                   {shareCopied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Share2 className="h-3.5 w-3.5" />}
-                  {shareCopied ? 'Copied' : 'Share'}
+                  {shareCopied ? 'Link copied' : 'Share'}
                 </button>
                 <button
                   type="button"
