@@ -25,22 +25,31 @@ export default function SetPasswordPage() {
   useEffect(() => {
     const run = async () => {
       const supabase = createSupabaseBrowser();
-      // Supabase client processes hash (#access_token=...) on init/getSession
+      const hash = typeof window !== 'undefined' ? window.location.hash : '';
+      // inviteUserByEmail uses implicit flow (hash) — PKCE client doesn't auto-process it
+      if (hash) {
+        const params = new URLSearchParams(hash.replace(/^#/, ''));
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+        if (accessToken && refreshToken) {
+          const { error: setErr } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          if (setErr) {
+            setError(setErr.message || 'Could not verify your link. It may have expired.');
+            return;
+          }
+          // Clear hash from URL for cleaner UX
+          window.history.replaceState(null, '', window.location.pathname);
+          setSessionReady(true);
+          return;
+        }
+      }
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setSessionReady(true);
+      } else if (!hash || !hash.includes('access_token')) {
+        router.replace('/login?redirect=/dashboard');
       } else {
-        // No hash or failed to establish session — redirect to login
-        const hasHash = typeof window !== 'undefined' && window.location.hash?.includes('access_token');
-        if (!hasHash) {
-          router.replace('/login?redirect=/dashboard');
-        } else {
-          // Hash present but no session yet — wait a moment for Supabase to process
-          await new Promise((r) => setTimeout(r, 500));
-          const { data: { session: s2 } } = await supabase.auth.getSession();
-          if (s2) setSessionReady(true);
-          else setError('Could not verify your link. It may have expired. Please request a new invite.');
-        }
+        setError('Could not verify your link. It may have expired. Please request a new invite.');
       }
     };
     run();
