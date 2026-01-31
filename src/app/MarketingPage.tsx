@@ -321,7 +321,7 @@ function CTA({ onSignupClick }: { onSignupClick: () => void }) {
   );
 }
 
-function Footer() {
+function Footer({ onSignupClick }: { onSignupClick: () => void }) {
   return (
     <footer className="border-t border-white/20 bg-white/50 py-10 shadow-[0_-4px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-md">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
@@ -353,15 +353,9 @@ function Footer() {
             <Link href="/login" className="hover:text-foreground transition-colors">
               Log in
             </Link>
-            {isStripeCheckout ? (
-              <a href={getStartedHref} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">
-                Sign up
-              </a>
-            ) : (
-              <Link href={getStartedHref} className="font-medium text-primary hover:underline">
-                Sign up
-              </Link>
-            )}
+            <button onClick={onSignupClick} className="font-medium text-primary hover:underline">
+              Sign up
+            </button>
           </div>
         </div>
       </div>
@@ -384,7 +378,7 @@ export default function MarketingPage() {
         <Pricing onSignupClick={() => setSignupModalOpen(true)} />
         <CTA onSignupClick={() => setSignupModalOpen(true)} />
       </main>
-      <Footer />
+      <Footer onSignupClick={() => setSignupModalOpen(true)} />
       <SignupModal open={signupModalOpen} onOpenChange={setSignupModalOpen} />
     </div>
   );
