@@ -6,9 +6,10 @@ import { getOrgsForDashboard } from '@/lib/org-auth';
 import { ProfileForm } from './ProfileForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CreditCard, Building2 } from 'lucide-react';
+import { CreditCard, Building2, PlusCircle } from 'lucide-react';
 
 const billingPortalUrl = process.env.NEXT_PUBLIC_STRIPE_BILLING_PORTAL_URL ?? '';
+const stripeCheckoutUrl = process.env.NEXT_PUBLIC_STRIPE_CHECKOUT_URL ?? '';
 
 function subscriptionStatusLabel(status: string | null | undefined): string {
   if (!status) return 'Not linked';
@@ -86,14 +87,25 @@ export default async function ProfilePage() {
               </span>
             </div>
           )}
-          {showBilling ? (
-            <a href={billingPortalUrl} target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" className="gap-2">
-                <CreditCard className="h-4 w-4" />
-                Manage billing
-              </Button>
-            </a>
-          ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            {showBilling && (
+              <a href={billingPortalUrl} target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" className="gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  Manage billing
+                </Button>
+              </a>
+            )}
+            {stripeCheckoutUrl.startsWith('http') && (
+              <a href={stripeCheckoutUrl} target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" className="gap-2">
+                  <PlusCircle className="h-4 w-4" />
+                  Add another org
+                </Button>
+              </a>
+            )}
+          </div>
+          {!showBilling && (
             <p className="text-sm text-muted-foreground">
               {!billingPortalUrl.startsWith('http')
                 ? 'Manage billing is not configured (NEXT_PUBLIC_STRIPE_BILLING_PORTAL_URL is missing or invalid).'
@@ -102,6 +114,11 @@ export default async function ProfilePage() {
                   : !selectedOrgHasStripe
                     ? 'This org is not linked to Stripe yet. Complete Stripe Checkout (e.g. from the Get started or Subscribe flow) to link it; then you’ll see Manage billing here.'
                     : 'Manage billing is unavailable for this org.'}
+            </p>
+          )}
+          {stripeCheckoutUrl.startsWith('http') && (
+            <p className="text-xs text-muted-foreground">
+              Add another org opens Stripe Checkout to start a new subscription ($297/org). The new org will appear in your org switcher after checkout.
             </p>
           )}
         </CardContent>

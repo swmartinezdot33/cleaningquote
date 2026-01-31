@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Clock, ChevronLeft, ChevronRight, Loader2, Check, X, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -51,9 +51,14 @@ export function CalendarBooking({
   const [isLoadingTimes, setIsLoadingTimes] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const [noSlotsMessage, setNoSlotsMessage] = useState<string | null>(null);
+  const skipNextFetchRef = useRef(false);
 
   // Fetch available dates for the current month
   useEffect(() => {
+    if (skipNextFetchRef.current) {
+      skipNextFetchRef.current = false;
+      return;
+    }
     console.log('[CalendarBooking] useEffect triggered - type:', type, 'month:', currentMonth.toISOString());
     fetchAvailableDates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -70,119 +75,77 @@ export function CalendarBooking({
   const fetchAvailableDates = async () => {
     setIsLoadingCalendar(true);
     setNoSlotsMessage(null);
-    try {
-      const year = currentMonth.getFullYear();
-      const month = currentMonth.getMonth();
-      
-      // Get first and last day of month
-      const firstDay = new Date(year, month, 1);
-      const lastDay = new Date(year, month + 1, 0);
-      
-      // Fetch availability for the entire month
+    setCalendarError(null);
+
+    const fetchOneMonth = async (monthDate: Date): Promise<{ daysMap: Map<string, DayAvailability>; apiError: string | null }> => {
+      const y = monthDate.getFullYear();
+      const m = monthDate.getMonth();
+      const firstDay = new Date(y, m, 1);
+      const lastDay = new Date(y, m + 1, 0);
       const startTime = firstDay.getTime();
-      const endTime = lastDay.getTime() + 24 * 60 * 60 * 1000 - 1; // End of last day
-
+      const endTime = lastDay.getTime() + 24 * 60 * 60 * 1000 - 1;
       const apiUrl = `/api/calendar-availability/month?type=${type}&from=${startTime}&to=${endTime}`;
-      console.log('========================================');
-      console.log('[CalendarBooking] FETCHING AVAILABILITY');
-      console.log('[CalendarBooking] URL:', apiUrl);
-      console.log('[CalendarBooking] Type:', type);
-      console.log('[CalendarBooking] Start:', new Date(startTime).toISOString(), `(${startTime})`);
-      console.log('[CalendarBooking] End:', new Date(endTime).toISOString(), `(${endTime})`);
-      console.log('========================================');
-
       const response = await fetch(apiUrl);
-      console.log('[CalendarBooking] Response status:', response.status, response.statusText);
-      console.log('[CalendarBooking] Response ok?', response.ok);
-
-      console.log('[CalendarBooking] Response headers:', Object.fromEntries(response.headers.entries()));
       const data = await response.json();
-      console.log('[CalendarBooking] Response data:', data);
-      console.log('[CalendarBooking] Response data keys:', Object.keys(data));
-      console.log('[CalendarBooking] Response has error?', !!data.error);
-      console.log('[CalendarBooking] Response has slots?', !!data.slots);
-      console.log('[CalendarBooking] Slots type:', typeof data.slots);
-      console.log('[CalendarBooking] Slots keys:', data.slots ? Object.keys(data.slots) : 'N/A');
-      
-      // Check for errors in response (even if status is 200)
       if (data.error) {
-        console.error('[CalendarBooking] API returned error:', data.error, data.message);
+        return { daysMap: new Map(), apiError: data.message || data.error || 'Unable to load calendar availability' };
+      }
+      if (!response.ok) {
+        return { daysMap: new Map(), apiError: 'Failed to fetch availability' };
+      }
+      const daysMap = new Map<string, DayAvailability>();
+      if (data.slots && typeof data.slots === 'object') {
+        const now = new Date().getTime();
+        const minimumBookingTime = now + (30 * 60 * 1000);
+        Object.keys(data.slots).forEach((dateKey: string) => {
+          const slots = data.slots[dateKey];
+          if (Array.isArray(slots) && slots.length > 0) {
+            const mappedSlots = slots
+              .map((slot: any) => ({
+                start: typeof slot.start === 'number' ? slot.start : new Date(slot.start).getTime(),
+                end: typeof slot.end === 'number' ? slot.end : new Date(slot.end).getTime(),
+              }))
+              .filter((s: AvailableSlot) => s.start > minimumBookingTime);
+            if (mappedSlots.length > 0) {
+              daysMap.set(dateKey, { date: dateKey, slots: mappedSlots, hasAvailability: true });
+            }
+          }
+        });
+      }
+      return { daysMap, apiError: null };
+    };
+
+    try {
+      let result = await fetchOneMonth(currentMonth);
+      if (result.apiError) {
+        setCalendarError(result.apiError);
         setAvailableDays(new Map());
-        setNoSlotsMessage(null);
-        setCalendarError(data.message || data.error || 'Unable to load calendar availability');
         return;
       }
-      
-      // Clear any previous errors / no-slots message
-      setCalendarError(null);
-      setNoSlotsMessage(null);
-
-      if (response.ok) {
-        const daysMap = new Map<string, DayAvailability>();
-        
-        console.log('[CalendarBooking] Processing response - data.slots exists?', !!data.slots);
-        console.log('[CalendarBooking] data.slots type:', typeof data.slots);
-        console.log('[CalendarBooking] data.slots value:', data.slots);
-        
-        // Process the slots by date
-        if (data.slots && typeof data.slots === 'object') {
-          const slotKeys = Object.keys(data.slots);
-          console.log('[CalendarBooking] Found', slotKeys.length, 'date keys in slots');
-          
-          slotKeys.forEach((dateKey: string) => {
-            const slots = data.slots[dateKey];
-            console.log(`[CalendarBooking] Date ${dateKey}:`, Array.isArray(slots) ? `${slots.length} slots` : `type: ${typeof slots}`, slots);
-            
-            if (Array.isArray(slots) && slots.length > 0) {
-              const now = new Date().getTime();
-              const minimumBookingTime = now + (30 * 60 * 1000); // At least 30 minutes in the future
-              
-              const mappedSlots = slots
-                .map((slot: any) => {
-                  const start = typeof slot.start === 'number' ? slot.start : new Date(slot.start).getTime();
-                  const end = typeof slot.end === 'number' ? slot.end : new Date(slot.end).getTime();
-                  return { start, end };
-                })
-                .filter((slot: AvailableSlot) => {
-                  // Only include slots that are in the future (at least 30 minutes away)
-                  return slot.start > minimumBookingTime;
-                });
-              
-              if (mappedSlots.length > 0) {
-                daysMap.set(dateKey, {
-                  date: dateKey,
-                  slots: mappedSlots,
-                  hasAvailability: true,
-                });
-                console.log(`[CalendarBooking] Added ${dateKey} with ${mappedSlots.length} available slots (filtered from ${slots.length} total)`);
-              } else {
-                console.log(`[CalendarBooking] Date ${dateKey} has no available slots after filtering (all past or too soon)`);
-              }
-            } else {
-              console.warn(`[CalendarBooking] Date ${dateKey} has no valid slots array`);
-            }
-          });
-        } else {
-          console.warn('[CalendarBooking] data.slots is not an object or is missing:', data.slots);
-          console.warn('[CalendarBooking] Full response data:', JSON.stringify(data, null, 2));
-        }
-        
-        console.log('[CalendarBooking] Final daysMap size:', daysMap.size);
-        console.log('[CalendarBooking] Days with availability:', Array.from(daysMap.keys()));
-        
-        if (daysMap.size === 0) {
-          console.warn('[CalendarBooking] NO AVAILABLE DATES FOUND');
-          console.warn('[CalendarBooking] Response data:', JSON.stringify(data, null, 2));
-          setNoSlotsMessage(data.message || 'No available time slots in this month. Try another month.');
-        }
-        
-        setAvailableDays(daysMap);
-      } else {
-        console.error('[CalendarBooking] Failed to fetch available dates:', response.status, data);
-        setAvailableDays(new Map());
+      if (result.daysMap.size > 0) {
+        setAvailableDays(result.daysMap);
+        return;
       }
+      // No slots this month: auto-advance to next month with availability (up to 12 months)
+      const year = currentMonth.getFullYear();
+      const month = currentMonth.getMonth();
+      for (let i = 1; i <= 12; i++) {
+        const nextMonthDate = new Date(year, month + i, 1);
+        result = await fetchOneMonth(nextMonthDate);
+        if (result.apiError) break;
+        if (result.daysMap.size > 0) {
+          skipNextFetchRef.current = true;
+          setCurrentMonth(nextMonthDate);
+          setAvailableDays(result.daysMap);
+          return;
+        }
+      }
+      setNoSlotsMessage('No available time slots in the next 12 months. Try again later.');
+      setAvailableDays(new Map());
     } catch (error) {
       console.error('Error fetching available dates:', error);
+      setCalendarError('Unable to load calendar');
+      setAvailableDays(new Map());
     } finally {
       setIsLoadingCalendar(false);
     }
