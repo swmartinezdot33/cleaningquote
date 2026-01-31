@@ -20,7 +20,7 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
     lastName: '',
     email: '',
     phone: '',
-    company: '',
+    businessName: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,7 +61,7 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
         <DialogHeader>
           <DialogTitle>Get Started with CleanQuote</DialogTitle>
           <DialogDescription>
-            Enter your information to continue to payment. Your account will be created after successful payment.
+            Enter your business information to continue to payment. Your account will be created after successful payment.
           </DialogDescription>
         </DialogHeader>
 
@@ -72,6 +72,7 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
               <Input
                 id="firstName"
                 required
+                placeholder="John"
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                 disabled={loading}
@@ -82,6 +83,7 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
               <Input
                 id="lastName"
                 required
+                placeholder="Doe"
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                 disabled={loading}
@@ -90,11 +92,24 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email *</Label>
+            <Label htmlFor="businessName">Business Name *</Label>
+            <Input
+              id="businessName"
+              required
+              placeholder="ABC Cleaning Services"
+              value={formData.businessName}
+              onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
+              disabled={loading}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Business Email *</Label>
             <Input
               id="email"
               type="email"
               required
+              placeholder="john@abccleaning.com"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               disabled={loading}
@@ -102,23 +117,14 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone">Phone *</Label>
+            <Label htmlFor="phone">Phone Number *</Label>
             <Input
               id="phone"
               type="tel"
               required
+              placeholder="(555) 123-4567"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              disabled={loading}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="company">Company Name (Optional)</Label>
-            <Input
-              id="company"
-              value={formData.company}
-              onChange={(e) => setFormData({ ...formData, company: e.target.value })}
               disabled={loading}
             />
           </div>

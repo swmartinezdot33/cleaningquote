@@ -8,18 +8,24 @@ Created a modal-based signup flow that collects customer information, creates a 
 
 ### 1. **SignupModal Component** (`src/components/SignupModal.tsx`)
 - Modal form that collects:
-  - First Name *
-  - Last Name *
-  - Email *
-  - Phone *
-  - Company Name (optional)
+  - **First Name** * (required)
+  - **Last Name** * (required)
+  - **Business Name** * (required)
+  - **Business Email** * (required)
+  - **Phone Number** * (required)
+- All fields are required for Stripe customer creation
 - Creates Stripe customer via API
 - Redirects to payment link with prefilled email: `https://pay.cleanquote.io/b/dRmdRa4XldYmf9P7eu7bW00?prefilled_email={email}&client_reference_id={customerId}`
 
 ### 2. **API Endpoint** (`src/app/api/stripe/create-customer/route.ts`)
 - POST endpoint that creates Stripe customers
-- Validates required fields (firstName, lastName, email, phone)
-- Stores metadata (firstName, lastName, company, source: 'cleanquote_signup')
+- Validates all required fields (firstName, lastName, businessName, email, phone)
+- Stores in Stripe:
+  - `name`: Full name (firstName + lastName)
+  - `email`: Business email
+  - `phone`: Phone number
+  - `description`: Business name
+  - `metadata`: firstName, lastName, businessName, fullName, businessEmail, source
 - Returns `customerId` and `email`
 
 ### 3. **Dialog UI Component** (`src/components/ui/dialog.tsx`)
@@ -37,9 +43,15 @@ Created a modal-based signup flow that collects customer information, creates a 
 
 1. User clicks "Start 14-day free trial" or "Sign up"
 2. Modal opens with signup form
-3. User fills in: First Name, Last Name, Email, Phone, Company (optional)
+3. User fills in all required fields:
+   - First Name
+   - Last Name
+   - Business Name
+   - Business Email
+   - Phone Number
 4. On submit:
-   - API creates Stripe customer with metadata
+   - API creates Stripe customer with all business information
+   - Customer metadata includes: firstName, lastName, businessName, fullName, businessEmail
    - Returns `customerId`
    - Redirects to: `https://pay.cleanquote.io/b/dRmdRa4XldYmf9P7eu7bW00?prefilled_email={email}&client_reference_id={customerId}`
 5. User completes payment on Stripe
@@ -47,10 +59,12 @@ Created a modal-based signup flow that collects customer information, creates a 
 
 ## Benefits
 
-- **Captures lead data** before payment (first name, last name, phone, company)
+- **Complete business data capture** - full name, business name, business email, phone
+- **Stripe customer enrichment** - all data stored in customer record and metadata
 - **Prefills Stripe checkout** with email (better UX)
 - **Links Stripe customer to checkout** via `client_reference_id`
 - **Consistent branding** - modal stays on cleanquote.io before redirect
+- **Compliance ready** - full contact information for toll-free SMS registration
 
 ## Testing
 

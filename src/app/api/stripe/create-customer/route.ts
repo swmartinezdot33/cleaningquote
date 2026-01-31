@@ -12,28 +12,38 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { firstName, lastName, email, phone, company } = body;
+    const { firstName, lastName, email, phone, businessName } = body;
 
-    if (!email || !firstName || !lastName || !phone) {
+    if (!email || !firstName || !lastName || !phone || !businessName) {
       return NextResponse.json(
-        { error: 'Missing required fields: firstName, lastName, email, phone' },
+        { error: 'Missing required fields: firstName, lastName, email, phone, businessName' },
         { status: 400 }
       );
     }
 
     const stripe = new Stripe(stripeSecret);
 
-    // Create Stripe customer
+    // Create Stripe customer with full business information
     const customer = await stripe.customers.create({
       email,
       name: `${firstName} ${lastName}`,
       phone,
+      description: businessName,
       metadata: {
         firstName,
         lastName,
-        ...(company && { company }),
+        businessName,
+        fullName: `${firstName} ${lastName}`,
+        businessEmail: email,
         source: 'cleanquote_signup',
       },
+    });
+
+    console.log('Stripe customer created:', {
+      customerId: customer.id,
+      email: customer.email,
+      name: customer.name,
+      businessName,
     });
 
     return NextResponse.json({
