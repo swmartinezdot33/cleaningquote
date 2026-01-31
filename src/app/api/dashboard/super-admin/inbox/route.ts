@@ -23,15 +23,39 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '50', 10)));
   const after = searchParams.get('after') ?? undefined;
   const before = searchParams.get('before') ?? undefined;
-  const filter = searchParams.get('filter') ?? 'inbox'; // inbox | flagged | trash
+  const filter = searchParams.get('filter') ?? 'inbox'; // inbox | flagged | trash | sent
 
   try {
     const resend = new Resend(apiKey);
-    const listOptions = after
-      ? { limit, after }
-      : before
-        ? { limit, before }
-        : { limit };
+
+    if (filter === 'sent') {
+      const listOptions = after ? { limit, after } : before ? { limit, before } : { limit };
+      const { data: listData, error } = await resend.emails.list(listOptions);
+
+      if (error || !listData?.data) {
+        return NextResponse.json(
+          { error: (error as { message?: string })?.message ?? 'Failed to list sent emails' },
+          { status: 500 }
+        );
+      }
+
+      const emails = listData.data.map((e: { id: string; from: string; to: string[]; subject: string | null; created_at: string; last_event?: string }) => ({
+        id: e.id,
+        from: e.from ?? '',
+        to: Array.isArray(e.to) ? e.to : [e.to].filter(Boolean),
+        subject: e.subject ?? '(no subject)',
+        created_at: e.created_at,
+        direction: 'sent' as const,
+        last_event: e.last_event,
+      }));
+
+      return NextResponse.json({
+        data: emails,
+        has_more: listData.has_more ?? false,
+      });
+    }
+
+    const listOptions = after ? { limit, after } : before ? { limit, before } : { limit };
     const { data: listData, error } = await resend.emails.receiving.list(listOptions);
 
     if (error || !listData?.data) {
@@ -42,18 +66,18 @@ export async function GET(request: NextRequest) {
     }
 
     const emails = listData.data;
-    const metaList = await Promise.all(emails.map((e) => getInboxMeta(e.id)));
-    const merged = emails.map((email, i) => ({
+    const metaList = await Promise.all(emails.map((e: { id: string }) => getInboxMeta(e.id)));
+    const merged = emails.map((email: Record<string, unknown>, i: number) => ({
       ...email,
+      direction: 'received' as const,
       flagged: metaList[i]?.flagged ?? false,
       deleted: metaList[i]?.deleted ?? false,
     }));
 
-    // Client-side filter: return all and let UI filter by inbox/flagged/trash, or filter here
     let filtered = merged;
-    if (filter === 'flagged') filtered = merged.filter((e) => e.flagged);
-    if (filter === 'trash') filtered = merged.filter((e) => e.deleted);
-    if (filter === 'inbox') filtered = merged.filter((e) => !e.deleted);
+    if (filter === 'flagged') filtered = merged.filter((e: { flagged?: boolean }) => e.flagged);
+    if (filter === 'trash') filtered = merged.filter((e: { deleted?: boolean }) => e.deleted);
+    if (filter === 'inbox') filtered = merged.filter((e: { deleted?: boolean }) => !e.deleted);
 
     return NextResponse.json({
       data: filtered,

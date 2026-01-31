@@ -61,14 +61,23 @@ If the Supabase user was created but the customer never received the “Set your
 2. **Resend domain:** The domain in `RESEND_FROM` (e.g. `cleanquote.io`) must be verified in Resend. Add the DNS records Resend provides.
 3. **RESEND_FROM format:** Use `Display Name <email@domain.com>` (e.g. `CleanQuote.io <team@cleanquote.io>`). The email must match a verified sender.
 
-## 6. Supabase env in production
+## 6. Invite link → Set password page
+
+The checkout invite redirects users to `/auth/set-password` so they can set a password before accessing the dashboard. **Add this URL to Supabase**:
+
+1. Supabase Dashboard → **Authentication** → **URL Configuration** → **Redirect URLs**
+2. Add: `https://www.cleanquote.io/auth/set-password` (or your domain + `/auth/set-password`)
+
+If missing, users may see "Could not verify your link" or be redirected to login without establishing a session.
+
+## 7. Supabase env in production
 
 - In Vercel (or your host), set:
   - `NEXT_PUBLIC_SUPABASE_URL`
   - `SUPABASE_SERVICE_ROLE_KEY`
 - If either is missing, the webhook returns 500 with "Supabase not configured".
 
-## 7. User exists but has no org (no org name in header, profile not tied to subscription)
+## 8. User exists but has no org (no org name in header, profile not tied to subscription)
 
 If the user was created and can sign in but sees no organization (no org switcher, billing not tied to subscription), the webhook created the user but the org or membership step failed or was never run.
 
@@ -81,7 +90,7 @@ If the user was created and can sign in but sees no organization (no org switche
 
 The user can then sign in and will see the org in the header and billing tied to that org.
 
-## 8. Manually create the account for the affected user
+## 9. Manually create the account for the affected user
 
 If the webhook will not create the account (e.g. event already sent and not retried):
 

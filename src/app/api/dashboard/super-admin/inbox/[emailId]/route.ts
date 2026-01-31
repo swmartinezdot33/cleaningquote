@@ -6,9 +6,9 @@ import { getInboxMeta, setInboxMeta } from '@/lib/kv';
 
 export const dynamic = 'force-dynamic';
 
-/** GET - Retrieve one received email (full body). Super admin only. */
+/** GET - Retrieve one email (received or sent, full body). Super admin only. */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ emailId: string }> }
 ) {
   const supabase = await createSupabaseServerSSR();
@@ -27,8 +27,30 @@ export async function GET(
     return NextResponse.json({ error: 'Missing emailId' }, { status: 400 });
   }
 
+  const { searchParams } = new URL(request.url);
+  const type = searchParams.get('type'); // 'sent' | received (default)
+
   try {
     const resend = new Resend(apiKey);
+
+    if (type === 'sent') {
+      const { data, error } = await resend.emails.get(emailId);
+      if (error || !data) {
+        return NextResponse.json(
+          { error: (error as { message?: string })?.message ?? 'Email not found' },
+          { status: 404 }
+        );
+      }
+      return NextResponse.json({
+        ...data,
+        direction: 'sent',
+        flagged: false,
+        deleted: false,
+        message_id: null,
+        headers: {},
+      });
+    }
+
     const { data, error } = await resend.emails.receiving.get(emailId);
     if (error || !data) {
       return NextResponse.json(
@@ -39,6 +61,7 @@ export async function GET(
     const meta = await getInboxMeta(emailId);
     return NextResponse.json({
       ...data,
+      direction: 'received',
       flagged: meta?.flagged ?? false,
       deleted: meta?.deleted ?? false,
     });

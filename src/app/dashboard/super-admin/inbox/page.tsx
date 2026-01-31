@@ -11,9 +11,10 @@ import {
   Loader2,
   Mail,
   AlertCircle,
+  Send,
 } from 'lucide-react';
 
-type Filter = 'inbox' | 'flagged' | 'trash';
+type Filter = 'inbox' | 'flagged' | 'trash' | 'sent';
 
 interface ListEmail {
   id: string;
@@ -22,18 +23,21 @@ interface ListEmail {
   subject: string;
   created_at: string;
   attachments?: { id: string; filename?: string; size: number }[];
-  flagged: boolean;
-  deleted: boolean;
+  flagged?: boolean;
+  deleted?: boolean;
+  direction?: 'received' | 'sent';
+  last_event?: string;
 }
 
 interface FullEmail extends ListEmail {
   html: string | null;
   text: string | null;
   headers: Record<string, string>;
-  message_id: string;
+  message_id?: string | null;
   bcc: string[] | null;
   cc: string[] | null;
   reply_to: string[] | null;
+  direction?: 'received' | 'sent';
 }
 
 function formatDate(s: string) {
@@ -61,6 +65,7 @@ export default function SuperAdminInboxPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedDirection, setSelectedDirection] = useState<'received' | 'sent'>('received');
   const [email, setEmail] = useState<FullEmail | null>(null);
   const [loadingEmail, setLoadingEmail] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
@@ -92,6 +97,8 @@ export default function SuperAdminInboxPage() {
   };
 
   useEffect(() => {
+    setSelectedId(null);
+    setSelectedDirection('received');
     loadList();
   }, [filter]);
 
@@ -101,7 +108,8 @@ export default function SuperAdminInboxPage() {
       return;
     }
     setLoadingEmail(true);
-    fetch(`/api/dashboard/super-admin/inbox/${encodeURIComponent(selectedId)}`)
+    const typeParam = selectedDirection === 'sent' ? '?type=sent' : '';
+    fetch(`/api/dashboard/super-admin/inbox/${encodeURIComponent(selectedId)}${typeParam}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.error) {
@@ -117,7 +125,7 @@ export default function SuperAdminInboxPage() {
       })
       .catch(() => setEmail(null))
       .finally(() => setLoadingEmail(false));
-  }, [selectedId]);
+  }, [selectedId, selectedDirection]);
 
   const patchMeta = async (emailId: string, updates: { flagged?: boolean; deleted?: boolean }) => {
     setPatchingMeta(emailId);
@@ -193,6 +201,7 @@ export default function SuperAdminInboxPage() {
           {(
             [
               { id: 'inbox' as Filter, label: 'Inbox', icon: Inbox },
+              { id: 'sent' as Filter, label: 'Sent', icon: Send },
               { id: 'flagged' as Filter, label: 'Flagged', icon: Star },
               { id: 'trash' as Filter, label: 'Trash', icon: Trash2 },
             ] as const
@@ -232,20 +241,26 @@ export default function SuperAdminInboxPage() {
           ) : (
             <ul className="flex-1 overflow-y-auto">
               {list.map((e) => {
+                const isSent = e.direction === 'sent';
                 const from = parseFrom(e.from || '');
+                const toDisplay = isSent && e.to?.length ? (Array.isArray(e.to) ? e.to[0] : e.to) : '';
+                const primary = isSent ? toDisplay : (from.email || from.name || e.from || '—');
                 const isSelected = selectedId === e.id;
                 return (
                   <li key={e.id}>
                     <button
                       type="button"
-                      onClick={() => setSelectedId(e.id)}
+                      onClick={() => {
+                        setSelectedId(e.id);
+                        setSelectedDirection(e.direction ?? 'received');
+                      }}
                       className={`flex w-full flex-col gap-0.5 border-b border-border px-3 py-2.5 text-left transition-colors hover:bg-muted/50 ${
                         isSelected ? 'bg-primary/10 ring-inset ring-1 ring-primary/20' : ''
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="truncate text-sm font-medium text-foreground">
-                          {from.email || from.name || e.from || '—'}
+                          {primary || '—'}
                         </span>
                         <span className="shrink-0 text-xs text-muted-foreground">
                           {formatDate(e.created_at)}
@@ -280,6 +295,7 @@ export default function SuperAdminInboxPage() {
             </div>
           ) : email ? (
             <>
+              {email.direction !== 'sent' && (
               <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2">
                 <button
                   type="button"
@@ -323,6 +339,7 @@ export default function SuperAdminInboxPage() {
                   </button>
                 )}
               </div>
+              )}
               <div className="flex flex-col gap-1 border-b border-border px-4 py-2 text-sm">
                 <p><span className="font-medium text-muted-foreground">From:</span> {email.from}</p>
                 <p><span className="font-medium text-muted-foreground">To:</span> {(email.to ?? []).join(', ')}</p>

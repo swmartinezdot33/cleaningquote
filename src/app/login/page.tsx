@@ -1,7 +1,7 @@
 'use client';
 
 import '../globals.css';
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createSupabaseBrowser } from '@/lib/supabase/client';
@@ -11,6 +11,14 @@ import { Mail, Lock, Link2 } from 'lucide-react';
 function LoginForm() {
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') ?? '/dashboard';
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hash = window.location.hash || '';
+    if (hash.includes('access_token') || hash.includes('refresh_token')) {
+      window.location.href = `/auth/set-password${hash}`;
+    }
+  }, []);
   const prefilledEmail = searchParams.get('email') ?? '';
   const [email, setEmail] = useState(prefilledEmail);
   const [password, setPassword] = useState('');

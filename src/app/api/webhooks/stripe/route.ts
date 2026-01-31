@@ -158,7 +158,7 @@ async function ensureUserAndOrgFromStripe(
   let emailSentViaSupabase = false;
   const userDisplayName = (fullName && fullName.trim()) || '';
   const baseUrl = getBaseUrl();
-  const redirectTo = `${baseUrl}/dashboard`;
+  const redirectTo = `${baseUrl}/auth/set-password`;
 
   // Prefer inviteUserByEmail — Supabase sends the invite via its SMTP (Resend), no manual Resend call needed
   const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(emailNorm, {
