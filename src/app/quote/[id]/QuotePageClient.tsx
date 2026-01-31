@@ -798,12 +798,30 @@ export default function QuotePageClient({
                         >
                           {showAppointmentForm ? (
                             <div ref={calendarRef} className="rounded-xl border-2 border-gray-200 bg-white overflow-hidden">
-                              <div className="p-4 border-b bg-gray-50">
-                                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                                  <Calendar className="h-5 w-5" style={{ color: primaryColor }} />
-                                  Schedule Your Appointment
-                                </h3>
-                                <p className="text-gray-600 text-sm mt-1">Choose a date and time that works for you</p>
+                              <div className="p-4 border-b bg-gray-50 flex flex-col gap-3">
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                    <Calendar className="h-5 w-5" style={{ color: primaryColor }} />
+                                    Schedule Your Appointment
+                                  </h3>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setShowAppointmentForm(false);
+                                      setBookingMessage(null);
+                                      setAppointmentDate('');
+                                      setAppointmentTime('');
+                                      setAppointmentNotes('');
+                                    }}
+                                    className="gap-1.5 shrink-0 border-gray-300 text-gray-700 hover:bg-gray-100"
+                                  >
+                                    <ChevronLeft className="h-4 w-4" />
+                                    Back to summary
+                                  </Button>
+                                </div>
+                                <p className="text-gray-600 text-sm">Choose a date and time that works for you</p>
                               </div>
                               <div className="p-4">
                                 {bookingMessage && (
@@ -841,12 +859,27 @@ export default function QuotePageClient({
                             </div>
                           ) : showCallForm ? (
                             <div ref={calendarRef} className="rounded-xl border-2 border-gray-200 bg-white overflow-hidden">
-                              <div className="p-4 border-b bg-gray-50">
-                                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                                  <Clock className="h-5 w-5" style={{ color: primaryColor }} />
-                                  Schedule a Callback
-                                </h3>
-                                <p className="text-gray-600 text-sm mt-1">We'll call you at your preferred time</p>
+                              <div className="p-4 border-b bg-gray-50 flex flex-col gap-3">
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                    <Clock className="h-5 w-5" style={{ color: primaryColor }} />
+                                    Schedule a Callback
+                                  </h3>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setShowCallForm(false);
+                                      setCallMessage(null);
+                                    }}
+                                    className="gap-1.5 shrink-0 border-gray-300 text-gray-700 hover:bg-gray-100"
+                                  >
+                                    <ChevronLeft className="h-4 w-4" />
+                                    Back to summary
+                                  </Button>
+                                </div>
+                                <p className="text-gray-600 text-sm">We'll call you at your preferred time</p>
                               </div>
                               <div className="p-4">
                                 {callMessage && (
