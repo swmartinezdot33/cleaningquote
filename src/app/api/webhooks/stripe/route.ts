@@ -122,10 +122,19 @@ async function ensureUserAndOrgFromStripe(
     await (admin.from('organizations') as any)
       .update({ stripe_customer_id: customerId, subscription_status: subscriptionStatus })
       .eq('id', orgId);
-    const found = await findUserIdByEmail(admin, emailNorm);
+    let found = await findUserIdByEmail(admin, emailNorm);
+    if (!found) {
+      await new Promise((r) => setTimeout(r, 1500));
+      found = await findUserIdByEmail(admin, emailNorm);
+    }
     if (found) {
-      await (admin.from('organization_members') as any)
+      const { error: memberErr } = await (admin.from('organization_members') as any)
         .upsert({ org_id: orgId, user_id: found, role: 'admin' }, { onConflict: 'org_id,user_id' } as any);
+      if (memberErr) {
+        console.error('Stripe webhook: existing org — membership upsert failed', { orgId, userId: found, error: memberErr.message });
+      }
+    } else {
+      console.warn('Stripe webhook: existing org but user not found by email', { emailNorm, orgId });
     }
     const { data: member } = await (admin.from('organization_members') as any)
       .select('user_id')
@@ -154,7 +163,12 @@ async function ensureUserAndOrgFromStripe(
       }
       userId = found;
     } else {
-      console.error('Stripe webhook: createUser failed', { email: emailNorm, message: createError.message, code: (createError as any)?.code });
+      console.error('Stripe webhook: createUser failed', {
+        email: emailNorm,
+        message: createError.message,
+        code: (createError as any)?.code,
+        status: (createError as any)?.status,
+      });
       return null;
     }
   } else {
@@ -162,27 +176,61 @@ async function ensureUserAndOrgFromStripe(
     isNewUser = true;
   }
 
-  // New subscription = new org ($297/org). Same user (email) can have multiple orgs. Use business name when available.
-  const slug = slugFromEmail(emailNorm);
-  const displayName = (orgName && orgName.trim()) || 'Personal';
-  const { data: org, error: orgErr } = await admin
-    .from('organizations')
-    .insert({
-      name: displayName,
-      slug,
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscriptionId,
-      subscription_status: subscriptionStatus,
-    } as any)
+  // Race: another request may have created the org for this subscription; re-check and just add membership
+  const { data: raceOrg } = await (admin.from('organizations') as any)
     .select('id')
-    .single();
-  if (orgErr || !org) {
-    console.error('Stripe webhook: org insert failed', { message: orgErr?.message, code: (orgErr as any)?.code, slug });
+    .eq('stripe_subscription_id', subscriptionId)
+    .maybeSingle();
+  if (raceOrg) {
+    const orgId = (raceOrg as { id: string }).id;
+    const { error: memberErr } = await (admin.from('organization_members') as any)
+      .upsert({ org_id: orgId, user_id: userId, role: 'admin' }, { onConflict: 'org_id,user_id' } as any);
+    if (memberErr) {
+      console.error('Stripe webhook: race org — membership upsert failed', { orgId, userId, error: memberErr.message });
+      return null;
+    }
+    console.log('Stripe webhook: org already existed (race), added membership', { email: emailNorm, orgId });
+    return { userId, orgId, isNewUser: false };
+  }
+
+  console.log('Stripe webhook: ensureUserAndOrgFromStripe — creating org', { email: emailNorm, subscriptionId, orgName: (orgName && orgName.trim()) || 'Personal' });
+
+  // New subscription = new org ($297/org). Same user (email) can have multiple orgs. Use business name when available.
+  const baseSlug = slugFromEmail(emailNorm);
+  const displayName = (orgName && orgName.trim()) || 'Personal';
+  let orgId: string | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const slugToUse = attempt === 0 ? baseSlug : `${baseSlug}-${crypto.randomUUID().slice(0, 8)}`;
+    const { data: org, error: orgErr } = await admin
+      .from('organizations')
+      .insert({
+        name: displayName,
+        slug: slugToUse,
+        stripe_customer_id: customerId,
+        stripe_subscription_id: subscriptionId,
+        subscription_status: subscriptionStatus,
+      } as any)
+      .select('id')
+      .single();
+    if (!orgErr && org) {
+      orgId = (org as { id: string }).id;
+      break;
+    }
+    if (orgErr?.code === '23505' && attempt < 2) {
+      console.warn('Stripe webhook: org slug conflict, retrying', { slug: slugToUse });
+      continue;
+    }
+    console.error('Stripe webhook: org insert failed', { message: orgErr?.message, code: (orgErr as any)?.code, slug: slugToUse });
     return null;
   }
-  const orgId = (org as { id: string }).id;
-  await (admin.from('organization_members') as any)
+  if (!orgId) return null;
+
+  const { error: memberErr } = await (admin.from('organization_members') as any)
     .upsert({ org_id: orgId, user_id: userId, role: 'admin' }, { onConflict: 'org_id,user_id' } as any);
+  if (memberErr) {
+    console.error('Stripe webhook: organization_members upsert failed', { orgId, userId, error: memberErr.message });
+    return null;
+  }
 
   if (isNewUser) {
     try {
@@ -265,9 +313,31 @@ export async function POST(request: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session;
         const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null;
         let subscriptionId: string | null = typeof session.subscription === 'string' ? session.subscription : (session.subscription as Stripe.Subscription)?.id ?? null;
-        const email = (session.customer_details?.email ?? session.customer_email ?? '').toString().trim().toLowerCase();
+        let email = (session.customer_details?.email ?? session.customer_email ?? '').toString().trim().toLowerCase();
+
+        console.log('Stripe webhook: checkout.session.completed payload', {
+          mode: session.mode,
+          hasCustomerId: !!customerId,
+          hasEmail: !!email,
+          hasSubscriptionId: !!subscriptionId,
+        });
+
+        // Fallback: if no email in session (e.g. some payment link flows), fetch from customer
+        if (!email && customerId) {
+          try {
+            const stripeApi = new Stripe(stripeSecret);
+            const customer = await stripeApi.customers.retrieve(customerId);
+            if (customer && !customer.deleted) {
+              email = ((customer as Stripe.Customer).email ?? '').trim().toLowerCase();
+              if (email) console.log('Stripe webhook: got email from customer', { customerId });
+            }
+          } catch (err) {
+            console.error('Stripe webhook: could not fetch customer for email fallback', customerId, err);
+          }
+        }
+
         if (!email) {
-          console.warn('Stripe webhook: checkout.session.completed — no email in session');
+          console.warn('Stripe webhook: checkout.session.completed — no email in session or customer');
           return NextResponse.json({ error: 'No email in session' }, { status: 400 });
         }
         if (!customerId) {
@@ -291,7 +361,7 @@ export async function POST(request: NextRequest) {
         }
 
         if (!subscriptionId) {
-          console.log('Stripe webhook: checkout.session.completed — no subscription ID yet; will create account on customer.subscription.created', { email, customerId });
+          console.log('Stripe webhook: checkout.session.completed — no subscription ID (session.mode may not be subscription?). Rely on customer.subscription.created.', { email, customerId, mode: session.mode });
           return NextResponse.json({ received: true });
         }
 
@@ -335,7 +405,11 @@ export async function POST(request: NextRequest) {
         // Fallback: create user + org if checkout.session.completed didn't have subscription ID yet (e.g. trial timing).
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id ?? null;
-        if (!customerId) return NextResponse.json({ received: true });
+        console.log('Stripe webhook: customer.subscription.created', { subscriptionId: subscription.id, customerId, status: subscription.status });
+        if (!customerId) {
+          console.warn('Stripe webhook: customer.subscription.created — no customer on subscription');
+          return NextResponse.json({ received: true });
+        }
 
         // One org per subscription: check by subscription_id
         const { data: existingOrg } = await (admin.from('organizations') as any)

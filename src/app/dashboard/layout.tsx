@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { getOrgsForDashboard, isSuperAdminEmail, orgHasActiveAccess } from '@/lib/org-auth';
 import { BrandLogo } from '@/components/BrandLogo';
@@ -35,7 +35,10 @@ export default async function DashboardLayout({
       selectedOrgId = orgWithAccess.id;
       selectedOrg = orgWithAccess;
     } else {
-      redirect('/subscribe');
+      // If they just completed checkout (came from dashboard?checkout=success), send to subscribe with hint so we show "check your email"
+      const headersList = await headers();
+      const fromCheckout = headersList.get('x-checkout-success');
+      redirect(fromCheckout ? '/subscribe?from_checkout=1' : '/subscribe');
     }
   }
 

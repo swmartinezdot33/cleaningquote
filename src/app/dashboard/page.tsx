@@ -5,8 +5,15 @@ import { createSupabaseServer } from '@/lib/supabase/server';
 import { getOrgsForDashboard, isSuperAdminEmail } from '@/lib/org-auth';
 import { ToolCardActions } from '@/components/ToolCardActions';
 import type { Tool } from '@/lib/supabase/types';
+import { CheckCircle } from 'lucide-react';
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const checkoutSuccess = params?.checkout === 'success';
   const supabase = await createSupabaseServerSSR();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
@@ -52,6 +59,17 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      {checkoutSuccess && (
+        <div className="rounded-xl border border-green-200 bg-green-50 dark:border-green-900/50 dark:bg-green-950/30 p-4 flex gap-3 items-start">
+          <CheckCircle className="h-6 w-6 shrink-0 text-green-600 dark:text-green-500 mt-0.5" />
+          <div>
+            <p className="font-medium text-foreground">Checkout complete</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Your account and organization are set up. Check your email if you need to set your password.
+            </p>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Your quoting tools</h1>
         <Link

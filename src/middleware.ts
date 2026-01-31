@@ -28,7 +28,7 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  const { pathname } = request.nextUrl;
+  const { pathname, search } = request.nextUrl;
   if (pathname.startsWith('/dashboard') || pathname.startsWith('/api/dashboard')) {
     const {
       data: { user },
@@ -40,9 +40,23 @@ export async function middleware(request: NextRequest) {
           { status: 401 }
         );
       }
+      // Preserve full path including ?checkout=success so after login they land on dashboard?checkout=success
+      const redirectTo = pathname + search;
       const redirect = new URL('/login', request.url);
-      redirect.searchParams.set('redirect', pathname);
+      redirect.searchParams.set('redirect', redirectTo);
       return NextResponse.redirect(redirect);
+    }
+    // Pass checkout=success to layout so we can show a message or avoid redirecting to /subscribe
+    if (pathname.startsWith('/dashboard') && !pathname.startsWith('/api/') && request.nextUrl.searchParams.get('checkout') === 'success') {
+      const reqHeaders = new Headers(request.headers);
+      reqHeaders.set('x-checkout-success', '1');
+      const nextRes = NextResponse.next({
+        request: { headers: reqHeaders },
+      });
+      // Preserve Set-Cookie from supabase session
+      const setCookies = response.headers.getSetCookie?.();
+      if (setCookies?.length) setCookies.forEach((c) => nextRes.headers.append('Set-Cookie', c));
+      response = nextRes;
     }
   }
 
