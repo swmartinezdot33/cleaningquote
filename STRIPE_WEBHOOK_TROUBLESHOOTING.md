@@ -48,14 +48,27 @@ If a customer completed checkout but no Supabase user/org was created, check the
 
 Use these logs to see where the flow stopped (no subscription ID, no email, Supabase error, etc.).
 
-## 5. Supabase env in production
+## 5. User created but no confirmation email
+
+If the Supabase user was created but the customer never received the “Set your password” email:
+
+1. **Check Vercel logs** for these messages:
+   - **`RESEND_API_KEY not set`** — Set `RESEND_API_KEY` in Vercel Production (Resend dashboard → API Keys).
+   - **`generateLink failed`** — Supabase could not create the recovery link; check `SUPABASE_SERVICE_ROLE_KEY`.
+   - **`generateLink returned no action_link`** — Supabase API issue; check Supabase status.
+   - **`Resend API error`** — Usually domain/from address: ensure `RESEND_FROM` (e.g. `CleanQuote.io <team@cleanquote.io>`) uses a **verified domain** in Resend (Resend → Domains).
+   - **`checkout confirmation email sent`** — Email was sent; check spam and the inbox for the checkout email address.
+2. **Resend domain:** The domain in `RESEND_FROM` (e.g. `cleanquote.io`) must be verified in Resend. Add the DNS records Resend provides.
+3. **RESEND_FROM format:** Use `Display Name <email@domain.com>` (e.g. `CleanQuote.io <team@cleanquote.io>`). The email must match a verified sender.
+
+## 6. Supabase env in production
 
 - In Vercel (or your host), set:
   - `NEXT_PUBLIC_SUPABASE_URL`
   - `SUPABASE_SERVICE_ROLE_KEY`
 - If either is missing, the webhook returns 500 with "Supabase not configured".
 
-## 6. User exists but has no org (no org name in header, profile not tied to subscription)
+## 7. User exists but has no org (no org name in header, profile not tied to subscription)
 
 If the user was created and can sign in but sees no organization (no org switcher, billing not tied to subscription), the webhook created the user but the org or membership step failed or was never run.
 
@@ -68,7 +81,7 @@ If the user was created and can sign in but sees no organization (no org switche
 
 The user can then sign in and will see the org in the header and billing tied to that org.
 
-## 7. Manually create the account for the affected user
+## 8. Manually create the account for the affected user
 
 If the webhook will not create the account (e.g. event already sent and not retried):
 

@@ -35,13 +35,16 @@ function slugFromEmail(email: string): string {
 
 /** Send confirmation email with set-password link after checkout (optional; requires RESEND_API_KEY). */
 async function sendCheckoutConfirmationEmail(email: string, setPasswordLink: string): Promise<void> {
-  if (!resendApiKey?.trim()) return;
+  if (!resendApiKey?.trim()) {
+    console.warn('Stripe webhook: RESEND_API_KEY not set — skipping checkout confirmation email. Set it in Vercel to send emails.');
+    return;
+  }
   const baseUrl = getBaseUrl();
   const loginUrl = `${baseUrl}/login`;
   const dashboardUrl = `${baseUrl}/dashboard`;
   try {
     const resend = new Resend(resendApiKey.trim());
-    await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: resendFrom,
       to: email,
       subject: 'Your CleanQuote account is ready',
@@ -54,6 +57,11 @@ async function sendCheckoutConfirmationEmail(email: string, setPasswordLink: str
         <p>If you didn’t expect this email, you can ignore it.</p>
       `,
     });
+    if (error) {
+      console.error('Stripe webhook: Resend API error (check domain verification, from address):', { email, error, from: resendFrom });
+    } else {
+      console.log('Stripe webhook: checkout confirmation email sent', { email, id: data?.id });
+    }
   } catch (err) {
     console.error('Stripe webhook: failed to send checkout confirmation email:', err);
   }
@@ -147,33 +155,59 @@ async function ensureUserAndOrgFromStripe(
 
   let userId: string;
   let isNewUser = false;
+  let emailSentViaSupabase = false;
   const userDisplayName = (fullName && fullName.trim()) || '';
-  const { data: existingUser, error: createError } = await admin.auth.admin.createUser({
-    email: emailNorm,
-    password: crypto.randomUUID().replace(/-/g, '') + 'A1!',
-    email_confirm: true,
-    user_metadata: userDisplayName ? { full_name: userDisplayName } : undefined,
+  const baseUrl = getBaseUrl();
+  const redirectTo = `${baseUrl}/dashboard`;
+
+  // Prefer inviteUserByEmail — Supabase sends the invite via its SMTP (Resend), no manual Resend call needed
+  const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(emailNorm, {
+    redirectTo,
+    data: userDisplayName ? { full_name: userDisplayName } : undefined,
   });
-  if (createError) {
-    if (createError.message?.includes('already been registered') || createError.message?.includes('already exists')) {
-      const found = await findUserIdByEmail(admin, emailNorm);
-      if (!found) {
-        console.error('Stripe webhook: user exists in Supabase but findUserIdByEmail returned null', emailNorm);
-        return null;
-      }
-      userId = found;
-    } else {
-      console.error('Stripe webhook: createUser failed', {
-        email: emailNorm,
-        message: createError.message,
-        code: (createError as any)?.code,
-        status: (createError as any)?.status,
-      });
+
+  if (!inviteError && inviteData?.user) {
+    userId = inviteData.user.id;
+    isNewUser = true;
+    emailSentViaSupabase = true;
+    console.log('Stripe webhook: inviteUserByEmail sent (Supabase SMTP) — user will receive invite', { email: emailNorm });
+  } else if (inviteError?.message?.includes('already') || inviteError?.message?.includes('registered') || inviteError?.message?.includes('exists')) {
+    // User already exists — get their id and use generateLink + Resend for set-password email
+    const found = await findUserIdByEmail(admin, emailNorm);
+    if (!found) {
+      console.error('Stripe webhook: invite failed (user exists) but findUserIdByEmail returned null', emailNorm);
       return null;
     }
+    userId = found;
   } else {
-    userId = existingUser!.user!.id;
-    isNewUser = true;
+    // Fallback: createUser + generateLink + Resend
+    const { data: existingUser, error: createError } = await admin.auth.admin.createUser({
+      email: emailNorm,
+      password: crypto.randomUUID().replace(/-/g, '') + 'A1!',
+      email_confirm: true,
+      user_metadata: userDisplayName ? { full_name: userDisplayName } : undefined,
+    });
+    if (createError) {
+      if (createError.message?.includes('already been registered') || createError.message?.includes('already exists')) {
+        const found = await findUserIdByEmail(admin, emailNorm);
+        if (!found) {
+          console.error('Stripe webhook: user exists in Supabase but findUserIdByEmail returned null', emailNorm);
+          return null;
+        }
+        userId = found;
+      } else {
+        console.error('Stripe webhook: createUser failed', {
+          email: emailNorm,
+          message: createError.message,
+          code: (createError as any)?.code,
+          status: (createError as any)?.status,
+        });
+        return null;
+      }
+    } else {
+      userId = existingUser!.user!.id;
+      isNewUser = true;
+    }
   }
 
   // Race: another request may have created the org for this subscription; re-check and just add membership
@@ -232,17 +266,23 @@ async function ensureUserAndOrgFromStripe(
     return null;
   }
 
-  if (isNewUser) {
+  if (isNewUser && !emailSentViaSupabase) {
+    // Fallback: createUser path — send set-password email via Resend (inviteUserByEmail already sent for invite path)
     try {
-      const baseUrl = getBaseUrl();
-      const { data: linkData } = await admin.auth.admin.generateLink({
+      const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
         type: 'recovery',
         email: emailNorm,
         options: { redirectTo: `${baseUrl}/dashboard` },
       });
-      const actionLink = linkData?.properties?.action_link;
-      if (typeof actionLink === 'string' && actionLink) {
-        await sendCheckoutConfirmationEmail(emailNorm, actionLink);
+      if (linkError) {
+        console.error('Stripe webhook: generateLink failed — user will not receive confirmation email:', { email: emailNorm, error: linkError.message });
+      } else {
+        const actionLink = linkData?.properties?.action_link;
+        if (typeof actionLink === 'string' && actionLink) {
+          await sendCheckoutConfirmationEmail(emailNorm, actionLink);
+        } else {
+          console.error('Stripe webhook: generateLink returned no action_link — user will not receive confirmation email', { email: emailNorm });
+        }
       }
     } catch (emailErr) {
       console.error('Stripe webhook: generate/send confirmation email:', emailErr);
