@@ -5,15 +5,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CheckCircle } from 'lucide-react';
 
 interface SignupModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+type LoadingState = 'idle' | 'creating' | 'redirecting';
+
 export function SignupModal({ open, onOpenChange }: SignupModalProps) {
-  const [loading, setLoading] = useState(false);
+  const [loadingState, setLoadingState] = useState<LoadingState>('idle');
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     firstName: '',
@@ -26,7 +28,7 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
+    setLoadingState('creating');
 
     try {
       // Create Stripe customer and get checkout URL
@@ -43,16 +45,78 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
       }
 
       if (data.checkoutUrl) {
-        // Redirect to Stripe checkout with customer already attached
+        setLoadingState('redirecting');
+        // Small delay so user sees the "redirecting" state
+        await new Promise(resolve => setTimeout(resolve, 500));
+        // Redirect to Stripe checkout with customer already attached (email locked)
         window.location.href = data.checkoutUrl;
       } else {
         throw new Error('No checkout URL returned');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
-      setLoading(false);
+      setLoadingState('idle');
     }
   };
+
+  const isLoading = loadingState !== 'idle';
+
+  // Show loading overlay when processing
+  if (isLoading) {
+    return (
+      <Dialog open={open} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-[400px]" onPointerDownOutside={(e) => e.preventDefault()}>
+          <div className="flex flex-col items-center justify-center py-12 space-y-6">
+            <div className="relative">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                {loadingState === 'redirecting' ? (
+                  <CheckCircle className="h-8 w-8 text-primary" />
+                ) : (
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                )}
+              </div>
+            </div>
+            
+            <div className="text-center space-y-2">
+              <h3 className="font-semibold text-lg">
+                {loadingState === 'creating' && 'Creating your account...'}
+                {loadingState === 'redirecting' && 'Redirecting to payment...'}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {loadingState === 'creating' && 'Setting up your CleanQuote account'}
+                {loadingState === 'redirecting' && 'Taking you to secure checkout'}
+              </p>
+            </div>
+
+            {/* Progress steps */}
+            <div className="flex items-center gap-3 text-sm">
+              <div className="flex items-center gap-2">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+                  loadingState === 'creating' ? 'bg-primary text-primary-foreground' : 'bg-primary/20 text-primary'
+                }`}>
+                  {loadingState === 'redirecting' ? <CheckCircle className="h-4 w-4" /> : '1'}
+                </div>
+                <span className={loadingState === 'redirecting' ? 'text-muted-foreground' : ''}>
+                  Create account
+                </span>
+              </div>
+              <div className="w-8 h-px bg-border" />
+              <div className="flex items-center gap-2">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+                  loadingState === 'redirecting' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                }`}>
+                  2
+                </div>
+                <span className={loadingState === 'creating' ? 'text-muted-foreground' : ''}>
+                  Payment
+                </span>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -74,7 +138,7 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
                 placeholder="John"
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                disabled={loading}
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -85,7 +149,7 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
                 placeholder="Doe"
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                disabled={loading}
+                disabled={isLoading}
               />
             </div>
           </div>
@@ -98,7 +162,7 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
               placeholder="ABC Cleaning Services"
               value={formData.businessName}
               onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-              disabled={loading}
+              disabled={isLoading}
             />
           </div>
 
@@ -111,7 +175,7 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
               placeholder="john@abccleaning.com"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              disabled={loading}
+              disabled={isLoading}
             />
           </div>
 
@@ -124,7 +188,7 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
               placeholder="(555) 123-4567"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              disabled={loading}
+              disabled={isLoading}
             />
           </div>
 
@@ -134,15 +198,8 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
             </div>
           )}
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating account...
-              </>
-            ) : (
-              'Continue to Payment →'
-            )}
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            Continue to Payment →
           </Button>
 
           <p className="text-xs text-muted-foreground text-center">

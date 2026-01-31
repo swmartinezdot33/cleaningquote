@@ -18,7 +18,7 @@ function getStripeConfig() {
 }
 
 const resendApiKey = process.env.RESEND_API_KEY;
-const resendFrom = process.env.RESEND_FROM ?? 'CleanQuote.io <noreply@cleanquote.io>';
+const resendFrom = process.env.RESEND_FROM ?? 'CleanQuote.io <team@clean.io>';
 
 function getBaseUrl(): string {
   const env = process.env.NEXT_PUBLIC_APP_URL?.trim();

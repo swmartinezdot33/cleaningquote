@@ -5,7 +5,7 @@ import { Resend } from 'resend';
 
 export const dynamic = 'force-dynamic';
 
-const resendFrom = process.env.RESEND_FROM ?? 'CleanQuote.io <noreply@cleanquote.io>';
+const resendFrom = process.env.RESEND_FROM ?? 'CleanQuote.io <team@clean.io>';
 
 /** POST - Send a reply to a received email (In-Reply-To threading). Super admin only. */
 export async function POST(request: NextRequest) {
