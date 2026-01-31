@@ -1,7 +1,7 @@
 'use client';
 
 import './globals.css';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { BrandLogo } from '@/components/BrandLogo';
 import { Button } from '@/components/ui/button';
@@ -13,34 +13,56 @@ import {
   BarChart3,
   ArrowRight,
   CheckCircle2,
+  Menu,
+  X,
 } from 'lucide-react';
 
 function Header({ onSignupClick }: { onSignupClick: () => void }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const closeMobileMenu = () => setMobileMenuOpen(false);
+
+  useEffect(() => {
+    if (mobileMenuOpen) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = '';
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileMenuOpen]);
+
+  const navLinks = (
+    <>
+      <a
+        href="#features"
+        onClick={closeMobileMenu}
+        className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        Features
+      </a>
+      <a
+        href="#capabilities"
+        onClick={closeMobileMenu}
+        className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        Capabilities
+      </a>
+      <a
+        href="#pricing"
+        onClick={closeMobileMenu}
+        className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        Pricing
+      </a>
+    </>
+  );
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/20 bg-white/70 shadow-lg shadow-black/5 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Link href="/" className="flex items-center gap-2">
           <BrandLogo />
         </Link>
-        <nav className="flex items-center gap-3 sm:gap-6">
-          <a
-            href="#features"
-            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Features
-          </a>
-          <a
-            href="#capabilities"
-            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Capabilities
-          </a>
-          <a
-            href="#pricing"
-            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Pricing
-          </a>
+        {/* Desktop nav */}
+        <nav className="hidden md:flex items-center gap-3 sm:gap-6">
+          {navLinks}
           <Link href="/login">
             <Button variant="ghost" size="sm" className="rounded-none font-medium">
               Log in
@@ -50,6 +72,75 @@ function Header({ onSignupClick }: { onSignupClick: () => void }) {
             Sign up
           </Button>
         </nav>
+        {/* Mobile: hamburger */}
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen(true)}
+          className="md:hidden p-2 -mr-2 text-muted-foreground hover:text-foreground rounded-none"
+          aria-label="Open menu"
+        >
+          <Menu className="h-6 w-6" />
+        </button>
+      </div>
+      {/* Mobile menu overlay + panel */}
+      <div
+        className={`md:hidden fixed inset-0 z-40 transition-opacity duration-200 ${mobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        aria-hidden={!mobileMenuOpen}
+      >
+        <button
+          type="button"
+          onClick={closeMobileMenu}
+          className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+          aria-label="Close menu"
+        />
+        <div
+          className={`absolute top-0 right-0 bottom-0 w-full max-w-xs bg-white border-l border-border shadow-xl flex flex-col transition-transform duration-200 ease-out ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        >
+          <div className="flex items-center justify-between h-16 px-4 border-b border-border">
+            <span className="text-sm font-medium text-muted-foreground">Menu</span>
+            <button
+              type="button"
+              onClick={closeMobileMenu}
+              className="p-2 -mr-2 text-muted-foreground hover:text-foreground rounded-none"
+              aria-label="Close menu"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+          <nav className="flex flex-col gap-1 p-4">
+            <a
+              href="#features"
+              onClick={closeMobileMenu}
+              className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-none transition-colors"
+            >
+              Features
+            </a>
+            <a
+              href="#capabilities"
+              onClick={closeMobileMenu}
+              className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-none transition-colors"
+            >
+              Capabilities
+            </a>
+            <a
+              href="#pricing"
+              onClick={closeMobileMenu}
+              className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-none transition-colors"
+            >
+              Pricing
+            </a>
+            <div className="border-t border-border mt-2 pt-4 flex flex-col gap-2">
+              <Link href="/login" onClick={closeMobileMenu}>
+                <Button variant="ghost" size="sm" className="w-full justify-center rounded-none font-medium">
+                  Log in
+                </Button>
+              </Link>
+              <Button size="sm" className="w-full rounded-none font-medium" onClick={() => { closeMobileMenu(); onSignupClick(); }}>
+                Sign up
+              </Button>
+            </div>
+          </nav>
+        </div>
       </div>
     </header>
   );
