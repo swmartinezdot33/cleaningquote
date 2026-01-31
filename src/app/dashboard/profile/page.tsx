@@ -6,9 +6,23 @@ import { ensureUserOrgs } from '@/lib/org-auth';
 import { ProfileForm } from './ProfileForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CreditCard } from 'lucide-react';
+import { CreditCard, Building2 } from 'lucide-react';
 
 const billingPortalUrl = process.env.NEXT_PUBLIC_STRIPE_BILLING_PORTAL_URL ?? '';
+
+function subscriptionStatusLabel(status: string | null | undefined): string {
+  if (!status) return 'Not linked';
+  const labels: Record<string, string> = {
+    active: 'Active',
+    trialing: 'Free trial',
+    past_due: 'Past due',
+    canceled: 'Canceled',
+    unpaid: 'Unpaid',
+    incomplete: 'Incomplete',
+    incomplete_expired: 'Expired',
+  };
+  return labels[status] ?? status;
+}
 
 export default async function ProfilePage() {
   const supabase = await createSupabaseServerSSR();
@@ -30,6 +44,7 @@ export default async function ProfilePage() {
   const isAdminOfSelectedOrg = selectedOrg?.role === 'admin';
   const selectedOrgHasStripe = !!selectedOrg?.stripe_customer_id;
   const showBilling = billingPortalUrl.startsWith('http') && isAdminOfSelectedOrg && selectedOrgHasStripe;
+  const subscriptionStatus = selectedOrg?.subscription_status ?? null;
 
   return (
     <div className="space-y-6">
@@ -46,27 +61,51 @@ export default async function ProfilePage() {
         </p>
       </div>
       <ProfileForm initialDisplayName={displayName} initialEmail={user.email ?? ''} />
-      {showBilling && (
-        <Card className="max-w-xl">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
-              Billing
-            </CardTitle>
-            <CardDescription>
-              Manage subscription, payment method, and invoices for this organization.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+
+      <Card className="max-w-xl">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Billing & subscription
+          </CardTitle>
+          <CardDescription>
+            Subscription is tied to the organization. Use the org switcher in the header to change which org you’re viewing.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {selectedOrg && (
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Current org:</span>
+              <span className="font-medium text-foreground">{selectedOrg.name}</span>
+              <span className="text-muted-foreground">·</span>
+              <span className={selectedOrgHasStripe ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}>
+                {selectedOrgHasStripe
+                  ? subscriptionStatusLabel(subscriptionStatus)
+                  : 'Not linked to Stripe'}
+              </span>
+            </div>
+          )}
+          {showBilling ? (
             <a href={billingPortalUrl} target="_blank" rel="noopener noreferrer">
               <Button variant="outline" className="gap-2">
                 <CreditCard className="h-4 w-4" />
                 Manage billing
               </Button>
             </a>
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {!billingPortalUrl.startsWith('http')
+                ? 'Manage billing is not configured (NEXT_PUBLIC_STRIPE_BILLING_PORTAL_URL is missing or invalid).'
+                : !isAdminOfSelectedOrg
+                  ? 'Only org admins can manage billing. Switch to an org where you’re an admin.'
+                  : !selectedOrgHasStripe
+                    ? 'This org is not linked to Stripe yet. Complete Stripe Checkout (e.g. from the Get started or Subscribe flow) to link it; then you’ll see Manage billing here.'
+                    : 'Manage billing is unavailable for this org.'}
+            </p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
