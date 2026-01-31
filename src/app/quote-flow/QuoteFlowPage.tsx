@@ -1928,10 +1928,8 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                 </motion.div>
                               )}
 
-                              {/* Show one-time service options (Deep/General) only if:
-                                  1. No one-time service was selected, AND
-                                  2. No recurring service was selected (so we show them as alternatives) */}
-                              {!showSelectedOneTime && !showSelectedRecurring && (
+                              {/* Show one-time service options only when calendar is closed */}
+                              {!showAppointmentForm && !showCallForm && !showSelectedOneTime && !showSelectedRecurring && (
                                 <motion.div
                                   initial={{ opacity: 0, x: -10 }}
                                   animate={{ opacity: 1, x: 0 }}
@@ -1965,8 +1963,8 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                 </motion.div>
                               )}
 
-                              {/* Show other recurring options if a recurring service was selected */}
-                              {showSelectedRecurring && (
+                              {/* Show other recurring options only when calendar is closed */}
+                              {!showAppointmentForm && !showCallForm && showSelectedRecurring && (
                                 <>
                                   <motion.div
                                     initial={{ opacity: 0, x: -10 }}
@@ -2039,8 +2037,8 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                 </>
                               )}
 
-                              {/* Show one-time service options if a one-time service was selected */}
-                              {showSelectedOneTime && (
+                              {/* Show one-time suggestions only when calendar is closed */}
+                              {!showAppointmentForm && !showCallForm && showSelectedOneTime && (
                                 <>
                                   {/* Show Bi-Weekly as the primary recurring suggestion for one-time services */}
                                   <motion.div
@@ -2113,6 +2111,149 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                             </>
                           );
                         })()}
+
+                        {/* Calendar / confirmation inline under You Selected Service */}
+                        {(showAppointmentForm || showCallForm || appointmentConfirmed || callConfirmed) && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="mt-6"
+                          >
+                            {appointmentConfirmed ? (
+                              <div ref={appointmentFormRef} className="rounded-xl border-2 border-green-200 bg-green-50/50 overflow-hidden">
+                                <div className="bg-gradient-to-r from-green-500 to-green-600 p-6 text-white">
+                                  <div className="text-center">
+                                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2 }}>
+                                      <Check className="h-12 w-12 mx-auto mb-3" />
+                                    </motion.div>
+                                    <h2 className="text-2xl font-bold mb-1">Appointment Confirmed!</h2>
+                                    <p className="text-green-50 text-sm">Your appointment has been scheduled</p>
+                                  </div>
+                                </div>
+                                <div className="p-6 text-center space-y-3">
+                                  <div>
+                                    <p className="text-xs text-gray-600">Date</p>
+                                    <p className="font-bold text-gray-900">{formatDateDDMMYYYY(appointmentDate)}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-gray-600">Time</p>
+                                    <p className="font-bold text-gray-900">{formatTime12Hour(appointmentTime)}</p>
+                                  </div>
+                                  <p className="text-sm text-gray-600 pt-2">A confirmation email has been sent.</p>
+                                </div>
+                              </div>
+                            ) : callConfirmed ? (
+                              <div ref={callFormRef} className="rounded-xl border-2 border-blue-200 bg-blue-50/50 overflow-hidden">
+                                <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6 text-white">
+                                  <div className="text-center">
+                                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2 }}>
+                                      <Check className="h-12 w-12 mx-auto mb-3" />
+                                    </motion.div>
+                                    <h2 className="text-2xl font-bold mb-1">Call Scheduled!</h2>
+                                    <p className="text-blue-50 text-sm">Your consultation call has been scheduled</p>
+                                  </div>
+                                </div>
+                                <div className="p-6 text-center space-y-3">
+                                  <div>
+                                    <p className="text-xs text-gray-600">Date</p>
+                                    <p className="font-bold text-gray-900">{formatDateDDMMYYYY(callDate)}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-gray-600">Time</p>
+                                    <p className="font-bold text-gray-900">{formatTime12Hour(callTime)}</p>
+                                  </div>
+                                  <p className="text-sm text-gray-600 pt-2">We'll call you at the scheduled time!</p>
+                                </div>
+                              </div>
+                            ) : showAppointmentForm ? (
+                              <div ref={calendarRef} className="rounded-xl border-2 border-gray-200 bg-white overflow-hidden">
+                                <div className="p-4 border-b bg-gray-50">
+                                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                    <Calendar className="h-5 w-5" style={{ color: primaryColor }} />
+                                    Schedule Your Appointment
+                                  </h3>
+                                  <p className="text-gray-600 text-sm mt-1">Choose a date and time that works for you</p>
+                                </div>
+                                <div className="p-4">
+                                  {bookingMessage && (
+                                    <motion.div
+                                      initial={{ opacity: 0, y: -10 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      className={`mb-4 p-3 rounded-lg text-sm ${
+                                        bookingMessage.type === 'success'
+                                          ? 'bg-green-50 text-green-800 border border-green-200'
+                                          : 'bg-red-50 text-red-800 border border-red-200'
+                                      }`}
+                                    >
+                                      {bookingMessage.text}
+                                    </motion.div>
+                                  )}
+                                  <CalendarBooking
+                                    type="appointment"
+                                    onConfirm={(date, time, notes, timestamp) => {
+                                      setAppointmentDate(date);
+                                      setAppointmentTime(time);
+                                      setAppointmentNotes(notes);
+                                      handleBookAppointment(date, time, notes, timestamp);
+                                    }}
+                                    onCancel={() => {
+                                      setShowAppointmentForm(false);
+                                      setBookingMessage(null);
+                                      setAppointmentDate('');
+                                      setAppointmentTime('');
+                                      setAppointmentNotes('');
+                                    }}
+                                    isBooking={isBookingAppointment}
+                                    primaryColor={primaryColor}
+                                  />
+                                </div>
+                              </div>
+                            ) : showCallForm ? (
+                              <div ref={calendarRef} className="rounded-xl border-2 border-gray-200 bg-white overflow-hidden">
+                                <div className="p-4 border-b bg-gray-50">
+                                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                    📞 Schedule a Callback
+                                  </h3>
+                                  <p className="text-gray-600 text-sm mt-1">We'll call you at your preferred time</p>
+                                </div>
+                                <div className="p-4">
+                                  {bookingMessage && (
+                                    <motion.div
+                                      initial={{ opacity: 0, y: -10 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      className={`mb-4 p-3 rounded-lg text-sm ${
+                                        bookingMessage.type === 'success'
+                                          ? 'bg-green-50 text-green-800 border border-green-200'
+                                          : 'bg-red-50 text-red-800 border border-red-200'
+                                      }`}
+                                    >
+                                      {bookingMessage.text}
+                                    </motion.div>
+                                  )}
+                                  <CalendarBooking
+                                    type="call"
+                                    onConfirm={(date, time, notes, timestamp) => {
+                                      setCallDate(date);
+                                      setCallTime(time);
+                                      setCallNotes(notes);
+                                      handleBookCall(date, time, notes, timestamp);
+                                    }}
+                                    onCancel={() => {
+                                      setShowCallForm(false);
+                                      setBookingMessage(null);
+                                      setCallDate('');
+                                      setCallTime('');
+                                      setCallNotes('');
+                                    }}
+                                    isBooking={isBookingCall}
+                                    primaryColor={primaryColor}
+                                  />
+                                </div>
+                              </div>
+                            ) : null}
+                          </motion.div>
+                        )}
 
                         {/* Initial Cleaning Note if applicable */}
                         {quoteResult.initialCleaningRequired && (
@@ -2292,208 +2433,11 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                   </motion.div>
                 )}
 
-                {/* Appointment Booking Section */}
-                {quoteResult && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                  >
-                    {appointmentConfirmed ? (
-                      <div ref={appointmentFormRef}>
-                        <Card className="shadow-2xl border-0 overflow-hidden">
-                          <div className="bg-gradient-to-r from-green-500 to-green-600 p-8 text-white">
-                          <div className="text-center">
-                            <motion.div
-                              initial={{ scale: 0 }}
-                              animate={{ scale: 1 }}
-                              transition={{ type: 'spring', delay: 0.4 }}
-                            >
-                              <Check className="h-16 w-16 mx-auto mb-4" />
-                            </motion.div>
-                            <h2 className="text-3xl font-bold mb-2">Appointment Confirmed!</h2>
-                            <p className="text-green-50 mb-4">
-                              Your appointment has been scheduled
-                            </p>
-                          </div>
-                        </div>
-                        <CardContent className="pt-8 text-center pb-8">
-                          <div className="space-y-4">
-                            <div>
-                              <p className="text-sm text-gray-600 mb-1">Appointment Date</p>
-                              <p className="text-2xl font-bold text-gray-900">{formatDateDDMMYYYY(appointmentDate)}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-600 mb-1">Appointment Time</p>
-                              <p className="text-2xl font-bold text-gray-900">{formatTime12Hour(appointmentTime)}</p>
-                            </div>
-                            <div className="pt-4 border-t">
-                              <p className="text-sm text-gray-600">
-                                A confirmation email has been sent. We look forward to seeing you!
-                              </p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                      </div>
-                    ) : showAppointmentForm ? (
-                      <div ref={appointmentFormRef}>
-                        <Card className="shadow-2xl border-0 overflow-hidden">
-                          <div 
-                            className="p-6 border-b"
-                            style={{
-                              background: `linear-gradient(to right, ${hexToRgba(primaryColor, 0.05)}, transparent)`
-                            }}
-                          >
-                          <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                            <Calendar className="h-6 w-6" style={{ color: primaryColor }} />
-                            Schedule Your Appointment
-                          </h3>
-                          <p className="text-gray-600 mt-2">Choose a date and time that works best for you</p>
-                        </div>
-                        <CardContent className="pt-8">
-                          {bookingMessage && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className={`mb-6 p-4 rounded-lg ${
-                                bookingMessage.type === 'success'
-                                  ? 'bg-green-50 text-green-800 border border-green-200'
-                                  : 'bg-red-50 text-red-800 border border-red-200'
-                              }`}
-                            >
-                              {bookingMessage.text}
-                            </motion.div>
-                          )}
+                {/* Appointment calendar/confirmation now shown inline in quote card above */}
+                {quoteResult ? null : null}
 
-                          <div ref={calendarRef}>
-                            <CalendarBooking
-                              type="appointment"
-                              onConfirm={(date, time, notes, timestamp) => {
-                                // Update state for display
-                                setAppointmentDate(date);
-                                setAppointmentTime(time);
-                                setAppointmentNotes(notes);
-                                // Pass values directly to avoid async state update issue, including timestamp
-                                handleBookAppointment(date, time, notes, timestamp);
-                              }}
-                              onCancel={() => {
-                                setShowAppointmentForm(false);
-                                setBookingMessage(null);
-                                setAppointmentDate('');
-                                setAppointmentTime('');
-                                setAppointmentNotes('');
-                              }}
-                              isBooking={isBookingAppointment}
-                              primaryColor={primaryColor}
-                            />
-                          </div>
-                        </CardContent>
-                        </Card>
-                      </div>
-                    ) : null}
-                  </motion.div>
-                )}
-
-                {/* Call Booking Section */}
-                {quoteResult && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.35 }}
-                  >
-                    {callConfirmed ? (
-                      <div ref={callFormRef}>
-                        <Card className="shadow-2xl border-0 overflow-hidden">
-                          <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-8 text-white">
-                          <div className="text-center">
-                            <motion.div
-                              initial={{ scale: 0 }}
-                              animate={{ scale: 1 }}
-                              transition={{ type: 'spring', delay: 0.4 }}
-                            >
-                              <Check className="h-16 w-16 mx-auto mb-4" />
-                            </motion.div>
-                            <h2 className="text-3xl font-bold mb-2">Call Scheduled!</h2>
-                            <p className="text-blue-50 mb-4">
-                              Your consultation call has been scheduled
-                            </p>
-                          </div>
-                        </div>
-                        <CardContent className="pt-8 text-center pb-8">
-                          <div className="space-y-4">
-                            <div>
-                              <p className="text-sm text-gray-600 mb-1">Call Date</p>
-                              <p className="text-2xl font-bold text-gray-900">{formatDateDDMMYYYY(callDate)}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-600 mb-1">Call Time</p>
-                              <p className="text-2xl font-bold text-gray-900">{formatTime12Hour(callTime)}</p>
-                            </div>
-                            <div className="pt-4 border-t">
-                              <p className="text-sm text-gray-600">
-                                A confirmation has been sent. We'll call you at the scheduled time!
-                              </p>
-                            </div>
-                          </div>
-                        </CardContent>
-                        </Card>
-                      </div>
-                    ) : showCallForm ? (
-                      <div ref={callFormRef}>
-                        <Card className="shadow-2xl border-0 overflow-hidden">
-                          <div 
-                            className="p-6 border-b"
-                          style={{
-                            background: `linear-gradient(to right, ${hexToRgba(primaryColor, 0.05)}, transparent)`
-                          }}
-                        >
-                          <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                            📞 Schedule a Callback
-                          </h3>
-                          <p className="text-gray-600 mt-2 font-semibold">We'll call you at your preferred time to discuss your cleaning needs and answer any questions</p>
-                        </div>
-                        <CardContent className="pt-8">
-                          {bookingMessage && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className={`mb-6 p-4 rounded-lg ${
-                                bookingMessage.type === 'success'
-                                  ? 'bg-green-50 text-green-800 border border-green-200'
-                                  : 'bg-red-50 text-red-800 border border-red-200'
-                              }`}
-                            >
-                              {bookingMessage.text}
-                            </motion.div>
-                          )}
-
-                          <div ref={calendarRef}>
-                            <CalendarBooking
-                              type="call"
-                              onConfirm={(date, time, notes, timestamp) => {
-                                setCallDate(date);
-                                setCallTime(time);
-                                setCallNotes(notes);
-                                handleBookCall(date, time, notes, timestamp);
-                              }}
-                              onCancel={() => {
-                                setShowCallForm(false);
-                                setBookingMessage(null);
-                                setCallDate('');
-                                setCallTime('');
-                                setCallNotes('');
-                              }}
-                              isBooking={isBookingCall}
-                              primaryColor={primaryColor}
-                            />
-                          </div>
-                        </CardContent>
-                        </Card>
-                      </div>
-                    ) : null}
-                  </motion.div>
-                )}
+                {/* Call calendar/confirmation now shown inline in quote card above */}
+                {quoteResult ? null : null}
 
                 {/* Footer CTA */}
                 <motion.div

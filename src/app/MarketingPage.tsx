@@ -32,6 +32,12 @@ function Header() {
             Features
           </a>
           <a
+            href="#capabilities"
+            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Capabilities
+          </a>
+          <a
             href="#pricing"
             className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
@@ -174,17 +180,17 @@ function Features() {
     {
       icon: Calendar,
       title: 'Book callbacks & appointments',
-      description: 'Stop playing phone tag. Let leads pick a time or request a callback. Sync with your calendar and show only when you’re free. Fewer no-shows, more show-ups.',
+      description: 'Stop playing phone tag. Let leads pick a time or request a callback. Sync with GoHighLevel calendars and show only when you’re free. Fewer no-shows, more show-ups.',
     },
     {
       icon: BarChart3,
       title: 'Your pricing, your rules',
-      description: 'Upload your real pricing table. Square footage, add-ons, frequency—you control every variable. Quotes stay accurate and on-brand, every time.',
+      description: 'Upload your real pricing table or import from Excel. Square footage ranges, add-ons, frequency tiers—you control every variable. Initial Cleaning multipliers, people and pet adjusters—quotes stay accurate and on-brand, every time.',
     },
     {
       icon: Sparkles,
       title: 'Embed anywhere',
-      description: 'Drop the quote widget on your site, in GHL funnels, or behind one link. Same experience everywhere. One setup, one brand, more qualified leads.',
+      description: 'Drop the quote widget on your site, in GHL funnels, or behind one link. Same experience everywhere. Pass UTM params for tracking. One setup, one brand, more qualified leads.',
     },
   ];
 
@@ -222,10 +228,50 @@ function Features() {
             'Google Maps service area',
             'GHL contacts & pipelines',
             'SMS-ready quote copy',
+            'Excel pricing import',
+            'Initial Cleaning detection',
+            'Appointment & callback booking',
+            'Team & subaccounts',
           ].map((item) => (
             <li key={item} className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-primary drop-shadow-sm" />
               {item}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+function Capabilities() {
+  const capabilities = [
+    'Build custom quote forms—address, home size, bedrooms, baths, pets, condition, frequency—only ask what you need',
+    'Import pricing from Excel or use the built-in structure—sq ft ranges, weekly, bi-weekly, 4-week, general, deep, move in/out',
+    'Smart Initial Cleaning—auto-detect based on home condition and cleaning history, with configurable multipliers and conditions',
+    'Service area polygons—upload KML or NetworkLink, qualify leads by location before they even submit',
+    'GoHighLevel sync—contacts, opportunities, notes, pipelines, custom fields, tags, appointment and callback booking',
+    'Embed anywhere—widget snippet, iframe, or shareable link. Pass GHL contact data into pre-filled forms',
+    'Google Maps autocomplete and geocoding—accurate addresses, automatic service area checks',
+    'Multi-frequency pricing—weekly, bi-weekly, four-week, one-time general and deep clean, move in/move out',
+    'Team and subaccounts—invite users, manage multiple quote tools per organization',
+  ];
+
+  return (
+    <section id="capabilities" className="relative border-t border-white/20 py-16 sm:py-20 overflow-hidden">
+      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/5 via-background to-muted/30" />
+      <div className="mx-auto max-w-4xl px-4 sm:px-6">
+        <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl text-center">
+          Built for cleaning pros—every capability you need
+        </h2>
+        <p className="mt-4 text-lg text-muted-foreground text-center max-w-2xl mx-auto">
+          From pricing to booking to CRM sync, CleanQuote.io gives you the tools to close more jobs—without the spreadsheets.
+        </p>
+        <ul className="mt-10 space-y-4 max-w-2xl mx-auto">
+          {capabilities.map((item, i) => (
+            <li key={i} className="flex items-start gap-3 text-muted-foreground">
+              <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+              <span>{item}</span>
             </li>
           ))}
         </ul>
@@ -337,6 +383,9 @@ function Footer() {
             <a href="#features" className="hover:text-foreground transition-colors">
               Features
             </a>
+            <a href="#capabilities" className="hover:text-foreground transition-colors">
+              Capabilities
+            </a>
             <a href="#pricing" className="hover:text-foreground transition-colors">
               Pricing
             </a>
@@ -374,6 +423,7 @@ export default function MarketingPage() {
         <WhySection />
         <HowItWorks />
         <Features />
+        <Capabilities />
         <Pricing />
         <CTA />
       </main>

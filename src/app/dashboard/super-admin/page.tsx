@@ -246,7 +246,10 @@ export default function SuperAdminPage() {
         body: JSON.stringify({ password: setPasswordValue }),
       });
       if (res.ok) {
-        setMessage({ type: 'success', text: 'Password updated.' });
+        setMessage({
+          type: 'success',
+          text: 'Password updated. They must sign out and sign in with the new password.',
+        });
         setSetPasswordUserId(null);
         setSetPasswordValue('');
       } else {
@@ -296,14 +299,9 @@ export default function SuperAdminPage() {
   return (
     <div className="space-y-8">
       <div>
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard" className="text-sm text-primary hover:underline">
-            ← Back to dashboard
-          </Link>
-          <Link href="/dashboard/super-admin/inbox" className="text-sm text-muted-foreground hover:text-primary hover:underline">
-            Inbox
-          </Link>
-        </div>
+        <Link href="/dashboard" className="text-sm text-primary hover:underline">
+          ← Back to dashboard
+        </Link>
         <h1 className="mt-2 text-2xl font-bold text-amber-600">Super Admin</h1>
         <p className="text-sm text-muted-foreground">Manage users and organizations</p>
       </div>
