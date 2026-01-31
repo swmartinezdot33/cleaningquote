@@ -59,6 +59,30 @@ async function sendCheckoutConfirmationEmail(email: string, setPasswordLink: str
   }
 }
 
+/** Get business name from Stripe customer (set in create-customer: metadata.businessName or description). */
+function getBusinessNameFromCustomer(customer: Stripe.Customer | Stripe.DeletedCustomer): string | null {
+  if (customer.deleted) return null;
+  const meta = (customer as Stripe.Customer).metadata;
+  if (meta?.businessName && String(meta.businessName).trim()) return String(meta.businessName).trim();
+  if ((customer as Stripe.Customer).description && String((customer as Stripe.Customer).description).trim()) {
+    return String((customer as Stripe.Customer).description).trim();
+  }
+  return null;
+}
+
+/** Get full name from Stripe customer (display name for the admin user). */
+function getFullNameFromCustomer(customer: Stripe.Customer | Stripe.DeletedCustomer): string | null {
+  if (customer.deleted) return null;
+  const c = customer as Stripe.Customer;
+  if (c.name && String(c.name).trim()) return String(c.name).trim();
+  const meta = c.metadata;
+  if (meta?.fullName && String(meta.fullName).trim()) return String(meta.fullName).trim();
+  const first = meta?.firstName ? String(meta.firstName).trim() : '';
+  const last = meta?.lastName ? String(meta.lastName).trim() : '';
+  if (first || last) return `${first} ${last}`.trim();
+  return null;
+}
+
 /** Find Supabase user id by email (admin listUsers) */
 async function findUserIdByEmail(admin: ReturnType<typeof createSupabaseServer>, email: string): Promise<string | null> {
   let page = 0;
@@ -81,7 +105,9 @@ async function ensureUserAndOrgFromStripe(
   customerId: string,
   subscriptionId: string,
   subscriptionStatus: string,
-  stripe: Stripe
+  stripe: Stripe,
+  orgName?: string | null,
+  fullName?: string | null
 ): Promise<{ userId: string; orgId: string; isNewUser: boolean } | null> {
   const emailNorm = email.trim().toLowerCase();
   if (!emailNorm) return null;
@@ -112,10 +138,12 @@ async function ensureUserAndOrgFromStripe(
 
   let userId: string;
   let isNewUser = false;
+  const userDisplayName = (fullName && fullName.trim()) || '';
   const { data: existingUser, error: createError } = await admin.auth.admin.createUser({
     email: emailNorm,
     password: crypto.randomUUID().replace(/-/g, '') + 'A1!',
     email_confirm: true,
+    user_metadata: userDisplayName ? { full_name: userDisplayName } : undefined,
   });
   if (createError) {
     if (createError.message?.includes('already been registered') || createError.message?.includes('already exists')) {
@@ -134,12 +162,13 @@ async function ensureUserAndOrgFromStripe(
     isNewUser = true;
   }
 
-  // New subscription = new org ($297/org). Same user (email) can have multiple orgs.
+  // New subscription = new org ($297/org). Same user (email) can have multiple orgs. Use business name when available.
   const slug = slugFromEmail(emailNorm);
+  const displayName = (orgName && orgName.trim()) || 'Personal';
   const { data: org, error: orgErr } = await admin
     .from('organizations')
     .insert({
-      name: 'Personal',
+      name: displayName,
       slug,
       stripe_customer_id: customerId,
       stripe_subscription_id: subscriptionId,
@@ -275,7 +304,17 @@ export async function POST(request: NextRequest) {
           // keep default
         }
 
-        const result = await ensureUserAndOrgFromStripe(admin, email, customerId, subscriptionId, subscriptionStatus, stripeApi);
+        let orgName: string | null = null;
+        let fullName: string | null = null;
+        try {
+          const customer = await stripeApi.customers.retrieve(customerId);
+          orgName = getBusinessNameFromCustomer(customer);
+          fullName = getFullNameFromCustomer(customer);
+        } catch {
+          // keep null, will use 'Personal' / no display name
+        }
+
+        const result = await ensureUserAndOrgFromStripe(admin, email, customerId, subscriptionId, subscriptionStatus, stripeApi, orgName, fullName);
         if (!result) {
           console.error('Stripe webhook: ensureUserAndOrgFromStripe returned null', { email, customerId, subscriptionId });
           return NextResponse.json({ error: 'Failed to create user/org' }, { status: 500 });
@@ -312,10 +351,14 @@ export async function POST(request: NextRequest) {
 
         const stripe = new Stripe(stripeSecret);
         let email: string | null = null;
+        let orgName: string | null = null;
+        let fullName: string | null = null;
         try {
           const customer = await stripe.customers.retrieve(customerId);
           if (customer && !customer.deleted) {
             email = (customer.email ?? '').trim().toLowerCase() || null;
+            orgName = getBusinessNameFromCustomer(customer);
+            fullName = getFullNameFromCustomer(customer);
           }
         } catch (err) {
           console.error('Stripe webhook: customer.subscription.created — could not fetch customer', customerId, err);
@@ -332,7 +375,9 @@ export async function POST(request: NextRequest) {
           customerId,
           subscription.id,
           subscription.status,
-          stripe
+          stripe,
+          orgName,
+          fullName
         );
         if (result) {
           console.log('Stripe webhook: account created from customer.subscription.created (trial/fallback)', {
