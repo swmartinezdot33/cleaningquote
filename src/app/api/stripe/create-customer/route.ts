@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
         subscription_data: {
           trial_period_days: 14,
         },
-        success_url: `${baseUrl}/dashboard?checkout=success`,
+        success_url: `${baseUrl}/subscribe/success`,
         cancel_url: `${baseUrl}?checkout=cancelled`,
         allow_promotion_codes: true,
       });
