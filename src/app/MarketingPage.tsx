@@ -106,7 +106,7 @@ function Hero() {
           </Link>
         </div>
         <p className="mt-6 text-sm text-muted-foreground">
-          {isStripeCheckout ? '14-day free trial · $297/mo after · Cancel anytime · Secure checkout via Stripe' : '14-day free trial · $297/mo after · No credit card required to start'}
+          14-day free trial · $297/mo after · Cancel anytime{isStripeCheckout ? ' · Secure checkout via Stripe' : ''}
         </p>
       </div>
     </section>
@@ -270,7 +270,7 @@ function Pricing() {
                   </Button>
                 </Link>
               )}
-              <p className="mt-3 text-xs text-muted-foreground">No credit card required to start</p>
+              <p className="mt-3 text-xs text-muted-foreground">Cancel anytime</p>
             </div>
           </div>
         </div>
