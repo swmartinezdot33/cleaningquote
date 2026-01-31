@@ -3,7 +3,7 @@ interface BrandLogoProps {
   showWordmark?: boolean;
 }
 
-const LOGO_ICON_SRC = '/CleanQuote Logo Icon.png';
+const LOGO_ICON_SRC = '/cleanquote_square_icon_padding.png';
 
 function LogoIcon() {
   return (
