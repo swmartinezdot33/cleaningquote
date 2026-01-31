@@ -636,13 +636,13 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
         <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
           <CardHeader
-            className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-b border-border pb-6 cursor-pointer"
+            className="bg-gradient-to-r from-purple-500/10 to-violet-500/10 border-b border-border pb-6 cursor-pointer"
             onClick={() => toggleCard('service-area')}
           >
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                  <MapPin className="h-5 w-5 text-emerald-600" />
+                  <MapPin className="h-5 w-5 text-purple-600" />
                   Service Area Configuration
                 </CardTitle>
                 <CardDescription className="text-muted-foreground mt-1">
