@@ -42,7 +42,7 @@ Created a modal-based signup flow that collects customer information, creates a 
 ## Flow
 
 1. User clicks "Start 14-day free trial" or "Sign up"
-2. Modal opens with signup form
+2. Modal opens with signup form (Step 1)
 3. User fills in all required fields:
    - First Name
    - Last Name
@@ -53,17 +53,22 @@ Created a modal-based signup flow that collects customer information, creates a 
    - API creates Stripe customer with all business information
    - Customer metadata includes: firstName, lastName, businessName, fullName, businessEmail
    - Returns `customerId`
-   - Redirects to: `https://pay.cleanquote.io/b/dRmdRa4XldYmf9P7eu7bW00?prefilled_email={email}&client_reference_id={customerId}`
-5. User completes payment on Stripe
-6. Stripe webhook (`checkout.session.completed`) creates Supabase user + org using the customer email
+   - Modal advances to payment step (Step 2)
+5. Stripe Buy Button loads with:
+   - `customer-email`: prefilled from form
+   - `client-reference-id`: the Stripe customer ID we just created
+6. User completes payment in embedded Stripe checkout
+7. Stripe webhook (`checkout.session.completed`) creates Supabase user + org using the customer email
 
 ## Benefits
 
 - **Complete business data capture** - full name, business name, business email, phone
 - **Stripe customer enrichment** - all data stored in customer record and metadata
-- **Prefills Stripe checkout** with email (better UX)
-- **Links Stripe customer to checkout** via `client_reference_id`
-- **Consistent branding** - modal stays on cleanquote.io before redirect
+- **Single customer creation** - no duplicate customers (embedded checkout uses existing customer)
+- **Embedded checkout** - user never leaves cleanquote.io
+- **Prefills email** - better UX with customer-email attribute
+- **Links customer to subscription** - via `client_reference_id`
+- **Two-step flow** - collect info first, then payment (better conversion)
 - **Compliance ready** - full contact information for toll-free SMS registration
 
 ## Testing
@@ -78,9 +83,17 @@ Created a modal-based signup flow that collects customer information, creates a 
 
 ## Environment Variables
 
-No new env vars required. Uses existing:
-- `STRIPE_SECRET_KEY` (for creating customers)
-- Stripe webhook env vars (for post-payment account creation)
+Required env vars:
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - Stripe publishable key (pk_live_... or pk_test_...)
+- `NEXT_PUBLIC_STRIPE_BUY_BUTTON_ID` - Buy Button ID from Stripe Dashboard
+- `STRIPE_SECRET_KEY` - Stripe secret key (for creating customers)
+- `STRIPE_WEBHOOK_SECRET` - Webhook signing secret (for post-payment account creation)
+
+**To set in Vercel:**
+```bash
+npx vercel env add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY production
+npx vercel env add NEXT_PUBLIC_STRIPE_BUY_BUTTON_ID production
+```
 
 ## Next Steps (Optional)
 
