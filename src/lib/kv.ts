@@ -10,6 +10,27 @@ const SURVEY_QUESTIONS_KEY = 'survey:questions';
 const SERVICE_AREA_POLYGON_KEY = 'service:area:polygon';
 const SERVICE_AREA_NETWORK_LINK_KEY = 'service:area:network:link';
 const FORM_SETTINGS_KEY = 'admin:form-settings';
+const INBOX_META_PREFIX = 'inbox:meta:';
+
+/** Inbox meta (flag/delete) per received email ID. Stored in KV; Resend does not support these. */
+export type InboxMeta = { flagged?: boolean; deleted?: boolean };
+
+/** Get inbox meta for a received email (super-admin inbox). */
+export async function getInboxMeta(emailId: string): Promise<InboxMeta | null> {
+  try {
+    const kv = getKV();
+    const meta = await kv.get<InboxMeta>(`${INBOX_META_PREFIX}${emailId}`);
+    return meta ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Set inbox meta for a received email. */
+export async function setInboxMeta(emailId: string, meta: InboxMeta): Promise<void> {
+  const kv = getKV();
+  await kv.set(`${INBOX_META_PREFIX}${emailId}`, meta);
+}
 
 /** Multi-tenant: build tool-scoped key. When toolId is omitted, use legacy global key for backward compat. */
 export function toolKey(toolId: string | undefined, key: string): string {

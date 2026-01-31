@@ -51,12 +51,20 @@ export default async function DashboardLayout({
               <OrgSwitcher orgs={orgs} selectedOrgId={selectedOrgId} />
             )}
             {isSuperAdminEmail(user.email ?? undefined) && (
-              <Link
-                href="/dashboard/super-admin"
-                className="text-sm font-medium text-amber-600 hover:text-amber-700 hover:underline"
-              >
-                Super Admin
-              </Link>
+              <>
+                <Link
+                  href="/dashboard/super-admin/inbox"
+                  className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+                >
+                  Inbox
+                </Link>
+                <Link
+                  href="/dashboard/super-admin"
+                  className="text-sm font-medium text-amber-600 hover:text-amber-700 hover:underline"
+                >
+                  Super Admin
+                </Link>
+              </>
             )}
             <Link
               href="/dashboard"

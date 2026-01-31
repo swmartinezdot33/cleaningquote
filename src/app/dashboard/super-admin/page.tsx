@@ -296,9 +296,14 @@ export default function SuperAdminPage() {
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/dashboard" className="text-sm text-primary hover:underline">
-          ← Back to dashboard
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard" className="text-sm text-primary hover:underline">
+            ← Back to dashboard
+          </Link>
+          <Link href="/dashboard/super-admin/inbox" className="text-sm text-muted-foreground hover:text-primary hover:underline">
+            Inbox
+          </Link>
+        </div>
         <h1 className="mt-2 text-2xl font-bold text-amber-600">Super Admin</h1>
         <p className="text-sm text-muted-foreground">Manage users and organizations</p>
       </div>
