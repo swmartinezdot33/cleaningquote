@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,10 +13,8 @@ interface SignupModalProps {
 }
 
 export function SignupModal({ open, onOpenChange }: SignupModalProps) {
-  const [step, setStep] = useState<'form' | 'payment'>('form');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [customerId, setCustomerId] = useState<string>('');
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -25,49 +23,31 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
     businessName: '',
   });
 
-  // Load Stripe Buy Button script
-  useEffect(() => {
-    if (step === 'payment' && !document.querySelector('script[src="https://js.stripe.com/v3/buy-button.js"]')) {
-      const script = document.createElement('script');
-      script.src = 'https://js.stripe.com/v3/buy-button.js';
-      script.async = true;
-      document.body.appendChild(script);
-    }
-  }, [step]);
-
-  // Reset state when modal closes
-  useEffect(() => {
-    if (!open) {
-      setStep('form');
-      setError('');
-      setCustomerId('');
-    }
-  }, [open]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      // Create Stripe customer
+      // Create Stripe customer and get checkout URL
       const response = await fetch('/api/stripe/create-customer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const data = await response.json();
         throw new Error(data.error || 'Failed to create customer');
       }
 
-      const { customerId: newCustomerId } = await response.json();
-      setCustomerId(newCustomerId);
-      
-      // Move to payment step
-      setStep('payment');
-      setLoading(false);
+      if (data.checkoutUrl) {
+        // Redirect to Stripe checkout with customer already attached
+        window.location.href = data.checkoutUrl;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
       setLoading(false);
@@ -77,16 +57,14 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
-        {step === 'form' ? (
-          <>
-            <DialogHeader>
-              <DialogTitle>Get Started with CleanQuote</DialogTitle>
-              <DialogDescription>
-                Enter your business information to continue to payment. Your account will be created after successful payment.
-              </DialogDescription>
-            </DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Get Started with CleanQuote</DialogTitle>
+          <DialogDescription>
+            Enter your business information to start your 14-day free trial.
+          </DialogDescription>
+        </DialogHeader>
 
-            <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="firstName">First Name *</Label>
@@ -163,7 +141,7 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
                 Creating account...
               </>
             ) : (
-              'Continue to Payment'
+              'Continue to Payment →'
             )}
           </Button>
 
@@ -178,42 +156,6 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
             </a>
           </p>
         </form>
-          </>
-        ) : (
-          <>
-            <DialogHeader>
-              <DialogTitle>Complete Your Subscription</DialogTitle>
-              <DialogDescription>
-                Complete your payment to start your 14-day free trial. Your account will be created after successful payment.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="mt-4 flex flex-col items-center justify-center min-h-[300px]">
-              {process.env.NEXT_PUBLIC_STRIPE_BUY_BUTTON_ID && process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? (
-                <stripe-buy-button
-                  buy-button-id={process.env.NEXT_PUBLIC_STRIPE_BUY_BUTTON_ID}
-                  publishable-key={process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
-                  customer-email={formData.email}
-                  client-reference-id={customerId}
-                >
-                </stripe-buy-button>
-              ) : (
-                <div className="text-center text-sm text-muted-foreground">
-                  <p>Stripe checkout is not configured.</p>
-                  <p className="mt-2">Please set NEXT_PUBLIC_STRIPE_BUY_BUTTON_ID and NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.</p>
-                </div>
-              )}
-              
-              <Button 
-                variant="ghost" 
-                onClick={() => setStep('form')} 
-                className="mt-4"
-              >
-                ← Back to form
-              </Button>
-            </div>
-          </>
-        )}
       </DialogContent>
     </Dialog>
   );
