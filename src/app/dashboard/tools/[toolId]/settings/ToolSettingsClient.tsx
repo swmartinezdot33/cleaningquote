@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ChevronDown, Sparkles, MapPin, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload } from 'lucide-react';
+import Link from 'next/link';
+import { ChevronDown, Sparkles, MapPin, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { TagPicker } from '@/components/ui/TagPicker';
 
@@ -779,8 +780,12 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                   <Code className="h-5 w-5 text-primary" />
                   Google Maps API Key
                 </CardTitle>
-                <CardDescription className="text-muted-foreground mt-1">
-                  Required for address autocomplete and geocoding on the quote form
+                <CardDescription className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  Required for address autocomplete and geocoding on the quote form.
+                  <Link href="/help/google-maps-api" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                    <BookOpen className="h-3.5 w-3.5" />
+                    Instructions
+                  </Link>
                 </CardDescription>
               </div>
               <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('maps') ? 'rotate-180' : ''}`} />

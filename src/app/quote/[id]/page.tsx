@@ -663,8 +663,8 @@ export default function QuotePage() {
                               </motion.div>
                             )}
 
-                            {/* INITIAL CLEANING - Show as recommendation if RECOMMENDED (for recurring services) */}
-                            {quoteResult.initialCleaningRecommended && !quoteResult.initialCleaningRequired && isRecurringService && quoteResult.ranges?.general && (
+                            {/* INITIAL CLEANING - Show as recommendation only when calendar is closed */}
+                            {!showAppointmentForm && !showCallForm && quoteResult.initialCleaningRecommended && !quoteResult.initialCleaningRequired && isRecurringService && quoteResult.ranges?.general && (
                               <motion.div
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
@@ -689,8 +689,8 @@ export default function QuotePage() {
                               </motion.div>
                             )}
 
-                            {/* Always show Bi-Weekly with star as Most Popular when not selected (one-time and recurring) */}
-                            {frequency !== 'bi-weekly' && quoteResult.ranges?.biWeekly && (
+                            {/* Most Popular recurring option - only when calendar is closed */}
+                            {!showAppointmentForm && !showCallForm && frequency !== 'bi-weekly' && quoteResult.ranges?.biWeekly && (
                               <motion.div
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
@@ -714,8 +714,8 @@ export default function QuotePage() {
                               </motion.div>
                             )}
 
-                            {/* OTHER SERVICE OPTIONS: all services from Survey Builder (left input = label) + recurring options */}
-                            {quoteResult.ranges && (
+                            {/* OTHER SERVICE OPTIONS - only when calendar is closed */}
+                            {!showAppointmentForm && !showCallForm && quoteResult.ranges && (
                               <motion.div
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
@@ -781,6 +781,98 @@ export default function QuotePage() {
                           </>
                         );
                       })()}
+
+                      {/* Calendar inline under You Selected Service - same section, no scroll */}
+                      {(showAppointmentForm || showCallForm) && quoteResult?.ghlContactId && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="mt-6"
+                        >
+                          {showAppointmentForm ? (
+                            <div ref={calendarRef} className="rounded-xl border-2 border-gray-200 bg-white overflow-hidden">
+                              <div className="p-4 border-b bg-gray-50">
+                                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                  <Calendar className="h-5 w-5" style={{ color: primaryColor }} />
+                                  Schedule Your Appointment
+                                </h3>
+                                <p className="text-gray-600 text-sm mt-1">Choose a date and time that works for you</p>
+                              </div>
+                              <div className="p-4">
+                                {bookingMessage && (
+                                  <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className={`mb-4 p-3 rounded-lg text-sm ${
+                                      bookingMessage.type === 'success'
+                                        ? 'bg-green-50 text-green-800 border border-green-200'
+                                        : 'bg-red-50 text-red-800 border border-red-200'
+                                    }`}
+                                  >
+                                    {bookingMessage.text}
+                                  </motion.div>
+                                )}
+                                <CalendarBooking
+                                  type="appointment"
+                                  onConfirm={(date, time, notes, timestamp) => {
+                                    setAppointmentDate(date);
+                                    setAppointmentTime(time);
+                                    setAppointmentNotes(notes);
+                                    handleBookAppointment(date, time, notes, timestamp);
+                                  }}
+                                  onCancel={() => {
+                                    setShowAppointmentForm(false);
+                                    setBookingMessage(null);
+                                    setAppointmentDate('');
+                                    setAppointmentTime('');
+                                    setAppointmentNotes('');
+                                  }}
+                                  isBooking={isBookingAppointment}
+                                  primaryColor={primaryColor}
+                                />
+                              </div>
+                            </div>
+                          ) : showCallForm ? (
+                            <div ref={calendarRef} className="rounded-xl border-2 border-gray-200 bg-white overflow-hidden">
+                              <div className="p-4 border-b bg-gray-50">
+                                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                  <Clock className="h-5 w-5" style={{ color: primaryColor }} />
+                                  Schedule a Callback
+                                </h3>
+                                <p className="text-gray-600 text-sm mt-1">We'll call you at your preferred time</p>
+                              </div>
+                              <div className="p-4">
+                                {callMessage && (
+                                  <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className={`mb-4 p-3 rounded-lg text-sm ${
+                                      callMessage.type === 'success'
+                                        ? 'bg-green-50 text-green-800 border border-green-200'
+                                        : 'bg-red-50 text-red-800 border border-red-200'
+                                    }`}
+                                  >
+                                    {callMessage.text}
+                                  </motion.div>
+                                )}
+                                <CalendarBooking
+                                  type="call"
+                                  onConfirm={(date, time, notes, timestamp) => {
+                                    handleScheduleCall(date, time, notes, timestamp);
+                                  }}
+                                  onCancel={() => {
+                                    setShowCallForm(false);
+                                    setCallMessage(null);
+                                  }}
+                                  isBooking={isBookingCall}
+                                  primaryColor={primaryColor}
+                                />
+                              </div>
+                            </div>
+                          ) : null}
+                        </motion.div>
+                      )}
 
                       {/* Action Buttons - Matching Screenshot - ALWAYS SHOW */}
                       {quoteResult && !isLoading && (
@@ -892,55 +984,7 @@ export default function QuotePage() {
                 </Card>
               </motion.div>
 
-              {/* Calendar Booking Component */}
-              {showAppointmentForm && quoteResult.ghlContactId && (
-                <Card className="shadow-lg">
-                  <CardContent className="pt-6">
-                    <div ref={calendarRef}>
-                      <CalendarBooking
-                        type="appointment"
-                        onConfirm={(date, time, notes, timestamp) => {
-                          setAppointmentDate(date);
-                          setAppointmentTime(time);
-                          setAppointmentNotes(notes);
-                          handleBookAppointment(date, time, notes, timestamp);
-                        }}
-                        onCancel={() => {
-                          setShowAppointmentForm(false);
-                          setBookingMessage(null);
-                          setAppointmentDate('');
-                          setAppointmentTime('');
-                          setAppointmentNotes('');
-                        }}
-                        isBooking={isBookingAppointment}
-                        primaryColor={primaryColor}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Call Form */}
-              {showCallForm && quoteResult.ghlContactId && (
-                <Card className="shadow-lg">
-                  <CardContent className="pt-6">
-                    <div ref={calendarRef}>
-                      <CalendarBooking
-                        type="call"
-                        onConfirm={(date, time, notes, timestamp) => {
-                          handleScheduleCall(date, time, notes, timestamp);
-                        }}
-                        onCancel={() => {
-                          setShowCallForm(false);
-                          setCallMessage(null);
-                        }}
-                        isBooking={isBookingCall}
-                        primaryColor={primaryColor}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+              {/* Calendar and call form now shown inline in quote card above */}
             </div>
           </motion.div>
         </div>
