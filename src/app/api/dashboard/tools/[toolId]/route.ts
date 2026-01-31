@@ -39,30 +39,46 @@ export async function PATCH(
 
   try {
     const body = await request.json();
+    const nameRaw = typeof body.name === 'string' ? body.name.trim() : '';
     const slugRaw = typeof body.slug === 'string' ? body.slug.trim() : '';
-    const slug = slugToSafe(slugRaw || tool.slug);
-
-    if (!slug) {
-      return NextResponse.json({ error: 'Slug is required and must be URL-safe' }, { status: 400 });
-    }
+    const name = nameRaw || undefined;
+    const slug = slugRaw ? slugToSafe(slugRaw) : undefined;
 
     const updateClient = isSuperAdminEmail(user.email) ? createSupabaseServer() : supabase;
+    const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-    const { data: existing } = await updateClient
-      .from('tools')
-      .select('id')
-      .eq('slug', slug)
-      .neq('id', toolId)
-      .maybeSingle();
+    if (name !== undefined) {
+      if (!name) {
+        return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+      }
+      updates.name = name;
+    }
 
-    if (existing) {
-      return NextResponse.json({ error: `Slug "${slug}" is already in use` }, { status: 400 });
+    if (slug !== undefined) {
+      if (!slug) {
+        return NextResponse.json({ error: 'Slug is required and must be URL-safe' }, { status: 400 });
+      }
+      const { data: existing } = await updateClient
+        .from('tools')
+        .select('id')
+        .eq('slug', slug)
+        .neq('id', toolId)
+        .maybeSingle();
+
+      if (existing) {
+        return NextResponse.json({ error: `Slug "${slug}" is already in use` }, { status: 400 });
+      }
+      updates.slug = slug;
+    }
+
+    if (Object.keys(updates).length <= 1) {
+      return NextResponse.json({ error: 'Provide name and/or slug to update' }, { status: 400 });
     }
 
     const { data: updated, error } = await updateClient
       .from('tools')
       // @ts-expect-error Supabase SSR client types .update() param as never; payload is valid ToolUpdate
-      .update({ slug, updated_at: new Date().toISOString() })
+      .update(updates)
       .eq('id', toolId)
       .select()
       .single();

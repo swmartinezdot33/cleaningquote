@@ -7,7 +7,7 @@ import type { Tool } from '@/lib/supabase/types';
 import ToolSettingsClient from './settings/ToolSettingsClient';
 import ToolSurveyClient from './survey/ToolSurveyClient';
 import ToolPricingClient from './pricing/ToolPricingClient';
-import { ExternalLink, Copy, Check, Loader2, Share2 } from 'lucide-react';
+import { ExternalLink, Copy, Check, Loader2, Share2, Pencil } from 'lucide-react';
 import { CloneToolButton } from '@/components/CloneToolButton';
 
 type TabId = 'overview' | 'settings' | 'survey' | 'pricing';
@@ -23,6 +23,10 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
   const [savingSlug, setSavingSlug] = useState(false);
   const [slugError, setSlugError] = useState<string | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(tool.name);
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   useEffect(() => {
     setOverviewMounted(true);
@@ -62,6 +66,38 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
   // Embed snippet always uses custom public link (when set) and this tool's slug; never empty
   const embedBaseUrl = baseUrl || (typeof window !== 'undefined' ? window.location.origin : '') || 'https://your-site.com';
   const embedSlug = tool.slug;
+
+  const saveName = async () => {
+    setNameError(null);
+    const raw = nameInput.trim();
+    if (!raw) {
+      setNameError('Name is required');
+      return;
+    }
+    if (raw === tool.name) {
+      setEditingName(false);
+      return;
+    }
+    setSavingName(true);
+    try {
+      const res = await fetch(`/api/dashboard/tools/${toolId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: raw }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setNameError(data.error || 'Failed to update name');
+        return;
+      }
+      setEditingName(false);
+      window.location.reload();
+    } catch {
+      setNameError('Failed to update name');
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   const saveSlug = async () => {
     setSlugError(null);
@@ -108,9 +144,9 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
 
   const tabs: { id: TabId; label: string }[] = [
     { id: 'overview', label: 'Overview' },
-    { id: 'settings', label: 'Settings' },
     { id: 'survey', label: 'Survey builder' },
     { id: 'pricing', label: 'Pricing' },
+    { id: 'settings', label: 'Settings' },
   ];
 
   return (
@@ -120,10 +156,53 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
           ← Back to tools
         </Link>
       </div>
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-foreground">{tool.name}</h1>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2 min-w-0">
+          {editingName ? (
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <input
+                type="text"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && saveName()}
+                className="text-2xl font-bold border border-input rounded-md px-3 py-1.5 bg-background min-w-0 max-w-sm"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={saveName}
+                disabled={savingName || !nameInput.trim()}
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {savingName ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => { setEditingName(false); setNameInput(tool.name); setNameError(null); }}
+                disabled={savingName}
+                className="rounded-md border px-2.5 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <>
+              <h1 className="text-2xl font-bold text-foreground">{tool.name}</h1>
+              <button
+                type="button"
+                onClick={() => setEditingName(true)}
+                className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                title="Edit name"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+            </>
+          )}
+        </div>
         <CloneToolButton toolId={tool.id} toolName={tool.name} toolOrgId={tool.org_id} />
       </div>
+      {nameError && <p className="text-sm text-destructive mt-1">{nameError}</p>}
 
       <div className="border-b border-border">
         <nav className="-mb-px flex gap-6" aria-label="Tabs">
