@@ -28,8 +28,6 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  await supabase.auth.getUser();
-
   const { pathname } = request.nextUrl;
   if (pathname.startsWith('/dashboard') || pathname.startsWith('/api/dashboard')) {
     const {
@@ -52,9 +50,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/dashboard/:path*',
-    '/api/dashboard/:path*',
-    '/((?!_next/static|_next/image|favicon.ico|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  matcher: ['/dashboard/:path*', '/api/dashboard/:path*'],
 };

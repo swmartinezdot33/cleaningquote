@@ -26,9 +26,14 @@ export async function GET(request: NextRequest) {
 
     let toolMap: Map<string, { name: string; slug: string }>;
     if (isSuperAdmin) {
-      const admin = createSupabaseServer();
-      const { data: allTools } = await admin.from('tools').select('id, name, slug');
-      toolMap = new Map((allTools ?? []).map((t: { id: string; name: string; slug: string }) => [t.id, { name: t.name, slug: t.slug }]));
+      try {
+        const admin = createSupabaseServer();
+        const { data: allTools } = await admin.from('tools').select('id, name, slug');
+        toolMap = new Map((allTools ?? []).map((t: { id: string; name: string; slug: string }) => [t.id, { name: t.name, slug: t.slug }]));
+      } catch {
+        const { data: userTools } = await supabase.from('tools').select('id, name, slug').eq('org_id', selectedOrgId ?? '');
+        toolMap = new Map((userTools ?? []).map((t: { id: string; name: string; slug: string }) => [t.id, { name: t.name, slug: t.slug }]));
+      }
     } else {
       const { data: userTools } = await supabase
         .from('tools')
@@ -41,14 +46,24 @@ export async function GET(request: NextRequest) {
     let quotes: unknown[];
     let error: { message: string } | null = null;
     if (isSuperAdmin) {
-      const admin = createSupabaseServer();
-      const result = await admin
-        .from('quotes')
-        .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at')
-        .order('created_at', { ascending: false })
-        .limit(500);
-      quotes = result.data ?? [];
-      error = result.error;
+      try {
+        const admin = createSupabaseServer();
+        const result = await admin
+          .from('quotes')
+          .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at')
+          .order('created_at', { ascending: false })
+          .limit(500);
+        quotes = result.data ?? [];
+        error = result.error;
+      } catch {
+        const result = await supabase
+          .from('quotes')
+          .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at')
+          .order('created_at', { ascending: false })
+          .limit(500);
+        quotes = result.data ?? [];
+        error = result.error;
+      }
     } else {
       const result = await supabase
         .from('quotes')
