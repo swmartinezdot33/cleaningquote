@@ -5,7 +5,19 @@ import { randomBytes } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
-/** POST - Invite user by email to join org */
+function getBaseUrl(request: NextRequest): string {
+  const env = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (env && env.startsWith('http')) return env.replace(/\/$/, '');
+  try {
+    const u = new URL(request.url);
+    if (u.origin && u.origin !== 'http://localhost:3000') return u.origin;
+  } catch {}
+  const vercel = process.env.VERCEL_URL?.trim();
+  if (vercel && !vercel.startsWith('http')) return `https://${vercel}`;
+  return (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+}
+
+/** POST - Invite user by email to join org. Creates Supabase auth invite and sends email. */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ orgId: string }> }
@@ -53,12 +65,27 @@ export async function POST(
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = getBaseUrl(request);
   const inviteUrl = `${baseUrl}/invite/${token}`;
+
+  const { data: inviteAuth, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
+    redirectTo: inviteUrl,
+    data: { invite_token: token },
+  });
+
+  if (inviteError) {
+    return NextResponse.json({
+      invitation: inv,
+      inviteUrl,
+      emailSent: false,
+      message: `Invite created. Could not send email (${inviteError.message}). Share this link manually:`,
+    });
+  }
 
   return NextResponse.json({
     invitation: inv,
     inviteUrl,
-    message: `Invite created. Share this link: ${inviteUrl}`,
+    emailSent: true,
+    message: `Invite email sent to ${email}. They can sign up or sign in via the link in the email.`,
   });
 }

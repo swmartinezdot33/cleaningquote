@@ -77,6 +77,15 @@ export async function POST(
     return NextResponse.json({ error: 'Already accepted' }, { status: 400 });
   }
 
+  const invitedEmail = inv2.email.toLowerCase().trim();
+  const userEmail = (user.email ?? '').toLowerCase().trim();
+  if (userEmail !== invitedEmail) {
+    return NextResponse.json(
+      { error: `Please sign in with ${inv2.email} to accept this invitation` },
+      { status: 403 }
+    );
+  }
+
   const { error: memberErr } = await admin.from('organization_members').insert({
     org_id: inv2.org_id,
     user_id: user.id,

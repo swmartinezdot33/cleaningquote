@@ -53,6 +53,8 @@ This document lists all environment variables used by the Cleaning Quote Platfor
 
 See [SUPABASE_MULTITENANT_SETUP.md](SUPABASE_MULTITENANT_SETUP.md) for creating the project and running the `tools` table migration.
 
+**Invite emails (org invitations):** When inviting members via the Team page, Supabase sends an invite email. Add your invite redirect URL to Supabase Dashboard → Authentication → URL Configuration → Redirect URLs, e.g. `https://www.cleanquote.io/invite/**` or `https://www.cleanquote.io/**`. Set `NEXT_PUBLIC_APP_URL` to your production domain so invite links use the correct URL (not localhost).
+
 ### `SUPER_ADMIN_EMAILS`
 **Required:** No (optional, for super admin access)  
 **Type:** Comma-separated list of email addresses  

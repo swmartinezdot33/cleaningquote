@@ -23,6 +23,7 @@ export default function TeamPage() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'member' | 'admin'>('member');
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [inviteMessage, setInviteMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
@@ -50,6 +51,7 @@ export default function TeamPage() {
     if (!orgId || !inviteEmail.trim()) return;
     setSending(true);
     setInviteUrl(null);
+    setInviteMessage(null);
     try {
       const res = await fetch(`/api/dashboard/orgs/${orgId}/invite`, {
         method: 'POST',
@@ -58,7 +60,8 @@ export default function TeamPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setInviteUrl(data.inviteUrl);
+        setInviteMessage(data.message ?? (data.emailSent ? `Invite email sent to ${inviteEmail.trim()}` : 'Invite created'));
+        if (!data.emailSent && data.inviteUrl) setInviteUrl(data.inviteUrl);
         setInvitations((prev) => [
           ...prev,
           {
@@ -69,6 +72,8 @@ export default function TeamPage() {
           },
         ]);
         setInviteEmail('');
+      } else {
+        setInviteMessage(data.error ?? 'Failed to send invite');
       }
     } finally {
       setSending(false);
@@ -143,9 +148,12 @@ export default function TeamPage() {
             {sending ? 'Sending…' : 'Send invite'}
           </button>
         </div>
-        {inviteUrl && (
+        {inviteMessage && (
           <p className="mt-2 text-sm text-muted-foreground">
-            Invite link: <a href={inviteUrl} className="text-primary underline">{inviteUrl}</a>
+            {inviteMessage}
+            {inviteUrl && (
+              <> <a href={inviteUrl} className="text-primary underline break-all">{inviteUrl}</a></>
+            )}
           </p>
         )}
       </section>
