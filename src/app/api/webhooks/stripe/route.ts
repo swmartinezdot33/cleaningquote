@@ -1,15 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { Resend } from 'resend';
 import { createSupabaseServer } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
 const stripeSecret = process.env.STRIPE_SECRET_KEY;
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+const resendApiKey = process.env.RESEND_API_KEY;
+const resendFrom = process.env.RESEND_FROM ?? 'CleanQuote.io <noreply@cleanquote.io>';
+
+function getBaseUrl(): string {
+  const env = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (env && env.startsWith('http')) return env.replace(/\/$/, '');
+  const vercel = process.env.VERCEL_URL?.trim();
+  if (vercel && !vercel.startsWith('http')) return `https://${vercel}`;
+  return process.env.NEXT_PUBLIC_APP_URL || 'https://www.cleanquote.io';
+}
 
 function slugFromEmail(email: string): string {
   const part = email.split('@')[0].toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'org';
   return part + '-' + Date.now().toString(36).slice(-6);
+}
+
+/** Send confirmation email with set-password link after checkout (optional; requires RESEND_API_KEY). */
+async function sendCheckoutConfirmationEmail(email: string, setPasswordLink: string): Promise<void> {
+  if (!resendApiKey?.trim()) return;
+  const baseUrl = getBaseUrl();
+  const loginUrl = `${baseUrl}/login`;
+  const dashboardUrl = `${baseUrl}/dashboard`;
+  try {
+    const resend = new Resend(resendApiKey.trim());
+    await resend.emails.send({
+      from: resendFrom,
+      to: email,
+      subject: 'Your CleanQuote account is ready',
+      html: `
+        <p>Thanks for subscribing. Your account has been created.</p>
+        <p><strong>Set your password and sign in:</strong></p>
+        <p><a href="${setPasswordLink}" style="display:inline-block;background:#7c3aed;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;">Set password & sign in</a></p>
+        <p>Or copy this link: ${setPasswordLink}</p>
+        <p>After signing in you can access your dashboard at <a href="${dashboardUrl}">${dashboardUrl}</a>.</p>
+        <p>If you didn’t expect this email, you can ignore it.</p>
+      `,
+    });
+  } catch (err) {
+    console.error('Stripe webhook: failed to send checkout confirmation email:', err);
+  }
 }
 
 /** Find Supabase user id by email (admin listUsers) */
@@ -68,6 +105,7 @@ export async function POST(request: NextRequest) {
         }
 
         let userId: string;
+        let isNewUser = false;
         const { data: existingUser, error: createError } = await admin.auth.admin.createUser({
           email,
           password: crypto.randomUUID().replace(/-/g, '') + 'A1!',
@@ -83,6 +121,7 @@ export async function POST(request: NextRequest) {
           }
         } else {
           userId = existingUser.user!.id;
+          isNewUser = true;
         }
 
         const slug = slugFromEmail(email);
@@ -111,6 +150,25 @@ export async function POST(request: NextRequest) {
         } catch {
           // keep default 'active'
         }
+
+        // Send confirmation email with set-password link for new purchasers (optional; requires RESEND_API_KEY)
+        if (isNewUser) {
+          try {
+            const baseUrl = getBaseUrl();
+            const { data: linkData } = await admin.auth.admin.generateLink({
+              type: 'recovery',
+              email,
+              options: { redirectTo: `${baseUrl}/dashboard` },
+            });
+            const actionLink = linkData?.properties?.action_link;
+            if (typeof actionLink === 'string' && actionLink) {
+              await sendCheckoutConfirmationEmail(email, actionLink);
+            }
+          } catch (emailErr) {
+            console.error('Stripe webhook: generate/send confirmation email:', emailErr);
+          }
+        }
+
         return NextResponse.json({ received: true });
       }
 
