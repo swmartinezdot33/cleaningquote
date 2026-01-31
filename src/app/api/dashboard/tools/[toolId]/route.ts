@@ -1,8 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDashboardUserAndToolWithClient } from '@/lib/dashboard-auth';
+import { createSupabaseServer } from '@/lib/supabase/server';
+import { isSuperAdminEmail } from '@/lib/org-auth';
 import { slugToSafe } from '@/lib/supabase/tools';
 
 export const dynamic = 'force-dynamic';
+
+/** DELETE - Delete tool */
+export async function DELETE(
+  _request: Request,
+  context: { params: Promise<{ toolId: string }> }
+) {
+  const { toolId } = await context.params;
+  const auth = await getDashboardUserAndToolWithClient(toolId);
+  if (auth instanceof NextResponse) return auth;
+
+  const { supabase } = auth;
+
+  const { error } = await supabase.from('tools').delete().eq('id', toolId);
+
+  if (error) {
+    console.error('DELETE /api/dashboard/tools/[toolId]:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json({ success: true });
+}
 
 /** PATCH - Update tool (e.g. slug) */
 export async function PATCH(
@@ -24,7 +46,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Slug is required and must be URL-safe' }, { status: 400 });
     }
 
-    const { data: existing } = await supabase
+    const updateClient = isSuperAdminEmail(user.email) ? createSupabaseServer() : supabase;
+
+    const { data: existing } = await updateClient
       .from('tools')
       .select('id')
       .eq('slug', slug)
@@ -35,12 +59,11 @@ export async function PATCH(
       return NextResponse.json({ error: `Slug "${slug}" is already in use` }, { status: 400 });
     }
 
-    const { data: updated, error } = await supabase
+    const { data: updated, error } = await updateClient
       .from('tools')
       // @ts-expect-error Supabase SSR client types .update() param as never; payload is valid ToolUpdate
       .update({ slug, updated_at: new Date().toISOString() })
       .eq('id', toolId)
-      .eq('user_id', user.id)
       .select()
       .single();
 

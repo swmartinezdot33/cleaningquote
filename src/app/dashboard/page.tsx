@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { ensureUserOrgs, isSuperAdminEmail } from '@/lib/org-auth';
-import { CloneToolButton } from '@/components/CloneToolButton';
+import { ToolCardActions } from '@/components/ToolCardActions';
 import type { Tool } from '@/lib/supabase/types';
 
 export default async function DashboardPage() {
@@ -70,7 +70,12 @@ export default async function DashboardPage() {
                     <h2 className="font-semibold text-foreground">{tool.name}</h2>
                     <p className="mt-1 text-sm text-muted-foreground">/{tool.slug}</p>
                   </Link>
-                  <CloneToolButton toolId={tool.id} />
+                  <ToolCardActions
+                    toolId={tool.id}
+                    toolName={tool.name}
+                    toolSlug={tool.slug}
+                    toolOrgId={tool.org_id}
+                  />
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground/80">
                   Survey:{' '}

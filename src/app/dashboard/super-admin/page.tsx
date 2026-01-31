@@ -42,13 +42,21 @@ export default function SuperAdminPage() {
   const load = () => {
     setMessage(null);
     Promise.all([
-      fetch('/api/dashboard/super-admin/users').then((r) => r.json()),
-      fetch('/api/dashboard/super-admin/orgs').then((r) => r.json()),
-      fetch('/api/dashboard/super-admin/memberships').then((r) => r.json()),
-      fetch('/api/dashboard/super-admin/orgs/stats').then((r) => r.json()),
-    ]).then(([u, o, m, s]) => {
+      fetch('/api/dashboard/super-admin/users'),
+      fetch('/api/dashboard/super-admin/orgs'),
+      fetch('/api/dashboard/super-admin/memberships'),
+      fetch('/api/dashboard/super-admin/orgs/stats'),
+    ]).then(async ([ru, ro, rm, rs]) => {
+      const [u, o, m, s] = await Promise.all([ru.json(), ro.json(), rm.json(), rs.json()]);
+      if (ru.status === 403 || u.error === 'Forbidden') {
+        setMessage({
+          type: 'error',
+          text: 'Forbidden: Your email is not in SUPER_ADMIN_EMAILS. Add your email to SUPER_ADMIN_EMAILS in .env.local (local) or Vercel env vars (production), then restart the dev server.',
+        });
+        return;
+      }
       setUsers(u.users ?? []);
-      setOrgs(u.error ? [] : (o.orgs ?? []));
+      setOrgs(o.error ? [] : (o.orgs ?? []));
       setMembers(m.error ? [] : (m.members ?? []));
       setStats(s.memberCount ? s : { memberCount: {}, toolCount: s.toolCount ?? {} });
     }).catch(() => setMessage({ type: 'error', text: 'Failed to load data' })).finally(() => setLoading(false));

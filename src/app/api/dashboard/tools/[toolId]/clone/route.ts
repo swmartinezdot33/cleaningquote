@@ -1,5 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getDashboardUserAndToolWithClient } from '@/lib/dashboard-auth';
+import { createSupabaseServer } from '@/lib/supabase/server';
+import { isSuperAdminEmail } from '@/lib/org-auth';
 import { getKV, toolKey } from '@/lib/kv';
 import { slugToSafe } from '@/lib/supabase/tools';
 
@@ -18,7 +20,7 @@ const KV_KEYS_TO_COPY = [
 ];
 
 export async function POST(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ toolId: string }> }
 ) {
   const { toolId } = await params;
@@ -26,6 +28,20 @@ export async function POST(
   if (result instanceof NextResponse) return result;
 
   const { tool, supabase } = result;
+  const user = (result as { user: { id: string; email?: string } }).user;
+
+  let targetOrgId = tool.org_id;
+  try {
+    const body = await request.json().catch(() => ({}));
+    const requestedOrgId = body.target_org_id;
+    if (requestedOrgId && isSuperAdminEmail(user.email)) {
+      const admin = createSupabaseServer();
+      const { data: org } = await admin.from('organizations').select('id').eq('id', requestedOrgId).single();
+      if (org) targetOrgId = requestedOrgId;
+    }
+  } catch {
+    // ignore
+  }
 
   let baseSlug = slugToSafe(tool.slug + '-copy') || tool.slug + '-copy';
   let slug = baseSlug;
@@ -43,9 +59,10 @@ export async function POST(
 
   const name = `Copy of ${tool.name}`;
 
-  const { data: newTool, error: insertErr } = await supabase
+  const insertClient = targetOrgId !== tool.org_id ? createSupabaseServer() : supabase;
+  const { data: newTool, error: insertErr } = await insertClient
     .from('tools')
-    .insert({ org_id: tool.org_id, name, slug } as any)
+    .insert({ org_id: targetOrgId, user_id: user.id, name, slug } as any)
     .select()
     .single();
 

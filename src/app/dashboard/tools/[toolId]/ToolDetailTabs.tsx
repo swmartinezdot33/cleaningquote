@@ -82,7 +82,7 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
         setSlugError(data.error || 'Failed to update slug');
         return;
       }
-      router.refresh();
+      window.location.reload();
     } catch {
       setSlugError('Failed to update slug');
     } finally {
@@ -130,7 +130,7 @@ export function ToolDetailTabs({ tool }: { tool: Tool }) {
       </div>
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-foreground">{tool.name}</h1>
-        <CloneToolButton toolId={tool.id} />
+        <CloneToolButton toolId={tool.id} toolName={tool.name} toolOrgId={tool.org_id} />
       </div>
 
       <div className="border-b border-border">
