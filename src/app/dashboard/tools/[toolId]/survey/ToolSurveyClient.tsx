@@ -604,7 +604,7 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                       <div className="mt-2 space-y-2">
                         {fieldTypeValidation?.valid ? (
                           <div className="p-2 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700">
-                            ✓ Compatible {fieldTypeValidation.ghlFieldType && `(GHL: ${fieldTypeValidation.ghlFieldType})`}
+                            ✓ Compatible {fieldTypeValidation.ghlFieldType && `(HighLevel: ${fieldTypeValidation.ghlFieldType})`}
                             {fieldTypeValidation.warning && (
                               <p className="mt-1 text-amber-700">⚠️ {fieldTypeValidation.warning}</p>
                             )}

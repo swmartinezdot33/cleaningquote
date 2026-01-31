@@ -529,7 +529,7 @@ export default function AdminPage() {
                   variant="outline"
                   size="icon"
                   className="px-2.5"
-                  title="GHL Integration Settings"
+                  title="HighLevel Integration Settings"
                 >
                   <Settings className="h-4 w-4" />
                 </Button>

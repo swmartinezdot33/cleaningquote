@@ -101,9 +101,9 @@ export function GHLTestWizard({ adminPassword }: { adminPassword: string }) {
     <div className="w-full max-w-4xl mx-auto p-6 bg-white rounded-lg border border-gray-200">
       {/* Header */}
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">GHL API Connection Test</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">HighLevel API Connection Test</h2>
         <p className="text-gray-600">
-          Test all GoHighLevel API endpoints at once and get detailed feedback on each one.
+          Test all HighLevel API endpoints at once and get detailed feedback on each one.
         </p>
       </div>
 
@@ -169,7 +169,7 @@ export function GHLTestWizard({ adminPassword }: { adminPassword: string }) {
                   testResults.success ? 'text-green-900' : 'text-yellow-900'
                 }`}>
                   {testResults.success 
-                    ? '✅ All GHL API endpoints are working!' 
+                    ? '✅ All HighLevel API endpoints are working!' 
                     : '⚠️ Endpoints tested - Some returned no data (404), which is normal'}
                 </h3>
                 {testResults.locationId && (

@@ -26,7 +26,7 @@ export async function GET(
   } catch (err) {
     console.error('GET dashboard ghl-config:', err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Failed to get GHL config' },
+      { error: err instanceof Error ? err.message : 'Failed to get HighLevel config' },
       { status: 500 }
     );
   }
@@ -146,7 +146,7 @@ export async function POST(
   } catch (err) {
     console.error('POST dashboard ghl-config:', err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Failed to save GHL config' },
+      { error: err instanceof Error ? err.message : 'Failed to save HighLevel config' },
       { status: 500 }
     );
   }

@@ -819,7 +819,7 @@ export default function SurveyBuilderPage() {
                         }}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select GHL field (or leave blank)" />
+                          <SelectValue placeholder="Select HighLevel field (or leave blank)" />
                         </SelectTrigger>
                         <SelectContent className="max-h-[300px]">
                           {ghlFieldDropdownOpen && (

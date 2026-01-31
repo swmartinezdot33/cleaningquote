@@ -149,7 +149,7 @@ export async function validateFieldTypeCompatibility(
     if (!ghlFieldInfo) {
       return {
         valid: true,
-        warning: `GHL field "${ghlFieldMapping}" not found. You can still save; create this field in GHL (Settings → Custom Fields → Contact) or update the mapping later. Data won't sync for this field until it exists in GHL.`,
+        warning: `HighLevel field "${ghlFieldMapping}" not found. You can still save; create this field in HighLevel (Settings → Custom Fields → Contact) or update the mapping later. Data won't sync for this field until it exists in HighLevel.`,
       };
     }
 
@@ -159,7 +159,7 @@ export async function validateFieldTypeCompatibility(
     if (compatibleSurveyTypes.length === 0) {
       return {
         valid: false,
-        error: `GHL field type "${ghlFieldInfo.type}" is not supported for survey mapping.`,
+        error: `HighLevel field type "${ghlFieldInfo.type}" is not supported for survey mapping.`,
         ghlFieldType: ghlFieldInfo.type,
       };
     }
@@ -170,7 +170,7 @@ export async function validateFieldTypeCompatibility(
     if (!isCompatible) {
       return {
         valid: false,
-        error: `Survey field type "${surveyFieldType}" is incompatible with GHL field type "${ghlFieldInfo.type}". Compatible types: ${compatibleSurveyTypes.join(', ')}`,
+        error: `Survey field type "${surveyFieldType}" is incompatible with HighLevel field type "${ghlFieldInfo.type}". Compatible types: ${compatibleSurveyTypes.join(', ')}`,
         ghlFieldType: ghlFieldInfo.type,
         compatibleSurveyTypes,
       };

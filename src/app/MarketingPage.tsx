@@ -87,7 +87,7 @@ function Hero() {
           Stop losing leads to slow back-and-forth. CleanQuote.io gives you custom quote forms, instant pricing, and one-click booking—so you close more jobs while your competitors are still typing emails.
         </p>
         <p className="mt-4 text-sm text-muted-foreground/90 max-w-xl mx-auto">
-          Connect to GoHighLevel, use your own pricing, and embed your quote widget anywhere. No coding. No guesswork. Just more booked jobs.
+          Connect to HighLevel, use your own pricing, and embed your quote widget anywhere. No coding. No guesswork. Just more booked jobs.
         </p>
         <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
           {isStripeCheckout ? (
@@ -180,7 +180,7 @@ function Features() {
     {
       icon: Calendar,
       title: 'Book callbacks & appointments',
-      description: 'Stop playing phone tag. Let leads pick a time or request a callback. Sync with GoHighLevel calendars and show only when you’re free. Fewer no-shows, more show-ups.',
+      description: 'Stop playing phone tag. Let leads pick a time or request a callback. Sync with HighLevel calendars and show only when you’re free. Fewer no-shows, more show-ups.',
     },
     {
       icon: BarChart3,
@@ -190,7 +190,7 @@ function Features() {
     {
       icon: Sparkles,
       title: 'Embed anywhere',
-      description: 'Drop the quote widget on your site, in GHL funnels, or behind one link. Same experience everywhere. Pass UTM params for tracking. One setup, one brand, more qualified leads.',
+      description: 'Drop the quote widget on your site, in HighLevel funnels, or behind one link. Same experience everywhere. Pass UTM params for tracking. One setup, one brand, more qualified leads.',
     },
   ];
 
@@ -226,7 +226,7 @@ function Features() {
           {[
             'Custom survey questions',
             'Google Maps service area',
-            'GHL contacts & pipelines',
+            'HighLevel contacts & pipelines',
             'SMS-ready quote copy',
             'Excel pricing import',
             'Initial Cleaning detection',
@@ -250,8 +250,8 @@ function Capabilities() {
     'Import pricing from Excel or use the built-in structure—sq ft ranges, weekly, bi-weekly, 4-week, general, deep, move in/out',
     'Smart Initial Cleaning—auto-detect based on home condition and cleaning history, with configurable multipliers and conditions',
     'Service area polygons—upload KML or NetworkLink, qualify leads by location before they even submit',
-    'GoHighLevel sync—contacts, opportunities, notes, pipelines, custom fields, tags, appointment and callback booking',
-    'Embed anywhere—widget snippet, iframe, or shareable link. Pass GHL contact data into pre-filled forms',
+    'HighLevel sync—contacts, opportunities, notes, pipelines, custom fields, tags, appointment and callback booking',
+    'Embed anywhere—widget snippet, iframe, or shareable link. Pass HighLevel contact data into pre-filled forms',
     'Google Maps autocomplete and geocoding—accurate addresses, automatic service area checks',
     'Multi-frequency pricing—weekly, bi-weekly, four-week, one-time general and deep clean, move in/move out',
     'Team and subaccounts—invite users, manage multiple quote tools per organization',
@@ -336,7 +336,7 @@ function CTA() {
             Ready to close more leads?
           </h2>
           <p className="mt-4 text-lg text-muted-foreground max-w-xl mx-auto">
-            Start your 14-day free trial. Full access to quote tools, GHL integration, and more. $297/month after trial—cancel anytime.
+            Start your 14-day free trial. Full access to quote tools, HighLevel integration, and more. $297/month after trial—cancel anytime.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             {isStripeCheckout ? (

@@ -259,7 +259,7 @@ export default function SettingsPage() {
 
   const handleSaveToken = async () => {
     if (!ghlToken.trim()) {
-      setMessage({ type: 'error', text: 'Please enter a GHL API token' });
+      setMessage({ type: 'error', text: 'Please enter a HighLevel API token' });
       return;
     }
 
@@ -282,13 +282,13 @@ export default function SettingsPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setMessage({ type: 'success', text: 'GHL API token saved successfully!' });
+        setMessage({ type: 'success', text: 'HighLevel API token saved successfully!' });
         setGhlToken('');
         setGhlTokenDisplay(`****${ghlToken.slice(-4)}`);
         setConnectionStatus('connected');
         setTimeout(() => loadSettings(), 500);
       } else {
-        const errorText = data.error || 'Failed to save GHL API token';
+        const errorText = data.error || 'Failed to save HighLevel API token';
         const detailsText = data.details ? ` Details: ${data.details}` : '';
         setMessage({
           type: 'error',
@@ -298,7 +298,7 @@ export default function SettingsPage() {
     } catch (error) {
       setMessage({
         type: 'error',
-        text: 'Failed to save GHL API token. Please try again.',
+        text: 'Failed to save HighLevel API token. Please try again.',
       });
     } finally {
       setIsSaving(false);
@@ -319,10 +319,10 @@ export default function SettingsPage() {
       const data = await response.json();
 
       if (data.connected) {
-        setMessage({ type: 'success', text: 'Connected to GHL successfully!' });
+        setMessage({ type: 'success', text: 'Connected to HighLevel successfully!' });
         setConnectionStatus('connected');
       } else {
-        const errorText = data.error || data.message || 'Failed to connect to GHL';
+        const errorText = data.error || data.message || 'Failed to connect to HighLevel';
         setMessage({
           type: 'error',
           text: errorText + (data.details ? ` (${data.details})` : ''),
@@ -614,17 +614,17 @@ export default function SettingsPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setConfigMessage({ type: 'success', text: 'GHL configuration saved successfully!' });
+        setConfigMessage({ type: 'success', text: 'HighLevel configuration saved successfully!' });
       } else {
         setConfigMessage({
           type: 'error',
-          text: data.error || 'Failed to save GHL configuration',
+          text: data.error || 'Failed to save HighLevel configuration',
         });
       }
     } catch (error) {
       setConfigMessage({
         type: 'error',
-        text: 'Failed to save GHL configuration. Please try again.',
+        text: 'Failed to save HighLevel configuration. Please try again.',
       });
     } finally {
       setIsSavingConfig(false);
@@ -774,13 +774,13 @@ export default function SettingsPage() {
       if (type === 'appointment') {
         setAppointmentCalendarAvailability({
           available: false,
-          message: 'Failed to check availability. Verify calendar is properly configured in GHL.',
+          message: 'Failed to check availability. Verify calendar is properly configured in HighLevel.',
           checking: false,
         });
       } else {
         setCallCalendarAvailability({
           available: false,
-          message: 'Failed to check availability. Verify calendar is properly configured in GHL.',
+          message: 'Failed to check availability. Verify calendar is properly configured in HighLevel.',
           checking: false,
         });
       }
@@ -1291,10 +1291,10 @@ export default function SettingsPage() {
                 <div>
                   <CardTitle className="flex items-center gap-2 text-2xl font-bold text-gray-900">
                     <Sparkles className="h-6 w-6 text-primary" />
-                    GoHighLevel Integration
+                    HighLevel Integration
                   </CardTitle>
                   <CardDescription className="text-gray-600 mt-1">
-                    Configure your GHL token and CRM integration settings
+                    Configure your HighLevel token and CRM integration settings
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-3">
@@ -1354,14 +1354,14 @@ export default function SettingsPage() {
                     <div className="space-y-6">
                     <div>
                       <Label htmlFor="token" className="text-base font-semibold">
-                        GHL Private Integration Token (PIT)
+                        HighLevel Private Integration Token (PIT)
                       </Label>
                       <p className="text-sm text-gray-600 mt-1 mb-3">
-                        Enter your GoHighLevel Private Integration Token (PIT). <strong className="text-primary">We recommend a Location-level PIT token</strong> for better security. Keep this secret - never share it publicly.
+                        Enter your HighLevel Private Integration Token (PIT). <strong className="text-primary">We recommend a Location-level PIT token</strong> for better security. Keep this secret - never share it publicly.
                       </p>
                       <div className="mt-2 mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg">
                         <p className="text-xs text-blue-800">
-                          <strong>💡 Location-level PIT tokens</strong> are scoped to a specific location and provide better security. Get yours from: GoHighLevel Dashboard → Location → Settings → Integrations → API. Location-level tokens don't require the locations.readonly scope.
+                          <strong>💡 Location-level PIT tokens</strong> are scoped to a specific location and provide better security. Get yours from: HighLevel Dashboard → Location → Settings → Integrations → API. Location-level tokens don't require the locations.readonly scope.
                         </p>
                       </div>
                       <div className="relative">
@@ -1390,7 +1390,7 @@ export default function SettingsPage() {
                           Location ID <span className="text-red-500">*</span>
                         </Label>
                         <p className="text-sm text-gray-600 mt-1 mb-3">
-                          Enter your GoHighLevel Location ID. This is required for GHL API integration. You can find this in your GHL dashboard URL after /location/
+                          Enter your HighLevel Location ID. This is required for HighLevel API integration. You can find this in your HighLevel dashboard URL after /location/
                         </p>
                         <Input
                           id="locationId"
@@ -1405,7 +1405,7 @@ export default function SettingsPage() {
                       <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                         <p className="text-sm font-semibold text-amber-900 mb-2 flex items-center gap-2">
                           <AlertCircle className="h-4 w-4" />
-                          Required GHL Scopes:
+                          Required HighLevel Scopes:
                         </p>
                         <ul className="text-xs text-amber-800 space-y-1 ml-6 list-disc">
                           <li><strong>contacts.write</strong> - Create/update contacts and add notes <span className="font-bold text-amber-900">(REQUIRED)</span></li>
@@ -1472,13 +1472,13 @@ export default function SettingsPage() {
                       </Button>
                     </div>
 
-                    {/* About GHL Integration */}
+                    {/* About HighLevel Integration */}
                     <div className="mt-8 pt-8 border-t border-gray-200 space-y-6 text-sm text-gray-700">
                       <div>
                         <h4 className="font-semibold text-gray-900 mb-2">What does this do?</h4>
                         <p>
                           When enabled, the quote form will automatically create contacts and opportunities in your
-                          GoHighLevel CRM whenever a customer generates a quote. This includes:
+                          HighLevel CRM whenever a customer generates a quote. This includes:
                         </p>
                         <ul className="list-disc list-inside mt-2 space-y-1 ml-2">
                           <li>Creating a new contact with customer information</li>
@@ -1488,7 +1488,7 @@ export default function SettingsPage() {
                       </div>
                       <div>
                         <h4 className="font-semibold text-gray-900 mb-2">Security</h4>
-                        <p>Your GHL token is stored securely in encrypted storage and is never exposed to the client.</p>
+                        <p>Your HighLevel token is stored securely in encrypted storage and is never exposed to the client.</p>
                       </div>
                     </div>
                     </div>
@@ -1562,7 +1562,7 @@ export default function SettingsPage() {
                           />
                           <label htmlFor="create-quote-object" className="cursor-pointer flex-1">
                             <div className="font-semibold text-gray-900">Create Quote (Custom Object)</div>
-                            <div className="text-sm text-gray-600">Create a Quote custom object in GHL and link it to the contact</div>
+                            <div className="text-sm text-gray-600">Create a Quote custom object in HighLevel and link it to the contact</div>
                           </label>
                         </div>
 
@@ -1602,7 +1602,7 @@ export default function SettingsPage() {
                             </div>
                           ) : pipelines.length === 0 ? (
                             <div className="text-sm text-gray-600">
-                              No pipelines found. Please create a pipeline in GHL first.
+                              No pipelines found. Please create a pipeline in HighLevel first.
                             </div>
                           ) : (
                             <>
@@ -1973,7 +1973,7 @@ export default function SettingsPage() {
                                     </option>
                                   ))}
                                 </select>
-                                <div className="text-sm text-gray-500 mt-1">User who will own the opportunity in GHL</div>
+                                <div className="text-sm text-gray-500 mt-1">User who will own the opportunity in HighLevel</div>
                               </div>
 
                               {/* Opportunity Source */}
@@ -1986,13 +1986,13 @@ export default function SettingsPage() {
                                   placeholder="e.g. Website Quote"
                                   className="h-10"
                                 />
-                                <div className="text-sm text-gray-500 mt-1">Source to set on the opportunity in GHL</div>
+                                <div className="text-sm text-gray-500 mt-1">Source to set on the opportunity in HighLevel</div>
                               </div>
 
-                              {/* Opportunity Tags - multi-select from GHL tags */}
+                              {/* Opportunity Tags - multi-select from HighLevel tags */}
                               <div>
                                 <Label className="text-base font-semibold mb-2 block">Tags</Label>
-                                <div className="text-sm text-gray-500 mb-2">Select GHL tags to add to the opportunity</div>
+                                <div className="text-sm text-gray-500 mb-2">Select HighLevel tags to add to the opportunity</div>
                                 <div className="mb-2">
                                   <input
                                     type="text"
@@ -2042,7 +2042,7 @@ export default function SettingsPage() {
                           {/* Quoted Amount Field Mapping */}
                           <div>
                             <Label htmlFor="quoted-amount-field" className="text-base font-semibold">
-                              GHL Field for Quoted Amount (Custom Field)
+                              HighLevel Field for Quoted Amount (Custom Field)
                             </Label>
                             <div className="flex gap-2 mt-2">
                               <div className="flex-1 relative">
@@ -2113,7 +2113,7 @@ export default function SettingsPage() {
                             )}
                             
                             <p className="text-sm text-gray-600 mt-2">
-                              Select a GHL custom field where the quoted amount will be stored. Leave empty to skip.
+                              Select a HighLevel custom field where the quoted amount will be stored. Leave empty to skip.
                             </p>
                           </div>
 
@@ -2121,8 +2121,8 @@ export default function SettingsPage() {
                           <div className="pt-6 border-t border-gray-200">
                             <h5 className="font-semibold text-gray-900 mb-2">Field Mapping</h5>
                             <p className="text-sm text-gray-600 mb-3">
-                              To map your survey questions to GHL fields (native fields like firstName, lastName, email, phone, or custom fields), 
-                              go to the <strong>Survey Builder</strong> page. There you can edit each question and select which GHL field it should map to.
+                              To map your survey questions to HighLevel fields (native fields like firstName, lastName, email, phone, or custom fields), 
+                              go to the <strong>Survey Builder</strong> page. There you can edit each question and select which HighLevel field it should map to.
                             </p>
                             <Button
                               onClick={() => router.push('/admin/survey-builder')}
@@ -2247,7 +2247,7 @@ export default function SettingsPage() {
                                 </p>
                                 <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
                                   <p className="font-semibold mb-1">⚠️ Important:</p>
-                                  <p>You must also assign users to this calendar in GHL Calendar settings. This selection only sets who receives the appointment - the calendar itself needs users assigned in GHL to generate available time slots.</p>
+                                  <p>You must also assign users to this calendar in HighLevel Calendar settings. This selection only sets who receives the appointment - the calendar itself needs users assigned in HighLevel to generate available time slots.</p>
                                 </div>
                               </div>
                             )}
@@ -2359,7 +2359,7 @@ export default function SettingsPage() {
                                 </p>
                                 <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
                                   <p className="font-semibold mb-1">⚠️ Important:</p>
-                                  <p>You must also assign users to this calendar in GHL Calendar settings. This selection only sets who receives the call - the calendar itself needs users assigned in GHL to generate available time slots.</p>
+                                  <p>You must also assign users to this calendar in HighLevel Calendar settings. This selection only sets who receives the call - the calendar itself needs users assigned in HighLevel to generate available time slots.</p>
                                 </div>
                               </div>
                             )}
@@ -2707,15 +2707,15 @@ export default function SettingsPage() {
                         ) : (
                           <>
                             <Save className="h-4 w-4" />
-                            Save GHL Configuration
+                            Save HighLevel Configuration
                           </>
                         )}
                       </Button>
                   </div>
                 ) : (
                   <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-yellow-800">
-                    <p className="font-semibold">⚠️ GHL not connected</p>
-                    <p className="text-sm mt-1">Please verify your GHL API token above before configuring integration features.</p>
+                    <p className="font-semibold">⚠️ HighLevel not connected</p>
+                    <p className="text-sm mt-1">Please verify your HighLevel API token above before configuring integration features.</p>
                   </div>
                 )}
               </div>

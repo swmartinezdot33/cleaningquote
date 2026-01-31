@@ -226,7 +226,7 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
 
   const saveGhl = async () => {
     if (!ghlToken.trim() || !ghlLocationId.trim()) {
-      setSectionMessage({ card: 'ghl', type: 'error', text: 'GHL token and Location ID are required' });
+      setSectionMessage({ card: 'ghl', type: 'error', text: 'HighLevel token and Location ID are required' });
       return;
     }
     setSavingSection('ghl');
@@ -239,13 +239,13 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
       });
       const data = await res.json();
       if (res.ok) {
-        setSectionMessage({ card: 'ghl', type: 'success', text: data.message ?? 'GHL settings saved' });
+        setSectionMessage({ card: 'ghl', type: 'success', text: data.message ?? 'HighLevel settings saved' });
         setGhlStatus({ configured: true, connected: true, locationId: ghlLocationId.trim() });
       } else {
         setSectionMessage({ card: 'ghl', type: 'error', text: data.error ?? data.details ?? 'Failed to save' });
       }
     } catch {
-      setSectionMessage({ card: 'ghl', type: 'error', text: 'Failed to save GHL settings' });
+      setSectionMessage({ card: 'ghl', type: 'error', text: 'Failed to save HighLevel settings' });
     } finally {
       setSavingSection(null);
     }
@@ -312,12 +312,12 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
       });
       const data = await res.json();
       if (res.ok) {
-        setSectionMessage({ card: 'ghl-config', type: 'success', text: data.message ?? 'GHL configuration saved' });
+        setSectionMessage({ card: 'ghl-config', type: 'success', text: data.message ?? 'HighLevel configuration saved' });
       } else {
-        setSectionMessage({ card: 'ghl-config', type: 'error', text: data.error ?? 'Failed to save GHL config' });
+        setSectionMessage({ card: 'ghl-config', type: 'error', text: data.error ?? 'Failed to save HighLevel config' });
       }
     } catch {
-      setSectionMessage({ card: 'ghl-config', type: 'error', text: 'Failed to save GHL config' });
+      setSectionMessage({ card: 'ghl-config', type: 'error', text: 'Failed to save HighLevel config' });
     } finally {
       setSavingSection(null);
     }
@@ -511,7 +511,7 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                   return (
                     <div className="space-y-2">
                       <Label className="text-base font-semibold">Query link (copy and replace placeholders with your variables)</Label>
-                      <p className="text-sm text-muted-foreground">Append this to your survey URL. Replace each <code className="bg-muted px-1 rounded">{'{{param}}'}</code> with your CRM/email variable (e.g. GHL <code className="bg-muted px-1 rounded">{'{{contact.first_name}}'}</code>).</p>
+                      <p className="text-sm text-muted-foreground">Append this to your survey URL. Replace each <code className="bg-muted px-1 rounded">{'{{param}}'}</code> with your CRM/email variable (e.g. HighLevel <code className="bg-muted px-1 rounded">{'{{contact.first_name}}'}</code>).</p>
                       <div className="flex gap-2">
                         <Input
                           readOnly
@@ -556,7 +556,7 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
         </Card>
       </motion.div>
 
-      {/* GHL Connection */}
+      {/* HighLevel Connection */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
         <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
           <CardHeader
@@ -567,10 +567,10 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
               <div>
                 <CardTitle className="flex items-center gap-2 text-2xl font-bold text-foreground">
                   <Sparkles className="h-6 w-6 text-primary" />
-                  GoHighLevel Integration
+                  HighLevel Integration
                 </CardTitle>
                 <CardDescription className="text-muted-foreground mt-1">
-                  Configure your GHL API token and Location ID for this tool
+                  Configure your HighLevel API token and Location ID for this tool
                 </CardDescription>
               </div>
               <div className="flex items-center gap-3">
@@ -604,11 +604,11 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                   <p className="text-sm text-muted-foreground">Location ID: {ghlStatus.locationId ?? '—'}. Enter new token/location below to update.</p>
                 )}
                 <div>
-                  <Label htmlFor="ghl-token" className="text-base font-semibold">GHL API Token</Label>
+                  <Label htmlFor="ghl-token" className="text-base font-semibold">HighLevel API Token</Label>
                   <Input
                     id="ghl-token"
                     type="password"
-                    placeholder={ghlStatus?.configured ? '••••••••' : 'Paste your GHL API token'}
+                    placeholder={ghlStatus?.configured ? '••••••••' : 'Paste your HighLevel API token'}
                     value={ghlToken}
                     onChange={(e) => setGhlToken(e.target.value)}
                     className={inputClass}
@@ -618,14 +618,14 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                   <Label htmlFor="ghl-location" className="text-base font-semibold">Location ID <span className="text-red-500">*</span></Label>
                   <Input
                     id="ghl-location"
-                    placeholder="GHL Location ID"
+                    placeholder="HighLevel Location ID"
                     value={ghlLocationId}
                     onChange={(e) => setGhlLocationId(e.target.value)}
                     className={inputClass}
                   />
                 </div>
                 <Button onClick={saveGhl} disabled={savingSection === 'ghl'} className="w-full h-11 font-semibold flex items-center gap-2">
-                  {savingSection === 'ghl' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save GHL Connection</>}
+                  {savingSection === 'ghl' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save HighLevel connection</>}
                 </Button>
               </div>
             </CardContent>
@@ -881,7 +881,7 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
         </Card>
       </motion.div>
 
-      {/* GHL Integration Config */}
+      {/* HighLevel Integration Config */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
         <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
           <CardHeader
@@ -890,9 +890,9 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
           >
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-2xl font-bold">GHL Integration Config</CardTitle>
+                <CardTitle className="text-2xl font-bold">HighLevel Integration Config</CardTitle>
                 <CardDescription className="text-muted-foreground mt-1">
-                  Configure CRM behavior when a quote is submitted (contacts, opportunities, notes, calendars, tags). Save GHL connection first.
+                  Configure CRM behavior when a quote is submitted (contacts, opportunities, notes, calendars, tags). Save HighLevel connection first.
                 </CardDescription>
               </div>
               <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('ghl-config') ? 'rotate-180' : ''}`} />
@@ -915,7 +915,7 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                   {[
                     { key: 'createContact' as const, label: 'Create/update contact', desc: 'Create or update contact with customer info' },
                     { key: 'createNote' as const, label: 'Create note', desc: 'Add a note with quote summary' },
-                    { key: 'createQuoteObject' as const, label: 'Create Quote (custom object)', desc: 'Create Quote custom object in GHL' },
+                    { key: 'createQuoteObject' as const, label: 'Create Quote (custom object)', desc: 'Create Quote custom object in HighLevel' },
                     { key: 'createOpportunity' as const, label: 'Create opportunity', desc: 'Create sales opportunity with quote details' },
                   ].map(({ key, label, desc }) => (
                     <div key={key} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border">
@@ -937,7 +937,7 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                   <>
                     {pipelines.length === 0 ? (
                       <div className="pt-2 border-t border-border text-sm text-muted-foreground">
-                        No pipelines found. Please create a pipeline in GHL first.
+                        No pipelines found. Please create a pipeline in HighLevel first.
                       </div>
                     ) : (
                       <>
@@ -1209,7 +1209,7 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                     <Label htmlFor="useDynamicPricing" className="text-base font-semibold cursor-pointer">Use quoted amount for opportunity value</Label>
                   </div>
                   <div>
-                    <Label className="text-base font-semibold">Quoted amount field (GHL custom field key)</Label>
+                    <Label className="text-base font-semibold">Quoted amount field (HighLevel custom field key)</Label>
                     <Input
                       value={ghlConfig.quotedAmountField ?? ''}
                       onChange={(e) => setGhlConfig((c) => ({ ...c, quotedAmountField: e.target.value || undefined }))}
@@ -1386,7 +1386,7 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                 </div>
                 {loadingGhlLists && <p className="text-sm text-muted-foreground">Loading pipelines, users, calendars…</p>}
                 <Button onClick={saveGhlConfig} disabled={savingSection === 'ghl-config'} className="w-full h-11 font-semibold flex items-center gap-2">
-                  {savingSection === 'ghl-config' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save GHL config</>}
+                  {savingSection === 'ghl-config' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save HighLevel config</>}
                 </Button>
               </div>
             </CardContent>

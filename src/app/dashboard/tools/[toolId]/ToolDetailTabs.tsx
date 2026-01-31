@@ -375,8 +375,8 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
             <h2 className="text-sm font-medium text-foreground">Embed snippet</h2>
             <p className="mt-1 text-sm text-muted-foreground mb-2">
               {orgSlug
-                ? <>Uses org-scoped URL (<code className="rounded bg-muted px-1">/t/{orgSlug}/{embedSlug}</code>) so quotes always stay with this organization. Includes GHL contact placeholders; remove <code className="rounded bg-muted px-1">data-*-name</code> if not using GHL.</>
-                : <>This code includes your public link, slug (<code className="rounded bg-muted px-1">/t/{embedSlug}</code>), and GHL contact placeholders for pre-fill. Paste it in GHL or your site; remove the <code className="rounded bg-muted px-1">data-*-name</code> attributes if not using GHL.</>
+                ? <>Uses org-scoped URL (<code className="rounded bg-muted px-1">/t/{orgSlug}/{embedSlug}</code>) so quotes always stay with this organization. Includes HighLevel contact placeholders; remove <code className="rounded bg-muted px-1">data-*-name</code> if not using HighLevel.</>
+                : <>This code includes your public link, slug (<code className="rounded bg-muted px-1">/t/{embedSlug}</code>), and HighLevel contact placeholders for pre-fill. Paste it in HighLevel or your site; remove the <code className="rounded bg-muted px-1">data-*-name</code> attributes if not using HighLevel.</>
               }
             </p>
             <div className="relative">

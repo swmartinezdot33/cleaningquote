@@ -41,13 +41,13 @@ export const CRITICAL_FIELDS = {
     id: 'firstName',
     label: 'First Name',
     required: true,
-    reason: 'Required to create contact in GHL',
+    reason: 'Required to create contact in HighLevel',
   },
   lastName: {
     id: 'lastName',
     label: 'Last Name',
     required: true,
-    reason: 'Required to create contact in GHL',
+    reason: 'Required to create contact in HighLevel',
   },
   email: {
     id: 'email',
@@ -131,7 +131,7 @@ export const CRITICAL_GHL_MAPPINGS = {
     fieldId: 'frequency',
     mustMapTo: 'contact.cleaning_frequency_selected',
     reason: 'Used to display cleaning schedule',
-    impact: 'Frequency information lost in GHL',
+    impact: 'Frequency information lost in HighLevel',
   },
   condition: {
     fieldId: 'condition',
@@ -178,9 +178,9 @@ export function detectBreakingChanges(
         severity: 'high',
         questionId: fieldId,
         questionLabel: mappingInfo.fieldId,
-        issue: `GHL mapping changed from "${mappingInfo.mustMapTo}" to "${newQuestion.ghlFieldMapping}"`,
-        affectedSystemParts: ['GHL synchronization', 'Quote display in GHL'],
-        recommendation: `Change GHL mapping back to "${mappingInfo.mustMapTo}". ${mappingInfo.impact}`,
+        issue: `HighLevel mapping changed from "${mappingInfo.mustMapTo}" to "${newQuestion.ghlFieldMapping}"`,
+        affectedSystemParts: ['HighLevel synchronization', 'Quote display in HighLevel'],
+        recommendation: `Change HighLevel mapping back to "${mappingInfo.mustMapTo}". ${mappingInfo.impact}`,
       });
     }
   }

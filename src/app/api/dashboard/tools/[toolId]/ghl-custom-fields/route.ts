@@ -22,7 +22,7 @@ export async function GET(
   try {
     const token = await getGHLToken(toolId);
     if (!token) {
-      return NextResponse.json({ error: 'GHL token not configured', fields: NATIVE_FIELDS }, { status: 400 });
+      return NextResponse.json({ error: 'HighLevel token not configured', fields: NATIVE_FIELDS }, { status: 400 });
     }
     const locationId = await getGHLLocationId(toolId);
     if (!locationId) {

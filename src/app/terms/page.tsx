@@ -44,7 +44,7 @@ export default function TermsPage() {
             <li><strong className="text-foreground">Vercel</strong> — hosting, deployment, and serverless infrastructure</li>
             <li><strong className="text-foreground">Vercel KV (Upstash Redis)</strong> — caching, configuration storage, and session data</li>
             <li><strong className="text-foreground">Resend</strong> — transactional email (magic links, invite emails, notifications)</li>
-            <li><strong className="text-foreground">GoHighLevel (GHL)</strong> — CRM integration when you configure it (contacts, opportunities, calendars, pipelines)</li>
+            <li><strong className="text-foreground">HighLevel</strong> — CRM integration when you configure it (contacts, opportunities, calendars, pipelines)</li>
             <li><strong className="text-foreground">Google Maps / Places API</strong> — address autocomplete and geocoding when you provide and configure your own API key</li>
           </ul>
           <p className="text-muted-foreground mt-4">
@@ -57,7 +57,7 @@ export default function TermsPage() {
           </p>
           <ul className="list-disc pl-6 text-muted-foreground space-y-1 mt-2">
             <li><strong className="text-foreground">Google Maps API Key</strong> — If you enable address autocomplete or geocoding, you must provide your own Google Cloud API key. You are solely responsible for Google Cloud billing, compliance with Google&apos;s Terms of Service and API terms, and any usage limits. We are not liable for charges or issues arising from your Google Cloud usage.</li>
-            <li><strong className="text-foreground">GoHighLevel (GHL)</strong> — GHL integration uses your GHL API token and Location ID. You are responsible for your GHL account, API limits, and compliance with GHL&apos;s terms. We do not guarantee GHL API availability or compatibility with future GHL changes.</li>
+            <li><strong className="text-foreground">HighLevel</strong> — HighLevel integration uses your HighLevel API token and Location ID. You are responsible for your HighLevel account, API limits, and compliance with HighLevel&apos;s terms. We do not guarantee HighLevel API availability or compatibility with future HighLevel changes.</li>
           </ul>
 
           <h2 className="text-xl font-semibold text-foreground mt-8">5. Account Registration</h2>
@@ -82,7 +82,7 @@ export default function TermsPage() {
 
           <h2 className="text-xl font-semibold text-foreground mt-8">9. Embed Widget and End-User Data</h2>
           <p className="text-muted-foreground">
-            When you embed our quote widget on your site or share links, your end users&apos; data (e.g., address, contact info, home details) is processed to generate quotes and may be synced to your GHL account if configured. You are the data controller for such end-user data; we process it on your behalf as a processor. You are responsible for obtaining consent, providing privacy notices, and complying with applicable laws (e.g., CCPA, GDPR) for data collected through your forms.
+            When you embed our quote widget on your site or share links, your end users&apos; data (e.g., address, contact info, home details) is processed to generate quotes and may be synced to your HighLevel account if configured. You are the data controller for such end-user data; we process it on your behalf as a processor. You are responsible for obtaining consent, providing privacy notices, and complying with applicable laws (e.g., CCPA, GDPR) for data collected through your forms.
           </p>
 
           <h2 className="text-xl font-semibold text-foreground mt-8">10. Intellectual Property</h2>
@@ -102,12 +102,12 @@ export default function TermsPage() {
 
           <h2 className="text-xl font-semibold text-foreground mt-8">13. Indemnification</h2>
           <p className="text-muted-foreground">
-            You agree to indemnify, defend, and hold harmless CleanQuote.io and its affiliates, officers, directors, employees, and agents from and against any claims, damages, losses, liabilities, costs, and expenses (including reasonable attorneys&apos; fees) arising from: (a) your use of the Service; (b) your violation of these Terms or any law; (c) your content, data, or end-user data; (d) your use of third-party integrations (e.g., GHL, Google Maps); or (e) any dispute between you and your end users or third parties.
+            You agree to indemnify, defend, and hold harmless CleanQuote.io and its affiliates, officers, directors, employees, and agents from and against any claims, damages, losses, liabilities, costs, and expenses (including reasonable attorneys&apos; fees) arising from: (a) your use of the Service; (b) your violation of these Terms or any law; (c) your content, data, or end-user data; (d) your use of third-party integrations (e.g., HighLevel, Google Maps); or (e) any dispute between you and your end users or third parties.
           </p>
 
           <h2 className="text-xl font-semibold text-foreground mt-8">14. Force Majeure</h2>
           <p className="text-muted-foreground">
-            We shall not be liable for any failure or delay in performing our obligations due to circumstances beyond our reasonable control, including but not limited to acts of God, war, terrorism, labor disputes, third-party service failures (e.g., Supabase, Stripe, Vercel, GHL), internet or telecommunications outages, government actions, or natural disasters.
+            We shall not be liable for any failure or delay in performing our obligations due to circumstances beyond our reasonable control, including but not limited to acts of God, war, terrorism, labor disputes, third-party service failures (e.g., Supabase, Stripe, Vercel, HighLevel), internet or telecommunications outages, government actions, or natural disasters.
           </p>
 
           <h2 className="text-xl font-semibold text-foreground mt-8">15. Termination</h2>

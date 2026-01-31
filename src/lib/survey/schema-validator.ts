@@ -151,7 +151,7 @@ export function validateQuestion(
       errors.push({
         code: 'CRITICAL_GHL_MAPPING_MISMATCH',
         field: 'ghlFieldMapping',
-        message: `GHL mapping for "${question.label}" should be "${criticalMapping.mustMapTo}"`,
+        message: `HighLevel mapping for "${question.label}" should be "${criticalMapping.mustMapTo}"`,
         severity: 'high',
         suggestion: `Change mapping to "${criticalMapping.mustMapTo}". ${criticalMapping.impact}`,
       });
@@ -266,9 +266,9 @@ export function checkFieldChangeImpact(
 
   // GHL mapping change
   if (oldQuestion.ghlFieldMapping !== newQuestion.ghlFieldMapping) {
-    affectedSystems.push('GHL synchronization', 'Data mapping');
+    affectedSystems.push('HighLevel synchronization', 'Data mapping');
     impact.push(
-      `GHL mapping changed from "${oldQuestion.ghlFieldMapping || 'none'}" to "${newQuestion.ghlFieldMapping || 'none'}"`
+      `HighLevel mapping changed from "${oldQuestion.ghlFieldMapping || 'none'}" to "${newQuestion.ghlFieldMapping || 'none'}"`
     );
   }
 

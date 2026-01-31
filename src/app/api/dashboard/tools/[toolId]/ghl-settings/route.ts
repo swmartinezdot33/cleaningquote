@@ -22,7 +22,7 @@ export async function GET(
   try {
     const exists = await ghlTokenExists(toolId).catch(() => false);
     if (!exists) {
-      return NextResponse.json({ configured: false, message: 'GHL API token not configured' });
+      return NextResponse.json({ configured: false, message: 'HighLevel API token not configured' });
     }
     const token = await getGHLToken(toolId);
     const testResult = await testGHLConnection(token ?? undefined).catch(() => ({ success: false }));
@@ -69,7 +69,7 @@ export async function POST(
     if (!testResult.success) {
       return NextResponse.json(
         {
-          error: 'Invalid GHL API token - connection test failed',
+          error: 'Invalid HighLevel API token - connection test failed',
           details: ('error' in testResult ? testResult.error : undefined) ?? 'Check your token and required scopes',
         },
         { status: 400 }
@@ -85,7 +85,7 @@ export async function POST(
   } catch (e) {
     console.error('POST dashboard ghl-settings:', e);
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Failed to save GHL token' },
+      { error: e instanceof Error ? e.message : 'Failed to save HighLevel token' },
       { status: 500 }
     );
   }
@@ -109,7 +109,7 @@ export async function PUT(
     return NextResponse.json({
       success: testResult.success,
       connected: testResult.success,
-      message: testResult.success ? 'Connected to GHL successfully' : (('error' in testResult ? testResult.error : undefined) ?? 'Failed to connect'),
+      message: testResult.success ? 'Connected to HighLevel successfully' : (('error' in testResult ? testResult.error : undefined) ?? 'Failed to connect'),
       error: 'error' in testResult ? testResult.error : undefined,
     });
   } catch (e) {

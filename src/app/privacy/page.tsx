@@ -40,11 +40,11 @@ export default function PrivacyPage() {
           </p>
           <h3 className="text-lg font-medium text-foreground mt-4">Product and Configuration Data</h3>
           <p className="text-muted-foreground">
-            We store your quote tool configurations, including: pricing tables and structures (including Excel imports); custom survey questions and field mappings; widget and form settings; service area polygons (KML data); GoHighLevel (GHL) integration settings (API token, location ID, pipeline/stage mappings, calendar IDs, custom field mappings); tracking codes; and Google Maps API key (when you provide it). This data is stored in Supabase (PostgreSQL) and Vercel KV (Redis) for caching and configuration.
+            We store your quote tool configurations, including: pricing tables and structures (including Excel imports); custom survey questions and field mappings; widget and form settings; service area polygons (KML data); HighLevel integration settings (API token, location ID, pipeline/stage mappings, calendar IDs, custom field mappings); tracking codes; and Google Maps API key (when you provide it). This data is stored in Supabase (PostgreSQL) and Vercel KV (Redis) for caching and configuration.
           </p>
           <h3 className="text-lg font-medium text-foreground mt-4">Quote and Lead Data</h3>
           <p className="text-muted-foreground">
-            When your customers submit quote forms, we collect and store: contact information (name, email, phone, address); home details (square footage, bedrooms, baths, pets, condition, frequency); and calculated quote results. This data is stored in Supabase and may be synced to your GoHighLevel account when you have configured that integration. You are the data controller for this end-user data; we process it on your behalf.
+            When your customers submit quote forms, we collect and store: contact information (name, email, phone, address); home details (square footage, bedrooms, baths, pets, condition, frequency); and calculated quote results. This data is stored in Supabase and may be synced to your HighLevel account when you have configured that integration. You are the data controller for this end-user data; we process it on your behalf.
           </p>
           <h3 className="text-lg font-medium text-foreground mt-4">Payment and Billing Information</h3>
           <p className="text-muted-foreground">
@@ -61,7 +61,7 @@ export default function PrivacyPage() {
 
           <h2 className="text-xl font-semibold text-foreground mt-8">3. How We Use Your Information</h2>
           <p className="text-muted-foreground">
-            We use the information we collect to: provide and maintain the Service; authenticate users and manage sessions; process payments and manage subscriptions; send transactional emails (magic links, invite emails, password resets, checkout confirmations); store and display quotes and leads; sync data to GoHighLevel when you configure that integration; perform service area checks using geocoding when enabled; support organization and team management; improve the Service; comply with legal obligations; and communicate with you about the Service. We do not sell your personal information.
+            We use the information we collect to: provide and maintain the Service; authenticate users and manage sessions; process payments and manage subscriptions; send transactional emails (magic links, invite emails, password resets, checkout confirmations); store and display quotes and leads; sync data to HighLevel when you configure that integration; perform service area checks using geocoding when enabled; support organization and team management; improve the Service; comply with legal obligations; and communicate with you about the Service. We do not sell your personal information.
           </p>
 
           <h2 className="text-xl font-semibold text-foreground mt-8">4. Third-Party Services and Data Processors</h2>
@@ -72,9 +72,9 @@ export default function PrivacyPage() {
             <li><strong className="text-foreground">Supabase</strong> — Authentication (email, password hashes, session tokens), user management, PostgreSQL database (accounts, organizations, members, invitations, tools, quotes). Data may be stored in the US or other regions per Supabase.</li>
             <li><strong className="text-foreground">Stripe</strong> — Payment processing, subscription management, customer billing records. Stripe collects payment details directly; we do not store full card numbers.</li>
             <li><strong className="text-foreground">Vercel</strong> — Hosting, serverless functions, edge network. Request logs and deployment data may be processed.</li>
-            <li><strong className="text-foreground">Vercel KV (Upstash Redis)</strong> — Caching, configuration storage (pricing, survey, widget settings, GHL config, service area polygons). Data may be stored in the US or EU per Upstash.</li>
+            <li><strong className="text-foreground">Vercel KV (Upstash Redis)</strong> — Caching, configuration storage (pricing, survey, widget settings, HighLevel config, service area polygons). Data may be stored in the US or EU per Upstash.</li>
             <li><strong className="text-foreground">Resend</strong> — Transactional email delivery (magic links, invite emails, checkout confirmations). Resend may process inbound email if you use a receiving address. Email content passes through their systems.</li>
-            <li><strong className="text-foreground">GoHighLevel (GHL)</strong> — When you configure GHL integration, we transmit contact and opportunity data to GHL on your behalf. GHL processes this data per their privacy policy. You are responsible for your GHL account.</li>
+            <li><strong className="text-foreground">HighLevel</strong> — When you configure HighLevel integration, we transmit contact and opportunity data to HighLevel on your behalf. HighLevel processes this data per their privacy policy. You are responsible for your HighLevel account.</li>
             <li><strong className="text-foreground">Google Maps / Places API</strong> — When you provide your own Google Maps API key, address autocomplete and geocoding requests are sent to Google. We do not use a shared Google key; you control this integration and are subject to Google&apos;s privacy policy for that usage.</li>
           </ul>
           <p className="text-muted-foreground mt-4">
@@ -83,7 +83,7 @@ export default function PrivacyPage() {
 
           <h2 className="text-xl font-semibold text-foreground mt-8">5. Data Sharing and Disclosure</h2>
           <p className="text-muted-foreground">
-            We share data only as necessary to provide the Service: with the processors listed above; with GoHighLevel when you configure that integration (we transmit lead/quote data you instruct us to sync); as required by law or to protect our rights; or with your consent. We do not sell, rent, or trade your personal information. In the event of a merger or acquisition, your data may be transferred as part of that transaction.
+            We share data only as necessary to provide the Service: with the processors listed above; with HighLevel when you configure that integration (we transmit lead/quote data you instruct us to sync); as required by law or to protect our rights; or with your consent. We do not sell, rent, or trade your personal information. In the event of a merger or acquisition, your data may be transferred as part of that transaction.
           </p>
 
           <h2 className="text-xl font-semibold text-foreground mt-8">6. Cookies and Similar Technologies</h2>
@@ -119,7 +119,7 @@ export default function PrivacyPage() {
 
           <h2 className="text-xl font-semibold text-foreground mt-8">12. End-User Data (Quote Form Submissions)</h2>
           <p className="text-muted-foreground">
-            When your customers submit quote forms, you are the data controller for that end-user data. We process it on your behalf as a data processor to generate quotes, store submissions, and sync to GHL when configured. You are responsible for obtaining consent, providing privacy notices, and complying with applicable laws (e.g., CCPA, GDPR) for data collected through your forms. We recommend you have a privacy policy that covers your collection of customer data via our quote widget.
+            When your customers submit quote forms, you are the data controller for that end-user data. We process it on your behalf as a data processor to generate quotes, store submissions, and sync to HighLevel when configured. You are responsible for obtaining consent, providing privacy notices, and complying with applicable laws (e.g., CCPA, GDPR) for data collected through your forms. We recommend you have a privacy policy that covers your collection of customer data via our quote widget.
           </p>
 
           <h2 className="text-xl font-semibold text-foreground mt-8">13. Children</h2>
