@@ -10,5 +10,15 @@ export default async function QuotePage({
   params: Promise<{ id: string }>;
 }) {
   const initialPrimaryColor = await getQuotePagePrimaryColor(undefined);
-  return <QuotePageClient initialPrimaryColor={initialPrimaryColor} />;
+  return (
+    <>
+      {/* Inline critical color so first paint never shows default (no flash) */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `:root{--quote-primary:${initialPrimaryColor};--quote-primary-color:${initialPrimaryColor};}`,
+        }}
+      />
+      <QuotePageClient initialPrimaryColor={initialPrimaryColor} />
+    </>
+  );
 }

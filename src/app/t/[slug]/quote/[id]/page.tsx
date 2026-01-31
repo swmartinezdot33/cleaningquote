@@ -11,5 +11,14 @@ export default async function ToolQuotePage({
 }) {
   const { slug } = await params;
   const initialPrimaryColor = await getQuotePagePrimaryColor(slug);
-  return <QuotePageClient initialPrimaryColor={initialPrimaryColor} />;
+  return (
+    <>
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `:root{--quote-primary:${initialPrimaryColor};--quote-primary-color:${initialPrimaryColor};}`,
+        }}
+      />
+      <QuotePageClient initialPrimaryColor={initialPrimaryColor} />
+    </>
+  );
 }

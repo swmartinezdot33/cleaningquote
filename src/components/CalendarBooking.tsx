@@ -36,7 +36,7 @@ export function CalendarBooking({
   onConfirm,
   onCancel,
   isBooking,
-  primaryColor = '#0d9488',
+  primaryColor = '#7c3aed',
 }: CalendarBookingProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);

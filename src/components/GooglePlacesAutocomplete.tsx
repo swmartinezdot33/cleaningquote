@@ -38,7 +38,7 @@ export const GooglePlacesAutocomplete = forwardRef<GooglePlacesAutocompleteHandl
   label,
   placeholder,
   required = false,
-  primaryColor = '#0d9488',
+  primaryColor = '#7c3aed',
   value,
   onChange,
   onKeyDown,

@@ -30,7 +30,7 @@ export async function getToolConfigByToolId(toolId: string): Promise<ToolConfig 
     ]);
 
     return {
-      widget: widgetSettings ?? { title: 'Get Your Quote', subtitle: "Let's get your price!", primaryColor: '#0d9488' },
+      widget: widgetSettings ?? { title: 'Get Your Quote', subtitle: "Let's get your price!", primaryColor: '#7c3aed' },
       formSettings: formSettings ?? {},
       questions: questions ?? [],
       redirect: ghlConfig
@@ -58,7 +58,8 @@ export async function getToolConfigForPage(slug: string): Promise<ToolConfig | n
   }
 }
 
-const DEFAULT_PRIMARY_COLOR = '#0d9488';
+/** Brand purple – default/fallback primary color across the app */
+export const DEFAULT_PRIMARY_COLOR = '#7c3aed';
 
 /**
  * Server-side: get primary color for quote/summary page first paint (avoids flash of wrong color).

@@ -17,7 +17,7 @@ interface LocationData {
 
 export default function OutOfService() {
   const [mounted, setMounted] = useState(false);
-  const [primaryColor, setPrimaryColor] = useState('#0d9488');
+  const [primaryColor, setPrimaryColor] = useState('#7c3aed');
   const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [contactId, setContactId] = useState<string | null>(null);
 
@@ -49,7 +49,7 @@ export default function OutOfService() {
       const response = await fetch('/api/admin/widget-settings');
       if (response.ok) {
         const data = await response.json();
-        setPrimaryColor(data.primaryColor || '#0d9488');
+        setPrimaryColor(data.primaryColor || '#7c3aed');
       }
     } catch (error) {
       console.error('Failed to load widget settings:', error);

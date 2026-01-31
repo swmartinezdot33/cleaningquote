@@ -143,7 +143,7 @@ export function TagPicker({
         className={cn(
           'min-h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm',
           'flex flex-wrap items-center gap-2',
-          'focus-within:ring-2 focus-within:ring-[var(--primary-color,#0d9488)] focus-within:ring-offset-0 focus-within:border-[var(--primary-color,#0d9488)]'
+          'focus-within:ring-2 focus-within:ring-[var(--primary-color,#7c3aed)] focus-within:ring-offset-0 focus-within:border-[var(--primary-color,#7c3aed)]'
         )}
       >
         {selected.map((tag) => (

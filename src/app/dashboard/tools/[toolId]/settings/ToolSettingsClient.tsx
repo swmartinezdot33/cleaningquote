@@ -13,7 +13,7 @@ import { TagPicker } from '@/components/ui/TagPicker';
 type CardId = 'widget' | 'form' | 'ghl' | 'tracking' | 'maps' | 'ghl-config' | 'service-area';
 
 export default function ToolSettingsClient({ toolId }: { toolId: string }) {
-  const [widget, setWidget] = useState({ title: '', subtitle: '', primaryColor: '#0d9488' });
+  const [widget, setWidget] = useState({ title: '', subtitle: '', primaryColor: '#7c3aed' });
   const [form, setForm] = useState<Record<string, string>>({});
   const [ghlToken, setGhlToken] = useState('');
   const [ghlLocationId, setGhlLocationId] = useState('');
@@ -105,7 +105,7 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
         ]);
         if (wRes.ok) {
           const w = await wRes.json();
-          setWidget({ title: w.title ?? '', subtitle: w.subtitle ?? '', primaryColor: w.primaryColor ?? '#0d9488' });
+          setWidget({ title: w.title ?? '', subtitle: w.subtitle ?? '', primaryColor: w.primaryColor ?? '#7c3aed' });
         }
         if (fRes.ok) {
           const { formSettings } = await fRes.json();
@@ -438,7 +438,7 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                         const val = e.target.value;
                         if (/^#[0-9A-Fa-f]{0,6}$/.test(val) || val.length <= 7) setWidget((w) => ({ ...w, primaryColor: val }));
                       }}
-                      placeholder="#0d9488"
+                      placeholder="#7c3aed"
                       className="font-mono flex-1"
                     />
                   </div>

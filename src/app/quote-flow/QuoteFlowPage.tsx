@@ -270,7 +270,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   const [appointmentRedirectUrl, setAppointmentRedirectUrl] = useState<string>(initialConfig?.redirect?.appointmentRedirectUrl ?? '');
   const [widgetTitle, setWidgetTitle] = useState(initialConfig?.widget?.title ?? 'Get Your Quote');
   const [widgetSubtitle, setWidgetSubtitle] = useState(initialConfig?.widget?.subtitle ?? "Let's get your professional cleaning price!");
-  const [primaryColor, setPrimaryColor] = useState(initialConfig?.widget?.primaryColor ?? '#0d9488');
+  const [primaryColor, setPrimaryColor] = useState(initialConfig?.widget?.primaryColor ?? '#7c3aed');
   const initialQuestions = (initialConfig?.questions ?? []) as SurveyQuestion[];
   const [questions, setQuestions] = useState<SurveyQuestion[]>(initialQuestions);
   const [quoteSchema, setQuoteSchema] = useState<z.ZodObject<any>>(generateSchemaFromQuestions(initialQuestions));
@@ -295,7 +295,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
       if (data.widget) {
         setWidgetTitle(data.widget.title || 'Quote');
         setWidgetSubtitle(data.widget.subtitle || "Let's get your price!");
-        setPrimaryColor(data.widget.primaryColor || '#0d9488');
+        setPrimaryColor(data.widget.primaryColor || '#7c3aed');
       }
       if (data.formSettings) {
         setFormSettings(data.formSettings);
@@ -457,7 +457,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         const data = await response.json();
         setWidgetTitle(data.title || 'Get Your Quote');
         setWidgetSubtitle(data.subtitle || "Let's get your professional cleaning price!");
-        setPrimaryColor(data.primaryColor || '#0d9488');
+        setPrimaryColor(data.primaryColor || '#7c3aed');
       }
     } catch (error) {
       console.error('Failed to load widget settings:', error);

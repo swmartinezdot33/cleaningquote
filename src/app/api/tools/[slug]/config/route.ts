@@ -29,7 +29,7 @@ export async function GET(
       getGHLConfig(tool.id),
     ]);
     return NextResponse.json({
-      widget: widgetSettings ?? { title: 'Get Your Quote', subtitle: "Let's get your price!", primaryColor: '#0d9488' },
+      widget: widgetSettings ?? { title: 'Get Your Quote', subtitle: "Let's get your price!", primaryColor: '#7c3aed' },
       formSettings: formSettings ?? {},
       questions,
       redirect: ghlConfig

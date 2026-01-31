@@ -93,7 +93,7 @@ const hexToHsl = (hex: string): string => {
   return `${h} ${s}% ${l}%`;
 };
 
-const DEFAULT_PRIMARY = '#0d9488';
+const DEFAULT_PRIMARY = '#7c3aed';
 
 export default function QuotePageClient({
   initialPrimaryColor,
@@ -140,7 +140,7 @@ export default function QuotePageClient({
         if (widgetResponse.ok) {
           const widgetData = await widgetResponse.json();
           setWidgetTitle(widgetData.title || 'Get Your Quote');
-          setPrimaryColor(widgetData.primaryColor || '#0d9488');
+          setPrimaryColor(widgetData.primaryColor || '#7c3aed');
         }
       } catch (error) {
         console.error('Failed to load settings:', error);
@@ -414,10 +414,10 @@ export default function QuotePageClient({
   const primaryHsl = hexToHsl(primaryColor);
 
   return (
-    <div>
+    <div style={{ ['--quote-primary' as string]: primaryColor }}>
       <style>{`
         :root {
-          --primary-color: ${primaryColor};
+          --primary-color: var(--quote-primary-color, ${primaryColor});
           --primary: ${primaryHsl};
           --ring: ${primaryHsl};
         }
@@ -454,11 +454,11 @@ export default function QuotePageClient({
                 transition={{ delay: 0.1 }}
               >
                 <Card className="shadow-2xl border-0 overflow-hidden relative bg-white rounded-2xl">
-                  {/* Pink Header - Matching Screenshot */}
+                  {/* Header uses CSS var set by server so first paint has correct color */}
                   <div
                     className="px-6 py-5 text-white relative overflow-hidden rounded-t-2xl"
                     style={{
-                      background: primaryColor,
+                      background: 'var(--quote-primary)',
                     }}
                   >
                     <div className="flex items-center justify-between relative z-10">

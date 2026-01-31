@@ -26,7 +26,7 @@ export async function GET(
       settings ?? {
         title: 'Get Your Quote',
         subtitle: "Let's get your price!",
-        primaryColor: '#0d9488',
+        primaryColor: '#7c3aed',
       }
     );
   } catch (err) {

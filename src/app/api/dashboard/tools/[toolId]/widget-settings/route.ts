@@ -19,7 +19,7 @@ export async function GET(
       settings ?? {
         title: 'Get Your Quote',
         subtitle: "Let's get your price!",
-        primaryColor: '#0d9488',
+        primaryColor: '#7c3aed',
       }
     );
   } catch (err) {
@@ -51,7 +51,7 @@ export async function POST(
       return NextResponse.json({ error: 'Subtitle is required' }, { status: 400 });
     }
 
-    const color = primaryColor && /^#[0-9A-F]{6}$/i.test(primaryColor) ? primaryColor : '#0d9488';
+    const color = primaryColor && /^#[0-9A-F]{6}$/i.test(primaryColor) ? primaryColor : '#7c3aed';
     await setWidgetSettings({ title, subtitle, primaryColor: color }, toolId);
 
     return NextResponse.json({

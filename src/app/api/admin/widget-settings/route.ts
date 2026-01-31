@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
           title: 'Get Your Quote',
           subtitle: "Let's get your professional cleaning price!",
-          primaryColor: '#0d9488',
+          primaryColor: '#7c3aed',
         });
       }
 
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         title: 'Get Your Quote',
         subtitle: "Let's get your professional cleaning price!",
-        primaryColor: '#0d9488',
+        primaryColor: '#7c3aed',
       });
     }
   } catch (error) {
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate color is a hex color
-    const colorToUse = primaryColor || '#0d9488';
+    const colorToUse = primaryColor || '#7c3aed';
     const hexColorRegex = /^#[0-9A-F]{6}$/i;
     if (!hexColorRegex.test(colorToUse)) {
       return NextResponse.json(

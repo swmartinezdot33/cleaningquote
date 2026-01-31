@@ -49,7 +49,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       
       const primaryColor = getComputedStyle(document.documentElement)
         .getPropertyValue('--primary-color')
-        .trim() || '#0d9488';
+        .trim() || '#7c3aed';
       
       const baseStyle = style || {};
       

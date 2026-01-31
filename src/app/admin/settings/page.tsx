@@ -26,7 +26,7 @@ export default function SettingsPage() {
   );
   const [widgetTitle, setWidgetTitle] = useState('Get Your Quote');
   const [widgetSubtitle, setWidgetSubtitle] = useState("Let's get your professional cleaning price!");
-  const [widgetPrimaryColor, setWidgetPrimaryColor] = useState('#0d9488');
+  const [widgetPrimaryColor, setWidgetPrimaryColor] = useState('#7c3aed');
   const [isSavingWidget, setIsSavingWidget] = useState(false);
   const [widgetMessage, setWidgetMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
@@ -352,7 +352,7 @@ export default function SettingsPage() {
         const data = await response.json();
         setWidgetTitle(data.title || 'Get Your Quote');
         setWidgetSubtitle(data.subtitle || "Let's get your professional cleaning price!");
-        setWidgetPrimaryColor(data.primaryColor || '#0d9488');
+        setWidgetPrimaryColor(data.primaryColor || '#7c3aed');
       }
     } catch (error) {
       console.error('Failed to load widget settings:', error);
@@ -3323,7 +3323,7 @@ export default function SettingsPage() {
                             setWidgetPrimaryColor(val);
                           }
                         }}
-                        placeholder="#0d9488"
+                        placeholder="#7c3aed"
                         className="font-mono"
                       />
                     </div>
