@@ -1,15 +1,15 @@
 'use client';
 
 import '../globals.css';
+import { useState } from 'react';
 import Link from 'next/link';
 import { BrandLogo } from '@/components/BrandLogo';
 import { Button } from '@/components/ui/button';
+import { SignupModal } from '@/components/SignupModal';
 import { CreditCard, ArrowRight } from 'lucide-react';
 
-const stripeCheckoutUrl = process.env.NEXT_PUBLIC_STRIPE_CHECKOUT_URL ?? '';
-
 export default function SubscribePage() {
-  const hasCheckoutUrl = stripeCheckoutUrl.startsWith('http');
+  const [signupModalOpen, setSignupModalOpen] = useState(false);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-muted/30 px-4">
@@ -27,25 +27,12 @@ export default function SubscribePage() {
           <p className="mt-3 text-sm text-muted-foreground">
             Your 14-day free trial has ended or your payment could not be completed. To continue using CleanQuote.io, please update your payment or start a new subscription.
           </p>
-          {hasCheckoutUrl ? (
-            <a
-              href={stripeCheckoutUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-6 inline-flex w-full justify-center"
-            >
-              <Button size="lg" className="w-full gap-2">
-                Restore access — pay via Stripe
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </a>
-          ) : (
-            <p className="mt-6 text-sm text-muted-foreground">
-              Contact support to restore your access.
-            </p>
-          )}
+          <Button size="lg" className="mt-6 w-full gap-2" onClick={() => setSignupModalOpen(true)}>
+            Restore access — pay via Stripe
+            <ArrowRight className="h-4 w-4" />
+          </Button>
           <p className="mt-6 text-xs text-muted-foreground">
-            After paying, you’ll get access again. If you have another organization with an active subscription, switch to it from the dashboard.
+            After paying, you'll get access again. If you have another organization with an active subscription, switch to it from the dashboard.
           </p>
         </div>
         <div className="flex flex-col gap-2">
@@ -57,6 +44,7 @@ export default function SubscribePage() {
           </Link>
         </div>
       </div>
+      <SignupModal open={signupModalOpen} onOpenChange={setSignupModalOpen} />
     </div>
   );
 }

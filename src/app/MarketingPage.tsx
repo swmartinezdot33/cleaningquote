@@ -1,9 +1,11 @@
 'use client';
 
 import './globals.css';
+import { useState } from 'react';
 import Link from 'next/link';
 import { BrandLogo } from '@/components/BrandLogo';
 import { Button } from '@/components/ui/button';
+import { SignupModal } from '@/components/SignupModal';
 import {
   Sparkles,
   Zap,
@@ -13,11 +15,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 
-const stripeCheckoutUrl = process.env.NEXT_PUBLIC_STRIPE_CHECKOUT_URL ?? '';
-const getStartedHref = stripeCheckoutUrl.startsWith('http') ? stripeCheckoutUrl : '/signup';
-const isStripeCheckout = getStartedHref !== '/signup';
-
-function Header() {
+function Header({ onSignupClick }: { onSignupClick: () => void }) {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/20 bg-white/70 shadow-lg shadow-black/5 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
@@ -48,26 +46,16 @@ function Header() {
               Log in
             </Button>
           </Link>
-          {isStripeCheckout ? (
-            <a href={getStartedHref} target="_blank" rel="noopener noreferrer">
-              <Button size="sm" className="rounded-none font-medium">
-                Sign up
-              </Button>
-            </a>
-          ) : (
-            <Link href={getStartedHref}>
-              <Button size="sm" className="rounded-none font-medium">
-                Sign up
-              </Button>
-            </Link>
-          )}
+          <Button size="sm" className="rounded-none font-medium" onClick={onSignupClick}>
+            Sign up
+          </Button>
         </nav>
       </div>
     </header>
   );
 }
 
-function Hero() {
+function Hero({ onSignupClick }: { onSignupClick: () => void }) {
   return (
     <section className="relative overflow-hidden pt-32 pb-20 sm:pt-40 sm:pb-28">
       {/* Layered gradients + soft orbs */}
@@ -90,21 +78,10 @@ function Hero() {
           Connect to HighLevel, use your own pricing, and embed your quote widget anywhere. No coding. No guesswork. Just more booked jobs.
         </p>
         <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          {isStripeCheckout ? (
-            <a href={getStartedHref} target="_blank" rel="noopener noreferrer">
-              <Button size="lg" className="gap-2 rounded-none text-base font-semibold shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 transition-shadow">
-                Start 14-day free trial
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </a>
-          ) : (
-            <Link href={getStartedHref}>
-              <Button size="lg" className="gap-2 rounded-none text-base font-semibold shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 transition-shadow">
-                Start 14-day free trial
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-          )}
+          <Button size="lg" className="gap-2 rounded-none text-base font-semibold shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 transition-shadow" onClick={onSignupClick}>
+            Start 14-day free trial
+            <ArrowRight className="h-4 w-4" />
+          </Button>
           <Link href="/login">
             <Button size="lg" variant="outline" className="rounded-none border-2 text-base font-semibold shadow-lg shadow-black/5 backdrop-blur-sm">
               Log in
@@ -112,7 +89,7 @@ function Hero() {
           </Link>
         </div>
         <p className="mt-6 text-sm text-muted-foreground">
-          14-day free trial · $297/mo after · Cancel anytime{isStripeCheckout ? ' · Secure checkout via Stripe' : ''}
+          14-day free trial · $297/mo after · Cancel anytime · Secure checkout via Stripe
         </p>
       </div>
     </section>
@@ -280,7 +257,7 @@ function Capabilities() {
   );
 }
 
-function Pricing() {
+function Pricing({ onSignupClick }: { onSignupClick: () => void }) {
   return (
     <section id="pricing" className="relative border-t border-white/20 py-20 sm:py-28 overflow-hidden">
       <div className="absolute inset-0 -z-10 bg-gradient-to-b from-muted/30 via-background to-muted/20" />
@@ -301,21 +278,10 @@ function Pricing() {
               </p>
             </div>
             <div className="flex-shrink-0">
-              {isStripeCheckout ? (
-                <a href={getStartedHref} target="_blank" rel="noopener noreferrer">
-                  <Button size="lg" className="gap-2 rounded-none text-base font-semibold shadow-xl shadow-primary/25">
-                    Start free trial
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </a>
-              ) : (
-                <Link href={getStartedHref}>
-                  <Button size="lg" className="gap-2 rounded-none text-base font-semibold shadow-xl shadow-primary/25">
-                    Start free trial
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-              )}
+              <Button size="lg" className="gap-2 rounded-none text-base font-semibold shadow-xl shadow-primary/25" onClick={onSignupClick}>
+                Start free trial
+                <ArrowRight className="h-4 w-4" />
+              </Button>
               <p className="mt-3 text-xs text-muted-foreground">Cancel anytime</p>
             </div>
           </div>
@@ -325,7 +291,7 @@ function Pricing() {
   );
 }
 
-function CTA() {
+function CTA({ onSignupClick }: { onSignupClick: () => void }) {
   return (
     <section className="relative py-20 sm:py-28 overflow-hidden">
       <div className="absolute inset-0 -z-10 bg-gradient-to-t from-primary/10 via-background to-background" />
@@ -339,21 +305,10 @@ function CTA() {
             Start your 14-day free trial. Full access to quote tools, HighLevel integration, and more. $297/month after trial—cancel anytime.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            {isStripeCheckout ? (
-              <a href={getStartedHref} target="_blank" rel="noopener noreferrer">
-                <Button size="lg" className="gap-2 rounded-none text-base font-semibold shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 transition-shadow">
-                  Sign up — Start free trial
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </a>
-            ) : (
-              <Link href={getStartedHref}>
-                <Button size="lg" className="gap-2 rounded-none text-base font-semibold shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 transition-shadow">
-                  Sign up — Start free trial
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-            )}
+            <Button size="lg" className="gap-2 rounded-none text-base font-semibold shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 transition-shadow" onClick={onSignupClick}>
+              Sign up — Start free trial
+              <ArrowRight className="h-4 w-4" />
+            </Button>
             <Link href="/login">
               <Button size="lg" variant="outline" className="rounded-none border-2 text-base font-semibold shadow-lg shadow-black/5">
                 Log in
@@ -415,19 +370,22 @@ function Footer() {
 }
 
 export default function MarketingPage() {
+  const [signupModalOpen, setSignupModalOpen] = useState(false);
+
   return (
     <div className="min-h-screen flex flex-col">
-      <Header />
+      <Header onSignupClick={() => setSignupModalOpen(true)} />
       <main className="flex-1">
-        <Hero />
+        <Hero onSignupClick={() => setSignupModalOpen(true)} />
         <WhySection />
         <HowItWorks />
         <Features />
         <Capabilities />
-        <Pricing />
-        <CTA />
+        <Pricing onSignupClick={() => setSignupModalOpen(true)} />
+        <CTA onSignupClick={() => setSignupModalOpen(true)} />
       </main>
       <Footer />
+      <SignupModal open={signupModalOpen} onOpenChange={setSignupModalOpen} />
     </div>
   );
 }
