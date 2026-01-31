@@ -384,9 +384,10 @@ export async function POST(request: NextRequest) {
           // keep null, will use 'Personal' / no display name
         }
 
+        console.log('Stripe webhook: creating user and org', { email, customerId, subscriptionId, subscriptionStatus });
         const result = await ensureUserAndOrgFromStripe(admin, email, customerId, subscriptionId, subscriptionStatus, stripeApi, orgName, fullName);
         if (!result) {
-          console.error('Stripe webhook: ensureUserAndOrgFromStripe returned null', { email, customerId, subscriptionId });
+          console.error('Stripe webhook: ensureUserAndOrgFromStripe returned null — check Supabase (SUPABASE_SERVICE_ROLE_KEY, auth users, organizations table)', { email, customerId, subscriptionId });
           return NextResponse.json({ error: 'Failed to create user/org' }, { status: 500 });
         }
         const { orgId, isNewUser } = result;

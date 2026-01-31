@@ -2,6 +2,15 @@
 
 If a customer completed checkout but no Supabase user/org was created, check the following.
 
+## First steps (Vercel logs)
+
+1. **Vercel → Project → Logs** (filter by time around the checkout).
+2. Look for **`Stripe webhook: received event checkout.session.completed`**.
+   - **If you don’t see it:** Stripe isn’t hitting your app. Fix webhook URL and/or signing secret (see sections 1–2).
+   - **If you see it:** Then look for **`Stripe webhook: creating user and org`**.
+3. If you see **`creating user and org`** but then **`ensureUserAndOrgFromStripe returned null`**: the failure is in Supabase (create user or org). Check `SUPABASE_SERVICE_ROLE_KEY` in Vercel Production and Supabase Auth/DB. You may also see **`createUser failed`** or **`org insert failed`** with details.
+4. If you see **`checkout.session.completed — no subscription ID`** and **`Rely on customer.subscription.created`**: the handler is waiting for the `customer.subscription.created` event (common with trials). Ensure that event is selected on your webhook endpoint and check logs for **`Stripe webhook: received event customer.subscription.created`**.
+
 ## 1. Stripe Dashboard → Webhooks
 
 - Open [Stripe Dashboard → Developers → Webhooks](https://dashboard.stripe.com/webhooks).
