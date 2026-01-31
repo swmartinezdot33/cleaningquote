@@ -1,7 +1,7 @@
 'use client';
 
 import './globals.css';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { BrandLogo } from '@/components/BrandLogo';
@@ -455,7 +455,7 @@ function Footer({ onSignupClick }: { onSignupClick: () => void }) {
   );
 }
 
-export default function MarketingPage() {
+function MarketingPageContent() {
   const searchParams = useSearchParams();
   const [signupModalOpen, setSignupModalOpen] = useState(false);
 
@@ -485,5 +485,27 @@ export default function MarketingPage() {
       <Footer onSignupClick={() => setSignupModalOpen(true)} />
       <SignupModal open={signupModalOpen} onOpenChange={setSignupModalOpen} />
     </div>
+  );
+}
+
+export default function MarketingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col">
+        <Header onSignupClick={() => {}} />
+        <main className="flex-1">
+          <Hero onSignupClick={() => {}} />
+          <WhySection />
+          <HowItWorks />
+          <Features />
+          <Capabilities />
+          <Pricing onSignupClick={() => {}} />
+          <CTA onSignupClick={() => {}} />
+        </main>
+        <Footer onSignupClick={() => {}} />
+      </div>
+    }>
+      <MarketingPageContent />
+    </Suspense>
   );
 }

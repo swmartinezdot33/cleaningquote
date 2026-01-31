@@ -1,7 +1,7 @@
 'use client';
 
 import '../globals.css';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { BrandLogo } from '@/components/BrandLogo';
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { SignupModal } from '@/components/SignupModal';
 import { CreditCard, ArrowRight, CheckCircle } from 'lucide-react';
 
-export default function SubscribePage() {
+function SubscribePageContent() {
   const [signupModalOpen, setSignupModalOpen] = useState(false);
   const searchParams = useSearchParams();
   const fromCheckout = searchParams.get('from_checkout') === '1';
@@ -64,5 +64,28 @@ export default function SubscribePage() {
       </div>
       <SignupModal open={signupModalOpen} onOpenChange={setSignupModalOpen} />
     </div>
+  );
+}
+
+export default function SubscribePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col items-center justify-center bg-muted/30 px-4">
+        <div className="w-full max-w-md space-y-8 text-center">
+          <Link href="/" className="inline-block">
+            <BrandLogo />
+          </Link>
+          <div className="rounded-xl border border-border bg-card p-8 shadow-sm">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:bg-amber-500">
+              <CreditCard className="h-7 w-7" />
+            </div>
+            <h1 className="mt-6 text-xl font-semibold text-foreground">Subscription required</h1>
+            <p className="mt-3 text-sm text-muted-foreground">Loading…</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <SubscribePageContent />
+    </Suspense>
   );
 }

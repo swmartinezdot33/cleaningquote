@@ -1,6 +1,6 @@
 'use client';
 
-import '../globals.css';
+import '../../globals.css';
 import Link from 'next/link';
 import { BrandLogo } from '@/components/BrandLogo';
 import { Button } from '@/components/ui/button';
