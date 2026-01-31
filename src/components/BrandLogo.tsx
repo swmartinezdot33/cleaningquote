@@ -3,33 +3,20 @@ interface BrandLogoProps {
   showWordmark?: boolean;
 }
 
-const LogoIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 100 100"
-    className="h-8 w-8 flex-shrink-0"
-    aria-hidden
-  >
-    <defs>
-      <linearGradient id="cq-logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#8b5cf6" />
-        <stop offset="100%" stopColor="#6d28d9" />
-      </linearGradient>
-    </defs>
-    <rect width="100" height="100" rx="0" fill="url(#cq-logo-gradient)" />
-    <text
-      x="50"
-      y="68"
-      fontFamily="system-ui, -apple-system, sans-serif"
-      fontSize="42"
-      fontWeight="700"
-      fill="white"
-      textAnchor="middle"
-    >
-      CQ
-    </text>
-  </svg>
-);
+const LOGO_ICON_SRC = '/CleanQuote Logo Icon.png';
+
+function LogoIcon() {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={LOGO_ICON_SRC}
+      alt="CQ.io"
+      width={32}
+      height={32}
+      className="h-8 w-8 flex-shrink-0 object-contain"
+    />
+  );
+}
 
 export function BrandLogo({ className = '', showWordmark = true }: BrandLogoProps) {
   return (

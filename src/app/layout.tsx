@@ -10,10 +10,11 @@ export const metadata: Metadata = {
   description: "CleanQuote.io — Smart quoting for cleaning companies. Build and embed custom quote forms.",
   icons: {
     icon: [
-      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/CleanQuote Logo Icon.png', type: 'image/png' },
+      { url: '/icon.svg', type: 'image/svg+xml', sizes: 'any' },
     ],
-    shortcut: '/icon.svg',
-    apple: '/icon.svg',
+    shortcut: '/CleanQuote Logo Icon.png',
+    apple: '/CleanQuote Logo Icon.png',
   },
 }
 
