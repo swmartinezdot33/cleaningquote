@@ -57,3 +57,22 @@ export async function getToolConfigForPage(slug: string): Promise<ToolConfig | n
     return null;
   }
 }
+
+const DEFAULT_PRIMARY_COLOR = '#0d9488';
+
+/**
+ * Server-side: get primary color for quote/summary page first paint (avoids flash of wrong color).
+ * @param slug - When provided (e.g. /t/[slug]/quote/[id]), use that tool's widget color; otherwise admin default.
+ */
+export async function getQuotePagePrimaryColor(slug?: string): Promise<string> {
+  try {
+    if (slug) {
+      const config = await getToolConfigForPage(slug);
+      return config?.widget?.primaryColor ?? DEFAULT_PRIMARY_COLOR;
+    }
+    const settings = await getWidgetSettings(undefined);
+    return settings?.primaryColor ?? DEFAULT_PRIMARY_COLOR;
+  } catch {
+    return DEFAULT_PRIMARY_COLOR;
+  }
+}

@@ -2285,14 +2285,32 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                   </Card>
                 </motion.div>
 
-                {/* Two CTAs - Book Appointment and Book a Call - SUPER PROMINENT */}
+                {/* Two CTAs when calendar closed; single Back button when calendar open */}
                 {quoteResult && !appointmentConfirmed && !callConfirmed && (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.35 }}
-                    className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8"
+                    className="mt-8"
                   >
+                    {showAppointmentForm || showCallForm ? (
+                      /* Back to summary - less distraction while picking date/time */
+                      <div className="flex justify-center">
+                        <Button
+                          onClick={() => {
+                            setShowAppointmentForm(false);
+                            setShowCallForm(false);
+                            setBookingMessage(null);
+                          }}
+                          variant="outline"
+                          className="gap-2 border-2 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                        >
+                          <ChevronLeft className="h-5 w-5" />
+                          Back to summary
+                        </Button>
+                      </div>
+                    ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Book Appointment CTA */}
                     <motion.div
                       whileHover={{ scale: 1.03, y: -4 }}
@@ -2430,6 +2448,8 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                         </div>
                       </Button>
                     </motion.div>
+                  </div>
+                    )}
                   </motion.div>
                 )}
 
