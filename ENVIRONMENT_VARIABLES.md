@@ -38,7 +38,7 @@ This document lists all environment variables used by the Cleaning Quote Platfor
 **Required:** Yes (when using Stripe for subscriptions)  
 **Type:** String (whsec_...)  
 **Description:** Stripe webhook signing secret. For local testing use Stripe CLI: `stripe listen --forward-to localhost:3000/api/webhooks/stripe`.  
-**How to get:** Stripe Dashboard → Developers → Webhooks → Add endpoint → `https://your-domain.com/api/webhooks/stripe` → select events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed` → copy Signing secret.
+**How to get:** Stripe Dashboard → Developers → Webhooks → Add endpoint → `https://your-domain.com/api/webhooks/stripe` (use your production URL, e.g. `https://www.cleanquote.io/api/webhooks/stripe`) → select events: **`checkout.session.completed`**, **`customer.subscription.created`** (required for account creation; fallback when checkout has no subscription ID), `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed` → copy Signing secret. Ensure `STRIPE_WEBHOOK_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` are set in the same environment (e.g. Vercel) so the webhook can create users and orgs.
 
 ### `NEXT_PUBLIC_STRIPE_BILLING_PORTAL_URL`
 **Required:** Optional (when using Stripe subscriptions)  

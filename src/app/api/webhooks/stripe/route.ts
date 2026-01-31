@@ -5,8 +5,13 @@ import { createSupabaseServer } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-const stripeSecret = process.env.STRIPE_SECRET_KEY;
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+// Read at request time so serverless runtime always sees current env (Vercel etc.)
+function getStripeConfig() {
+  const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim();
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+  return { stripeSecret: stripeSecret || undefined, webhookSecret: webhookSecret || undefined };
+}
+
 const resendApiKey = process.env.RESEND_API_KEY;
 const resendFrom = process.env.RESEND_FROM ?? 'CleanQuote.io <noreply@cleanquote.io>';
 
@@ -110,10 +115,13 @@ async function ensureUserAndOrgFromStripe(
   if (createError) {
     if (createError.message?.includes('already been registered') || createError.message?.includes('already exists')) {
       const found = await findUserIdByEmail(admin, emailNorm);
-      if (!found) return null;
+      if (!found) {
+        console.error('Stripe webhook: user exists in Supabase but findUserIdByEmail returned null', emailNorm);
+        return null;
+      }
       userId = found;
     } else {
-      console.error('Stripe webhook: createUser failed', createError.message);
+      console.error('Stripe webhook: createUser failed', { email: emailNorm, message: createError.message, code: (createError as any)?.code });
       return null;
     }
   } else {
@@ -135,7 +143,7 @@ async function ensureUserAndOrgFromStripe(
     .select('id')
     .single();
   if (orgErr || !org) {
-    console.error('Stripe webhook: org insert failed', orgErr?.message);
+    console.error('Stripe webhook: org insert failed', { message: orgErr?.message, code: (orgErr as any)?.code, slug });
     return null;
   }
   const orgId = (org as { id: string }).id;
@@ -163,11 +171,20 @@ async function ensureUserAndOrgFromStripe(
 }
 
 export async function POST(request: NextRequest) {
+  const { stripeSecret, webhookSecret } = getStripeConfig();
   if (!stripeSecret || !webhookSecret) {
+    console.error('Stripe webhook: STRIPE_SECRET_KEY or STRIPE_WEBHOOK_SECRET not set (check Production env in Vercel)');
     return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 });
   }
 
-  const rawBody = await request.text();
+  let rawBody: string;
+  try {
+    rawBody = await request.text();
+  } catch (e) {
+    console.error('Stripe webhook: failed to read body', e);
+    return NextResponse.json({ error: 'Failed to read body' }, { status: 400 });
+  }
+
   const signature = request.headers.get('stripe-signature');
   if (!signature) {
     return NextResponse.json({ error: 'Missing stripe-signature' }, { status: 400 });
@@ -179,48 +196,68 @@ export async function POST(request: NextRequest) {
     event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Invalid signature';
+    console.error('Stripe webhook: signature verification failed', message);
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
-  const admin = createSupabaseServer();
+  console.log('Stripe webhook: received event', event.type, event.id);
+
+  let admin: ReturnType<typeof createSupabaseServer>;
+  try {
+    admin = createSupabaseServer();
+  } catch (e) {
+    console.error('Stripe webhook: Supabase not configured', e);
+    return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
+  }
 
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null;
-        let subscriptionId: string | null = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id ?? null;
+        let subscriptionId: string | null = typeof session.subscription === 'string' ? session.subscription : (session.subscription as Stripe.Subscription)?.id ?? null;
         const email = (session.customer_details?.email ?? session.customer_email ?? '').toString().trim().toLowerCase();
         if (!email) {
           console.warn('Stripe webhook: checkout.session.completed — no email in session');
           return NextResponse.json({ error: 'No email in session' }, { status: 400 });
         }
         if (!customerId) {
+          console.warn('Stripe webhook: checkout.session.completed — no customer in session');
           return NextResponse.json({ error: 'No customer in session' }, { status: 400 });
         }
-        // Subscription required for platform access (trials still create a subscription; if missing, customer.subscription.created will create the account)
+
+        // If session has no subscription ID yet (e.g. trial), fetch customer's subscriptions and use the latest
         if (!subscriptionId) {
-          console.warn('Stripe webhook: checkout.session.completed — no subscription ID (trial checkout may use customer.subscription.created instead)', { email, customerId });
+          const stripeApi = new Stripe(stripeSecret);
+          const subs = await stripeApi.subscriptions.list({ customer: customerId, status: 'all', limit: 1 });
+          if (subs.data.length > 0) {
+            subscriptionId = subs.data[0].id;
+            console.log('Stripe webhook: resolved subscription from customer list', { subscriptionId });
+          }
+        }
+
+        if (!subscriptionId) {
+          console.warn('Stripe webhook: checkout.session.completed — no subscription ID; account will be created when customer.subscription.created fires', { email, customerId });
           return NextResponse.json({ received: true });
         }
 
-        const stripe = new Stripe(stripeSecret);
+        const stripeApi = new Stripe(stripeSecret);
         let subscriptionStatus = 'active';
         try {
-          const sub = await stripe.subscriptions.retrieve(subscriptionId);
+          const sub = await stripeApi.subscriptions.retrieve(subscriptionId);
           subscriptionStatus = sub.status;
         } catch {
           // keep default
         }
 
-        const result = await ensureUserAndOrgFromStripe(admin, email, customerId, subscriptionId, subscriptionStatus, stripe);
+        const result = await ensureUserAndOrgFromStripe(admin, email, customerId, subscriptionId, subscriptionStatus, stripeApi);
         if (!result) {
+          console.error('Stripe webhook: ensureUserAndOrgFromStripe returned null', { email, customerId, subscriptionId });
           return NextResponse.json({ error: 'Failed to create user/org' }, { status: 500 });
         }
         const { orgId, isNewUser } = result;
-        // Ensure org has latest subscription status
         try {
-          const sub = await stripe.subscriptions.retrieve(subscriptionId);
+          const sub = await stripeApi.subscriptions.retrieve(subscriptionId);
           await (admin.from('organizations') as any).update({ subscription_status: sub.status }).eq('id', orgId);
         } catch {
           // keep existing
