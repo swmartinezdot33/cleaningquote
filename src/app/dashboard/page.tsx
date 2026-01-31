@@ -19,16 +19,25 @@ export default async function DashboardPage() {
   let list: Tool[];
   let orgByToolId: Record<string, string> = {};
   if (isSuperAdmin) {
-    const admin = createSupabaseServer();
-    const { data: allTools } = await admin
-      .from('tools')
-      .select('*')
-      .order('created_at', { ascending: false });
-    list = (allTools ?? []) as Tool[];
-    const orgIds = [...new Set(list.map((t) => t.org_id))];
-    const { data: orgsData } = await admin.from('organizations').select('id, name').in('id', orgIds);
-    const orgMap = new Map((orgsData ?? []).map((o: { id: string; name: string }) => [o.id, o.name]));
-    orgByToolId = Object.fromEntries(list.map((t) => [t.id, orgMap.get(t.org_id) ?? 'Unknown']));
+    try {
+      const admin = createSupabaseServer();
+      const { data: allTools } = await admin
+        .from('tools')
+        .select('*')
+        .order('created_at', { ascending: false });
+      list = (allTools ?? []) as Tool[];
+      const orgIds = [...new Set(list.map((t) => t.org_id))];
+      const { data: orgsData } = await admin.from('organizations').select('id, name').in('id', orgIds);
+      const orgMap = new Map((orgsData ?? []).map((o: { id: string; name: string }) => [o.id, o.name]));
+      orgByToolId = Object.fromEntries(list.map((t) => [t.id, orgMap.get(t.org_id) ?? 'Unknown']));
+    } catch {
+      const { data: tools } = await supabase
+        .from('tools')
+        .select('*')
+        .eq('org_id', selectedOrgId ?? '')
+        .order('created_at', { ascending: false });
+      list = (tools ?? []) as Tool[];
+    }
   } else {
     const { data: tools } = await supabase
       .from('tools')

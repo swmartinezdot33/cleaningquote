@@ -1,5 +1,4 @@
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
-import { createSupabaseServer } from '@/lib/supabase/server';
 import type { Organization, OrganizationMember } from '@/lib/supabase/types';
 
 const SUPER_ADMIN_EMAILS = (process.env.SUPER_ADMIN_EMAILS ?? '')
@@ -17,7 +16,7 @@ export function isSuperAdminEmail(email: string | undefined): boolean {
 export async function getUserOrganizations(userId: string): Promise<
   Array<Organization & { role: OrganizationMember['role'] }>
 > {
-  const supabase = createSupabaseServer();
+  const supabase = await createSupabaseServerSSR();
   const { data: dataRaw } = await supabase
     .from('organization_members')
     .select('org_id, role')
@@ -52,7 +51,7 @@ export async function canAccessTool(
   toolOrgId: string
 ): Promise<boolean> {
   if (isSuperAdminEmail(userEmail)) return true;
-  const supabase = createSupabaseServer();
+  const supabase = await createSupabaseServerSSR();
   const { data } = await supabase
     .from('organization_members')
     .select('id')
@@ -83,7 +82,7 @@ function slugToSafe(s: string): string {
 export async function ensureUserOrgs(userId: string, userEmail: string | undefined): Promise<
   Array<{ id: string; name: string; slug: string; role: string }>
 > {
-  const supabase = createSupabaseServer();
+  const supabase = await createSupabaseServerSSR();
   const { data: membershipsRaw } = await supabase
     .from('organization_members')
     .select('org_id, role')
