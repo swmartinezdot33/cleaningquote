@@ -35,10 +35,11 @@ export async function GET(request: NextRequest) {
         toolMap = new Map((userTools ?? []).map((t: { id: string; name: string; slug: string }) => [t.id, { name: t.name, slug: t.slug }]));
       }
     } else {
+      const orgIds = orgs.map((o) => o.id);
       const { data: userTools } = await supabase
         .from('tools')
         .select('id, name, slug')
-        .eq('org_id', selectedOrgId ?? '');
+        .in('org_id', orgIds.length ? orgIds : ['']);
       toolMap = new Map((userTools ?? []).map((t: { id: string; name: string; slug: string }) => [t.id, { name: t.name, slug: t.slug }]));
     }
     const toolIds = new Set(toolMap.keys());
