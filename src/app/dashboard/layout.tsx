@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
-import { ensureUserOrgs, isSuperAdminEmail, orgHasActiveAccess } from '@/lib/org-auth';
+import { getOrgsForDashboard, isSuperAdminEmail, orgHasActiveAccess } from '@/lib/org-auth';
 import { BrandLogo } from '@/components/BrandLogo';
 import { OrgSwitcher } from '@/components/OrgSwitcher';
 
@@ -18,10 +18,15 @@ export default async function DashboardLayout({
     redirect('/login?redirect=/dashboard');
   }
 
-  const orgs = await ensureUserOrgs(user.id, user.email ?? undefined);
+  const orgs = await getOrgsForDashboard(user.id, user.email ?? undefined);
   const cookieStore = await cookies();
   let selectedOrgId = cookieStore.get('selected_org_id')?.value ?? orgs[0]?.id ?? null;
   let selectedOrg = orgs.find((o) => o.id === selectedOrgId) ?? orgs[0] ?? null;
+  // If super admin had a cookie pointing to an org not in list (e.g. deleted), fall back to first
+  if (!selectedOrg && orgs.length > 0) {
+    selectedOrgId = orgs[0].id;
+    selectedOrg = orgs[0];
+  }
 
   // Require active Stripe subscription for paid orgs (super admins bypass)
   if (selectedOrg && !isSuperAdminEmail(user.email ?? undefined) && !orgHasActiveAccess(selectedOrg)) {

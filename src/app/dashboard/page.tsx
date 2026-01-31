@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { createSupabaseServer } from '@/lib/supabase/server';
-import { ensureUserOrgs, isSuperAdminEmail } from '@/lib/org-auth';
+import { getOrgsForDashboard, isSuperAdminEmail } from '@/lib/org-auth';
 import { ToolCardActions } from '@/components/ToolCardActions';
 import type { Tool } from '@/lib/supabase/types';
 
@@ -11,7 +11,7 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const orgs = await ensureUserOrgs(user.id, user.email ?? undefined);
+  const orgs = await getOrgsForDashboard(user.id, user.email ?? undefined);
   const cookieStore = await cookies();
   const selectedOrgId = cookieStore.get('selected_org_id')?.value ?? orgs[0]?.id;
   const isSuperAdmin = isSuperAdminEmail(user.email ?? undefined);
@@ -21,15 +21,18 @@ export default async function DashboardPage() {
   if (isSuperAdmin) {
     try {
       const admin = createSupabaseServer();
-      const { data: allTools } = await admin
+      const { data: toolsForOrg } = await admin
         .from('tools')
         .select('*')
+        .eq('org_id', selectedOrgId ?? '')
         .order('created_at', { ascending: false });
-      list = (allTools ?? []) as Tool[];
-      const orgIds = [...new Set(list.map((t) => t.org_id))];
-      const { data: orgsData } = await admin.from('organizations').select('id, name').in('id', orgIds);
-      const orgMap = new Map((orgsData ?? []).map((o: { id: string; name: string }) => [o.id, o.name]));
-      orgByToolId = Object.fromEntries(list.map((t) => [t.id, orgMap.get(t.org_id) ?? 'Unknown']));
+      list = (toolsForOrg ?? []) as Tool[];
+      if (list.length > 0) {
+        const orgIds = [...new Set(list.map((t) => t.org_id))];
+        const { data: orgsData } = await admin.from('organizations').select('id, name').in('id', orgIds);
+        const orgMap = new Map((orgsData ?? []).map((o: { id: string; name: string }) => [o.id, o.name]));
+        orgByToolId = Object.fromEntries(list.map((t) => [t.id, orgMap.get(t.org_id) ?? 'Unknown']));
+      }
     } catch {
       const { data: tools } = await supabase
         .from('tools')

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { createSupabaseServer } from '@/lib/supabase/server';
-import { ensureUserOrgs, isSuperAdminEmail } from '@/lib/org-auth';
+import { getOrgsForDashboard, isSuperAdminEmail } from '@/lib/org-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const orgs = await ensureUserOrgs(user.id, user.email ?? undefined);
+    const orgs = await getOrgsForDashboard(user.id, user.email ?? undefined);
     const cookieStore = await cookies();
     const selectedOrgId = cookieStore.get('selected_org_id')?.value ?? orgs[0]?.id;
     const isSuperAdmin = isSuperAdminEmail(user.email ?? undefined);
@@ -28,8 +28,8 @@ export async function GET(request: NextRequest) {
     if (isSuperAdmin) {
       try {
         const admin = createSupabaseServer();
-        const { data: allTools } = await admin.from('tools').select('id, name, slug');
-        toolMap = new Map((allTools ?? []).map((t: { id: string; name: string; slug: string }) => [t.id, { name: t.name, slug: t.slug }]));
+        const { data: orgTools } = await admin.from('tools').select('id, name, slug').eq('org_id', selectedOrgId ?? '');
+        toolMap = new Map((orgTools ?? []).map((t: { id: string; name: string; slug: string }) => [t.id, { name: t.name, slug: t.slug }]));
       } catch {
         const { data: userTools } = await supabase.from('tools').select('id, name, slug').eq('org_id', selectedOrgId ?? '');
         toolMap = new Map((userTools ?? []).map((t: { id: string; name: string; slug: string }) => [t.id, { name: t.name, slug: t.slug }]));
@@ -49,13 +49,19 @@ export async function GET(request: NextRequest) {
     if (isSuperAdmin) {
       try {
         const admin = createSupabaseServer();
-        const result = await admin
-          .from('quotes')
-          .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at')
-          .order('created_at', { ascending: false })
-          .limit(500);
-        quotes = result.data ?? [];
-        error = result.error;
+        const toolIdsForOrg = Array.from(toolMap.keys());
+        if (toolIdsForOrg.length === 0) {
+          quotes = [];
+        } else {
+          const result = await admin
+            .from('quotes')
+            .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at')
+            .in('tool_id', toolIdsForOrg)
+            .order('created_at', { ascending: false })
+            .limit(500);
+          quotes = result.data ?? [];
+          error = result.error;
+        }
       } catch {
         const result = await supabase
           .from('quotes')

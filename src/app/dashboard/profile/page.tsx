@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
-import { ensureUserOrgs } from '@/lib/org-auth';
+import { getOrgsForDashboard } from '@/lib/org-auth';
 import { ProfileForm } from './ProfileForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,7 +37,7 @@ export default async function ProfilePage() {
     (user.user_metadata?.display_name as string | undefined) ||
     '';
 
-  const orgs = await ensureUserOrgs(user.id, user.email ?? undefined);
+  const orgs = await getOrgsForDashboard(user.id, user.email ?? undefined);
   const cookieStore = await cookies();
   const selectedOrgId = cookieStore.get('selected_org_id')?.value ?? orgs[0]?.id ?? null;
   const selectedOrg = orgs.find((o) => o.id === selectedOrgId) ?? orgs[0] ?? null;

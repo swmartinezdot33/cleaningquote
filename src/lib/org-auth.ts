@@ -1,4 +1,5 @@
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { createSupabaseServer } from '@/lib/supabase/server';
 import type { Organization, OrganizationMember } from '@/lib/supabase/types';
 
 /** Subscription statuses that grant dashboard access */
@@ -91,6 +92,29 @@ function slugToSafe(s: string): string {
     .replace(/[^a-z0-9-]/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
+}
+
+/**
+ * Orgs list for dashboard (switcher + selected org). Normal users: their memberships only.
+ * Super admins: all orgs so they can switch to any account and view it.
+ */
+export async function getOrgsForDashboard(userId: string, userEmail: string | undefined): Promise<
+  Array<Organization & { role: string }>
+> {
+  if (isSuperAdminEmail(userEmail)) {
+    try {
+      const admin = createSupabaseServer();
+      const { data: orgsRaw } = await admin
+        .from('organizations')
+        .select('*')
+        .order('name');
+      const orgs = (orgsRaw ?? []) as Organization[];
+      return orgs.map((o) => ({ ...o, role: 'admin' as const }));
+    } catch {
+      return ensureUserOrgs(userId, userEmail);
+    }
+  }
+  return ensureUserOrgs(userId, userEmail);
 }
 
 /** Ensure user has at least one org; create Personal if none. Returns orgs with roles (includes stripe fields for subscription gating). */
