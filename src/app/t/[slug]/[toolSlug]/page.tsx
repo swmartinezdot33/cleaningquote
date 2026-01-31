@@ -6,15 +6,16 @@ import { getToolConfigByToolId } from '@/lib/tools/config';
 export const dynamic = 'force-dynamic';
 
 /**
- * Org-scoped tool URL: /t/[orgSlug]/[toolSlug]
+ * Org-scoped tool URL: /t/[slug]/[toolSlug] (first segment = org slug, second = tool slug)
  * Resolves tool unambiguously by org + tool slug so quotes always go to the right org.
+ * First segment uses name "slug" to satisfy Next.js same-name requirement for dynamic routes.
  */
 export default async function OrgScopedToolPage({
   params,
 }: {
-  params: Promise<{ orgSlug: string; toolSlug: string }>;
+  params: Promise<{ slug: string; toolSlug: string }>;
 }) {
-  const { orgSlug, toolSlug } = await params;
+  const { slug: orgSlug, toolSlug } = await params;
   if (!orgSlug || !toolSlug) notFound();
 
   const supabase = await createSupabaseServerSSR();

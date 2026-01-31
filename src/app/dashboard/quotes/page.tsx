@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { FileDown, ExternalLink, Loader2, ArrowRightLeft } from 'lucide-react';
+import { FileDown, ExternalLink, Loader2, ArrowRightLeft, Search, Filter } from 'lucide-react';
 
 interface QuoteRow {
   id: string;
@@ -70,13 +70,29 @@ export default function DashboardQuotesPage() {
   const [selectedToolId, setSelectedToolId] = useState<string>('');
   const [reassigning, setReassigning] = useState(false);
   const [reassignMessage, setReassignMessage] = useState<string | null>(null);
+  // Filters (client-side)
+  const [filterToolId, setFilterToolId] = useState<string>('');
+  const [filterServiceType, setFilterServiceType] = useState<string>('');
+  const [filterSearch, setFilterSearch] = useState<string>('');
 
   const loadQuotes = () => {
-    fetch('/api/dashboard/quotes')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load'))))
-      .then((data) => {
-        setQuotes(data.quotes ?? []);
-        setIsSuperAdmin(!!data.isSuperAdmin);
+    Promise.all([
+      fetch('/api/dashboard/quotes'),
+      fetch('/api/dashboard/super-admin/tools'),
+    ])
+      .then(([quotesRes, toolsRes]) => {
+        return quotesRes.ok
+          ? quotesRes.json().then((data: { quotes?: QuoteRow[]; isSuperAdmin?: boolean }) => ({
+              quotes: data.quotes ?? [],
+              isSuperAdminFromQuotes: !!data.isSuperAdmin,
+              toolsOk: toolsRes.ok,
+            }))
+          : Promise.reject(new Error('Failed to load quotes'));
+      })
+      .then(({ quotes: list, isSuperAdminFromQuotes, toolsOk }) => {
+        setQuotes(list);
+        // Show Reassign if quotes API says super admin, OR if user can access super-admin tools (fallback when env differs per route)
+        setIsSuperAdmin(!!isSuperAdminFromQuotes || !!toolsOk);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -118,6 +134,7 @@ export default function DashboardQuotesPage() {
   };
 
   const exportCsv = () => {
+    const toExport = filteredQuotes;
     const headers = [
       'Quote ID',
       'Tool',
@@ -136,7 +153,7 @@ export default function DashboardQuotesPage() {
       'Sq Ft',
       'Bedrooms',
     ];
-    const rows = quotes.map((q) => [
+    const rows = toExport.map((q) => [
       escapeCsv(q.quote_id),
       escapeCsv(q.toolName),
       escapeCsv(formatDate(q.created_at)),
@@ -166,6 +183,54 @@ export default function DashboardQuotesPage() {
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
+  // Unique tool names and service types for filter dropdowns
+  const toolOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const list: { id: string; name: string }[] = [];
+    quotes.forEach((q) => {
+      if (q.tool_id && q.toolName && !seen.has(q.tool_id)) {
+        seen.add(q.tool_id);
+        list.push({ id: q.tool_id, name: q.toolName });
+      }
+    });
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  }, [quotes]);
+
+  const serviceTypeOptions = useMemo(() => {
+    const seen = new Set<string>();
+    quotes.forEach((q) => {
+      const v = (q.service_type || '').trim();
+      if (v && !seen.has(v)) seen.add(v);
+    });
+    return Array.from(seen).sort();
+  }, [quotes]);
+
+  const filteredQuotes = useMemo(() => {
+    return quotes.filter((q) => {
+      if (filterToolId && q.tool_id !== filterToolId) return false;
+      if (filterServiceType && (q.service_type || '').trim() !== filterServiceType) return false;
+      if (filterSearch.trim()) {
+        const term = filterSearch.trim().toLowerCase();
+        const searchable = [
+          q.quote_id,
+          q.first_name,
+          q.last_name,
+          q.email,
+          q.phone,
+          q.address,
+          q.city,
+          q.state,
+          q.postal_code,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        if (!searchable.includes(term)) return false;
+      }
+      return true;
+    });
+  }, [quotes, filterToolId, filterServiceType, filterSearch]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -188,7 +253,7 @@ export default function DashboardQuotesPage() {
         <h1 className="text-2xl font-bold text-foreground">Quotes</h1>
         <button
           onClick={exportCsv}
-          disabled={quotes.length === 0}
+          disabled={filteredQuotes.length === 0}
           className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
         >
           <FileDown className="h-4 w-4" />
@@ -204,7 +269,72 @@ export default function DashboardQuotesPage() {
           </Link>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <>
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
+            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Filter className="h-4 w-4" />
+              Filters
+            </span>
+            <div className="relative flex-1 min-w-[180px] max-w-xs">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="search"
+                placeholder="Search quote ID, name, email, address…"
+                value={filterSearch}
+                onChange={(e) => setFilterSearch(e.target.value)}
+                className="w-full rounded-md border border-input bg-background py-2 pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <select
+              value={filterToolId}
+              onChange={(e) => setFilterToolId(e.target.value)}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">All tools</option>
+              {toolOptions.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={filterServiceType}
+              onChange={(e) => setFilterServiceType(e.target.value)}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">All service types</option>
+              {serviceTypeOptions.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            {(filterToolId || filterServiceType || filterSearch.trim()) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterToolId('');
+                  setFilterServiceType('');
+                  setFilterSearch('');
+                }}
+                className="rounded-md border border-input px-3 py-2 text-sm hover:bg-muted"
+              >
+                Clear filters
+              </button>
+            )}
+            <span className="text-sm text-muted-foreground">
+              {filteredQuotes.length === quotes.length
+                ? `${quotes.length} quote${quotes.length !== 1 ? 's' : ''}`
+                : `${filteredQuotes.length} of ${quotes.length} quote${quotes.length !== 1 ? 's' : ''}`}
+            </span>
+          </div>
+
+          {filteredQuotes.length === 0 ? (
+            <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
+              No quotes match the current filters. Try clearing filters or changing your selection.
+            </div>
+          ) : (
+          <div className="overflow-hidden rounded-xl border border-border bg-card">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
@@ -219,7 +349,7 @@ export default function DashboardQuotesPage() {
                 </tr>
               </thead>
               <tbody>
-                {quotes.map((q) => (
+                {filteredQuotes.map((q) => (
                   <tr key={q.id} className="border-b border-border/50 hover:bg-muted/30">
                     <td className="px-4 py-3 font-mono text-xs">{q.quote_id}</td>
                     <td className="px-4 py-3">{q.toolName}</td>
@@ -261,6 +391,8 @@ export default function DashboardQuotesPage() {
             </table>
           </div>
         </div>
+          )}
+        </>
       )}
 
       {reassignQuote && (
