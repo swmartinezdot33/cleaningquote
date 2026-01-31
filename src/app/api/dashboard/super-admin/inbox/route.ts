@@ -27,11 +27,12 @@ export async function GET(request: NextRequest) {
 
   try {
     const resend = new Resend(apiKey);
-    const { data: listData, error } = await resend.emails.receiving.list({
-      limit,
-      ...(after && { after }),
-      ...(before && { before }),
-    });
+    const listOptions = after
+      ? { limit, after }
+      : before
+        ? { limit, before }
+        : { limit };
+    const { data: listData, error } = await resend.emails.receiving.list(listOptions);
 
     if (error || !listData?.data) {
       return NextResponse.json(
