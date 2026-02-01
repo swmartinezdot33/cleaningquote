@@ -23,6 +23,8 @@ export async function GET(request: NextRequest) {
     const cookieStore = await cookies();
     const selectedOrgId = cookieStore.get('selected_org_id')?.value ?? orgs[0]?.id;
     const isSuperAdmin = isSuperAdminEmail(user.email ?? undefined);
+    const selectedOrg = orgs.find((o: { id: string; role?: string }) => o.id === selectedOrgId);
+    const isOrgAdmin = selectedOrg?.role === 'admin';
 
     let toolMap: Map<string, { name: string; slug: string }>;
     if (isSuperAdmin) {
