@@ -6,11 +6,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
-import { ChevronDown, Sparkles, MapPin, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings } from 'lucide-react';
+import { ChevronDown, Sparkles, MapPin, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings, HelpCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { TagPicker } from '@/components/ui/TagPicker';
 
 type CardId = 'widget' | 'form' | 'ghl' | 'tracking' | 'maps' | 'ghl-config' | 'service-area';
+
+const GHL_CONFIG_HELP = '/help/ghl-config';
+function GhlHelpIcon({ anchor }: { anchor: string }) {
+  return (
+    <Link href={`${GHL_CONFIG_HELP}#${anchor}`} target="_blank" rel="noopener noreferrer" className="inline-flex text-muted-foreground hover:text-primary shrink-0" title="Help">
+      <HelpCircle className="h-3.5 w-3.5" />
+    </Link>
+  );
+}
 
 export default function ToolSettingsClient({ toolId }: { toolId: string }) {
   const [widget, setWidget] = useState({ title: '', subtitle: '', primaryColor: '#7c3aed' });
@@ -70,6 +79,8 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
   const [calendars, setCalendars] = useState<{ id: string; name: string }[]>([]);
   const [ghlTags, setGhlTags] = useState<{ id: string; name: string }[]>([]);
   const [customFields, setCustomFields] = useState<{ key: string; name: string }[]>([]);
+  const [opportunityCustomFields, setOpportunityCustomFields] = useState<{ key: string; name: string }[]>([]);
+  const [quotedAmountFieldSearch, setQuotedAmountFieldSearch] = useState('');
   const [loadingGhlLists, setLoadingGhlLists] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savingSection, setSavingSection] = useState<CardId | null>(null);
@@ -146,12 +157,13 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
     const loadLists = async () => {
       setLoadingGhlLists(true);
       try {
-        const [pipeRes, usrRes, calRes, tagRes, fieldsRes] = await Promise.all([
+        const [pipeRes, usrRes, calRes, tagRes, fieldsRes, oppFieldsRes] = await Promise.all([
           fetch(`/api/dashboard/tools/${toolId}/ghl-pipelines`),
           fetch(`/api/dashboard/tools/${toolId}/ghl-users`),
           fetch(`/api/dashboard/tools/${toolId}/ghl-calendars`),
           fetch(`/api/dashboard/tools/${toolId}/ghl-tags`),
           fetch(`/api/dashboard/tools/${toolId}/ghl-custom-fields`),
+          fetch(`/api/dashboard/tools/${toolId}/ghl-custom-fields?model=opportunity`),
         ]);
         if (pipeRes.ok) {
           const d = await pipeRes.json();
@@ -172,6 +184,10 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
         if (fieldsRes.ok) {
           const d = await fieldsRes.json();
           setCustomFields(d.fields ?? []);
+        }
+        if (oppFieldsRes.ok) {
+          const d = await oppFieldsRes.json();
+          setOpportunityCustomFields(d.fields ?? []);
         }
       } finally {
         setLoadingGhlLists(false);
@@ -950,11 +966,11 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                 )}
                 <div className="space-y-3">
                   {[
-                    { key: 'createContact' as const, label: 'Create/update contact', desc: 'Create or update contact with customer info' },
-                    { key: 'createNote' as const, label: 'Create note', desc: 'Add a note with quote summary' },
-                    { key: 'createQuoteObject' as const, label: 'Create Quote (custom object)', desc: 'Create Quote custom object in HighLevel' },
-                    { key: 'createOpportunity' as const, label: 'Create opportunity', desc: 'Create sales opportunity with quote details' },
-                  ].map(({ key, label, desc }) => (
+                    { key: 'createContact' as const, label: 'Create/update contact', desc: 'Create or update contact with customer info', anchor: 'create-contact' },
+                    { key: 'createNote' as const, label: 'Create note', desc: 'Add a note with quote summary', anchor: 'create-note' },
+                    { key: 'createQuoteObject' as const, label: 'Create Quote (custom object)', desc: 'Create Quote custom object in HighLevel', anchor: 'create-quote-object' },
+                    { key: 'createOpportunity' as const, label: 'Create opportunity', desc: 'Create sales opportunity with quote details', anchor: 'create-opportunity' },
+                  ].map(({ key, label, desc, anchor }) => (
                     <div key={key} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border">
                       <input
                         type="checkbox"
@@ -963,9 +979,12 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                         onChange={(e) => setGhlConfig((c) => ({ ...c, [key]: e.target.checked }))}
                         className="w-4 h-4 rounded border-input"
                       />
-                      <label htmlFor={key} className="flex-1 cursor-pointer">
-                        <div className="font-medium text-foreground">{label}</div>
-                        <div className="text-xs text-muted-foreground">{desc}</div>
+                      <label htmlFor={key} className="flex-1 cursor-pointer flex items-start gap-1.5">
+                        <span>
+                          <div className="font-medium text-foreground">{label}</div>
+                          <div className="text-xs text-muted-foreground">{desc}</div>
+                        </span>
+                        <GhlHelpIcon anchor={anchor} />
                       </label>
                     </div>
                   ))}
@@ -979,7 +998,10 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                     ) : (
                       <>
                         <div className="pt-2 border-t border-border">
-                          <Label className="text-base font-semibold mb-2 block">Default Pipeline</Label>
+                          <div className="flex items-center gap-1.5 mb-2">
+                            <Label className="text-base font-semibold">Default Pipeline</Label>
+                            <GhlHelpIcon anchor="default-pipeline" />
+                          </div>
                           <select
                             value={ghlConfig.pipelineId ?? ''}
                             onChange={(e) => setGhlConfig((c) => ({ ...c, pipelineId: e.target.value || undefined, pipelineStageId: undefined }))}
@@ -994,7 +1016,10 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                         </div>
                         {ghlConfig.pipelineId && (
                           <div className="pt-2 border-t border-border">
-                            <Label className="text-base font-semibold mb-2 block">Default Starting Stage</Label>
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <Label className="text-base font-semibold">Default Starting Stage</Label>
+                              <GhlHelpIcon anchor="default-pipeline" />
+                            </div>
                             <select
                               value={ghlConfig.pipelineStageId ?? ''}
                               onChange={(e) => setGhlConfig((c) => ({ ...c, pipelineStageId: e.target.value || undefined }))}
@@ -1008,7 +1033,10 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                           </div>
                         )}
                         <div className="pt-4 border-t border-input">
-                          <h5 className="font-semibold text-foreground mb-2">Pipeline Routing by UTM (Optional)</h5>
+                          <h5 className="font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                            Pipeline Routing by UTM (Optional)
+                            <GhlHelpIcon anchor="pipeline-routing-utm" />
+                          </h5>
                           <p className="text-sm text-muted-foreground mb-3">
                             First matching rule wins. Match is case-insensitive. If none match, the default pipeline is used.
                           </p>
@@ -1243,33 +1271,83 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                       onChange={(e) => setGhlConfig((c) => ({ ...c, useDynamicPricingForValue: e.target.checked }))}
                       className="rounded border-input"
                     />
-                    <Label htmlFor="useDynamicPricing" className="text-base font-semibold cursor-pointer">Use quoted amount for opportunity value</Label>
+                    <Label htmlFor="useDynamicPricing" className="text-base font-semibold cursor-pointer flex items-center gap-1.5">Use quoted amount for opportunity value <GhlHelpIcon anchor="quoted-amount-value" /></Label>
                   </div>
                   <div>
-                    <Label className="text-base font-semibold">Quoted amount field (HighLevel custom field key)</Label>
-                    <Input
-                      value={ghlConfig.quotedAmountField ?? ''}
-                      onChange={(e) => setGhlConfig((c) => ({ ...c, quotedAmountField: e.target.value || undefined }))}
-                      placeholder="e.g. quoted_amount"
-                      className={`${inputClass} max-w-xs mt-1`}
-                    />
-                    {customFields.length > 0 && (
-                      <select
-                        className={`${selectClass} mt-2 max-w-xs`}
-                        value=""
-                        onChange={(e) => e.target.value && setGhlConfig((c) => ({ ...c, quotedAmountField: e.target.value }))}
-                      >
-                        <option value="">— Or pick custom field —</option>
-                        {customFields.map((f) => (
-                          <option key={f.key} value={f.key}>{f.name}</option>
-                        ))}
-                      </select>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Label className="text-base font-semibold">Quoted amount field (HighLevel custom field key)</Label>
+                      <GhlHelpIcon anchor="quoted-amount-field" />
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-2">Opportunity custom fields from your HighLevel location. Select one or enter a custom key below.</p>
+                    {opportunityCustomFields.length > 0 ? (
+                      <>
+                        <Input
+                          type="text"
+                          placeholder="Search fields..."
+                          value={quotedAmountFieldSearch}
+                          onChange={(e) => setQuotedAmountFieldSearch(e.target.value)}
+                          className={`${inputClass} max-w-xs mb-2`}
+                        />
+                        <select
+                          className={`${selectClass} w-full max-w-md`}
+                          value={opportunityCustomFields.some((f) => f.key === (ghlConfig.quotedAmountField ?? '')) ? (ghlConfig.quotedAmountField ?? '') : '__custom__'}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (v === '__custom__') {
+                              setGhlConfig((c) => ({ ...c, quotedAmountField: undefined }));
+                            } else {
+                              setGhlConfig((c) => ({ ...c, quotedAmountField: v || undefined }));
+                            }
+                          }}
+                        >
+                          <option value="">— Select field —</option>
+                          {opportunityCustomFields
+                            .filter(
+                              (f) =>
+                                !quotedAmountFieldSearch.trim() ||
+                                f.name.toLowerCase().includes(quotedAmountFieldSearch.toLowerCase()) ||
+                                f.key.toLowerCase().includes(quotedAmountFieldSearch.toLowerCase())
+                            )
+                            .map((f) => (
+                              <option key={f.key} value={f.key}>
+                                {f.name} ({f.key})
+                              </option>
+                            ))}
+                          <option value="__custom__">— Enter custom key —</option>
+                        </select>
+                        {!opportunityCustomFields.some((f) => f.key === (ghlConfig.quotedAmountField ?? '')) && (
+                          <div className="mt-2">
+                            <Label className="text-xs text-muted-foreground">Custom key (if not in list)</Label>
+                            <Input
+                              value={ghlConfig.quotedAmountField ?? ''}
+                              onChange={(e) => setGhlConfig((c) => ({ ...c, quotedAmountField: e.target.value || undefined }))}
+                              placeholder="e.g. quoted_amount"
+                              className={`${inputClass} max-w-xs mt-1`}
+                            />
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="space-y-2">
+                        <Input
+                          value={ghlConfig.quotedAmountField ?? ''}
+                          onChange={(e) => setGhlConfig((c) => ({ ...c, quotedAmountField: e.target.value || undefined }))}
+                          placeholder="e.g. quoted_amount"
+                          className={`${inputClass} max-w-xs`}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          {loadingGhlLists ? 'Loading opportunity custom fields…' : 'Connect HighLevel and expand this card to load opportunity custom fields from your location.'}
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border">
                   <div>
-                    <Label className="text-base font-semibold">Opportunity assigned to</Label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Label className="text-base font-semibold">Opportunity assigned to</Label>
+                      <GhlHelpIcon anchor="opportunity-assigned-to" />
+                    </div>
                     <select
                       value={ghlConfig.opportunityAssignedTo ?? ''}
                       onChange={(e) => setGhlConfig((c) => ({ ...c, opportunityAssignedTo: e.target.value || undefined }))}
@@ -1282,7 +1360,10 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                     </select>
                   </div>
                   <div>
-                    <Label className="text-base font-semibold">Opportunity source</Label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Label className="text-base font-semibold">Opportunity source</Label>
+                      <GhlHelpIcon anchor="opportunity-source" />
+                    </div>
                     <Input
                       value={ghlConfig.opportunitySource ?? ''}
                       onChange={(e) => setGhlConfig((c) => ({ ...c, opportunitySource: e.target.value || undefined }))}
@@ -1291,7 +1372,10 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                     />
                   </div>
                   <div>
-                    <Label className="text-base font-semibold">Opportunity tags</Label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Label className="text-base font-semibold">Opportunity tags</Label>
+                      <GhlHelpIcon anchor="opportunity-tags" />
+                    </div>
                     <TagPicker
                       value={Array.isArray(ghlConfig.opportunityTags) ? ghlConfig.opportunityTags.join(', ') : ''}
                       onChange={(csv) => setGhlConfig((c) => ({ ...c, opportunityTags: csv.split(',').map((s) => s.trim()).filter(Boolean) }))}
@@ -1303,7 +1387,10 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border">
                   <div>
-                    <Label className="text-base font-semibold">Appointment calendar</Label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Label className="text-base font-semibold">Appointment calendar</Label>
+                      <GhlHelpIcon anchor="calendars" />
+                    </div>
                     <select
                       value={ghlConfig.appointmentCalendarId ?? ''}
                       onChange={(e) => setGhlConfig((c) => ({ ...c, appointmentCalendarId: e.target.value || undefined }))}
@@ -1331,7 +1418,10 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border">
                   <div>
-                    <Label className="text-base font-semibold">Appointment user</Label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Label className="text-base font-semibold">Appointment user</Label>
+                      <GhlHelpIcon anchor="calendar-users" />
+                    </div>
                     <select
                       value={ghlConfig.appointmentUserId ?? ''}
                       onChange={(e) => setGhlConfig((c) => ({ ...c, appointmentUserId: e.target.value || undefined }))}
@@ -1344,7 +1434,10 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                     </select>
                   </div>
                   <div>
-                    <Label className="text-base font-semibold">Call user</Label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Label className="text-base font-semibold">Call user</Label>
+                      <GhlHelpIcon anchor="calendar-users" />
+                    </div>
                     <select
                       value={ghlConfig.callUserId ?? ''}
                       onChange={(e) => setGhlConfig((c) => ({ ...c, callUserId: e.target.value || undefined }))}
@@ -1366,11 +1459,14 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                       onChange={(e) => setGhlConfig((c) => ({ ...c, redirectAfterAppointment: e.target.checked }))}
                       className="rounded border-input"
                     />
-                    <Label htmlFor="redirectAfterAppointment" className="text-base font-semibold cursor-pointer">Redirect after appointment booking</Label>
+                    <Label htmlFor="redirectAfterAppointment" className="text-base font-semibold cursor-pointer flex items-center gap-1.5">Redirect after appointment booking <GhlHelpIcon anchor="redirect-after-appointment" /></Label>
                   </div>
                     {ghlConfig.redirectAfterAppointment && (
                       <div>
-                        <Label className="text-base font-semibold">Appointment redirect URL</Label>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Label className="text-base font-semibold">Appointment redirect URL</Label>
+                          <GhlHelpIcon anchor="redirect-after-appointment" />
+                        </div>
                         <Input
                           type="url"
                           value={ghlConfig.appointmentRedirectUrl ?? ''}
@@ -1382,7 +1478,10 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                     )}
                 </div>
                 <div className="pt-2 border-t border-border">
-                  <Label className="text-base font-semibold">In-service tags</Label>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Label className="text-base font-semibold">In-service tags</Label>
+                    <GhlHelpIcon anchor="service-area-tags" />
+                  </div>
                   <TagPicker
                     value={Array.isArray(ghlConfig.inServiceTags) ? ghlConfig.inServiceTags.join(', ') : ''}
                     onChange={(csv) => setGhlConfig((c) => ({ ...c, inServiceTags: csv.split(',').map((s) => s.trim()).filter(Boolean) }))}
@@ -1402,7 +1501,10 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                   />
                 </div>
                 <div className="pt-2 border-t border-border">
-                  <Label className="text-base font-semibold">Appointment booked tags</Label>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Label className="text-base font-semibold">Appointment booked tags</Label>
+                    <GhlHelpIcon anchor="appointment-booked-tags" />
+                  </div>
                   <TagPicker
                     value={Array.isArray(ghlConfig.appointmentBookedTags) ? ghlConfig.appointmentBookedTags.join(', ') : ''}
                     onChange={(csv) => setGhlConfig((c) => ({ ...c, appointmentBookedTags: csv.split(',').map((s) => s.trim()).filter(Boolean) }))}
@@ -1412,7 +1514,10 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                   />
                 </div>
                 <div className="pt-2 border-t border-border">
-                  <Label className="text-base font-semibold">Quote completed tags</Label>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Label className="text-base font-semibold">Quote completed tags</Label>
+                    <GhlHelpIcon anchor="quote-completed-tags" />
+                  </div>
                   <TagPicker
                     value={Array.isArray(ghlConfig.quoteCompletedTags) ? ghlConfig.quoteCompletedTags.join(', ') : ''}
                     onChange={(csv) => setGhlConfig((c) => ({ ...c, quoteCompletedTags: csv.split(',').map((s) => s.trim()).filter(Boolean) }))}
