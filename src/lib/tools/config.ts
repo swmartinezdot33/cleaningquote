@@ -31,12 +31,10 @@ export async function getToolConfigByToolId(toolId: string): Promise<ToolConfig 
       getGHLConfig(toolId),
     ]);
     const toolHasConfig = widgetSettings || formSettings || (questions && questions.length > 0) || ghlConfig;
-    let [globalWidget, globalForm, globalQuestions, globalGhl] = [null, null, null, null] as [
-      Awaited<ReturnType<typeof getWidgetSettings>>,
-      Awaited<ReturnType<typeof getFormSettings>>,
-      Awaited<ReturnType<typeof getSurveyQuestions>>,
-      Awaited<ReturnType<typeof getGHLConfig>>,
-    ];
+    let globalWidget: Awaited<ReturnType<typeof getWidgetSettings>> | null = null;
+    let globalForm: Awaited<ReturnType<typeof getFormSettings>> | null = null;
+    let globalQuestions: Awaited<ReturnType<typeof getSurveyQuestions>> | null = null;
+    let globalGhl: Awaited<ReturnType<typeof getGHLConfig>> | null = null;
     if (!toolHasConfig) {
       [globalWidget, globalForm, globalQuestions, globalGhl] = await Promise.all([
         getWidgetSettings(undefined),
