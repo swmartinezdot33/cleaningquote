@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import type { Tool, ToolConfigRow } from '@/lib/supabase/types';
+import { DEFAULT_SURVEY_QUESTIONS } from '@/lib/survey/schema';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,7 +64,9 @@ export async function GET(
 
     const formSettings =
       row?.form_settings && typeof row.form_settings === 'object' ? row.form_settings : {};
-    const questions = Array.isArray(row?.survey_questions) && row.survey_questions.length > 0 ? row.survey_questions : [];
+    // Use tool's questions if present; otherwise fall back to default survey so the form loads (e.g. existing tools created before defaults-at-creation).
+    const toolQuestions = Array.isArray(row?.survey_questions) && row.survey_questions.length > 0 ? row.survey_questions : [];
+    const questions = toolQuestions.length > 0 ? toolQuestions : DEFAULT_SURVEY_QUESTIONS;
 
     type GhlRedirectShape = { redirectAfterAppointment?: boolean; appointmentRedirectUrl?: string };
     const ghl: GhlRedirectShape | null =
