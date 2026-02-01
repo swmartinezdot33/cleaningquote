@@ -20,6 +20,14 @@ Vercel automatically injects these environment variables when you connect KV:
 - `KV_URL`
 - `REDIS_URL`
 
+**Reading KV locally:** Use the Vercel CLI to pull env vars so local scripts or the app can read KV:
+
+```bash
+vercel env pull    # pulls .env.local with KV_* and other vars from the linked project
+```
+
+After that, any script or dev server using `@vercel/kv` (or the project’s `src/lib/kv.ts`) can read and write KV.
+
 **Optional:** Add a custom API key for upload protection:
 1. Go to Vercel Dashboard → Your Project → Settings → Environment Variables
 2. Add:

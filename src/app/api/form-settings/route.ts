@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { kv } from '@vercel/kv';
+import { getFormSettings } from '@/lib/kv';
 
 /**
  * GET /api/form-settings
@@ -7,7 +7,7 @@ import { kv } from '@vercel/kv';
  */
 export async function GET(request: NextRequest) {
   try {
-    const formSettings = await kv.get('admin:form-settings');
+    const formSettings = await getFormSettings();
 
     return NextResponse.json({
       formSettings: formSettings || {},

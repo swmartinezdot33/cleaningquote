@@ -96,15 +96,15 @@ async function getLayoutData(): Promise<{ googleMapsApiKey: string; trackingCode
   let googleMapsApiKey = ""
   let trackingCodes: TrackingCodes = {}
   try {
-    const { kv } = await import("@vercel/kv")
+    const { getGoogleMapsKey, getTrackingCodes } = await import("@/lib/kv")
     const [apiKey, codes] = await Promise.all([
-      kv.get<string>("admin:google-maps-api-key"),
-      kv.get<TrackingCodes>("admin:tracking-codes"),
+      getGoogleMapsKey(),
+      getTrackingCodes(),
     ])
     googleMapsApiKey = apiKey || ""
     trackingCodes = codes || {}
   } catch (error) {
-    console.error("Layout: failed to load KV (Google Maps key / tracking):", error)
+    console.error("Layout: failed to load config (Google Maps key / tracking):", error)
   }
   return { googleMapsApiKey, trackingCodes }
 }

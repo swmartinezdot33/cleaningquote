@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDashboardUserAndToolWithClient } from '@/lib/dashboard-auth';
-import { createSupabaseServer } from '@/lib/supabase/server';
+import { createSupabaseServer, isSupabaseConfigured } from '@/lib/supabase/server';
 import { isSuperAdminEmail } from '@/lib/org-auth';
+import * as configStore from '@/lib/config/store';
 import { getKV, toolKey } from '@/lib/kv';
 import { slugToSafe } from '@/lib/supabase/tools';
 
@@ -76,22 +77,26 @@ export async function POST(
   const newId = (newTool as { id: string }).id;
 
   try {
-    const kv = getKV();
-    for (const key of KV_KEYS_TO_COPY) {
-      const srcKey = toolKey(toolId, key);
-      const val = await kv.get(srcKey);
-      if (val !== null && val !== undefined) {
-        const destKey = toolKey(newId, key);
-        await kv.set(destKey, val);
+    if (isSupabaseConfigured()) {
+      await configStore.copyToolConfig(toolId, newId);
+    } else {
+      const kv = getKV();
+      for (const key of KV_KEYS_TO_COPY) {
+        const srcKey = toolKey(toolId, key);
+        const val = await kv.get(srcKey);
+        if (val !== null && val !== undefined) {
+          const destKey = toolKey(newId, key);
+          await kv.set(destKey, val);
+        }
+      }
+      const metadataKey = toolKey(toolId, 'pricing:file:2026:metadata');
+      const meta = await kv.get(metadataKey);
+      if (meta !== null && meta !== undefined) {
+        await kv.set(toolKey(newId, 'pricing:file:2026:metadata'), meta);
       }
     }
-    const metadataKey = toolKey(toolId, 'pricing:file:2026:metadata');
-    const meta = await kv.get(metadataKey);
-    if (meta !== null && meta !== undefined) {
-      await kv.set(toolKey(newId, 'pricing:file:2026:metadata'), meta);
-    }
-  } catch (kvErr) {
-    console.warn('Clone: KV copy partial failure (tool created):', kvErr);
+  } catch (err) {
+    console.warn('Clone: config copy partial failure (tool created):', err);
   }
 
   return NextResponse.json({ tool: newTool });

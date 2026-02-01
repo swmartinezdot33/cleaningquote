@@ -174,6 +174,7 @@ export interface Database {
           pricing_table: Json | null;
           pricing_network_path: string | null;
           pricing_file_base64: string | null;
+          pricing_file_metadata: Json | null;
           ghl_token: string | null;
           ghl_location_id: string | null;
           ghl_config: Json | null;
@@ -195,6 +196,7 @@ export interface Database {
           pricing_table?: Json | null;
           pricing_network_path?: string | null;
           pricing_file_base64?: string | null;
+          pricing_file_metadata?: Json | null;
           ghl_token?: string | null;
           ghl_location_id?: string | null;
           ghl_config?: Json | null;

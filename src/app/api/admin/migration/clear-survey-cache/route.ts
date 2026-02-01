@@ -1,26 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { kv } from '@vercel/kv';
+import { isSupabaseConfigured } from '@/lib/supabase/server';
+import * as configStore from '@/lib/config/store';
+import { getKV } from '@/lib/kv';
+
+const SURVEY_QUESTIONS_KEY = 'survey:questions';
 
 /**
- * EMERGENCY MIGRATION: Clear survey questions cache from Vercel KV
+ * EMERGENCY MIGRATION: Clear survey questions cache (Supabase or KV)
  * This forces the system to regenerate default questions with correct field types
- * 
- * Use this if survey questions are stuck with old field configurations
  */
 export async function POST(request: NextRequest) {
   try {
-    const SURVEY_QUESTIONS_KEY = 'survey:questions';
-    
-    console.log('🔄 MIGRATION: Clearing survey questions cache from Vercel KV...');
-    
-    // Delete the cached survey questions
-    await kv.del(SURVEY_QUESTIONS_KEY);
-    
-    console.log('✅ MIGRATION: Survey questions cache cleared successfully');
-    
+    if (isSupabaseConfigured()) {
+      console.log('🔄 MIGRATION: Clearing survey questions from Supabase config...');
+      await configStore.setSurveyQuestionsInConfig([], undefined);
+      console.log('✅ MIGRATION: Survey questions cleared (Supabase)');
+    } else {
+      console.log('🔄 MIGRATION: Clearing survey questions cache from Vercel KV...');
+      const kv = getKV();
+      await kv.del(SURVEY_QUESTIONS_KEY);
+      console.log('✅ MIGRATION: Survey questions cache cleared (KV)');
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Survey questions cache cleared. The system will regenerate with correct field types on next request.',
+      message: 'Survey questions cleared. The system will regenerate with correct field types on next request.',
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
@@ -40,11 +44,18 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const SURVEY_QUESTIONS_KEY = 'survey:questions';
-    
-    // Check if questions exist
+    if (isSupabaseConfigured()) {
+      const questions = await configStore.getSurveyQuestionsFromConfig(undefined);
+      const cacheExists = Array.isArray(questions) && questions.length > 0;
+      return NextResponse.json({
+        cacheExists,
+        message: cacheExists ? 'Survey questions exist in Supabase config' : 'Survey questions are empty. Default questions will be used.',
+        ...(cacheExists && { cachedQuestions: questions, action: 'POST to this endpoint with Bearer token to clear' }),
+      });
+    }
+
+    const kv = getKV();
     const exists = await kv.exists(SURVEY_QUESTIONS_KEY);
-    
     if (exists === 1) {
       const questions = await kv.get(SURVEY_QUESTIONS_KEY);
       return NextResponse.json({
@@ -53,12 +64,11 @@ export async function GET(request: NextRequest) {
         cachedQuestions: questions,
         action: 'POST to this endpoint with Bearer token to clear cache',
       });
-    } else {
-      return NextResponse.json({
-        cacheExists: false,
-        message: 'Survey questions cache is already empty. Default questions will be used.',
-      });
     }
+    return NextResponse.json({
+      cacheExists: false,
+      message: 'Survey questions cache is already empty. Default questions will be used.',
+    });
   } catch (error) {
     return NextResponse.json(
       {

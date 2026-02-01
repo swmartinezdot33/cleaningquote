@@ -71,6 +71,14 @@ export function getKV() {
 export async function storePricingFile(buffer: Buffer, toolId?: string): Promise<void> {
   if (isSupabaseConfigured()) {
     await configStore.setPricingFileBase64InConfig(buffer.toString('base64'), toolId);
+    await configStore.setPricingFileMetadataInConfig(
+      {
+        uploadedAt: new Date().toISOString(),
+        size: buffer.length,
+        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      },
+      toolId
+    );
     return;
   }
   const kv = getKV();
@@ -112,7 +120,7 @@ export async function getPricingFile(toolId?: string): Promise<Buffer> {
 export async function getPricingTable(toolId?: string): Promise<PricingTable | null> {
   if (isSupabaseConfigured()) {
     const p = await configStore.getPricingTableFromConfig(toolId);
-    return (p as PricingTable) || null;
+    return (p as unknown as PricingTable) || null;
   }
   try {
     const kv = getKV();
@@ -128,7 +136,7 @@ export async function getPricingTable(toolId?: string): Promise<PricingTable | n
  */
 export async function setPricingTable(table: PricingTable | null, toolId?: string): Promise<void> {
   if (isSupabaseConfigured()) {
-    await configStore.setPricingTableInConfig(table as Record<string, unknown>, toolId);
+    await configStore.setPricingTableInConfig(table as unknown as Record<string, unknown>, toolId);
     return;
   }
   const kv = getKV();
@@ -155,20 +163,28 @@ export async function clearPricingData(toolId?: string): Promise<void> {
 }
 
 /**
- * Get pricing file metadata
+ * Get pricing file metadata (Supabase source of truth when configured).
  * @param toolId - When provided, reads from this quoting tool (multi-tenant).
  */
 export async function getPricingFileMetadata(toolId?: string) {
+  if (isSupabaseConfigured()) {
+    const meta = await configStore.getPricingFileMetadataFromConfig(toolId);
+    return meta ?? null;
+  }
   const kv = getKV();
   const k = toolKey(toolId, PRICING_KEY);
   return await kv.get(`${k}:metadata`);
 }
 
 /**
- * Check if pricing file exists
+ * Check if pricing file exists (Supabase source of truth when configured).
  * @param toolId - When provided, checks this quoting tool (multi-tenant).
  */
 export async function pricingFileExists(toolId?: string): Promise<boolean> {
+  if (isSupabaseConfigured()) {
+    const base64 = await configStore.getPricingFileBase64FromConfig(toolId);
+    return !!base64 && base64.length > 0;
+  }
   try {
     const kv = getKV();
     const k = toolKey(toolId, PRICING_KEY);
@@ -180,10 +196,14 @@ export async function pricingFileExists(toolId?: string): Promise<boolean> {
 }
 
 /**
- * Store network path for pricing file
+ * Store network path for pricing file (Supabase source of truth when configured).
  * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
 export async function storeNetworkPricingPath(path: string, toolId?: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    await configStore.setPricingNetworkPathInConfig(path, toolId);
+    return;
+  }
   try {
     const kv = getKV();
     await kv.set(toolKey(toolId, PRICING_NETWORK_PATH_KEY), path);
@@ -194,10 +214,11 @@ export async function storeNetworkPricingPath(path: string, toolId?: string): Pr
 }
 
 /**
- * Get network path for pricing file
+ * Get network path for pricing file (Supabase source of truth when configured).
  * @param toolId - When provided, reads from this quoting tool (multi-tenant).
  */
 export async function getNetworkPricingPath(toolId?: string): Promise<string | null> {
+  if (isSupabaseConfigured()) return configStore.getPricingNetworkPathFromConfig(toolId);
   try {
     const kv = getKV();
     const path = await kv.get<string>(toolKey(toolId, PRICING_NETWORK_PATH_KEY));
@@ -208,10 +229,14 @@ export async function getNetworkPricingPath(toolId?: string): Promise<string | n
 }
 
 /**
- * Delete network path for pricing file
+ * Delete network path for pricing file (Supabase source of truth when configured).
  * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
 export async function deleteNetworkPricingPath(toolId?: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    await configStore.setPricingNetworkPathInConfig(null, toolId);
+    return;
+  }
   try {
     const kv = getKV();
     await kv.del(toolKey(toolId, PRICING_NETWORK_PATH_KEY));
@@ -370,7 +395,7 @@ export async function getGHLConfig(toolId?: string): Promise<{
 } | null> {
   if (isSupabaseConfigured()) {
     const c = await configStore.getGHLConfig(toolId);
-    return c as typeof c & Record<string, unknown>;
+    return c as ReturnType<typeof getGHLConfig> extends Promise<infer R> ? R : never;
   }
   try {
     const kv = getKV();
@@ -403,11 +428,16 @@ export interface SurveyQuestion {
 
 /**
  * DEPRECATED: Use @/lib/survey/manager instead
- * Store survey questions
+ * Store survey questions (Supabase source of truth when configured).
  * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
 export async function storeSurveyQuestions(questions: SurveyQuestion[], toolId?: string): Promise<void> {
   console.warn('⚠️ storeSurveyQuestions is deprecated. Use survey/manager.saveSurveyQuestions instead');
+  if (isSupabaseConfigured()) {
+    const sorted = [...questions].sort((a, b) => a.order - b.order);
+    await configStore.setSurveyQuestionsInConfig(sorted as unknown as Record<string, unknown>[], toolId);
+    return;
+  }
   try {
     const kv = getKV();
     const sortedQuestions = [...questions].sort((a, b) => a.order - b.order);
@@ -420,11 +450,16 @@ export async function storeSurveyQuestions(questions: SurveyQuestion[], toolId?:
 
 /**
  * DEPRECATED: Use @/lib/survey/manager instead
- * Get survey questions
+ * Get survey questions (Supabase source of truth when configured).
  * @param toolId - When provided, reads from this quoting tool (multi-tenant).
  */
 export async function getSurveyQuestions(toolId?: string): Promise<SurveyQuestion[]> {
   console.warn('⚠️ getSurveyQuestions is deprecated. Use survey/manager.getSurveyQuestions instead');
+  if (isSupabaseConfigured()) {
+    const q = await configStore.getSurveyQuestionsFromConfig(toolId);
+    if (!q || !Array.isArray(q)) return [];
+    return (q as SurveyQuestion[]).sort((a, b) => a.order - b.order);
+  }
   try {
     const kv = getKV();
     const questions = await kv.get<SurveyQuestion[]>(toolKey(toolId, SURVEY_QUESTIONS_KEY));
@@ -443,10 +478,14 @@ export async function getSurveyQuestions(toolId?: string): Promise<SurveyQuestio
 export type ServiceAreaPolygon = Array<[number, number]>;
 
 /**
- * Store service area polygon
+ * Store service area polygon (Supabase source of truth when configured).
  * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
 export async function storeServiceAreaPolygon(polygon: ServiceAreaPolygon, toolId?: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    await configStore.setServiceAreaPolygonInConfig(polygon as unknown as Record<string, unknown>, toolId);
+    return;
+  }
   try {
     const kv = getKV();
     await kv.set(toolKey(toolId, SERVICE_AREA_POLYGON_KEY), polygon);
@@ -457,10 +496,14 @@ export async function storeServiceAreaPolygon(polygon: ServiceAreaPolygon, toolI
 }
 
 /**
- * Get service area polygon
+ * Get service area polygon (Supabase source of truth when configured).
  * @param toolId - When provided, reads from this quoting tool (multi-tenant).
  */
 export async function getServiceAreaPolygon(toolId?: string): Promise<ServiceAreaPolygon | null> {
+  if (isSupabaseConfigured()) {
+    const p = await configStore.getServiceAreaPolygonFromConfig(toolId);
+    return (p as ServiceAreaPolygon) ?? null;
+  }
   try {
     const kv = getKV();
     const polygon = await kv.get<ServiceAreaPolygon>(toolKey(toolId, SERVICE_AREA_POLYGON_KEY));
@@ -471,10 +514,14 @@ export async function getServiceAreaPolygon(toolId?: string): Promise<ServiceAre
 }
 
 /**
- * Check if service area polygon exists
+ * Check if service area polygon exists (Supabase source of truth when configured).
  * @param toolId - When provided, checks this quoting tool (multi-tenant).
  */
 export async function serviceAreaPolygonExists(toolId?: string): Promise<boolean> {
+  if (isSupabaseConfigured()) {
+    const p = await configStore.getServiceAreaPolygonFromConfig(toolId);
+    return Array.isArray(p) && p.length > 0;
+  }
   try {
     const kv = getKV();
     const exists = await kv.exists(toolKey(toolId, SERVICE_AREA_POLYGON_KEY));
@@ -485,10 +532,14 @@ export async function serviceAreaPolygonExists(toolId?: string): Promise<boolean
 }
 
 /**
- * Store service area network link URL
+ * Store service area network link URL (Supabase source of truth when configured).
  * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
 export async function storeServiceAreaNetworkLink(url: string, toolId?: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    await configStore.setServiceAreaNetworkLinkInConfig(url, toolId);
+    return;
+  }
   try {
     const kv = getKV();
     await kv.set(toolKey(toolId, SERVICE_AREA_NETWORK_LINK_KEY), url);
@@ -499,10 +550,11 @@ export async function storeServiceAreaNetworkLink(url: string, toolId?: string):
 }
 
 /**
- * Get service area network link URL
+ * Get service area network link URL (Supabase source of truth when configured).
  * @param toolId - When provided, reads from this quoting tool (multi-tenant).
  */
 export async function getServiceAreaNetworkLink(toolId?: string): Promise<string | null> {
+  if (isSupabaseConfigured()) return configStore.getServiceAreaNetworkLinkFromConfig(toolId);
   try {
     const kv = getKV();
     const url = await kv.get<string>(toolKey(toolId, SERVICE_AREA_NETWORK_LINK_KEY));
@@ -513,10 +565,14 @@ export async function getServiceAreaNetworkLink(toolId?: string): Promise<string
 }
 
 /**
- * Delete service area network link
+ * Delete service area network link (Supabase source of truth when configured).
  * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
 export async function deleteServiceAreaNetworkLink(toolId?: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    await configStore.setServiceAreaNetworkLinkInConfig(null, toolId);
+    return;
+  }
   try {
     const kv = getKV();
     await kv.del(toolKey(toolId, SERVICE_AREA_NETWORK_LINK_KEY));

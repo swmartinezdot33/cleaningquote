@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { kv } from '@vercel/kv';
 import { SurveyQuestion } from '@/lib/kv';
+import { isSupabaseConfigured } from '@/lib/supabase/server';
+import * as configStore from '@/lib/config/store';
+import { getKV } from '@/lib/kv';
 
 /**
  * EMERGENCY MIGRATION: Reset survey questions to correct defaults
@@ -187,7 +189,6 @@ const CORRECTED_DEFAULT_QUESTIONS: SurveyQuestion[] = [
  */
 export async function POST(request: NextRequest) {
   try {
-    // Verify this is an admin request
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json(
@@ -197,18 +198,21 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('🔄 MIGRATION START: Resetting survey questions to correct defaults...');
-    
-    // Step 1: Delete old cache
-    await kv.del(SURVEY_QUESTIONS_KEY);
-    console.log('✅ Step 1: Cleared old survey questions cache');
-    
-    // Step 2: Store corrected defaults
-    await kv.set(SURVEY_QUESTIONS_KEY, CORRECTED_DEFAULT_QUESTIONS);
-    console.log('✅ Step 2: Stored corrected default survey questions');
-    
-    // Step 3: Verify the migration worked
-    const stored = await kv.get<SurveyQuestion[]>(SURVEY_QUESTIONS_KEY);
-    
+
+    let stored: SurveyQuestion[] | null = null;
+    if (isSupabaseConfigured()) {
+      await configStore.setSurveyQuestionsInConfig(CORRECTED_DEFAULT_QUESTIONS as unknown as Record<string, unknown>[], undefined);
+      const q = await configStore.getSurveyQuestionsFromConfig(undefined);
+      stored = Array.isArray(q) ? (q as SurveyQuestion[]) : null;
+      console.log('✅ Stored corrected defaults in Supabase config');
+    } else {
+      const kv = getKV();
+      await kv.del(SURVEY_QUESTIONS_KEY);
+      await kv.set(SURVEY_QUESTIONS_KEY, CORRECTED_DEFAULT_QUESTIONS);
+      stored = await kv.get<SurveyQuestion[]>(SURVEY_QUESTIONS_KEY);
+      console.log('✅ Stored corrected defaults in KV');
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Migration completed successfully!',
@@ -241,18 +245,26 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const stored = await kv.get<SurveyQuestion[]>(SURVEY_QUESTIONS_KEY);
+    let stored: SurveyQuestion[] | null = null;
+    if (isSupabaseConfigured()) {
+      const q = await configStore.getSurveyQuestionsFromConfig(undefined);
+      stored = Array.isArray(q) ? (q as SurveyQuestion[]) : null;
+    } else {
+      const kv = getKV();
+      stored = await kv.get<SurveyQuestion[]>(SURVEY_QUESTIONS_KEY);
+    }
+
     const squareFeetQ = stored?.find(q => q.id === 'squareFeet');
     const halfBathsQ = stored?.find(q => q.id === 'halfBaths');
     const sheddingPetsQ = stored?.find(q => q.id === 'sheddingPets');
-    
-    const isCorrect = 
+
+    const isCorrect =
       squareFeetQ?.type === 'select' &&
       halfBathsQ?.type === 'select' &&
       sheddingPetsQ?.type === 'select' &&
       (halfBathsQ?.options || []).some(o => o.value === '0') &&
       (sheddingPetsQ?.options || []).some(o => o.value === '0');
-    
+
     return NextResponse.json({
       migrationNeeded: !isCorrect,
       currentState: {

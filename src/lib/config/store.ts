@@ -118,7 +118,7 @@ export async function getInitialCleaningConfig(toolId?: string): Promise<Initial
 }
 
 export async function setInitialCleaningConfig(config: InitialCleaningConfig, toolId?: string): Promise<void> {
-  await upsertConfig(toolId, { initial_cleaning_config: config as Json });
+  await upsertConfig(toolId, { initial_cleaning_config: config as unknown as Json });
 }
 
 // ---- Google Maps key ----
@@ -186,8 +186,8 @@ export async function getPricingTableFromConfig(toolId?: string): Promise<Record
   return p && typeof p === 'object' ? p : null;
 }
 
-export async function setPricingTableInConfig(table: Record<string, unknown>, toolId?: string): Promise<void> {
-  await upsertConfig(toolId, { pricing_table: table as unknown as Json });
+export async function setPricingTableInConfig(table: Record<string, unknown> | null, toolId?: string): Promise<void> {
+  await upsertConfig(toolId, { pricing_table: table as unknown as Json | null });
 }
 
 export async function getPricingFileBase64FromConfig(toolId?: string): Promise<string | null> {
@@ -198,6 +198,25 @@ export async function getPricingFileBase64FromConfig(toolId?: string): Promise<s
 
 export async function setPricingFileBase64InConfig(base64: string | null, toolId?: string): Promise<void> {
   await upsertConfig(toolId, { pricing_file_base64: base64 });
+}
+
+export type PricingFileMetadata = {
+  uploadedAt?: string;
+  size?: number;
+  contentType?: string;
+};
+
+export async function getPricingFileMetadataFromConfig(toolId?: string): Promise<PricingFileMetadata | null> {
+  const row = await getConfigRow(toolId);
+  const m = row?.pricing_file_metadata as PricingFileMetadata | null | undefined;
+  return m && typeof m === 'object' ? m : null;
+}
+
+export async function setPricingFileMetadataInConfig(
+  meta: PricingFileMetadata | null,
+  toolId?: string
+): Promise<void> {
+  await upsertConfig(toolId, { pricing_file_metadata: meta as unknown as Json });
 }
 
 export async function getPricingNetworkPathFromConfig(toolId?: string): Promise<string | null> {
@@ -229,4 +248,74 @@ export async function getServiceAreaNetworkLinkFromConfig(toolId?: string): Prom
 
 export async function setServiceAreaNetworkLinkInConfig(url: string | null, toolId?: string): Promise<void> {
   await upsertConfig(toolId, { service_area_network_link: url });
+}
+
+/** Copy global config row (tool_id = null) to a new row for the given tool. Used by to-multitenant migration. */
+export async function copyGlobalConfigToTool(toolId: string): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  const row = await getConfigRow(undefined);
+  if (!row) return;
+  const supabase = createSupabaseServer();
+  const updated_at = new Date().toISOString();
+  const payload = {
+    tool_id: toolId,
+    widget_settings: row.widget_settings,
+    form_settings: row.form_settings,
+    tracking_codes: row.tracking_codes,
+    initial_cleaning_config: row.initial_cleaning_config,
+    google_maps_key: row.google_maps_key,
+    service_area_type: row.service_area_type,
+    service_area_polygon: row.service_area_polygon,
+    service_area_network_link: row.service_area_network_link,
+    survey_questions: row.survey_questions,
+    pricing_table: row.pricing_table,
+    pricing_network_path: row.pricing_network_path,
+    pricing_file_base64: row.pricing_file_base64,
+    pricing_file_metadata: row.pricing_file_metadata,
+    ghl_token: row.ghl_token,
+    ghl_location_id: row.ghl_location_id,
+    ghl_config: row.ghl_config,
+    updated_at,
+  };
+  // @ts-expect-error Supabase generated types
+  const { error } = await supabase.from('tool_config').upsert(payload, { onConflict: 'tool_id' });
+  if (error) {
+    console.error('tool_config copyGlobalConfigToTool:', error);
+    throw error;
+  }
+}
+
+/** Copy one tool's config to another tool. Used by clone. */
+export async function copyToolConfig(sourceToolId: string, targetToolId: string): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  const row = await getConfigRow(sourceToolId);
+  if (!row) return;
+  const supabase = createSupabaseServer();
+  const updated_at = new Date().toISOString();
+  const payload = {
+    tool_id: targetToolId,
+    widget_settings: row.widget_settings,
+    form_settings: row.form_settings,
+    tracking_codes: row.tracking_codes,
+    initial_cleaning_config: row.initial_cleaning_config,
+    google_maps_key: row.google_maps_key,
+    service_area_type: row.service_area_type,
+    service_area_polygon: row.service_area_polygon,
+    service_area_network_link: row.service_area_network_link,
+    survey_questions: row.survey_questions,
+    pricing_table: row.pricing_table,
+    pricing_network_path: row.pricing_network_path,
+    pricing_file_base64: row.pricing_file_base64,
+    pricing_file_metadata: row.pricing_file_metadata,
+    ghl_token: row.ghl_token,
+    ghl_location_id: row.ghl_location_id,
+    ghl_config: row.ghl_config,
+    updated_at,
+  };
+  // @ts-expect-error Supabase generated types
+  const { error } = await supabase.from('tool_config').upsert(payload, { onConflict: 'tool_id' });
+  if (error) {
+    console.error('tool_config copyToolConfig:', error);
+    throw error;
+  }
 }

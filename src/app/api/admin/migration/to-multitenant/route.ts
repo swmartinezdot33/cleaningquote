@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseServer } from '@/lib/supabase/server';
+import { createSupabaseServer, isSupabaseConfigured } from '@/lib/supabase/server';
 import type { ToolInsert } from '@/lib/supabase/types';
-import { kv } from '@vercel/kv';
+import * as configStore from '@/lib/config/store';
+import { getKV, toolKey } from '@/lib/kv';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -25,10 +26,6 @@ const GLOBAL_KEYS_TO_COPY = [
 ];
 
 const METADATA_SUFFIX = 'pricing:file:2026:metadata';
-
-function toolKey(toolId: string, key: string): string {
-  return `tool:${toolId}:${key}`;
-}
 
 /**
  * POST /api/admin/migration/to-multitenant
@@ -134,30 +131,42 @@ export async function POST(request: NextRequest) {
     }
 
     let copied = 0;
-    for (const key of GLOBAL_KEYS_TO_COPY) {
+    if (isSupabaseConfigured()) {
       try {
-        const value = await kv.get(key);
-        if (value !== null && value !== undefined) {
-          await kv.set(toolKey(toolId, key), value);
+        await configStore.copyGlobalConfigToTool(toolId);
+        copied = 1; // one config row copied
+      } catch (err) {
+        console.error('to-multitenant: Supabase config copy failed:', err);
+      }
+    } else {
+      const kv = getKV();
+      for (const key of GLOBAL_KEYS_TO_COPY) {
+        try {
+          const value = await kv.get(key);
+          if (value !== null && value !== undefined) {
+            await kv.set(toolKey(toolId, key), value);
+            copied++;
+          }
+        } catch {
+          // skip
+        }
+      }
+      try {
+        const meta = await kv.get(METADATA_SUFFIX);
+        if (meta !== null && meta !== undefined) {
+          await kv.set(toolKey(toolId, METADATA_SUFFIX), meta);
           copied++;
         }
       } catch {
         // skip
       }
     }
-    try {
-      const meta = await kv.get(METADATA_SUFFIX);
-      if (meta !== null && meta !== undefined) {
-        await kv.set(toolKey(toolId, METADATA_SUFFIX), meta);
-        copied++;
-      }
-    } catch {
-      // skip
-    }
 
     return NextResponse.json({
       success: true,
-      message: 'Migration complete. Copied ' + copied + ' keys to tool.',
+      message: isSupabaseConfigured()
+        ? 'Migration complete. Copied global config to tool (Supabase).'
+        : 'Migration complete. Copied ' + copied + ' keys to tool (KV).',
       toolId,
       slug: process.env.MIGRATION_DEFAULT_SLUG || 'default',
       keysCopied: copied,
