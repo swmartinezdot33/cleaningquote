@@ -54,7 +54,9 @@ export async function POST(
 
   const name = `Copy of ${tool.name}`;
 
-  const insertClient = targetOrgId !== tool.org_id ? createSupabaseServer() : supabase;
+  // Always use service role for insert - we've already verified user has permission via getDashboardUserAndToolWithClient.
+  // User-authenticated client hits RLS on tools table and can fail (e.g. cookie/session context in API routes).
+  const insertClient = createSupabaseServer();
   const { data: newTool, error: insertErr } = await insertClient
     .from('tools')
     .insert({ org_id: targetOrgId, user_id: user.id, name, slug } as any)
