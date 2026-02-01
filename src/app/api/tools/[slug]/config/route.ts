@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import type { Tool, ToolConfigRow } from '@/lib/supabase/types';
+import * as configStore from '@/lib/config/store';
 import { DEFAULT_WIDGET } from '@/lib/tools/config';
 import { DEFAULT_SURVEY_QUESTIONS } from '@/lib/survey/schema';
 
@@ -35,7 +36,23 @@ export async function GET(
       return NextResponse.json({ error: 'Config read failed' }, { status: 500 });
     }
 
-    const row = rowData as ToolConfigRow | null;
+    let row = rowData as ToolConfigRow | null;
+
+    // If tool exists but has no config row (e.g. created before seed-on-creation), create one with presets so the tool loads.
+    if (!row) {
+      try {
+        await configStore.setWidgetSettings(DEFAULT_WIDGET, toolId);
+        await configStore.setSurveyQuestionsInConfig(DEFAULT_SURVEY_QUESTIONS, toolId);
+        const { data: newRow, error: reErr } = await supabase
+          .from('tool_config')
+          .select('*')
+          .eq('tool_id', toolId)
+          .maybeSingle();
+        if (!reErr && newRow) row = newRow as ToolConfigRow;
+      } catch (initErr) {
+        console.error('GET /api/tools/[slug]/config lazy init config row:', initErr);
+      }
+    }
 
     // Normalize widget_settings from DB (camelCase or snake_case). Tool-only; no global row.
     type WidgetShape = { title?: string; subtitle?: string; primaryColor?: string; primary_color?: string };
@@ -62,7 +79,20 @@ export async function GET(
 
     const formSettings =
       row?.form_settings && typeof row.form_settings === 'object' ? row.form_settings : {};
-    const questions = Array.isArray(row?.survey_questions) ? row.survey_questions : [];
+    const rawQuestions = row?.survey_questions;
+    const questions =
+      Array.isArray(rawQuestions)
+        ? rawQuestions
+        : typeof rawQuestions === 'string'
+          ? (() => {
+              try {
+                const parsed = JSON.parse(rawQuestions);
+                return Array.isArray(parsed) ? parsed : [];
+              } catch {
+                return [];
+              }
+            })()
+          : [];
 
     type GhlRedirectShape = { redirectAfterAppointment?: boolean; appointmentRedirectUrl?: string };
     const ghl: GhlRedirectShape | null =
