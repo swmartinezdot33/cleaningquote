@@ -2,6 +2,7 @@
 
 import './globals.css';
 import { useState, useEffect, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { BrandLogo } from '@/components/BrandLogo';
@@ -20,8 +21,13 @@ import {
 
 function Header({ onSignupClick }: { onSignupClick: () => void }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (mobileMenuOpen) document.body.style.overflow = 'hidden';
@@ -83,67 +89,71 @@ function Header({ onSignupClick }: { onSignupClick: () => void }) {
           <Menu className="h-6 w-6" />
         </button>
       </div>
-      {/* Mobile menu overlay + panel */}
-      <div
-        className={`md:hidden fixed inset-0 z-40 transition-opacity duration-200 ${mobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-        aria-hidden={!mobileMenuOpen}
-      >
-        <button
-          type="button"
-          onClick={closeMobileMenu}
-          className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-          aria-label="Close menu"
-        />
-        <div
-          className={`absolute top-0 right-0 bottom-0 w-full max-w-xs bg-background border-l border-border shadow-xl flex flex-col transition-transform duration-200 ease-out ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}
-          style={{ backgroundColor: '#ffffff' }}
-        >
-          <div className="flex items-center justify-between h-16 px-4 border-b border-border">
-            <span className="text-sm font-medium text-muted-foreground">Menu</span>
+      {/* Mobile menu: render in portal so background paints above everything */}
+      {mounted &&
+        createPortal(
+          <div
+            className={`md:hidden fixed inset-0 z-[9999] transition-opacity duration-200 ${mobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            aria-hidden={!mobileMenuOpen}
+          >
             <button
               type="button"
               onClick={closeMobileMenu}
-              className="p-2 -mr-2 text-muted-foreground hover:text-foreground rounded-none"
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
               aria-label="Close menu"
+            />
+            <div
+              className={`absolute top-0 right-0 bottom-0 w-full max-w-xs border-l border-gray-200 shadow-xl flex flex-col transition-transform duration-200 ease-out ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}
+              style={{ backgroundColor: '#f9fafb' }}
             >
-              <X className="h-6 w-6" />
-            </button>
-          </div>
-          <nav className="flex flex-col gap-1 p-4">
-            <a
-              href="#features"
-              onClick={closeMobileMenu}
-              className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-none transition-colors"
-            >
-              Features
-            </a>
-            <a
-              href="#capabilities"
-              onClick={closeMobileMenu}
-              className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-none transition-colors"
-            >
-              Capabilities
-            </a>
-            <a
-              href="#pricing"
-              onClick={closeMobileMenu}
-              className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-none transition-colors"
-            >
-              Pricing
-            </a>
-            <div className="border-t border-border mt-2 pt-4 flex flex-col gap-2">
-              <Link href="/login" onClick={closeMobileMenu}>
-                <Button variant="ghost" size="sm" className="w-full justify-center rounded-none font-medium">
-                  Log in
-                </Button>
-              </Link>
-              <Button size="sm" className="w-full rounded-none font-medium" onClick={() => { closeMobileMenu(); onSignupClick(); }}>
-                Sign up
-              </Button>
+              <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200" style={{ backgroundColor: '#f9fafb' }}>
+                <span className="text-sm font-medium text-muted-foreground">Menu</span>
+                <button
+                  type="button"
+                  onClick={closeMobileMenu}
+                  className="p-2 -mr-2 text-muted-foreground hover:text-foreground rounded-none"
+                  aria-label="Close menu"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              <nav className="flex flex-col gap-1 p-4" style={{ backgroundColor: '#f9fafb' }}>
+                <a
+                  href="#features"
+                  onClick={closeMobileMenu}
+                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-none transition-colors"
+                >
+                  Features
+                </a>
+                <a
+                  href="#capabilities"
+                  onClick={closeMobileMenu}
+                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-none transition-colors"
+                >
+                  Capabilities
+                </a>
+                <a
+                  href="#pricing"
+                  onClick={closeMobileMenu}
+                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-none transition-colors"
+                >
+                  Pricing
+                </a>
+                <div className="border-t border-gray-200 mt-2 pt-4 flex flex-col gap-2" style={{ backgroundColor: '#f9fafb' }}>
+                  <Link href="/login" onClick={closeMobileMenu}>
+                    <Button variant="ghost" size="sm" className="w-full justify-center rounded-none font-medium">
+                      Log in
+                    </Button>
+                  </Link>
+                  <Button size="sm" className="w-full rounded-none font-medium" onClick={() => { closeMobileMenu(); onSignupClick(); }}>
+                    Sign up
+                  </Button>
+                </div>
+              </nav>
             </div>
-          </nav>
-        </div>
-      </div>
+          </div>,
+          document.body
+        )}
     </header>
   );
 }
@@ -418,7 +428,7 @@ function Footer({ onSignupClick }: { onSignupClick: () => void }) {
   return (
     <footer className="border-t border-white/20 bg-white/50 py-10 shadow-[0_-4px_24px_-4px_rgba(0,0,0,0.08)] backdrop-blur-md">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
+        <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between">
           <div className="flex flex-col items-center sm:items-start gap-2">
             <Link href="/" className="flex items-center gap-2">
               <BrandLogo />
@@ -427,7 +437,7 @@ function Footer({ onSignupClick }: { onSignupClick: () => void }) {
               Instant quoting for cleaning companies. Close more leads, book more jobs.
             </p>
           </div>
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
+          <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground sm:gap-6">
             <a href="#features" className="hover:text-foreground transition-colors">
               Features
             </a>
@@ -449,7 +459,7 @@ function Footer({ onSignupClick }: { onSignupClick: () => void }) {
             <button onClick={onSignupClick} className="font-medium text-primary hover:underline">
               Sign up
             </button>
-          </div>
+          </nav>
         </div>
       </div>
     </footer>
