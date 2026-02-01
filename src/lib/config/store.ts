@@ -66,6 +66,21 @@ async function upsertConfig(toolId: string | undefined, updates: Partial<ToolCon
   }
 }
 
+/**
+ * Create or reset this tool's config row with preset only: site customization (title, subtitle, color) and survey questions.
+ * Call once when a tool is created so every tool always has its own config. Never uses global row.
+ */
+export async function createToolConfigPreset(
+  toolId: string,
+  widget: WidgetSettings,
+  surveyQuestions: unknown[]
+): Promise<void> {
+  await upsertConfig(toolId, {
+    widget_settings: widget as unknown as Json,
+    survey_questions: surveyQuestions as unknown as Json,
+  });
+}
+
 // ---- Widget ----
 export async function getWidgetSettings(toolId?: string): Promise<WidgetSettings | null> {
   const row = await getConfigRow(toolId);

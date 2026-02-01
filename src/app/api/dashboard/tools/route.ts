@@ -59,8 +59,7 @@ export async function POST(request: NextRequest) {
 
     const toolId = (tool as { id: string }).id;
     try {
-      await configStore.setWidgetSettings(DEFAULT_WIDGET, toolId);
-      await configStore.setSurveyQuestionsInConfig(DEFAULT_SURVEY_QUESTIONS, toolId);
+      await configStore.createToolConfigPreset(toolId, DEFAULT_WIDGET, DEFAULT_SURVEY_QUESTIONS);
     } catch (configErr) {
       console.error('Tool created but failed to seed default config:', configErr);
       // Still return success; tool exists, user can configure in settings

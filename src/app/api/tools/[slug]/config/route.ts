@@ -7,7 +7,7 @@ import { DEFAULT_SURVEY_QUESTIONS } from '@/lib/survey/schema';
 
 export const dynamic = 'force-dynamic';
 
-/** GET - Public config bundle. Tool-only: reads this tool's tool_config. No global fallback; use tool's settings or presets from creation. */
+/** GET - Public config bundle. Tool-only: reads tool_config where tool_id = tool for this slug. No global fallback; every tool loads only its own config. */
 export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ slug: string }> }
@@ -41,8 +41,7 @@ export async function GET(
     // If tool exists but has no config row (e.g. created before seed-on-creation), create one with presets so the tool loads.
     if (!row) {
       try {
-        await configStore.setWidgetSettings(DEFAULT_WIDGET, toolId);
-        await configStore.setSurveyQuestionsInConfig(DEFAULT_SURVEY_QUESTIONS, toolId);
+        await configStore.createToolConfigPreset(toolId, DEFAULT_WIDGET, DEFAULT_SURVEY_QUESTIONS);
         const { data: newRow, error: reErr } = await supabase
           .from('tool_config')
           .select('*')
