@@ -8,6 +8,7 @@ interface User {
   id: string;
   email: string | null;
   created_at: string;
+  email_confirmed_at?: string | null;
 }
 interface Org {
   id: string;
@@ -530,7 +531,14 @@ export default function SuperAdminPage() {
             <tbody>
               {users.map((u) => (
                 <tr key={u.id} className="border-b">
-                  <td className="p-3">{u.email ?? u.id}</td>
+                  <td className="p-3">
+                    <span>{u.email ?? u.id}</span>
+                    {!u.email_confirmed_at && (
+                      <span className="ml-2 inline-flex items-center rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                        Pending (unconfirmed)
+                      </span>
+                    )}
+                  </td>
                   <td className="p-3">
                     {(membersByUser[u.id] ?? []).map((m) => (
                       <span key={m.org_id} className="mr-2 inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs">
@@ -677,7 +685,9 @@ export default function SuperAdminPage() {
           >
             <option value="">Select user</option>
             {users.map((u) => (
-              <option key={u.id} value={u.id}>{u.email ?? u.id}</option>
+              <option key={u.id} value={u.id}>
+                {u.email ?? u.id}{!u.email_confirmed_at ? ' (pending)' : ''}
+              </option>
             ))}
           </select>
           <select

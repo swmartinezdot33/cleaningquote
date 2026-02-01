@@ -81,12 +81,14 @@ export default async function DashboardLayout({
             >
               Quotes
             </Link>
-            <Link
-              href="/dashboard/team"
-              className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
-            >
-              Team
-            </Link>
+            {selectedOrg?.role === 'admin' && (
+              <Link
+                href="/dashboard/team"
+                className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+              >
+                Team
+              </Link>
+            )}
             <Link
               href="/dashboard/profile"
               className="text-sm font-medium text-foreground hover:text-primary hover:underline"

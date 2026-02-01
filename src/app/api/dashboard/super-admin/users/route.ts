@@ -23,6 +23,7 @@ export async function GET() {
     id: u.id,
     email: u.email,
     created_at: u.created_at,
+    email_confirmed_at: (u as { email_confirmed_at?: string | null }).email_confirmed_at ?? null,
   }));
 
   return NextResponse.json({ users });
