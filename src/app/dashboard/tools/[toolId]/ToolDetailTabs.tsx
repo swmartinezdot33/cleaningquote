@@ -30,6 +30,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
   const [savingBaseUrl, setSavingBaseUrl] = useState(false);
   const [baseUrlMessage, setBaseUrlMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [dnsInstructions, setDnsInstructions] = useState<{ cname: { name: string; value: string }; a: { name: string; value: string } } | null>(null);
+  const [vercelDomainError, setVercelDomainError] = useState<string | null>(null);
 
   useEffect(() => {
     setOverviewMounted(true);
@@ -135,6 +136,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
   const saveBaseUrl = async () => {
     setBaseUrlMessage(null);
     setDnsInstructions(null);
+    setVercelDomainError(null);
     const trimmed = publicBaseUrl.trim();
     if (trimmed) {
       try {
@@ -163,6 +165,9 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
       setBaseUrlMessage({ type: 'success', text: 'Base URL saved' });
       if (data.dnsInstructions) {
         setDnsInstructions(data.dnsInstructions);
+      }
+      if (data.vercelDomainError) {
+        setVercelDomainError(data.vercelDomainError);
       }
     } catch {
       setBaseUrlMessage({ type: 'error', text: 'Failed to save base URL' });
@@ -352,6 +357,12 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
               <p className={`mt-2 text-sm ${baseUrlMessage.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
                 {baseUrlMessage.text}
               </p>
+            )}
+            {vercelDomainError && (
+              <div className="mt-4 p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+                <p className="text-sm font-semibold text-amber-900 dark:text-amber-200 mb-1">Domain not added to Vercel</p>
+                <p className="text-sm text-amber-800 dark:text-amber-300">{vercelDomainError}</p>
+              </div>
             )}
             {dnsInstructions && (
               <div className="mt-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">

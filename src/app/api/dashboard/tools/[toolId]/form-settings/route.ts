@@ -59,6 +59,8 @@ export async function POST(
       settings.openSurveyInNewTab = false;
     }
     let dnsInstructions: { cname: { name: string; value: string }; a: { name: string; value: string } } | undefined;
+    let vercelDomainAdded = false;
+    let vercelDomainError: string | undefined;
     if (body.publicBaseUrl !== undefined) {
       const raw = typeof body.publicBaseUrl === 'string' ? body.publicBaseUrl.trim() : '';
       settings.publicBaseUrl = raw || undefined;
@@ -80,7 +82,9 @@ export async function POST(
             const projectId = process.env.VERCEL_PROJECT_ID?.trim() || process.env.VERCEL_PROJECT_NAME?.trim();
             const teamId = process.env.VERCEL_TEAM_ID?.trim();
 
-            if (token && projectId) {
+            if (!token || !projectId) {
+              vercelDomainError = 'VERCEL_TOKEN and VERCEL_PROJECT_ID (or VERCEL_PROJECT_NAME) must be set in Vercel Environment Variables. Add the domain manually in Vercel Dashboard → Settings → Domains.';
+            } else {
               const vercelUrl = new URL(`https://api.vercel.com/v10/projects/${encodeURIComponent(projectId)}/domains`);
               if (teamId) vercelUrl.searchParams.set('teamId', teamId);
 
@@ -92,13 +96,22 @@ export async function POST(
                 },
                 body: JSON.stringify({ name: hostname }),
               });
-              await vercelRes.json().catch(() => null); // Consume body
-              // Domain added (or already exists); dnsInstructions already set above
+              const vercelData = (await vercelRes.json().catch(() => ({}))) as { error?: { message?: string }; verified?: boolean };
+
+              if (vercelRes.ok) {
+                vercelDomainAdded = true;
+              } else {
+                const msg = vercelData.error?.message || `HTTP ${vercelRes.status}`;
+                vercelDomainError = msg.includes('already') || vercelRes.status === 409
+                  ? 'Domain may already exist on this project. Add it manually in Vercel if needed.'
+                  : msg;
+                console.warn('Vercel domain add failed:', vercelRes.status, vercelData);
+              }
             }
           }
         } catch (domainErr) {
+          vercelDomainError = domainErr instanceof Error ? domainErr.message : 'Failed to add domain to Vercel';
           console.warn('Vercel domain add (non-blocking):', domainErr);
-          // Save anyway - dnsInstructions may still be set from hostname parse
         }
       }
     }
@@ -107,6 +120,8 @@ export async function POST(
       success: true,
       message: 'Form settings saved',
       ...(dnsInstructions && { dnsInstructions }),
+      ...(vercelDomainAdded && { vercelDomainAdded: true }),
+      ...(vercelDomainError && { vercelDomainError }),
     });
   } catch (err) {
     console.error('POST dashboard form-settings:', err);
