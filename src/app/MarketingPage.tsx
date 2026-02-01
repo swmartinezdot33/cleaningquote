@@ -95,7 +95,8 @@ function Header({ onSignupClick }: { onSignupClick: () => void }) {
           aria-label="Close menu"
         />
         <div
-          className={`absolute top-0 right-0 bottom-0 w-full max-w-xs bg-white border-l border-border shadow-xl flex flex-col transition-transform duration-200 ease-out ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}
+          className={`absolute top-0 right-0 bottom-0 w-full max-w-xs bg-background border-l border-border shadow-xl flex flex-col transition-transform duration-200 ease-out ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}
+          style={{ backgroundColor: '#ffffff' }}
         >
           <div className="flex items-center justify-between h-16 px-4 border-b border-border">
             <span className="text-sm font-medium text-muted-foreground">Menu</span>
