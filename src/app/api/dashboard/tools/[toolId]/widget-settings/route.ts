@@ -50,8 +50,8 @@ export async function POST(
     const admin = createSupabaseServer();
     const updated_at = new Date().toISOString();
 
-    const { error: upsertError } = await admin
-      .from('tool_config')
+    const { error: upsertError } = await (admin
+      .from('tool_config') as any)
       .upsert(
         { tool_id: toolId, widget_settings: widgetSettings, updated_at },
         { onConflict: 'tool_id' }
@@ -65,13 +65,13 @@ export async function POST(
       );
     }
 
-    const { data: row, error: selectError } = await admin
+    const { data: rowData, error: selectError } = await admin
       .from('tool_config')
       .select('widget_settings, updated_at')
       .eq('tool_id', toolId)
       .single();
 
-    if (selectError || !row) {
+    if (selectError || !rowData) {
       return NextResponse.json({
         success: true,
         settings: widgetSettings,
@@ -81,6 +81,7 @@ export async function POST(
       });
     }
 
+    const row = rowData as { widget_settings: unknown; updated_at: string };
     const raw = row.widget_settings;
     const settings =
       raw && typeof raw === 'object' && !Array.isArray(raw)
