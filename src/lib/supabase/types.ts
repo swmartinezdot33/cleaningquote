@@ -158,6 +158,51 @@ export interface Database {
           created_at?: string;
         };
       };
+      tool_config: {
+        Row: {
+          id: string;
+          tool_id: string | null;
+          widget_settings: Json | null;
+          form_settings: Json | null;
+          tracking_codes: Json | null;
+          initial_cleaning_config: Json | null;
+          google_maps_key: string | null;
+          service_area_type: string | null;
+          service_area_polygon: Json | null;
+          service_area_network_link: string | null;
+          survey_questions: Json | null;
+          pricing_table: Json | null;
+          pricing_network_path: string | null;
+          pricing_file_base64: string | null;
+          ghl_token: string | null;
+          ghl_location_id: string | null;
+          ghl_config: Json | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tool_id?: string | null;
+          widget_settings?: Json | null;
+          form_settings?: Json | null;
+          tracking_codes?: Json | null;
+          initial_cleaning_config?: Json | null;
+          google_maps_key?: string | null;
+          service_area_type?: string | null;
+          service_area_polygon?: Json | null;
+          service_area_network_link?: string | null;
+          survey_questions?: Json | null;
+          pricing_table?: Json | null;
+          pricing_network_path?: string | null;
+          pricing_file_base64?: string | null;
+          ghl_token?: string | null;
+          ghl_location_id?: string | null;
+          ghl_config?: Json | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['tool_config']['Insert']>;
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -175,3 +220,7 @@ export type ToolUpdate = Database['public']['Tables']['tools']['Update'];
 
 export type Quote = Database['public']['Tables']['quotes']['Row'];
 export type QuoteInsert = Database['public']['Tables']['quotes']['Insert'];
+
+export type ToolConfigRow = Database['public']['Tables']['tool_config']['Row'];
+export type ToolConfigInsert = Database['public']['Tables']['tool_config']['Insert'];
+export type ToolConfigUpdate = Database['public']['Tables']['tool_config']['Update'];

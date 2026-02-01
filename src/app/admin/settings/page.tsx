@@ -165,12 +165,10 @@ export default function SettingsPage() {
     }
   }, []);
 
-  // Load current settings
+  // Load current settings (single batch request for faster load)
   useEffect(() => {
     if (isAuthenticated) {
-      loadSettings();
-      loadWidgetSettings();
-      loadGHLConfig();
+      loadSettingsBundle();
     }
   }, [isAuthenticated]);
 
@@ -236,33 +234,96 @@ export default function SettingsPage() {
     }
   };
 
-  const loadSettings = async () => {
+  const loadSettingsBundle = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/admin/ghl-settings', {
+      const response = await fetch('/api/admin/settings-bundle', {
         headers: { 'x-admin-password': password },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setGhlTokenDisplay(data.maskedToken || '••••••••••••••••');
-        setGhlLocationId(data.locationId || '');
-        setConnectionStatus(data.connected ? 'connected' : data.status === 'Unknown' ? 'unknown' : 'disconnected');
-        if (data.configured) {
-          fetch(`/api/admin/ghl-settings?test=1`, {
-            headers: { 'x-admin-password': password },
-          })
-            .then((r) => r.ok && r.json())
-            .then((testData) => {
-              if (testData?.configured) {
-                setConnectionStatus(testData.connected ? 'connected' : 'disconnected');
-              }
-            })
-            .catch(() => {});
+      if (!response.ok) {
+        setIsLoading(false);
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.widget) {
+        setWidgetTitle(data.widget.title || 'Get Your Quote');
+        setWidgetSubtitle(data.widget.subtitle || "Let's get your professional cleaning price!");
+        setWidgetPrimaryColor(data.widget.primaryColor || '#7c3aed');
+      }
+
+      if (data.form && typeof data.form === 'object') {
+        setFirstNameParam(data.form.firstNameParam || '');
+        setLastNameParam(data.form.lastNameParam || '');
+        setEmailParam(data.form.emailParam || '');
+        setPhoneParam(data.form.phoneParam || '');
+        setAddressParam(data.form.addressParam || '');
+        setOpenSurveyInNewTab(!!data.form.openSurveyInNewTab);
+      }
+
+      if (data.tracking && typeof data.tracking === 'object') {
+        setCustomHeadCode(data.tracking.customHeadCode || '');
+      }
+
+      if (data.ghl) {
+        setGhlTokenDisplay(data.ghl.maskedToken || '••••••••••••••••');
+        setGhlLocationId(data.ghl.locationId || '');
+        setConnectionStatus(data.ghl.configured ? 'unknown' : 'disconnected');
+      }
+
+      if (data.ghlConfig) {
+        const config = data.ghlConfig;
+        setCreateContact(config.createContact !== false);
+        setCreateOpportunity(config.createOpportunity === true);
+        setCreateNote(config.createNote !== false);
+        setSelectedPipelineId(config.pipelineId || '');
+        setSelectedStageId(config.pipelineStageId || '');
+        setOpportunityStatus(config.opportunityStatus || 'open');
+        setOpportunityValue(config.opportunityMonetaryValue || 0);
+        setUseDynamicPricingForValue(config.useDynamicPricingForValue !== false);
+        setSelectedOpportunityAssignedTo(config.opportunityAssignedTo || '');
+        setOpportunitySource(config.opportunitySource || '');
+        setSelectedOpportunityTags(new Set(Array.isArray(config.opportunityTags) ? config.opportunityTags : []));
+        setSelectedAppointmentCalendarId(config.appointmentCalendarId || '');
+        setSelectedCallCalendarId(config.callCalendarId || '');
+        setSelectedAppointmentUserId(config.appointmentUserId || '');
+        setSelectedCallUserId(config.callUserId || '');
+        setQuotedAmountField(config.quotedAmountField || '');
+        setRedirectAfterAppointment(config.redirectAfterAppointment === true);
+        setAppointmentRedirectUrl(config.appointmentRedirectUrl || '');
+        if (config.appointmentBookedTags && Array.isArray(config.appointmentBookedTags)) {
+          setAppointmentBookedTags(new Set(config.appointmentBookedTags));
         }
+        if (config.quoteCompletedTags && Array.isArray(config.quoteCompletedTags)) {
+          setQuoteCompletedTags(new Set(config.quoteCompletedTags));
+        }
+        if (config.inServiceTags && Array.isArray(config.inServiceTags)) {
+          setSelectedInServiceTags(new Set(config.inServiceTags));
+        }
+        if (config.outOfServiceTags && Array.isArray(config.outOfServiceTags)) {
+          setSelectedOutOfServiceTags(new Set(config.outOfServiceTags));
+        }
+        setGhlConfigLoaded(true);
+      } else {
+        setGhlConfigLoaded(true);
+      }
+
+      if (data.ghl?.configured) {
+        fetch(`/api/admin/ghl-settings?test=1`, {
+          headers: { 'x-admin-password': password },
+        })
+          .then((r) => r.ok && r.json())
+          .then((testData) => {
+            if (testData?.configured) {
+              setConnectionStatus(testData.connected ? 'connected' : 'disconnected');
+            }
+          })
+          .catch(() => {});
       }
     } catch (error) {
-      console.error('Failed to load settings:', error);
+      console.error('Failed to load settings bundle:', error);
     } finally {
       setIsLoading(false);
     }
@@ -297,7 +358,7 @@ export default function SettingsPage() {
         setGhlToken('');
         setGhlTokenDisplay(`****${ghlToken.slice(-4)}`);
         setConnectionStatus('connected');
-        setTimeout(() => loadSettings(), 500);
+        setTimeout(() => loadSettingsBundle(), 500);
       } else {
         const errorText = data.error || 'Failed to save HighLevel API token';
         const detailsText = data.details ? ` Details: ${data.details}` : '';
@@ -1167,25 +1228,13 @@ export default function SettingsPage() {
     }
   };
 
-  // Load calendars and tags when component mounts and authenticated
+  // Load calendars, tags, service area, Google Maps key when authenticated (bundle already loaded widget/form/tracking)
   useEffect(() => {
     if (isAuthenticated) {
-      if (calendars.length === 0) {
-        loadCalendars();
-      }
-      if (ghlTags.length === 0) {
-        loadTags();
-      }
-      if (serviceAreaType === 'none') {
-        loadServiceAreaConfig();
-      }
-      if (!googleMapsApiKeyDisplay) {
-        loadGoogleMapsKey();
-      }
-      loadTrackingCodes();
-      if (!firstNameParam) {
-        loadFormSettings();
-      }
+      if (calendars.length === 0) loadCalendars();
+      if (ghlTags.length === 0) loadTags();
+      if (serviceAreaType === 'none') loadServiceAreaConfig();
+      if (!googleMapsApiKeyDisplay) loadGoogleMapsKey();
     }
   }, [isAuthenticated]);
 
@@ -3011,96 +3060,6 @@ export default function SettingsPage() {
           </Card>
         </motion.div>
 
-        {/* Tracking Codes Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-        >
-          <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
-            <CardHeader 
-              className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-b border-gray-200 pb-6 cursor-pointer"
-              onClick={() => toggleCard('tracking')}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                    <Code className="h-5 w-5 text-purple-600" />
-                    Tracking & Analytics
-                  </CardTitle>
-                  <CardDescription className="text-gray-600 mt-1">
-                    Custom tracking code that loads only on the quote summary page so you can track when quotes are given
-                  </CardDescription>
-                </div>
-                <ChevronDown 
-                  className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('tracking') ? 'rotate-180' : ''}`}
-                />
-              </div>
-            </CardHeader>
-            {isCardExpanded('tracking') && (
-              <CardContent className="pt-8 pb-8">
-              <div className="space-y-6">
-                {trackingMessage && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`p-4 rounded-lg flex items-center gap-3 ${
-                      trackingMessage.type === 'success'
-                        ? 'bg-green-50 text-green-800 border border-green-200'
-                        : 'bg-red-50 text-red-800 border border-red-200'
-                    }`}
-                  >
-                    {trackingMessage.type === 'success' ? (
-                      <CheckCircle className="h-5 w-5 flex-shrink-0" />
-                    ) : (
-                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                    )}
-                    <p>{trackingMessage.text}</p>
-                  </motion.div>
-                )}
-
-                <div>
-                  <Label htmlFor="custom-code" className="text-base font-semibold">
-                    Custom Head Code
-                  </Label>
-                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-1">
-                    Note: This code only loads on the quote summary page — not on the landing page or confirmation pages.
-                  </p>
-                  <textarea
-                    id="custom-code"
-                    value={customHeadCode}
-                    onChange={(e) => setCustomHeadCode(e.target.value)}
-                    placeholder="&lt;script&gt;...&lt;/script&gt; Paste tracking scripts here."
-                    className="mt-2 w-full h-40 px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"
-                  />
-                  <p className="text-sm text-gray-600 mt-1">
-                    Use this to fire conversions when a quote is shown (e.g. Google Ads, Meta Pixel, GTM). Scripts run only on /quote/[id].
-                  </p>
-                </div>
-
-                <Button
-                  onClick={handleSaveTrackingCodes}
-                  disabled={isSavingTracking}
-                  className="w-full h-11 font-semibold flex items-center gap-2"
-                >
-                  {isSavingTracking ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4" />
-                      Save Tracking Codes
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-            )}
-          </Card>
-        </motion.div>
-
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -3239,6 +3198,96 @@ export default function SettingsPage() {
                     <>
                       <Save className="h-4 w-4" />
                       Save Form Settings
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+            )}
+          </Card>
+        </motion.div>
+
+        {/* Tracking & Analytics */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+        >
+          <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
+            <CardHeader 
+              className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-b border-gray-200 pb-6 cursor-pointer"
+              onClick={() => toggleCard('tracking')}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                    <Code className="h-5 w-5 text-purple-600" />
+                    Tracking & Analytics
+                  </CardTitle>
+                  <CardDescription className="text-gray-600 mt-1">
+                    Custom tracking code that loads only on the quote summary page so you can track when quotes are given
+                  </CardDescription>
+                </div>
+                <ChevronDown 
+                  className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('tracking') ? 'rotate-180' : ''}`}
+                />
+              </div>
+            </CardHeader>
+            {isCardExpanded('tracking') && (
+              <CardContent className="pt-8 pb-8">
+              <div className="space-y-6">
+                {trackingMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`p-4 rounded-lg flex items-center gap-3 ${
+                      trackingMessage.type === 'success'
+                        ? 'bg-green-50 text-green-800 border border-green-200'
+                        : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}
+                  >
+                    {trackingMessage.type === 'success' ? (
+                      <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                    )}
+                    <p>{trackingMessage.text}</p>
+                  </motion.div>
+                )}
+
+                <div>
+                  <Label htmlFor="custom-code" className="text-base font-semibold">
+                    Custom Head Code
+                  </Label>
+                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-1">
+                    Note: This code only loads on the quote summary page — not on the landing page or confirmation pages.
+                  </p>
+                  <textarea
+                    id="custom-code"
+                    value={customHeadCode}
+                    onChange={(e) => setCustomHeadCode(e.target.value)}
+                    placeholder="&lt;script&gt;...&lt;/script&gt; Paste tracking scripts here."
+                    className="mt-2 w-full h-40 px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    Use this to fire conversions when a quote is shown (e.g. Google Ads, Meta Pixel, GTM). Scripts run only on /quote/[id].
+                  </p>
+                </div>
+
+                <Button
+                  onClick={handleSaveTrackingCodes}
+                  disabled={isSavingTracking}
+                  className="w-full h-11 font-semibold flex items-center gap-2"
+                >
+                  {isSavingTracking ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      Save Tracking Codes
                     </>
                   )}
                 </Button>

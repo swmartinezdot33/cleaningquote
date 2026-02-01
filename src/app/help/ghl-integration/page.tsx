@@ -1,8 +1,17 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
+import { BreadcrumbJsonLd } from '@/components/BreadcrumbJsonLd';
+
+export const metadata: Metadata = {
+  title: 'HighLevel integration (PIT token & Location ID)',
+  description:
+    'Get your HighLevel Private Integration Token (PIT) and Location ID so leads, contacts, appointments, and opportunities sync with CleanQuote.',
+};
 
 export default function GHLIntegrationHelpPage() {
   return (
     <article className="prose prose-slate dark:prose-invert max-w-none">
+      <BreadcrumbJsonLd items={[{ name: 'Home', path: '/' }, { name: 'Help', path: '/help' }, { name: 'HighLevel integration', path: '/help/ghl-integration' }]} />
       <nav className="mb-6 text-sm text-muted-foreground">
         <Link href="/help" className="hover:text-primary hover:underline">
           Help

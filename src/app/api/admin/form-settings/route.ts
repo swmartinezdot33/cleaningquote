@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { kv } from '@vercel/kv';
-
-const FORM_SETTINGS_KEY = 'admin:form-settings';
+import { getFormSettings, setFormSettings } from '@/lib/kv';
 
 export interface FormSettings {
   firstNameParam?: string;
@@ -26,10 +24,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const formSettings = await kv.get<FormSettings>(FORM_SETTINGS_KEY);
+    const formSettings = await getFormSettings();
 
     return NextResponse.json({
-      formSettings: formSettings || {},
+      formSettings: (formSettings as FormSettings) || {},
     });
   } catch (error) {
     console.error('Error getting form settings:', error);
@@ -74,7 +72,7 @@ export async function POST(request: NextRequest) {
     if (addressParam?.trim()) formSettings.addressParam = addressParam.trim();
     if (typeof openSurveyInNewTab === 'boolean') formSettings.openSurveyInNewTab = openSurveyInNewTab;
 
-    await kv.set(FORM_SETTINGS_KEY, formSettings);
+    await setFormSettings(formSettings as Record<string, unknown>);
 
     return NextResponse.json({
       success: true,

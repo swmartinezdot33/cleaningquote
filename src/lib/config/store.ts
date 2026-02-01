@@ -1,0 +1,232 @@
+/**
+ * Tool config store — Supabase as source of truth for pricing, survey, widget, GHL, form, tracking, etc.
+ * Use this from API routes and libs; KV is kept only for cache and ephemeral data (e.g. inbox meta).
+ */
+
+import { createSupabaseServer, isSupabaseConfigured } from '@/lib/supabase/server';
+import type { Json, ToolConfigRow, ToolConfigUpdate } from '@/lib/supabase/types';
+
+export type WidgetSettings = { title: string; subtitle: string; primaryColor: string };
+
+/** Resolve config row: tool_id = toolId when provided, else tool_id is null (global). */
+async function getConfigRow(toolId?: string): Promise<ToolConfigRow | null> {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = createSupabaseServer();
+  const query = supabase.from('tool_config').select('*');
+  const { data, error } = toolId
+    ? await query.eq('tool_id', toolId).maybeSingle()
+    : await query.is('tool_id', null).maybeSingle();
+  if (error) {
+    console.error('tool_config getConfigRow:', error);
+    return null;
+  }
+  return data;
+}
+
+/** Upsert config row for toolId (null = global). Creates row if missing. */
+async function upsertConfig(toolId: string | undefined, updates: Partial<ToolConfigUpdate>): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  const supabase = createSupabaseServer();
+  const updated_at = new Date().toISOString();
+  const payload = { ...updates, updated_at };
+
+  if (toolId === undefined || toolId === null) {
+    const { data: raw } = await supabase
+      .from('tool_config')
+      .select('id')
+      .is('tool_id', null as unknown as boolean)
+      .maybeSingle();
+    const existing = raw as { id: string } | null;
+    if (existing?.id) {
+      // @ts-expect-error Supabase generated types can infer 'never' for new table updates
+      const { error } = await supabase.from('tool_config').update(payload).eq('id', existing.id);
+      if (error) {
+        console.error('tool_config update global:', error);
+        throw error;
+      }
+    } else {
+      // @ts-expect-error Supabase generated types can infer 'never' for new table inserts
+      const { error } = await supabase.from('tool_config').insert({ ...payload, tool_id: null });
+      if (error) {
+        console.error('tool_config insert global:', error);
+        throw error;
+      }
+    }
+    return;
+  }
+
+  // @ts-expect-error Supabase generated types can infer 'never' for new table upsert
+  const { error } = await supabase.from('tool_config').upsert(
+    { ...payload, tool_id: toolId },
+    { onConflict: 'tool_id' }
+  );
+  if (error) {
+    console.error('tool_config upsert:', error);
+    throw error;
+  }
+}
+
+// ---- Widget ----
+export async function getWidgetSettings(toolId?: string): Promise<WidgetSettings | null> {
+  const row = await getConfigRow(toolId);
+  const s = row?.widget_settings as WidgetSettings | null | undefined;
+  return s && typeof s === 'object' ? s : null;
+}
+
+export async function setWidgetSettings(
+  settings: { title: string; subtitle: string; primaryColor: string },
+  toolId?: string
+): Promise<void> {
+  await upsertConfig(toolId, { widget_settings: settings as unknown as Json });
+}
+
+// ---- Form ----
+export async function getFormSettings(toolId?: string): Promise<Record<string, unknown> | null> {
+  const row = await getConfigRow(toolId);
+  const s = row?.form_settings as Record<string, unknown> | null | undefined;
+  return s && typeof s === 'object' ? s : null;
+}
+
+export async function setFormSettings(settings: Record<string, unknown>, toolId?: string): Promise<void> {
+  await upsertConfig(toolId, { form_settings: settings as unknown as Json });
+}
+
+// ---- Tracking ----
+export async function getTrackingCodes(toolId?: string): Promise<{ customHeadCode?: string } | null> {
+  const row = await getConfigRow(toolId);
+  const s = row?.tracking_codes as { customHeadCode?: string } | null | undefined;
+  return s && typeof s === 'object' ? s : null;
+}
+
+export async function setTrackingCodes(settings: { customHeadCode?: string }, toolId?: string): Promise<void> {
+  await upsertConfig(toolId, { tracking_codes: settings as Json });
+}
+
+// ---- Initial cleaning ----
+export interface InitialCleaningConfig {
+  multiplier: number;
+  requiredConditions: string[];
+  recommendedConditions: string[];
+  sheddingPetsMultiplier?: number;
+  peopleMultiplier?: number;
+}
+
+export async function getInitialCleaningConfig(toolId?: string): Promise<InitialCleaningConfig | null> {
+  const row = await getConfigRow(toolId);
+  const s = row?.initial_cleaning_config as InitialCleaningConfig | null | undefined;
+  return s && typeof s === 'object' ? s : null;
+}
+
+export async function setInitialCleaningConfig(config: InitialCleaningConfig, toolId?: string): Promise<void> {
+  await upsertConfig(toolId, { initial_cleaning_config: config as Json });
+}
+
+// ---- Google Maps key ----
+export async function getGoogleMapsKey(toolId?: string): Promise<string | null> {
+  const row = await getConfigRow(toolId);
+  const k = row?.google_maps_key;
+  return typeof k === 'string' ? k : null;
+}
+
+export async function setGoogleMapsKey(key: string | null, toolId?: string): Promise<void> {
+  await upsertConfig(toolId, { google_maps_key: key });
+}
+
+// ---- GHL ----
+export async function getGHLToken(toolId?: string): Promise<string | null> {
+  const row = await getConfigRow(toolId);
+  const t = row?.ghl_token;
+  return typeof t === 'string' ? t : null;
+}
+
+export async function setGHLToken(token: string, toolId?: string): Promise<void> {
+  await upsertConfig(toolId, { ghl_token: token });
+}
+
+export async function getGHLLocationId(toolId?: string): Promise<string | null> {
+  const row = await getConfigRow(toolId);
+  const id = row?.ghl_location_id;
+  return typeof id === 'string' ? id : null;
+}
+
+export async function setGHLLocationId(locationId: string, toolId?: string): Promise<void> {
+  await upsertConfig(toolId, { ghl_location_id: locationId });
+}
+
+export async function ghlTokenExists(toolId?: string): Promise<boolean> {
+  const token = await getGHLToken(toolId);
+  return !!token && token.length > 0;
+}
+
+export async function getGHLConfig(toolId?: string): Promise<Record<string, unknown> | null> {
+  const row = await getConfigRow(toolId);
+  const c = row?.ghl_config as Record<string, unknown> | null | undefined;
+  return c && typeof c === 'object' ? c : null;
+}
+
+export async function setGHLConfig(config: Record<string, unknown>, toolId?: string): Promise<void> {
+  await upsertConfig(toolId, { ghl_config: config as Json });
+}
+
+// ---- Survey questions ----
+export async function getSurveyQuestionsFromConfig(toolId?: string): Promise<unknown[] | null> {
+  const row = await getConfigRow(toolId);
+  const q = row?.survey_questions;
+  return Array.isArray(q) ? q : null;
+}
+
+export async function setSurveyQuestionsInConfig(questions: unknown[], toolId?: string): Promise<void> {
+  await upsertConfig(toolId, { survey_questions: questions as unknown as Json });
+}
+
+// ---- Pricing ----
+export async function getPricingTableFromConfig(toolId?: string): Promise<Record<string, unknown> | null> {
+  const row = await getConfigRow(toolId);
+  const p = row?.pricing_table as Record<string, unknown> | null | undefined;
+  return p && typeof p === 'object' ? p : null;
+}
+
+export async function setPricingTableInConfig(table: Record<string, unknown>, toolId?: string): Promise<void> {
+  await upsertConfig(toolId, { pricing_table: table as unknown as Json });
+}
+
+export async function getPricingFileBase64FromConfig(toolId?: string): Promise<string | null> {
+  const row = await getConfigRow(toolId);
+  const b = row?.pricing_file_base64;
+  return typeof b === 'string' ? b : null;
+}
+
+export async function setPricingFileBase64InConfig(base64: string | null, toolId?: string): Promise<void> {
+  await upsertConfig(toolId, { pricing_file_base64: base64 });
+}
+
+export async function getPricingNetworkPathFromConfig(toolId?: string): Promise<string | null> {
+  const row = await getConfigRow(toolId);
+  const p = row?.pricing_network_path;
+  return typeof p === 'string' ? p : null;
+}
+
+export async function setPricingNetworkPathInConfig(path: string | null, toolId?: string): Promise<void> {
+  await upsertConfig(toolId, { pricing_network_path: path });
+}
+
+// ---- Service area ----
+export async function getServiceAreaPolygonFromConfig(toolId?: string): Promise<unknown | null> {
+  const row = await getConfigRow(toolId);
+  const p = row?.service_area_polygon;
+  return p ?? null;
+}
+
+export async function setServiceAreaPolygonInConfig(polygon: unknown | null, toolId?: string): Promise<void> {
+  await upsertConfig(toolId, { service_area_polygon: polygon as unknown as Json | null });
+}
+
+export async function getServiceAreaNetworkLinkFromConfig(toolId?: string): Promise<string | null> {
+  const row = await getConfigRow(toolId);
+  const u = row?.service_area_network_link;
+  return typeof u === 'string' ? u : null;
+}
+
+export async function setServiceAreaNetworkLinkInConfig(url: string | null, toolId?: string): Promise<void> {
+  await upsertConfig(toolId, { service_area_network_link: url });
+}

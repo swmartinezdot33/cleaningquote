@@ -1,20 +1,42 @@
 /**
  * Survey Manager
- * Handles all survey CRUD operations with KV as single source of truth.
- * Supports multi-tenant via optional toolId (tool-scoped keys).
+ * Handles all survey CRUD operations. Supabase is source of truth when configured; otherwise KV.
  */
 
 import { getKV, toolKey } from '@/lib/kv';
+import { isSupabaseConfigured } from '@/lib/supabase/server';
+import * as configStore from '@/lib/config/store';
 import { SurveyQuestion, DEFAULT_SURVEY_QUESTIONS, validateSurveyQuestion } from './schema';
 import { validateFieldTypeCompatibility } from './field-type-validator';
 
 const SURVEY_QUESTIONS_KEY = 'survey:questions:v2';
 
+function restoreCoreFields(questions: SurveyQuestion[]): { questions: SurveyQuestion[]; needsSave: boolean } {
+  const coreFieldIds = ['firstName', 'lastName', 'email', 'phone', 'address', 'squareFeet'];
+  let needsSave = false;
+  const restored = questions.map(q => {
+    const shouldBeCore = coreFieldIds.includes(q.id);
+    if (shouldBeCore && !q.isCoreField) {
+      needsSave = true;
+      return { ...q, isCoreField: true };
+    }
+    return q;
+  });
+  return { questions: restored, needsSave };
+}
+
 /**
  * Initialize surveys - creates defaults if none exist
- * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
 export async function initializeSurvey(toolId?: string): Promise<SurveyQuestion[]> {
+  if (isSupabaseConfigured()) {
+    const existing = await configStore.getSurveyQuestionsFromConfig(toolId);
+    if (existing && Array.isArray(existing) && existing.length > 0) {
+      return (existing as SurveyQuestion[]).sort((a, b) => (a as SurveyQuestion).order - (b as SurveyQuestion).order);
+    }
+    await configStore.setSurveyQuestionsInConfig(DEFAULT_SURVEY_QUESTIONS, toolId);
+    return DEFAULT_SURVEY_QUESTIONS;
+  }
   try {
     const kv = getKV();
     const key = toolKey(toolId, SURVEY_QUESTIONS_KEY);
@@ -31,10 +53,21 @@ export async function initializeSurvey(toolId?: string): Promise<SurveyQuestion[
 }
 
 /**
- * Get all survey questions - single source of truth
- * @param toolId - When provided, reads from this quoting tool (multi-tenant).
+ * Get all survey questions - Supabase or KV source of truth
  */
 export async function getSurveyQuestions(toolId?: string): Promise<SurveyQuestion[]> {
+  if (isSupabaseConfigured()) {
+    const questions = await configStore.getSurveyQuestionsFromConfig(toolId);
+    if (!questions || !Array.isArray(questions) || questions.length === 0) {
+      return await initializeSurvey(toolId);
+    }
+    const typed = questions as SurveyQuestion[];
+    const { questions: restored, needsSave } = restoreCoreFields(typed);
+    if (needsSave) {
+      await configStore.setSurveyQuestionsInConfig(restored, toolId);
+    }
+    return restored.sort((a, b) => a.order - b.order);
+  }
   try {
     const kv = getKV();
     const key = toolKey(toolId, SURVEY_QUESTIONS_KEY);
@@ -48,44 +81,12 @@ export async function getSurveyQuestions(toolId?: string): Promise<SurveyQuestio
       }
       return await initializeSurvey(toolId);
     }
-    
-    // CRITICAL: Restore isCoreField for core questions if missing
-    // This ensures core fields are always protected, even if flag was lost during save
-    const coreFieldIds = ['firstName', 'lastName', 'email', 'phone', 'address', 'squareFeet'];
-    let needsSave = false;
-    const restoredQuestions = questions.map(q => {
-      const shouldBeCore = coreFieldIds.includes(q.id);
-      if (shouldBeCore && !q.isCoreField) {
-        needsSave = true;
-        return { ...q, isCoreField: true };
-      }
-      return q;
-    });
-    
+    const { questions: restored, needsSave } = restoreCoreFields(questions);
     if (needsSave) {
-      console.log('🔒 Restored isCoreField flags for core questions');
-      await kv.set(key, restoredQuestions);
+      await kv.set(key, restored);
     }
-    
-    // Log questions with mappings for debugging (only when mappings exist)
-    const questionsWithMappings = restoredQuestions.filter(q => q.ghlFieldMapping && q.ghlFieldMapping.trim() !== '');
-    if (questionsWithMappings.length > 0) {
-      console.log('📋 Loaded survey questions with GHL mappings:', {
-        totalQuestions: restoredQuestions.length,
-        questionsWithMappings: questionsWithMappings.length,
-        mappings: questionsWithMappings.map(q => ({
-          id: q.id,
-          sanitizedId: q.id.replace(/\./g, '_'),
-          label: q.label,
-          ghlFieldMapping: q.ghlFieldMapping,
-        })),
-      });
-    }
-    // Note: No warning if mappings don't exist - this is expected and normal
-    
-    return restoredQuestions.sort((a, b) => a.order - b.order);
+    return restored.sort((a, b) => a.order - b.order);
   } catch (error) {
-    // If KV fails (e.g., in local dev without KV configured), return defaults
     console.warn('KV storage not available, returning default questions:', error instanceof Error ? error.message : 'unknown error');
     return DEFAULT_SURVEY_QUESTIONS.sort((a, b) => a.order - b.order);
   }
@@ -93,58 +94,34 @@ export async function getSurveyQuestions(toolId?: string): Promise<SurveyQuestio
 
 /**
  * Save survey questions - overwrites all questions
- * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
 export async function saveSurveyQuestions(questions: SurveyQuestion[], toolId?: string): Promise<SurveyQuestion[]> {
+  const validationErrors: string[] = [];
+  questions.forEach((q, idx) => {
+    const validation = validateSurveyQuestion(q);
+    if (!validation.valid) {
+      validationErrors.push(`Question ${idx} (${q.id}): ${validation.errors.join(', ')}`);
+    }
+  });
+  if (validationErrors.length > 0) {
+    throw new Error(`Validation failed:\n${validationErrors.join('\n')}`);
+  }
+
+  const sorted = [...questions].sort((a, b) => a.order - b.order);
+  const coreFieldIds = ['firstName', 'lastName', 'email', 'phone', 'address', 'squareFeet'];
+  const questionsToSave = sorted.map(q => ({
+    ...q,
+    ghlFieldMapping: q.ghlFieldMapping,
+    isCoreField: q.isCoreField !== undefined ? q.isCoreField : coreFieldIds.includes(q.id),
+  }));
+
+  if (isSupabaseConfigured()) {
+    await configStore.setSurveyQuestionsInConfig(questionsToSave, toolId);
+    return sorted;
+  }
   try {
-    // Validate all questions
-    const validationErrors: string[] = [];
-    questions.forEach((q, idx) => {
-      const validation = validateSurveyQuestion(q);
-      if (!validation.valid) {
-        validationErrors.push(`Question ${idx} (${q.id}): ${validation.errors.join(', ')}`);
-      }
-    });
-
-    if (validationErrors.length > 0) {
-      throw new Error(`Validation failed:\n${validationErrors.join('\n')}`);
-    }
-
-    // Sort by order before saving
-    const sorted = [...questions].sort((a, b) => a.order - b.order);
-
-    // Log questions with GHL mappings before saving (only when mappings exist)
-    const questionsWithMappings = sorted.filter(q => q.ghlFieldMapping && q.ghlFieldMapping.trim() !== '');
-    if (questionsWithMappings.length > 0) {
-      console.log('💾 Saving survey questions with GHL mappings:', {
-        totalQuestions: sorted.length,
-        questionsWithMappings: questionsWithMappings.length,
-        mappings: questionsWithMappings.map(q => ({
-          id: q.id,
-          sanitizedId: q.id.replace(/\./g, '_'),
-          label: q.label,
-          ghlFieldMapping: q.ghlFieldMapping,
-        })),
-      });
-    }
-    // Note: No warning if mappings don't exist - this is expected and normal
-
-    // Ensure all fields are preserved (including ghlFieldMapping and isCoreField)
-    // CRITICAL: Restore isCoreField for core questions if it's missing
-    const coreFieldIds = ['firstName', 'lastName', 'email', 'phone', 'address', 'squareFeet'];
-    const questionsToSave = sorted.map(q => ({
-      ...q,
-      // Explicitly preserve ghlFieldMapping even if it's undefined
-      ghlFieldMapping: q.ghlFieldMapping,
-      // CRITICAL: Preserve isCoreField, or restore it if missing for core fields
-      // This ensures core fields are always protected from deletion
-      isCoreField: q.isCoreField !== undefined ? q.isCoreField : coreFieldIds.includes(q.id),
-    }));
-
     const kv = getKV();
-    const key = toolKey(toolId, SURVEY_QUESTIONS_KEY);
-    await kv.set(key, questionsToSave);
-
+    await kv.set(toolKey(toolId, SURVEY_QUESTIONS_KEY), questionsToSave);
     return sorted;
   } catch (error) {
     console.error('Error saving survey questions:', error);
@@ -317,13 +294,15 @@ export async function reorderQuestions(orders: Array<{ id: string; order: number
 
 /**
  * Reset to defaults
- * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
  */
 export async function resetToDefaults(toolId?: string): Promise<SurveyQuestion[]> {
+  if (isSupabaseConfigured()) {
+    await configStore.setSurveyQuestionsInConfig(DEFAULT_SURVEY_QUESTIONS, toolId);
+    return DEFAULT_SURVEY_QUESTIONS;
+  }
   try {
     const kv = getKV();
-    const key = toolKey(toolId, SURVEY_QUESTIONS_KEY);
-    await kv.set(key, DEFAULT_SURVEY_QUESTIONS);
+    await kv.set(toolKey(toolId, SURVEY_QUESTIONS_KEY), DEFAULT_SURVEY_QUESTIONS);
     return DEFAULT_SURVEY_QUESTIONS;
   } catch (error) {
     console.error('Error resetting to defaults:', error);

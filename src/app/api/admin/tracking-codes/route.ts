@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { kv } from '@vercel/kv';
+import { getTrackingCodes, setTrackingCodes } from '@/lib/kv';
 import { requireAdminAuth } from '@/lib/security/auth';
-
-const TRACKING_CODES_KEY = 'admin:tracking-codes';
-
-interface TrackingCodes {
-  customHeadCode?: string;
-}
 
 /**
  * GET /api/admin/tracking-codes
@@ -14,7 +8,7 @@ interface TrackingCodes {
  */
 export async function GET(request: NextRequest) {
   try {
-    const trackingCodes = await kv.get<TrackingCodes>(TRACKING_CODES_KEY);
+    const trackingCodes = await getTrackingCodes();
     return NextResponse.json({
       trackingCodes: trackingCodes || {},
     });
@@ -39,10 +33,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const customHeadCode = body.customHeadCode;
 
-    const trackingCodes: TrackingCodes = {};
+    const trackingCodes: { customHeadCode?: string } = {};
     if (customHeadCode?.trim()) trackingCodes.customHeadCode = customHeadCode.trim();
 
-    await kv.set(TRACKING_CODES_KEY, trackingCodes);
+    await setTrackingCodes(trackingCodes);
 
     return NextResponse.json({
       success: true,

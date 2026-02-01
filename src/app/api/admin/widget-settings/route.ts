@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getKV } from '@/lib/kv';
+import { getWidgetSettings, setWidgetSettings } from '@/lib/kv';
 
-const WIDGET_SETTINGS_KEY = 'widget:settings';
-
-/**
- * Authenticate request with admin password
- */
 function authenticate(request: NextRequest): NextResponse | null {
   const password = request.headers.get('x-admin-password');
   const requiredPassword = process.env.ADMIN_PASSWORD;
-
   if (requiredPassword && password !== requiredPassword) {
     return NextResponse.json(
       { error: 'Unauthorized. Invalid or missing password.' },
@@ -19,34 +13,23 @@ function authenticate(request: NextRequest): NextResponse | null {
   return null;
 }
 
+const DEFAULT_WIDGET = {
+  title: 'Get Your Quote',
+  subtitle: "Let's get your professional cleaning price!",
+  primaryColor: '#7c3aed',
+};
+
 /**
  * GET - Retrieve widget settings (public endpoint, no auth required)
  */
 export async function GET(request: NextRequest) {
   try {
-    // GET endpoint is public - no authentication required for reading settings
-
     try {
-      const kv = getKV();
-      const settings = await kv.get(WIDGET_SETTINGS_KEY);
-
-      if (!settings) {
-        // Return defaults
-        return NextResponse.json({
-          title: 'Get Your Quote',
-          subtitle: "Let's get your professional cleaning price!",
-          primaryColor: '#7c3aed',
-        });
-      }
-
+      const settings = await getWidgetSettings();
+      if (!settings) return NextResponse.json(DEFAULT_WIDGET);
       return NextResponse.json(settings);
-    } catch (kvError) {
-      // KV not configured in local dev
-      return NextResponse.json({
-        title: 'Get Your Quote',
-        subtitle: "Let's get your professional cleaning price!",
-        primaryColor: '#7c3aed',
-      });
+    } catch {
+      return NextResponse.json(DEFAULT_WIDGET);
     }
   } catch (error) {
     console.error('Error getting widget settings:', error);
@@ -93,19 +76,17 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const kv = getKV();
-      await kv.set(WIDGET_SETTINGS_KEY, { title, subtitle, primaryColor: colorToUse });
-
+      await setWidgetSettings({ title, subtitle, primaryColor: colorToUse });
       return NextResponse.json({
         success: true,
         message: 'Widget settings saved successfully',
         settings: { title, subtitle, primaryColor: colorToUse },
       });
     } catch (kvError) {
-      console.warn('KV not configured, settings not persisted:', kvError);
+      console.warn('Config store not available, settings not persisted:', kvError);
       return NextResponse.json({
         success: true,
-        message: 'Widget settings updated (not persisted - KV not configured)',
+        message: 'Widget settings updated (not persisted - store not configured)',
         settings: { title, subtitle, primaryColor: colorToUse },
       });
     }

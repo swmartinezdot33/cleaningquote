@@ -1,8 +1,17 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
+import { BreadcrumbJsonLd } from '@/components/BreadcrumbJsonLd';
+
+export const metadata: Metadata = {
+  title: 'Google Maps API key',
+  description:
+    'Create a Google Cloud API key and enable Maps, Places, and Geocoding so address autocomplete and service area checks work on your CleanQuote quote form.',
+};
 
 export default function GoogleMapsApiHelpPage() {
   return (
     <article className="prose prose-slate dark:prose-invert max-w-none">
+      <BreadcrumbJsonLd items={[{ name: 'Home', path: '/' }, { name: 'Help', path: '/help' }, { name: 'Google Maps API key', path: '/help/google-maps-api' }]} />
       <nav className="mb-6 text-sm text-muted-foreground">
         <Link href="/help" className="hover:text-primary hover:underline">
           Help

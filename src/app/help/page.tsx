@@ -1,4 +1,12 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
+import { BreadcrumbJsonLd } from '@/components/BreadcrumbJsonLd';
+
+export const metadata: Metadata = {
+  title: 'Setup guides',
+  description:
+    'Step-by-step CleanQuote setup guides: Google Maps API key, HighLevel integration, service area polygon, survey builder, pricing structure, and custom domain for cleaning quote software.',
+};
 
 const guides = [
   {
@@ -36,6 +44,7 @@ const guides = [
 export default function HelpPage() {
   return (
     <div className="space-y-8">
+      <BreadcrumbJsonLd items={[{ name: 'Home', path: '/' }, { name: 'Help', path: '/help' }]} />
       <div>
         <h1 className="text-2xl font-bold text-foreground">Setup guides</h1>
         <p className="mt-1 text-muted-foreground">

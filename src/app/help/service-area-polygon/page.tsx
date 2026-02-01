@@ -1,8 +1,17 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
+import { BreadcrumbJsonLd } from '@/components/BreadcrumbJsonLd';
+
+export const metadata: Metadata = {
+  title: 'Service area polygon in Google',
+  description:
+    'Create and draw a service area polygon in Google My Maps, export to KML, and upload it to CleanQuote to qualify leads by location.',
+};
 
 export default function ServiceAreaPolygonHelpPage() {
   return (
     <article className="prose prose-slate dark:prose-invert max-w-none">
+      <BreadcrumbJsonLd items={[{ name: 'Home', path: '/' }, { name: 'Help', path: '/help' }, { name: 'Service area polygon', path: '/help/service-area-polygon' }]} />
       <nav className="mb-6 text-sm text-muted-foreground">
         <Link href="/help" className="hover:text-primary hover:underline">
           Help

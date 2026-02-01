@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import { PricingTable, PricingRow, PriceRange } from './types';
-import { getPricingFile, getKV, toolKey } from '@/lib/kv';
+import { getPricingFile, getPricingTable, setPricingTable } from '@/lib/kv';
 
 // Per-tool cache (key = toolId or '' for legacy)
 const cacheByTool = new Map<string, { table: PricingTable; invalidated: boolean }>();
@@ -84,9 +84,7 @@ export async function loadPricingTable(toolId?: string): Promise<PricingTable> {
 
   try {
     try {
-      const kv = getKV();
-      const key = toolKey(toolId, 'pricing:data:table');
-      const structuredData = await kv.get<PricingTable>(key);
+      const structuredData = await getPricingTable(toolId);
 
       if (structuredData && structuredData.rows && structuredData.rows.length > 0) {
         cacheByTool.set(cacheKey, { table: structuredData, invalidated: false });
@@ -94,7 +92,7 @@ export async function loadPricingTable(toolId?: string): Promise<PricingTable> {
       }
     } catch (kvError) {
       if (kvError instanceof Error && kvError.message.includes('KV')) {
-        console.warn('KV not configured, skipping KV lookup');
+        console.warn('KV not configured, skipping pricing lookup');
       } else {
         throw kvError;
       }
@@ -345,14 +343,12 @@ export async function loadPricingTable(toolId?: string): Promise<PricingTable> {
     cacheByTool.set(cacheKey, { table, invalidated: false });
 
     try {
-      const kv = getKV();
-      const key = toolKey(toolId, 'pricing:data:table');
-      await kv.set(key, table);
+      await setPricingTable(table, toolId);
     } catch (saveError) {
       if (saveError instanceof Error && saveError.message.includes('KV')) {
-        console.warn('KV not configured, skipping save to KV');
+        console.warn('KV not configured, skipping save');
       } else {
-        console.warn('Could not save structured pricing data to KV:', saveError);
+        console.warn('Could not save structured pricing data:', saveError);
       }
     }
 

@@ -58,6 +58,13 @@ function Header({ onSignupClick }: { onSignupClick: () => void }) {
       >
         Pricing
       </a>
+      <a
+        href="#faq"
+        onClick={closeMobileMenu}
+        className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        FAQ
+      </a>
     </>
   );
 
@@ -394,6 +401,71 @@ function Pricing({ onSignupClick }: { onSignupClick: () => void }) {
   );
 }
 
+const FAQ_ITEMS: { q: string; a: string }[] = [
+  {
+    q: 'What is cleaning quote software?',
+    a: 'Cleaning quote software helps cleaning companies send accurate, instant quotes to leads instead of back-and-forth emails. CleanQuote.io lets you build custom quote forms, use your own pricing, and sync with HighLevel so you close more jobs.',
+  },
+  {
+    q: 'How does CleanQuote work?',
+    a: 'You add your pricing (or import from Excel), customize your quote form with the questions you need, then embed the widget on your site or share a link. Leads get an instant price in seconds; you get leads that are ready to book, with optional callback and appointment booking.',
+  },
+  {
+    q: 'Does CleanQuote integrate with HighLevel?',
+    a: 'Yes. CleanQuote syncs contacts, opportunities, notes, pipelines, and custom fields with HighLevel. You can book callbacks and appointments that show on your HighLevel calendar, and pass contact data into pre-filled quote forms.',
+  },
+  {
+    q: 'How much does CleanQuote cost?',
+    a: '$297/month after a 14-day free trial. You get unlimited quote tools, HighLevel integration, custom surveys, service areas, Google Maps, and more. Cancel anytime.',
+  },
+  {
+    q: 'Can I use my own pricing with CleanQuote?',
+    a: 'Yes. Upload your pricing table or import from Excel. Square footage ranges, frequency tiers (weekly, bi-weekly, 4-week), add-ons, and Initial Cleaning multipliers are all configurable so quotes match how you actually price.',
+  },
+  {
+    q: 'How do I embed the quote form on my website?',
+    a: 'Add the CleanQuote widget snippet to your site, use an iframe, or share a direct link. You can pass UTM params for tracking and use a custom domain for your quote links. Same experience everywhere—your brand, your pricing.',
+  },
+];
+
+const FAQ_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: FAQ_ITEMS.map(({ q, a }) => ({
+    '@type': 'Question',
+    name: q,
+    acceptedAnswer: { '@type': 'Answer', text: a },
+  })),
+};
+
+function FAQ() {
+  return (
+    <section id="faq" className="relative border-t border-white/20 py-20 sm:py-28 overflow-hidden">
+      <div className="absolute inset-0 -z-10 bg-muted/20" />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }}
+      />
+      <div className="mx-auto max-w-3xl px-4 sm:px-6">
+        <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl text-center">
+          Frequently asked questions
+        </h2>
+        <p className="mt-3 text-muted-foreground text-center">
+          Quick answers about cleaning quote software and CleanQuote.io
+        </p>
+        <dl className="mt-12 space-y-6">
+          {FAQ_ITEMS.map(({ q, a }) => (
+            <div key={q} className="rounded-none border border-white/40 bg-white/60 p-5 shadow-sm backdrop-blur-sm">
+              <dt className="font-semibold text-foreground">{q}</dt>
+              <dd className="mt-2 text-sm text-muted-foreground">{a}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </section>
+  );
+}
+
 function CTA({ onSignupClick }: { onSignupClick: () => void }) {
   return (
     <section className="relative py-20 sm:py-28 overflow-hidden">
@@ -447,6 +519,9 @@ function Footer({ onSignupClick }: { onSignupClick: () => void }) {
             <a href="#pricing" className="hover:text-foreground transition-colors">
               Pricing
             </a>
+            <a href="#faq" className="hover:text-foreground transition-colors">
+              FAQ
+            </a>
             <Link href="/help" className="hover:text-foreground transition-colors">
               Help
             </Link>
@@ -494,6 +569,7 @@ function MarketingPageContent() {
         <Features />
         <Capabilities />
         <Pricing onSignupClick={() => setSignupModalOpen(true)} />
+        <FAQ />
         <CTA onSignupClick={() => setSignupModalOpen(true)} />
       </main>
       <Footer onSignupClick={() => setSignupModalOpen(true)} />
@@ -514,6 +590,7 @@ export default function MarketingPage() {
           <Features />
           <Capabilities />
           <Pricing onSignupClick={() => {}} />
+          <FAQ />
           <CTA onSignupClick={() => {}} />
         </main>
         <Footer onSignupClick={() => {}} />

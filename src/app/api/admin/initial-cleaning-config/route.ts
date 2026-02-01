@@ -1,15 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getKV } from '@/lib/kv';
-
-interface InitialCleaningConfig {
-  multiplier: number;
-  requiredConditions: string[];
-  recommendedConditions: string[];
-  sheddingPetsMultiplier?: number;
-  peopleMultiplier?: number;
-}
-
-const INITIAL_CLEANING_CONFIG_KEY = 'admin:initial-cleaning-config';
+import { getInitialCleaningConfig, setInitialCleaningConfig } from '@/lib/kv';
 
 /**
  * GET /api/admin/initial-cleaning-config
@@ -17,11 +7,9 @@ const INITIAL_CLEANING_CONFIG_KEY = 'admin:initial-cleaning-config';
  */
 export async function GET() {
   try {
-    const kv = getKV();
-    const config = await kv.get<InitialCleaningConfig>(INITIAL_CLEANING_CONFIG_KEY);
+    const config = await getInitialCleaningConfig();
 
     if (!config) {
-      // Return default config if not set
       return NextResponse.json({
         multiplier: 1.5,
         requiredConditions: ['poor'],
@@ -31,7 +19,6 @@ export async function GET() {
       });
     }
 
-    // Ensure backward compatibility - add default multipliers if not present
     const configWithDefaults = {
       ...config,
       sheddingPetsMultiplier: config.sheddingPetsMultiplier ?? 1.1,
@@ -99,7 +86,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const config: InitialCleaningConfig = {
+    const config = {
       multiplier,
       requiredConditions: requiredConditions.map((c: string) => c.toLowerCase()),
       recommendedConditions: recommendedConditions.map((c: string) => c.toLowerCase()),
@@ -107,8 +94,7 @@ export async function POST(request: NextRequest) {
       peopleMultiplier: peopleMultiplier ?? 1.05,
     };
 
-    const kv = getKV();
-    await kv.set(INITIAL_CLEANING_CONFIG_KEY, config);
+    await setInitialCleaningConfig(config);
 
     console.log('Initial Cleaning config saved:', config);
 

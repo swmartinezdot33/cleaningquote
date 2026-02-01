@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { kv } from '@vercel/kv';
-
-const GOOGLE_MAPS_API_KEY = 'admin:google-maps-api-key';
+import { getGoogleMapsKey, setGoogleMapsKey } from '@/lib/kv';
 
 /**
  * GET /api/admin/google-maps-key
@@ -17,9 +15,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const apiKey = await kv.get<string>(GOOGLE_MAPS_API_KEY);
-    
-    // Return masked key for security
+    const apiKey = await getGoogleMapsKey();
+
     const maskedKey = apiKey ? apiKey.substring(0, 7) + '*'.repeat(Math.max(0, apiKey.length - 10)) + apiKey.substring(apiKey.length - 3) : '';
 
     return NextResponse.json({
@@ -66,8 +63,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Store the API key
-    await kv.set(GOOGLE_MAPS_API_KEY, apiKey);
+    await setGoogleMapsKey(apiKey);
 
     return NextResponse.json({
       success: true,
@@ -96,7 +92,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await kv.del(GOOGLE_MAPS_API_KEY);
+    await setGoogleMapsKey(null);
 
     return NextResponse.json({
       success: true,

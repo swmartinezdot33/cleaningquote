@@ -2,8 +2,14 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Help',
-  description: 'CleanQuote help and setup guides: Google Maps API, HighLevel integration, service area, survey builder, pricing, and custom domain.',
+  title: 'Help & setup guides',
+  description:
+    'CleanQuote help and setup guides: Google Maps API key, HighLevel integration, service area polygon, survey builder, pricing structure, and custom domain for cleaning quote software.',
+  openGraph: {
+    title: 'Help & setup guides | CleanQuote.io',
+    description:
+      'Step-by-step guides for CleanQuote: Google Maps API, HighLevel, service area, survey builder, pricing, and custom domain.',
+  },
 };
 
 export default function HelpLayout({

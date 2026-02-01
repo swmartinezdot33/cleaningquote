@@ -1,8 +1,17 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
+import { BreadcrumbJsonLd } from '@/components/BreadcrumbJsonLd';
+
+export const metadata: Metadata = {
+  title: 'Pricing structure builder',
+  description:
+    'Create pricing tiers manually or import from Excel in CleanQuote so your quote form calculates prices correctly.',
+};
 
 export default function PricingStructureBuilderHelpPage() {
   return (
     <article className="prose prose-slate dark:prose-invert max-w-none">
+      <BreadcrumbJsonLd items={[{ name: 'Home', path: '/' }, { name: 'Help', path: '/help' }, { name: 'Pricing structure builder', path: '/help/pricing-structure-builder' }]} />
       <nav className="mb-6 text-sm text-muted-foreground">
         <Link href="/help" className="hover:text-primary hover:underline">
           Help

@@ -1,8 +1,17 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
+import { BreadcrumbJsonLd } from '@/components/BreadcrumbJsonLd';
+
+export const metadata: Metadata = {
+  title: 'Survey builder',
+  description:
+    'Add, edit, and reorder quote form questions in CleanQuote and map them to HighLevel fields for lead sync.',
+};
 
 export default function SurveyBuilderHelpPage() {
   return (
     <article className="prose prose-slate dark:prose-invert max-w-none">
+      <BreadcrumbJsonLd items={[{ name: 'Home', path: '/' }, { name: 'Help', path: '/help' }, { name: 'Survey builder', path: '/help/survey-builder' }]} />
       <nav className="mb-6 text-sm text-muted-foreground">
         <Link href="/help" className="hover:text-primary hover:underline">
           Help

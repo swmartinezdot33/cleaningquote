@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { storePricingFile } from '@/lib/kv';
+import { storePricingFile, setPricingTable } from '@/lib/kv';
 import { invalidatePricingCache, loadPricingTable } from '@/lib/pricing/loadPricingTable';
-import { getKV } from '@/lib/kv';
 import * as XLSX from 'xlsx';
-
-const PRICING_DATA_KEY = 'pricing:data:table';
 
 /**
  * POST /api/admin/upload-pricing
@@ -90,8 +87,7 @@ export async function POST(request: NextRequest) {
     try {
       invalidatePricingCache();
       const parsedTable = await loadPricingTable();
-      const kv = getKV();
-      await kv.set(PRICING_DATA_KEY, parsedTable);
+      await setPricingTable(parsedTable);
       parseSuccess = true;
     } catch (error) {
       parseError = error instanceof Error ? error.message : 'Unknown error';

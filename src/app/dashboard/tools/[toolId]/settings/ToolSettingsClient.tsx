@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
-import { ChevronDown, Sparkles, MapPin, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen } from 'lucide-react';
+import { ChevronDown, Sparkles, MapPin, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { TagPicker } from '@/components/ui/TagPicker';
 
@@ -546,6 +546,62 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
         </Card>
       </motion.div>
 
+      {/* Tracking & Analytics */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
+        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
+          <CardHeader
+            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
+            onClick={() => toggleCard('tracking')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                  <Code className="h-5 w-5 text-primary" />
+                  Tracking & Analytics
+                </CardTitle>
+                <CardDescription className="text-muted-foreground mt-1">
+                  Custom tracking code that loads only on the quote summary page
+                </CardDescription>
+              </div>
+              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('tracking') ? 'rotate-180' : ''}`} />
+            </div>
+          </CardHeader>
+          {isCardExpanded('tracking') && (
+            <CardContent className="pt-8 pb-8">
+              <div className="space-y-6">
+                {sectionMessage?.card === 'tracking' && (
+                  <div
+                    className={`p-4 rounded-lg flex items-center gap-3 ${
+                      sectionMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}
+                  >
+                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
+                    <p>{sectionMessage.text}</p>
+                  </div>
+                )}
+                <div>
+                  <Label htmlFor="custom-head-code" className="text-base font-semibold">Custom Head Code</Label>
+                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-1">
+                    This code only loads on the quote summary page — not on the landing or confirmation pages.
+                  </p>
+                  <textarea
+                    id="custom-head-code"
+                    value={customHeadCode}
+                    onChange={(e) => setCustomHeadCode(e.target.value)}
+                    rows={6}
+                    className="mt-2 w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
+                    placeholder="<script>...</script>"
+                  />
+                </div>
+                <Button onClick={saveTracking} disabled={savingSection === 'tracking'} className="w-full h-11 font-semibold flex items-center gap-2">
+                  {savingSection === 'tracking' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Tracking Codes</>}
+                </Button>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      </motion.div>
+
       {/* HighLevel Connection */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
         <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
@@ -636,7 +692,10 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
           >
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-2xl font-bold">HighLevel Config</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                  <Settings className="h-5 w-5 text-primary" />
+                  HighLevel Config
+                </CardTitle>
                 <CardDescription className="text-muted-foreground mt-1">
                   Configure CRM behavior when a quote is submitted (contacts, opportunities, notes, calendars, tags). Save HighLevel connection first.
                 </CardDescription>
@@ -1363,62 +1422,6 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                 </div>
                 <Button onClick={saveGoogleMaps} disabled={savingSection === 'maps'} className="w-full h-11 font-semibold flex items-center gap-2">
                   {savingSection === 'maps' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Google Maps key</>}
-                </Button>
-              </div>
-            </CardContent>
-          )}
-        </Card>
-      </motion.div>
-
-      {/* Tracking & Analytics */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
-          <CardHeader
-            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
-            onClick={() => toggleCard('tracking')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                  <Code className="h-5 w-5 text-primary" />
-                  Tracking & Analytics
-                </CardTitle>
-                <CardDescription className="text-muted-foreground mt-1">
-                  Custom tracking code that loads only on the quote summary page
-                </CardDescription>
-              </div>
-              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('tracking') ? 'rotate-180' : ''}`} />
-            </div>
-          </CardHeader>
-          {isCardExpanded('tracking') && (
-            <CardContent className="pt-8 pb-8">
-              <div className="space-y-6">
-                {sectionMessage?.card === 'tracking' && (
-                  <div
-                    className={`p-4 rounded-lg flex items-center gap-3 ${
-                      sectionMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
-                    }`}
-                  >
-                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
-                    <p>{sectionMessage.text}</p>
-                  </div>
-                )}
-                <div>
-                  <Label htmlFor="custom-head-code" className="text-base font-semibold">Custom Head Code</Label>
-                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-1">
-                    This code only loads on the quote summary page — not on the landing or confirmation pages.
-                  </p>
-                  <textarea
-                    id="custom-head-code"
-                    value={customHeadCode}
-                    onChange={(e) => setCustomHeadCode(e.target.value)}
-                    rows={6}
-                    className="mt-2 w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
-                    placeholder="<script>...</script>"
-                  />
-                </div>
-                <Button onClick={saveTracking} disabled={savingSection === 'tracking'} className="w-full h-11 font-semibold flex items-center gap-2">
-                  {savingSection === 'tracking' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Tracking Codes</>}
                 </Button>
               </div>
             </CardContent>

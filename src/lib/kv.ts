@@ -1,6 +1,10 @@
 import { kv } from '@vercel/kv';
+import { isSupabaseConfigured } from '@/lib/supabase/server';
+import * as configStore from '@/lib/config/store';
+import type { PricingTable } from '@/lib/pricing/types';
 
 const PRICING_KEY = 'pricing:file:2026';
+const PRICING_DATA_KEY = 'pricing:data:table';
 const PRICING_NETWORK_PATH_KEY = 'pricing:network:path';
 const GHL_TOKEN_KEY = 'ghl:api:token';
 const GHL_LOCATION_ID_KEY = 'ghl:location:id';
@@ -62,14 +66,16 @@ export function getKV() {
 }
 
 /**
- * Store pricing file buffer in KV storage
- * @param toolId - When provided, data is scoped to this quoting tool (multi-tenant).
+ * Store pricing file buffer (Supabase source of truth when configured).
  */
 export async function storePricingFile(buffer: Buffer, toolId?: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    await configStore.setPricingFileBase64InConfig(buffer.toString('base64'), toolId);
+    return;
+  }
   const kv = getKV();
   const k = toolKey(toolId, PRICING_KEY);
-  const base64Data = buffer.toString('base64');
-  await kv.set(k, base64Data);
+  await kv.set(k, buffer.toString('base64'));
   await kv.set(`${k}:metadata`, {
     uploadedAt: new Date().toISOString(),
     size: buffer.length,
@@ -78,19 +84,74 @@ export async function storePricingFile(buffer: Buffer, toolId?: string): Promise
 }
 
 /**
- * Get pricing file buffer from KV storage
- * @param toolId - When provided, reads from this quoting tool (multi-tenant).
+ * Get pricing file buffer (Supabase source of truth when configured).
  */
 export async function getPricingFile(toolId?: string): Promise<Buffer> {
+  if (isSupabaseConfigured()) {
+    const base64 = await configStore.getPricingFileBase64FromConfig(toolId);
+    if (!base64) {
+      throw new Error(
+        `Pricing file not found. Please upload a pricing file using the /api/admin/upload-pricing endpoint.`
+      );
+    }
+    return Buffer.from(base64, 'base64');
+  }
   const kv = getKV();
-  const k = toolKey(toolId, PRICING_KEY);
-  const base64Data = await kv.get<string>(k);
+  const base64Data = await kv.get<string>(toolKey(toolId, PRICING_KEY));
   if (!base64Data) {
     throw new Error(
       `Pricing file not found in KV storage. Please upload a pricing file using the /api/admin/upload-pricing endpoint.`
     );
   }
   return Buffer.from(base64Data, 'base64');
+}
+
+/**
+ * Get pricing table (parsed JSON) - Supabase source of truth when configured.
+ */
+export async function getPricingTable(toolId?: string): Promise<PricingTable | null> {
+  if (isSupabaseConfigured()) {
+    const p = await configStore.getPricingTableFromConfig(toolId);
+    return (p as PricingTable) || null;
+  }
+  try {
+    const kv = getKV();
+    const data = await kv.get<PricingTable>(toolKey(toolId, PRICING_DATA_KEY));
+    return data || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Set pricing table (parsed JSON) - Supabase source of truth when configured.
+ */
+export async function setPricingTable(table: PricingTable | null, toolId?: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    await configStore.setPricingTableInConfig(table as Record<string, unknown>, toolId);
+    return;
+  }
+  const kv = getKV();
+  if (table === null) {
+    await kv.del(toolKey(toolId, PRICING_DATA_KEY));
+  } else {
+    await kv.set(toolKey(toolId, PRICING_DATA_KEY), table);
+  }
+}
+
+/**
+ * Clear pricing data (table and file) - when Supabase configured clears both in config row.
+ */
+export async function clearPricingData(toolId?: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    await configStore.setPricingTableInConfig(null, toolId);
+    await configStore.setPricingFileBase64InConfig(null, toolId);
+    return;
+  }
+  const kv = getKV();
+  await kv.del(toolKey(toolId, PRICING_DATA_KEY));
+  await kv.del(toolKey(toolId, PRICING_KEY));
+  await kv.del(toolKey(toolId, `${PRICING_KEY}:metadata`));
 }
 
 /**
@@ -170,19 +231,22 @@ export async function deleteNetworkPricingPath(toolId?: string): Promise<void> {
  */
 
 /**
- * Store GHL API token
- * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
+ * Store GHL API token (Supabase source of truth when configured).
  */
 export async function storeGHLToken(token: string, toolId?: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    await configStore.setGHLToken(token, toolId);
+    return;
+  }
   const kv = getKV();
   await kv.set(toolKey(toolId, GHL_TOKEN_KEY), token);
 }
 
 /**
- * Get GHL API token
- * @param toolId - When provided, reads from this quoting tool (multi-tenant).
+ * Get GHL API token (Supabase source of truth when configured).
  */
 export async function getGHLToken(toolId?: string): Promise<string | null> {
+  if (isSupabaseConfigured()) return configStore.getGHLToken(toolId);
   try {
     const kv = getKV();
     const token = await kv.get<string>(toolKey(toolId, GHL_TOKEN_KEY));
@@ -194,10 +258,10 @@ export async function getGHLToken(toolId?: string): Promise<string | null> {
 }
 
 /**
- * Check if GHL token exists
- * @param toolId - When provided, checks this quoting tool (multi-tenant).
+ * Check if GHL token exists (Supabase source of truth when configured).
  */
 export async function ghlTokenExists(toolId?: string): Promise<boolean> {
+  if (isSupabaseConfigured()) return configStore.ghlTokenExists(toolId);
   try {
     const kv = getKV();
     const exists = await kv.exists(toolKey(toolId, GHL_TOKEN_KEY));
@@ -208,19 +272,22 @@ export async function ghlTokenExists(toolId?: string): Promise<boolean> {
 }
 
 /**
- * Store GHL Location ID
- * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
+ * Store GHL Location ID (Supabase source of truth when configured).
  */
 export async function storeGHLLocationId(locationId: string, toolId?: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    await configStore.setGHLLocationId(locationId, toolId);
+    return;
+  }
   const kv = getKV();
   await kv.set(toolKey(toolId, GHL_LOCATION_ID_KEY), locationId);
 }
 
 /**
- * Get GHL Location ID
- * @param toolId - When provided, reads from this quoting tool (multi-tenant).
+ * Get GHL Location ID (Supabase source of truth when configured).
  */
 export async function getGHLLocationId(toolId?: string): Promise<string | null> {
+  if (isSupabaseConfigured()) return configStore.getGHLLocationId(toolId);
   try {
     const kv = getKV();
     const locationId = await kv.get<string>(toolKey(toolId, GHL_LOCATION_ID_KEY));
@@ -231,44 +298,38 @@ export async function getGHLLocationId(toolId?: string): Promise<string | null> 
 }
 
 /**
- * Store GHL configuration (which features are enabled, pipeline settings, etc.)
+ * Store GHL configuration (Supabase source of truth when configured).
  */
 export async function storeGHLConfig(config: {
   createContact: boolean;
   createOpportunity: boolean;
   createNote: boolean;
-  createQuoteObject?: boolean;  // Create Quote custom object in GHL (default true when undefined)
+  createQuoteObject?: boolean;
   pipelineId?: string;
   pipelineStageId?: string;
-  pipelineRoutingRules?: Array<{ 
-    utmParam: string; 
-    match: string; 
-    value: string; 
-    pipelineId: string; 
-    pipelineStageId: string;
-    opportunityStatus?: string;
-    opportunityAssignedTo?: string;
-    opportunitySource?: string;
-    opportunityTags?: string[];
-  }>;
+  pipelineRoutingRules?: Array<{ utmParam: string; match: string; value: string; pipelineId: string; pipelineStageId: string; opportunityStatus?: string; opportunityAssignedTo?: string; opportunitySource?: string; opportunityTags?: string[] }>;
   opportunityStatus?: string;
   opportunityMonetaryValue?: number;
   useDynamicPricingForValue?: boolean;
-  opportunityAssignedTo?: string;   // User ID to assign opportunity to (owner)
-  opportunitySource?: string;       // Source for the opportunity
-  opportunityTags?: string[];       // Tags to add to the opportunity
+  opportunityAssignedTo?: string;
+  opportunitySource?: string;
+  opportunityTags?: string[];
   inServiceTags?: string[];
   outOfServiceTags?: string[];
   appointmentCalendarId?: string;
   callCalendarId?: string;
-  appointmentUserId?: string; // User ID to assign appointment bookings to
-  callUserId?: string; // User ID to assign call bookings to
-  quotedAmountField?: string; // GHL custom field key for the quoted amount
-  redirectAfterAppointment?: boolean; // Whether to redirect after appointment booking
-  appointmentRedirectUrl?: string; // URL to redirect to after appointment booking
-  appointmentBookedTags?: string[]; // Tags to add when appointment is booked
-  quoteCompletedTags?: string[]; // Tags to add when quote is completed
+  appointmentUserId?: string;
+  callUserId?: string;
+  quotedAmountField?: string;
+  redirectAfterAppointment?: boolean;
+  appointmentRedirectUrl?: string;
+  appointmentBookedTags?: string[];
+  quoteCompletedTags?: string[];
 }, toolId?: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    await configStore.setGHLConfig(config as Record<string, unknown>, toolId);
+    return;
+  }
   try {
     const kv = getKV();
     await kv.set(toolKey(toolId, GHL_CONFIG_KEY), config);
@@ -279,45 +340,38 @@ export async function storeGHLConfig(config: {
 }
 
 /**
- * Get GHL configuration
- * @param toolId - When provided, reads from this quoting tool (multi-tenant).
+ * Get GHL configuration (Supabase source of truth when configured).
  */
 export async function getGHLConfig(toolId?: string): Promise<{
   createContact: boolean;
   createOpportunity: boolean;
   createNote: boolean;
-  createQuoteObject?: boolean;  // Create Quote custom object in GHL (default true when undefined)
+  createQuoteObject?: boolean;
   pipelineId?: string;
   pipelineStageId?: string;
-  pipelineRoutingRules?: Array<{ 
-    utmParam: string; 
-    match: string; 
-    value: string; 
-    pipelineId: string; 
-    pipelineStageId: string;
-    opportunityStatus?: string;
-    opportunityAssignedTo?: string;
-    opportunitySource?: string;
-    opportunityTags?: string[];
-  }>;
+  pipelineRoutingRules?: Array<{ utmParam: string; match: string; value: string; pipelineId: string; pipelineStageId: string; opportunityStatus?: string; opportunityAssignedTo?: string; opportunitySource?: string; opportunityTags?: string[] }>;
   opportunityStatus?: string;
   opportunityMonetaryValue?: number;
   useDynamicPricingForValue?: boolean;
-  opportunityAssignedTo?: string;   // User ID to assign opportunity to (owner)
-  opportunitySource?: string;       // Source for the opportunity
-  opportunityTags?: string[];       // Tags to add to the opportunity
+  opportunityAssignedTo?: string;
+  opportunitySource?: string;
+  opportunityTags?: string[];
   inServiceTags?: string[];
   outOfServiceTags?: string[];
   appointmentCalendarId?: string;
   callCalendarId?: string;
-  appointmentUserId?: string; // User ID to assign appointment bookings to
-  callUserId?: string; // User ID to assign call bookings to
-  quotedAmountField?: string; // GHL custom field key for the quoted amount
-  redirectAfterAppointment?: boolean; // Whether to redirect after appointment booking
-  appointmentRedirectUrl?: string; // URL to redirect to after appointment booking
-  appointmentBookedTags?: string[]; // Tags to add when appointment is booked
-  quoteCompletedTags?: string[]; // Tags to add when quote is completed
+  appointmentUserId?: string;
+  callUserId?: string;
+  quotedAmountField?: string;
+  redirectAfterAppointment?: boolean;
+  appointmentRedirectUrl?: string;
+  appointmentBookedTags?: string[];
+  quoteCompletedTags?: string[];
 } | null> {
+  if (isSupabaseConfigured()) {
+    const c = await configStore.getGHLConfig(toolId);
+    return c as typeof c & Record<string, unknown>;
+  }
   try {
     const kv = getKV();
     const config = await kv.get(toolKey(toolId, GHL_CONFIG_KEY));
@@ -476,10 +530,10 @@ export async function deleteServiceAreaNetworkLink(toolId?: string): Promise<voi
 export type WidgetSettings = { title: string; subtitle: string; primaryColor: string };
 
 /**
- * Get widget settings
- * @param toolId - When provided, reads from this quoting tool (multi-tenant).
+ * Get widget settings (Supabase source of truth when configured).
  */
 export async function getWidgetSettings(toolId?: string): Promise<WidgetSettings | null> {
+  if (isSupabaseConfigured()) return configStore.getWidgetSettings(toolId);
   try {
     const kv = getKV();
     const settings = await kv.get<WidgetSettings>(toolKey(toolId, WIDGET_SETTINGS_KEY));
@@ -490,22 +544,25 @@ export async function getWidgetSettings(toolId?: string): Promise<WidgetSettings
 }
 
 /**
- * Set widget settings
- * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
+ * Set widget settings (Supabase source of truth when configured).
  */
 export async function setWidgetSettings(
   settings: { title: string; subtitle: string; primaryColor: string },
   toolId?: string
 ): Promise<void> {
+  if (isSupabaseConfigured()) {
+    await configStore.setWidgetSettings(settings, toolId);
+    return;
+  }
   const kv = getKV();
   await kv.set(toolKey(toolId, WIDGET_SETTINGS_KEY), settings);
 }
 
 /**
- * Get form settings (param names for first name, last name, etc.)
- * @param toolId - When provided, reads from this quoting tool (multi-tenant).
+ * Get form settings (Supabase source of truth when configured).
  */
 export async function getFormSettings(toolId?: string): Promise<Record<string, unknown> | null> {
+  if (isSupabaseConfigured()) return configStore.getFormSettings(toolId);
   try {
     const kv = getKV();
     const settings = await kv.get<Record<string, unknown>>(toolKey(toolId, FORM_SETTINGS_KEY));
@@ -516,10 +573,86 @@ export async function getFormSettings(toolId?: string): Promise<Record<string, u
 }
 
 /**
- * Set form settings
- * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
+ * Set form settings (Supabase source of truth when configured).
  */
 export async function setFormSettings(settings: Record<string, unknown>, toolId?: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    await configStore.setFormSettings(settings, toolId);
+    return;
+  }
   const kv = getKV();
   await kv.set(toolKey(toolId, FORM_SETTINGS_KEY), settings);
+}
+
+const TRACKING_CODES_KEY = 'admin:tracking-codes';
+
+/** Get tracking codes (Supabase source of truth when configured). */
+export async function getTrackingCodes(toolId?: string): Promise<{ customHeadCode?: string } | null> {
+  if (isSupabaseConfigured()) return configStore.getTrackingCodes(toolId);
+  try {
+    const kv = getKV();
+    const v = await kv.get<{ customHeadCode?: string }>(toolKey(toolId, TRACKING_CODES_KEY));
+    return v || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Set tracking codes (Supabase source of truth when configured). */
+export async function setTrackingCodes(settings: { customHeadCode?: string }, toolId?: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    await configStore.setTrackingCodes(settings, toolId);
+    return;
+  }
+  const kv = getKV();
+  await kv.set(toolKey(toolId, TRACKING_CODES_KEY), settings);
+}
+
+const INITIAL_CLEANING_CONFIG_KEY = 'admin:initial-cleaning-config';
+
+/** Get initial cleaning config (Supabase source of truth when configured). */
+export async function getInitialCleaningConfig(toolId?: string): Promise<configStore.InitialCleaningConfig | null> {
+  if (isSupabaseConfigured()) return configStore.getInitialCleaningConfig(toolId);
+  try {
+    const kv = getKV();
+    const v = await kv.get<configStore.InitialCleaningConfig>(toolKey(toolId, INITIAL_CLEANING_CONFIG_KEY));
+    return v || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Set initial cleaning config (Supabase source of truth when configured). */
+export async function setInitialCleaningConfig(config: configStore.InitialCleaningConfig, toolId?: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    await configStore.setInitialCleaningConfig(config, toolId);
+    return;
+  }
+  const kv = getKV();
+  await kv.set(toolKey(toolId, INITIAL_CLEANING_CONFIG_KEY), config);
+}
+
+const GOOGLE_MAPS_API_KEY = 'admin:google-maps-api-key';
+
+/** Get Google Maps API key (Supabase source of truth when configured). */
+export async function getGoogleMapsKey(toolId?: string): Promise<string | null> {
+  if (isSupabaseConfigured()) return configStore.getGoogleMapsKey(toolId);
+  try {
+    const kv = getKV();
+    const v = await kv.get<string>(toolKey(toolId, GOOGLE_MAPS_API_KEY));
+    return v || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Set Google Maps API key (Supabase source of truth when configured). */
+export async function setGoogleMapsKey(key: string | null, toolId?: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    await configStore.setGoogleMapsKey(key, toolId);
+    return;
+  }
+  const kv = getKV();
+  if (key === null) await kv.del(toolKey(toolId, GOOGLE_MAPS_API_KEY));
+  else await kv.set(toolKey(toolId, GOOGLE_MAPS_API_KEY), key);
 }

@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getKV } from '@/lib/kv';
+import { getPricingTable, setPricingTable, clearPricingData } from '@/lib/kv';
 import { invalidatePricingCache } from '@/lib/pricing/loadPricingTable';
 import { PricingTable } from '@/lib/pricing/types';
 import { requireAdminAuth } from '@/lib/security/auth';
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic';
-
-const PRICING_DATA_KEY = 'pricing:data:table';
 
 /**
  * GET /api/admin/pricing
@@ -15,13 +12,11 @@ const PRICING_DATA_KEY = 'pricing:data:table';
  */
 export async function GET(request: NextRequest) {
   try {
-    // Secure authentication (supports both JWT and legacy password)
     const authResponse = await requireAdminAuth(request);
     if (authResponse) return authResponse;
 
     try {
-      const kv = getKV();
-      const pricingData = await kv.get<PricingTable>(PRICING_DATA_KEY);
+      const pricingData = await getPricingTable();
 
       if (!pricingData) {
         return NextResponse.json({
@@ -35,9 +30,7 @@ export async function GET(request: NextRequest) {
         data: pricingData,
       });
     } catch (kvError) {
-      // If KV is not configured (local dev), return empty state
       if (kvError instanceof Error && kvError.message.includes('KV')) {
-        console.warn('KV not configured, returning empty state for local dev');
         return NextResponse.json({
           exists: false,
           message: 'KV storage not configured. This is normal for local development. Upload a file to get started.',
@@ -48,10 +41,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Get pricing error:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to get pricing data',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Failed to get pricing data', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
@@ -95,11 +85,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Save to KV storage
-    const kv = getKV();
-    await kv.set(PRICING_DATA_KEY, pricingData);
-
-    // Clear cache to force reload
+    await setPricingTable(pricingData);
     invalidatePricingCache();
 
     return NextResponse.json({
@@ -130,11 +116,7 @@ export async function DELETE(request: NextRequest) {
     const authResponse = await requireAdminAuth(request);
     if (authResponse) return authResponse;
 
-    const kv = getKV();
-    await kv.del(PRICING_DATA_KEY);
-    await kv.del('pricing:file:2026'); // Also delete the Excel file if it exists
-    await kv.del('pricing:file:2026:metadata');
-
+    await clearPricingData();
     invalidatePricingCache();
 
     return NextResponse.json({
