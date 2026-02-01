@@ -234,7 +234,9 @@ interface QuoteResponse {
 export function Home(props: { slug?: string; toolId?: string; initialConfig?: ToolConfig | null; pathBase?: string } = {}) {
   const { slug, toolId, initialConfig, pathBase } = props;
   const hasInitialData = !!(initialConfig?.questions?.length);
-  const [mounted, setMounted] = useState(hasInitialData);
+  // When slug is set: never use server initialConfig for widget/questions — only use client-fetched config to avoid stale/wrong data.
+  const useServerConfig = !slug;
+  const [mounted, setMounted] = useState(hasInitialData && useServerConfig);
   const [currentStep, setCurrentStep] = useState(0);
   const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
   const [ghlContactId, setGHLContactId] = useState<string | null>(null);
@@ -265,27 +267,27 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   // Availability checking state
   const [appointmentAvailability, setAppointmentAvailability] = useState<{ available: boolean; message: string; checking: boolean; fallback?: boolean; warning?: string } | null>(null);
   const [callAvailability, setCallAvailability] = useState<{ available: boolean; message: string; checking: boolean; fallback?: boolean; warning?: string } | null>(null);
-  // Redirect settings from admin
-  const [redirectAfterAppointment, setRedirectAfterAppointment] = useState<boolean>(initialConfig?.redirect?.redirectAfterAppointment ?? false);
-  const [appointmentRedirectUrl, setAppointmentRedirectUrl] = useState<string>(initialConfig?.redirect?.appointmentRedirectUrl ?? '');
-  const [widgetTitle, setWidgetTitle] = useState(initialConfig?.widget?.title ?? '');
-  const [widgetSubtitle, setWidgetSubtitle] = useState(initialConfig?.widget?.subtitle ?? '');
-  const [primaryColor, setPrimaryColor] = useState(initialConfig?.widget?.primaryColor ?? DEFAULT_PRIMARY_COLOR);
-  const initialQuestions = (initialConfig?.questions ?? []) as SurveyQuestion[];
+  // Redirect / widget / questions: when slug set, start empty and only use client-fetched config to avoid stale data.
+  const [redirectAfterAppointment, setRedirectAfterAppointment] = useState<boolean>(useServerConfig ? (initialConfig?.redirect?.redirectAfterAppointment ?? false) : false);
+  const [appointmentRedirectUrl, setAppointmentRedirectUrl] = useState<string>(useServerConfig ? (initialConfig?.redirect?.appointmentRedirectUrl ?? '') : '');
+  const [widgetTitle, setWidgetTitle] = useState(useServerConfig ? (initialConfig?.widget?.title ?? '') : '');
+  const [widgetSubtitle, setWidgetSubtitle] = useState(useServerConfig ? (initialConfig?.widget?.subtitle ?? '') : '');
+  const [primaryColor, setPrimaryColor] = useState(useServerConfig ? (initialConfig?.widget?.primaryColor ?? DEFAULT_PRIMARY_COLOR) : DEFAULT_PRIMARY_COLOR);
+  const initialQuestions = (useServerConfig ? (initialConfig?.questions ?? []) : []) as SurveyQuestion[];
   const [questions, setQuestions] = useState<SurveyQuestion[]>(initialQuestions);
   const [quoteSchema, setQuoteSchema] = useState<z.ZodObject<any>>(generateSchemaFromQuestions(initialQuestions));
   const [addressCoordinates, setAddressCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [serviceAreaChecked, setServiceAreaChecked] = useState(false);
   const [tabOpened, setTabOpened] = useState(false); // Prevent multiple tab opens
-  const [formSettings, setFormSettings] = useState<any>(initialConfig?.formSettings ?? {});
-  const [openSurveyInNewTab, setOpenSurveyInNewTab] = useState(!!(initialConfig?.formSettings as any)?.openSurveyInNewTab);
+  const [formSettings, setFormSettings] = useState<any>(useServerConfig ? (initialConfig?.formSettings ?? {}) : {});
+  const [openSurveyInNewTab, setOpenSurveyInNewTab] = useState(useServerConfig ? !!(initialConfig?.formSettings as any)?.openSurveyInNewTab : false);
   const serviceAreaCheckInProgress = useRef(false); // Prevent concurrent service area checks
   const autoAdvanceTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Track auto-advance timeout
   const appointmentFormRef = useRef<HTMLDivElement>(null);
   const callFormRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
   const addressAutocompleteRef = useRef<{ geocodeCurrentValue: () => Promise<{ lat: number; lng: number; formattedAddress: string } | null> } | null>(null);
-  const [configLoaded, setConfigLoaded] = useState(false);
+  const [configLoaded, setConfigLoaded] = useState(useServerConfig);
 
   // When slug is set (multi-tenant /t/[slug]), load all config from one endpoint. Cache-bust so CDN/browser never serves stale.
   const loadConfigFromSlug = async (toolSlug: string, retry = false) => {
@@ -297,7 +299,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
       if (data.widget) {
         setWidgetTitle(data.widget.title ?? '');
         setWidgetSubtitle(data.widget.subtitle ?? '');
-        setPrimaryColor(data.widget.primaryColor ?? 'transparent');
+        setPrimaryColor(data.widget.primaryColor ?? DEFAULT_PRIMARY_COLOR);
       }
       if (data.formSettings) {
         setFormSettings(data.formSettings);

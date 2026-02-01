@@ -134,7 +134,7 @@ export async function GET(
       }
     }
 
-    // Row exists but survey_questions was never set (null/undefined) — seed defaults so the form loads. Only leave [] when explicitly stored as [].
+    // Row exists but survey_questions was never set (null/undefined) — seed defaults so the form loads.
     if (row && questions.length === 0 && (rawQuestions === null || rawQuestions === undefined)) {
       try {
         await configStore.setSurveyQuestionsInConfig(DEFAULT_SURVEY_QUESTIONS, toolId);
@@ -155,6 +155,11 @@ export async function GET(
       } catch (seedErr) {
         console.error('GET /api/tools/[slug]/config seed null survey_questions:', seedErr);
       }
+    }
+
+    // Guarantee at least default questions so no tool ever shows "no questions" from missing/empty DB data.
+    if (questions.length === 0) {
+      questions = [...DEFAULT_SURVEY_QUESTIONS];
     }
 
     type GhlRedirectShape = { redirectAfterAppointment?: boolean; appointmentRedirectUrl?: string };
