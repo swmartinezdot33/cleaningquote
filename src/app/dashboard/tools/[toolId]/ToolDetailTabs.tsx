@@ -511,10 +511,10 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
                   'embed-snippet'
                 )}
                 className="absolute top-2 right-2 z-10 inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted shadow-sm"
-                title="Copy snippet"
+                title="Copy HTML snippet"
               >
                 {copyId === 'embed-snippet' ? <Check className="h-3.5 w-3.5 text-primary" /> : <CodeXml className="h-3.5 w-3.5" />}
-                {copyId === 'embed-snippet' ? 'Copied' : 'Copy'}
+                {copyId === 'embed-snippet' ? 'Copied' : 'Copy code'}
               </button>
               <pre className="overflow-x-auto rounded bg-muted p-3 pr-24 text-xs">
                 {`<!-- CleanQuote.io embed - public link: ${embedBaseUrl}${orgSlug ? `, org-scoped: /t/${orgSlug}/${embedSlug}` : `, slug: ${embedSlug}`} -->
