@@ -19,7 +19,9 @@ export interface ToolConfig {
   redirect: { redirectAfterAppointment: boolean; appointmentRedirectUrl: string };
 }
 
-/** Server-side: get full tool config by tool id (unambiguous). Returns null if KV unavailable. */
+const DEFAULT_WIDGET = { title: 'Get Your Quote', subtitle: "Let's get your price!", primaryColor: '#7c3aed' };
+
+/** Server-side: get full tool config by tool id. Falls back to global config when tool has no row (e.g. rcc missing in prod). */
 export async function getToolConfigByToolId(toolId: string): Promise<ToolConfig | null> {
   try {
     const [widgetSettings, formSettings, questions, ghlConfig] = await Promise.all([
@@ -28,15 +30,29 @@ export async function getToolConfigByToolId(toolId: string): Promise<ToolConfig 
       getSurveyQuestions(toolId),
       getGHLConfig(toolId),
     ]);
-
+    const toolHasConfig = widgetSettings || formSettings || (questions && questions.length > 0) || ghlConfig;
+    let [globalWidget, globalForm, globalQuestions, globalGhl] = [null, null, null, null] as [
+      Awaited<ReturnType<typeof getWidgetSettings>>,
+      Awaited<ReturnType<typeof getFormSettings>>,
+      Awaited<ReturnType<typeof getSurveyQuestions>>,
+      Awaited<ReturnType<typeof getGHLConfig>>,
+    ];
+    if (!toolHasConfig) {
+      [globalWidget, globalForm, globalQuestions, globalGhl] = await Promise.all([
+        getWidgetSettings(undefined),
+        getFormSettings(undefined),
+        getSurveyQuestions(undefined),
+        getGHLConfig(undefined),
+      ]);
+    }
     return {
-      widget: widgetSettings ?? { title: 'Get Your Quote', subtitle: "Let's get your price!", primaryColor: '#7c3aed' },
-      formSettings: formSettings ?? {},
-      questions: questions ?? [],
-      redirect: ghlConfig
+      widget: widgetSettings ?? globalWidget ?? DEFAULT_WIDGET,
+      formSettings: formSettings ?? globalForm ?? {},
+      questions: (questions && questions.length > 0 ? questions : globalQuestions) ?? [],
+      redirect: (ghlConfig ?? globalGhl)
         ? {
-            redirectAfterAppointment: ghlConfig.redirectAfterAppointment === true,
-            appointmentRedirectUrl: ghlConfig.appointmentRedirectUrl ?? '',
+            redirectAfterAppointment: (ghlConfig ?? globalGhl)!.redirectAfterAppointment === true,
+            appointmentRedirectUrl: (ghlConfig ?? globalGhl)!.appointmentRedirectUrl ?? '',
           }
         : { redirectAfterAppointment: false, appointmentRedirectUrl: '' },
     };

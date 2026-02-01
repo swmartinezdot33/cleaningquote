@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { ToolInsert } from '@/lib/supabase/types';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { createSupabaseServer } from '@/lib/supabase/server';
 import { slugToSafe } from '@/lib/supabase/tools';
-import { canAccessTool } from '@/lib/org-auth';
+import { canAccessTool, isSuperAdminEmail } from '@/lib/org-auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,7 +38,9 @@ export async function POST(request: NextRequest) {
     }
 
     const insert: ToolInsert = { org_id: orgId, user_id: user.id, name: name || slug, slug };
-    const { data: tool, error } = await supabase
+    // Super admins may create tools for orgs they're not a member of; RLS would block. Use service role for insert.
+    const insertClient = isSuperAdminEmail(user.email ?? undefined) ? createSupabaseServer() : supabase;
+    const { data: tool, error } = await insertClient
       .from('tools')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .insert(insert as any)

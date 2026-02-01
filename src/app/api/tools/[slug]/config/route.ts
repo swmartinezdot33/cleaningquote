@@ -28,17 +28,36 @@ export async function GET(
       getSurveyQuestions(tool.id),
       getGHLConfig(tool.id),
     ]);
-    return NextResponse.json({
-      widget: widgetSettings ?? { title: 'Get Your Quote', subtitle: "Let's get your price!", primaryColor: '#7c3aed' },
-      formSettings: formSettings ?? {},
-      questions,
-      redirect: ghlConfig
-        ? {
-            redirectAfterAppointment: ghlConfig.redirectAfterAppointment === true,
-            appointmentRedirectUrl: ghlConfig.appointmentRedirectUrl ?? '',
-          }
-        : { redirectAfterAppointment: false, appointmentRedirectUrl: '' },
-    });
+    // If tool has no config row (e.g. missing in production), fall back to global config so tool still gets custom settings
+    const [globalWidget, globalForm, globalQuestions, globalGhl] =
+      !widgetSettings && !formSettings && (!questions || questions.length === 0) && !ghlConfig
+        ? await Promise.all([
+            getWidgetSettings(undefined),
+            getFormSettings(undefined),
+            getSurveyQuestions(undefined),
+            getGHLConfig(undefined),
+          ])
+        : [null, null, null, null];
+    const widget = widgetSettings ?? globalWidget ?? { title: 'Get Your Quote', subtitle: "Let's get your price!", primaryColor: '#7c3aed' };
+    const form = formSettings ?? globalForm ?? {};
+    const qs = (questions && questions.length > 0) ? questions : (globalQuestions ?? []);
+    const ghl = ghlConfig ?? globalGhl;
+    return NextResponse.json(
+      {
+        widget,
+        formSettings: form,
+        questions: qs,
+        redirect: ghl
+          ? {
+              redirectAfterAppointment: ghl.redirectAfterAppointment === true,
+              appointmentRedirectUrl: ghl.appointmentRedirectUrl ?? '',
+            }
+          : { redirectAfterAppointment: false, appointmentRedirectUrl: '' },
+      },
+      {
+        headers: { 'Cache-Control': 'no-store, max-age=0' },
+      }
+    );
   } catch (err) {
     console.error('GET /api/tools/[slug]/config:', err);
     return NextResponse.json(
