@@ -43,11 +43,18 @@ export async function POST(
     const titleStr = typeof title === 'string' ? title : '';
     const subtitleStr = typeof subtitle === 'string' ? subtitle : '';
     const color = primaryColor && /^#[0-9A-Fa-f]{6}$/.test(primaryColor) ? primaryColor : 'transparent';
-    await setWidgetSettings({ title: titleStr, subtitle: subtitleStr, primaryColor: color }, toolId);
+    const toSave = { title: titleStr, subtitle: subtitleStr, primaryColor: color };
+
+    await setWidgetSettings(toSave, toolId);
+
+    const written = await getWidgetSettings(toolId);
+    const actual = written ?? toSave;
 
     return NextResponse.json({
       success: true,
-      settings: { title: titleStr, subtitle: subtitleStr, primaryColor: color },
+      settings: actual,
+      toolId,
+      persisted: !!written,
     });
   } catch (err) {
     console.error('POST dashboard widget-settings:', err);
