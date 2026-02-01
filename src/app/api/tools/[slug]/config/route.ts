@@ -151,14 +151,23 @@ export async function GET(
         : {};
 
     return NextResponse.json(
-      { widget, formSettings, questions, redirect, googleMapsKey, trackingCodes },
+      {
+        widget,
+        formSettings,
+        questions,
+        redirect,
+        googleMapsKey,
+        trackingCodes,
+        _meta: { toolId, slug, configUpdatedAt: row?.updated_at ?? null },
+      },
       {
         headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+          'Cache-Control': 'private, no-store, no-cache, must-revalidate, max-age=0',
           Pragma: 'no-cache',
           Expires: '0',
           'X-Tool-Id': toolId,
           'X-Tool-Slug': slug,
+          'X-Config-Updated': row?.updated_at ?? '',
         },
       }
     );
