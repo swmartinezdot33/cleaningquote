@@ -303,8 +303,18 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         setFormSettings(data.formSettings);
         setOpenSurveyInNewTab(!!data.formSettings?.openSurveyInNewTab);
       }
-      if (Array.isArray(data.questions)) {
-        const sorted = [...data.questions].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      // API always returns array; handle string (e.g. double-encoded) so we never show "No questions" when data exists.
+      let questionsList = data.questions;
+      if (typeof questionsList === 'string') {
+        try {
+          const parsed = JSON.parse(questionsList) as unknown;
+          questionsList = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          questionsList = [];
+        }
+      }
+      if (Array.isArray(questionsList)) {
+        const sorted = [...questionsList].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
         setQuestions(sorted);
         setQuoteSchema(generateSchemaFromQuestions(sorted));
       } else {

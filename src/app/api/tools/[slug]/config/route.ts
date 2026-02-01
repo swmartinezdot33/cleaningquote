@@ -91,22 +91,52 @@ export async function GET(
     const formSettings =
       row?.form_settings && typeof row.form_settings === 'object' ? row.form_settings : {};
     let rawQuestions = row?.survey_questions;
-    let questions: unknown[] =
-      Array.isArray(rawQuestions)
-        ? rawQuestions
-        : typeof rawQuestions === 'string'
-          ? (() => {
-              try {
-                const parsed = JSON.parse(rawQuestions);
-                return Array.isArray(parsed) ? parsed : [];
-              } catch {
-                return [];
-              }
-            })()
-          : [];
 
-    // Row exists but survey_questions was never set (null) — seed defaults so the form loads. Only leave [] when explicitly stored as [].
-    if (row && questions.length === 0 && rawQuestions == null) {
+    /** Parse survey_questions from DB: array, JSON string (single or double-encoded), or object with .questions / .data array. */
+    function parseSurveyQuestions(raw: unknown): unknown[] {
+      if (Array.isArray(raw)) return raw;
+      if (typeof raw === 'string') {
+        try {
+          const first = JSON.parse(raw) as unknown;
+          if (Array.isArray(first)) return first;
+          if (first && typeof first === 'object' && !Array.isArray(first)) {
+            const o = first as Record<string, unknown>;
+            if (Array.isArray(o.questions)) return o.questions;
+            if (Array.isArray(o.data)) return o.data;
+          }
+          // Double-encoded: first parse gave a string
+          if (typeof first === 'string') {
+            try {
+              const second = JSON.parse(first) as unknown;
+              return Array.isArray(second) ? second : [];
+            } catch {
+              return [];
+            }
+          }
+          return [];
+        } catch {
+          return [];
+        }
+      }
+      if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+        const o = raw as Record<string, unknown>;
+        if (Array.isArray(o.questions)) return o.questions;
+        if (Array.isArray(o.data)) return o.data;
+      }
+      return [];
+    }
+    let questions: unknown[] = parseSurveyQuestions(rawQuestions);
+
+    // Row exists but we got no questions — try config store (same parsing as dashboard) in case DB shape differs.
+    if (row && questions.length === 0) {
+      const fromStore = await configStore.getSurveyQuestionsFromConfig(toolId);
+      if (fromStore && Array.isArray(fromStore) && fromStore.length > 0) {
+        questions = fromStore;
+      }
+    }
+
+    // Row exists but survey_questions was never set (null/undefined) — seed defaults so the form loads. Only leave [] when explicitly stored as [].
+    if (row && questions.length === 0 && (rawQuestions === null || rawQuestions === undefined)) {
       try {
         await configStore.setSurveyQuestionsInConfig(DEFAULT_SURVEY_QUESTIONS, toolId);
         const { data: updated } = await supabase

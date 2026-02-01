@@ -169,19 +169,43 @@ export async function setGHLConfig(config: Record<string, unknown>, toolId?: str
 }
 
 // ---- Survey questions ----
-export async function getSurveyQuestionsFromConfig(toolId?: string): Promise<unknown[] | null> {
-  const row = await getConfigRow(toolId);
-  const raw = row?.survey_questions;
+/** Parse survey_questions: array, JSON string (single or double-encoded), or object with .questions/.data. */
+function parseSurveyQuestionsRaw(raw: unknown): unknown[] | null {
   if (Array.isArray(raw)) return raw;
   if (typeof raw === 'string') {
     try {
-      const parsed = JSON.parse(raw) as unknown;
-      return Array.isArray(parsed) ? parsed : null;
+      const first = JSON.parse(raw) as unknown;
+      if (Array.isArray(first)) return first;
+      if (first && typeof first === 'object' && !Array.isArray(first)) {
+        const o = first as Record<string, unknown>;
+        if (Array.isArray(o.questions)) return o.questions;
+        if (Array.isArray(o.data)) return o.data;
+      }
+      if (typeof first === 'string') {
+        try {
+          const second = JSON.parse(first) as unknown;
+          return Array.isArray(second) ? second : null;
+        } catch {
+          return null;
+        }
+      }
+      return null;
     } catch {
       return null;
     }
   }
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const o = raw as Record<string, unknown>;
+    if (Array.isArray(o.questions)) return o.questions;
+    if (Array.isArray(o.data)) return o.data;
+  }
   return null;
+}
+
+export async function getSurveyQuestionsFromConfig(toolId?: string): Promise<unknown[] | null> {
+  const row = await getConfigRow(toolId);
+  const raw = row?.survey_questions;
+  return parseSurveyQuestionsRaw(raw);
 }
 
 export async function setSurveyQuestionsInConfig(questions: unknown[], toolId?: string): Promise<void> {
