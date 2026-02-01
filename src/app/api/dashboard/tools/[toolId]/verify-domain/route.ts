@@ -31,10 +31,12 @@ export async function POST(
 
   try {
     const formSettings = await getFormSettings(toolId);
-    const raw = typeof formSettings?.publicBaseUrl === 'string' ? formSettings.publicBaseUrl.trim() : '';
+    const raw =
+      (typeof formSettings?.pendingBaseUrl === 'string' ? formSettings.pendingBaseUrl.trim() : '') ||
+      (typeof formSettings?.publicBaseUrl === 'string' ? formSettings.publicBaseUrl.trim() : '');
     if (!raw) {
       return NextResponse.json(
-        { error: 'No custom domain set. Save a Public link base URL first.' },
+        { error: 'No custom domain set. Add a Public link base URL first, then Verify.' },
         { status: 400 }
       );
     }
@@ -76,8 +78,19 @@ export async function POST(
 
     if (verified) {
       const existing = (await getFormSettings(toolId)) ?? {};
+      const list = (Array.isArray(existing.publicBaseUrls) ? existing.publicBaseUrls : []) as string[];
+      const normalized = (typeof existing.publicBaseUrl === 'string' && existing.publicBaseUrl.trim() && !list.length)
+        ? [existing.publicBaseUrl.trim()]
+        : list;
+      const nextList = normalized.includes(raw) ? normalized : [...normalized, raw];
       await setFormSettings(
-        { ...existing, domainVerified: true, domainVerifiedDomain: hostname },
+        {
+          ...existing,
+          publicBaseUrls: nextList,
+          pendingBaseUrl: undefined,
+          domainVerified: true,
+          domainVerifiedDomain: hostname,
+        },
         toolId
       );
     }

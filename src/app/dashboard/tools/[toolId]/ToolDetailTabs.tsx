@@ -7,7 +7,7 @@ import type { Tool } from '@/lib/supabase/types';
 import ToolSettingsClient from './settings/ToolSettingsClient';
 import ToolSurveyClient from './survey/ToolSurveyClient';
 import ToolPricingClient from './pricing/ToolPricingClient';
-import { ExternalLink, Copy, Check, Loader2, Share2, Pencil, CodeXml, BookOpen } from 'lucide-react';
+import { ExternalLink, Copy, Check, Loader2, Share2, Pencil, CodeXml, BookOpen, X } from 'lucide-react';
 import { CloneToolButton } from '@/components/CloneToolButton';
 
 type TabId = 'overview' | 'settings' | 'survey' | 'pricing';
@@ -16,9 +16,12 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
   const router = useRouter();
   const [tab, setTab] = useState<TabId>('overview');
   const toolId = tool.id;
-  const [publicBaseUrl, setPublicBaseUrl] = useState<string>('');
+  const [publicBaseUrls, setPublicBaseUrls] = useState<string[]>([]);
+  const [pendingBaseUrl, setPendingBaseUrl] = useState<string>('');
+  const [addInputValue, setAddInputValue] = useState<string>('');
   const [copyId, setCopyId] = useState<string | null>(null);
   const [overviewMounted, setOverviewMounted] = useState(false);
+  const [removingUrl, setRemovingUrl] = useState<string | null>(null);
   const [slugInput, setSlugInput] = useState(tool.slug);
   const [savingSlug, setSavingSlug] = useState(false);
   const [slugError, setSlugError] = useState<string | null>(null);
@@ -55,18 +58,18 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
         const res = await fetch(`/api/dashboard/tools/${toolId}/form-settings`);
         if (!res.ok || cancelled) return;
         const data = await res.json();
-        const base = data.formSettings?.publicBaseUrl ?? '';
+        const urls = Array.isArray(data.formSettings?.publicBaseUrls) ? data.formSettings.publicBaseUrls : [];
+        const pending = typeof data.formSettings?.pendingBaseUrl === 'string' ? data.formSettings.pendingBaseUrl.trim() : '';
         const verified = data.formSettings?.domainVerified === true;
         const verifiedDomain = typeof data.formSettings?.domainVerifiedDomain === 'string' ? data.formSettings.domainVerifiedDomain : null;
         if (!cancelled) {
-          setPublicBaseUrl(base);
+          setPublicBaseUrls(urls);
+          setPendingBaseUrl(pending);
           setDomainVerified(verified);
           setDomainVerifiedDomain(verifiedDomain);
         }
       } catch {
-        if (!cancelled && typeof window !== 'undefined') {
-          setPublicBaseUrl(window.location.origin);
-        }
+        if (!cancelled) setPublicBaseUrls([]);
       }
     })();
     return () => { cancelled = true; };
@@ -78,7 +81,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
   const surveyPath = `/t/${tool.slug}`;
   const quoteResultPath = `/t/${tool.slug}/quote/[id]`;
   const origin = overviewMounted && typeof window !== 'undefined' ? window.location.origin : '';
-  const baseUrl = publicBaseUrl || origin;
+  const baseUrl = publicBaseUrls[0] || pendingBaseUrl || origin;
   const surveyFullUrl = baseUrl ? `${baseUrl}${(surveyPathOrgScoped ?? surveyPath)}` : (surveyPathOrgScoped ?? surveyPath);
   const quoteResultFullUrl = baseUrl ? `${baseUrl}${(quoteResultPathOrgScoped ?? quoteResultPath)}` : (quoteResultPathOrgScoped ?? quoteResultPath);
   // Embed snippet: prefer org-scoped so quotes never associate with the wrong org when slugs are reused
@@ -144,49 +147,76 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
     }
   };
 
-  const saveBaseUrl = async () => {
+  const addBaseUrl = async () => {
     setBaseUrlMessage(null);
     setDnsInstructions(null);
     setVercelDomainError(null);
     setVerifyResult(null);
-    setDomainVerified(false);
-    setDomainVerifiedDomain(null);
-    const trimmed = publicBaseUrl.trim();
-    if (trimmed) {
-      try {
-        const u = new URL(trimmed);
-        if (u.protocol !== 'https:') {
-          setBaseUrlMessage({ type: 'error', text: 'URL must start with https://' });
-          return;
-        }
-      } catch {
-        setBaseUrlMessage({ type: 'error', text: 'Please enter a valid URL (e.g. https://quote.yourcompany.com)' });
+    const trimmed = addInputValue.trim();
+    if (!trimmed) {
+      setBaseUrlMessage({ type: 'error', text: 'Enter a URL to add' });
+      return;
+    }
+    try {
+      const u = new URL(trimmed);
+      if (u.protocol !== 'https:') {
+        setBaseUrlMessage({ type: 'error', text: 'URL must start with https://' });
         return;
       }
+    } catch {
+      setBaseUrlMessage({ type: 'error', text: 'Please enter a valid URL (e.g. https://quote.yourcompany.com)' });
+      return;
     }
     setSavingBaseUrl(true);
     try {
       const res = await fetch(`/api/dashboard/tools/${toolId}/form-settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ publicBaseUrl: trimmed }),
+        body: JSON.stringify({ addBaseUrl: trimmed }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setBaseUrlMessage({ type: 'error', text: data.error || 'Failed to save' });
+        setBaseUrlMessage({ type: 'error', text: data.error || 'Failed to add' });
         return;
       }
-      setBaseUrlMessage({ type: 'success', text: 'Base URL saved' });
-      if (data.dnsInstructions) {
-        setDnsInstructions(data.dnsInstructions);
-      }
-      if (data.vercelDomainError) {
-        setVercelDomainError(data.vercelDomainError);
-      }
+      setPendingBaseUrl(trimmed);
+      setAddInputValue('');
+      setBaseUrlMessage({ type: 'success', text: data.message || 'Add DNS records, then click Verify.' });
+      if (data.dnsInstructions) setDnsInstructions(data.dnsInstructions);
+      if (data.vercelDomainError) setVercelDomainError(data.vercelDomainError);
     } catch {
-      setBaseUrlMessage({ type: 'error', text: 'Failed to save base URL' });
+      setBaseUrlMessage({ type: 'error', text: 'Failed to add URL' });
     } finally {
       setSavingBaseUrl(false);
+    }
+  };
+
+  const removeBaseUrl = async (url: string) => {
+    setBaseUrlMessage(null);
+    setRemovingUrl(url);
+    try {
+      const res = await fetch(`/api/dashboard/tools/${toolId}/form-settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ removeBaseUrl: url }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setBaseUrlMessage({ type: 'error', text: data.error || 'Failed to remove' });
+        return;
+      }
+      setPublicBaseUrls((prev) => prev.filter((u) => u !== url));
+      if (pendingBaseUrl === url) {
+        setPendingBaseUrl('');
+        setDnsInstructions(null);
+        setVercelDomainError(null);
+        setVerifyResult(null);
+      }
+      setBaseUrlMessage({ type: 'success', text: data.message || 'URL removed from setup and from Vercel.' });
+    } catch {
+      setBaseUrlMessage({ type: 'error', text: 'Failed to remove URL' });
+    } finally {
+      setRemovingUrl(null);
     }
   };
 
@@ -201,9 +231,15 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
         return;
       }
       setVerifyResult({ verified: data.verified, message: data.message });
-      if (data.verified && data.domainVerifiedDomain) {
+      if (data.verified) {
+        if (pendingBaseUrl) {
+          setPublicBaseUrls((prev) => (prev.includes(pendingBaseUrl) ? prev : [...prev, pendingBaseUrl]));
+          setPendingBaseUrl('');
+          setDnsInstructions(null);
+          setVercelDomainError(null);
+        }
         setDomainVerified(true);
-        setDomainVerifiedDomain(data.domainVerifiedDomain);
+        setDomainVerifiedDomain(data.domainVerifiedDomain ?? null);
       }
     } catch {
       setVerifyResult({ verified: false, message: 'Failed to verify domain' });
@@ -212,11 +248,11 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
     }
   };
 
-  const hasCustomDomain =
-    publicBaseUrl.trim() &&
+  const hasPendingCustomDomain =
+    pendingBaseUrl.trim() &&
     (() => {
       try {
-        const u = new URL(publicBaseUrl.trim());
+        const u = new URL(pendingBaseUrl.trim());
         const h = u.hostname;
         return h && h !== 'localhost' && !h.endsWith('.vercel.app');
       } catch {
@@ -224,20 +260,20 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
       }
     })();
 
-  const currentHostname = hasCustomDomain
+  const pendingHostname = hasPendingCustomDomain
     ? (() => {
         try {
-          return new URL(publicBaseUrl.trim()).hostname;
+          return new URL(pendingBaseUrl.trim()).hostname;
         } catch {
           return null;
         }
       })()
     : null;
-  const isVerified =
+  const isPendingVerified =
     domainVerified &&
     domainVerifiedDomain &&
-    currentHostname &&
-    domainVerifiedDomain.toLowerCase() === currentHostname.toLowerCase();
+    pendingHostname &&
+    domainVerifiedDomain.toLowerCase() === pendingHostname.toLowerCase();
 
   const copyToClipboard = async (text: string, id: string) => {
     try {
@@ -390,26 +426,27 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
           </div>
 
           <div className="rounded-xl border border-border bg-card p-4">
-            <h2 className="text-sm font-medium text-foreground">Public link base URL</h2>
+            <h2 className="text-sm font-medium text-foreground">Public link base URLs</h2>
             <p className="mt-0.5 text-sm text-muted-foreground mb-3">
-              Set the base URL for your public links (e.g. your production domain). Leave blank to use this site.
+              Add custom domains for your public links. Each URL is added to Vercel; add the DNS records, then Verify. First URL is used for survey and embed links.
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <input
                 type="url"
-                value={publicBaseUrl}
-                onChange={(e) => setPublicBaseUrl(e.target.value)}
-                placeholder="e.g. https://quote.yourcompany.com (leave blank to use this site)"
+                value={addInputValue}
+                onChange={(e) => setAddInputValue(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addBaseUrl()}
+                placeholder="e.g. https://quote.yourcompany.com"
                 className="flex-1 min-w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               />
               <button
                 type="button"
-                onClick={saveBaseUrl}
-                disabled={savingBaseUrl}
+                onClick={addBaseUrl}
+                disabled={savingBaseUrl || !addInputValue.trim()}
                 className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
               >
                 {savingBaseUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                {savingBaseUrl ? 'Saving…' : (publicBaseUrl.trim() ? 'Add' : 'Save')}
+                Add
               </button>
             </div>
             {baseUrlMessage && (
@@ -417,46 +454,88 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
                 {baseUrlMessage.text}
               </p>
             )}
-            {hasCustomDomain && dnsInstructions && (
-              <div className="mt-4 rounded-md border border-border bg-muted/30 p-3 text-sm">
-                <p className="font-medium text-foreground mb-2">DNS records (add at your registrar)</p>
-                <div className="space-y-1.5 font-mono text-xs">
-                  <p><span className="text-muted-foreground">CNAME:</span> {dnsInstructions.cname.host} → {dnsInstructions.cname.value}</p>
-                  <p><span className="text-muted-foreground">A:</span> {dnsInstructions.a.host} → {dnsInstructions.a.value}</p>
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Add these records at your registrar, then click Verify below.
-                </p>
-                <button
-                  type="button"
-                  onClick={verifyRecords}
-                  disabled={verifyingDomain}
-                  className="mt-3 inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
-                >
-                  {verifyingDomain ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                  Verify
-                </button>
-                {verifyResult && (
-                  <p className={`mt-2 text-xs ${verifyResult.verified ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
-                    {verifyResult.message}
-                  </p>
-                )}
-                {isVerified && currentHostname && (
-                  <span className="inline-flex items-center gap-1 mt-2 rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
-                    <Check className="h-3 w-3" /> Verified: {currentHostname}
-                  </span>
-                )}
-              </div>
+            {publicBaseUrls.length > 0 && (
+              <ul className="mt-4 space-y-2">
+                {publicBaseUrls.map((url) => (
+                  <li
+                    key={url}
+                    className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-sm"
+                  >
+                    <code className="flex-1 min-w-0 truncate text-muted-foreground">{url}</code>
+                    <span className="inline-flex items-center gap-1 shrink-0 rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
+                      <Check className="h-3 w-3" /> Verified
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeBaseUrl(url)}
+                      disabled={removingUrl === url}
+                      className="shrink-0 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                      title="Remove from setup and from Vercel"
+                    >
+                      {removingUrl === url ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
-            {hasCustomDomain && vercelDomainError && (
-              <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">{vercelDomainError}</p>
-            )}
-            {hasCustomDomain && isVerified && currentHostname && !dnsInstructions && (
-              <div className="mt-4">
-                <span className="inline-flex items-center gap-1 rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-400">
-                  <Check className="h-3.5 w-3.5" /> Verified: {currentHostname}
-                </span>
-              </div>
+            {pendingBaseUrl && (
+              <>
+                {dnsInstructions ? (
+                  <div className="mt-4 rounded-md border border-border bg-muted/30 p-3 text-sm">
+                    <p className="font-medium text-foreground mb-2">DNS records for {pendingBaseUrl} (add at your registrar)</p>
+                    <div className="space-y-1.5 font-mono text-xs">
+                      <p><span className="text-muted-foreground">CNAME:</span> {dnsInstructions.cname.host} → {dnsInstructions.cname.value}</p>
+                      <p><span className="text-muted-foreground">A:</span> {dnsInstructions.a.host} → {dnsInstructions.a.value}</p>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Add these records at your registrar, then click Verify below.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={verifyRecords}
+                      disabled={verifyingDomain}
+                      className="mt-3 inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
+                    >
+                      {verifyingDomain ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                      Verify
+                    </button>
+                    {verifyResult && (
+                      <p className={`mt-2 text-xs ${verifyResult.verified ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
+                        {verifyResult.message}
+                      </p>
+                    )}
+                    {isPendingVerified && pendingHostname && (
+                      <span className="inline-flex items-center gap-1 mt-2 rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
+                        <Check className="h-3 w-3" /> Verified: {pendingHostname}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-md border border-border bg-muted/30 p-3 text-sm">
+                    <p className="font-medium text-foreground mb-2">Pending: {pendingBaseUrl}</p>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Add the DNS records at your registrar (from Vercel Dashboard or add the URL again to see them), then click Verify.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={verifyRecords}
+                      disabled={verifyingDomain}
+                      className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
+                    >
+                      {verifyingDomain ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                      Verify
+                    </button>
+                    {verifyResult && (
+                      <p className={`mt-2 text-xs ${verifyResult.verified ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
+                        {verifyResult.message}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {vercelDomainError && (
+                  <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">{vercelDomainError}</p>
+                )}
+              </>
             )}
           </div>
 

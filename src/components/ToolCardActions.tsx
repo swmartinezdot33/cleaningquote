@@ -63,7 +63,8 @@ export function ToolCardActions({ toolId, toolName, toolSlug, toolOrgId }: ToolC
     try {
       const res = await fetch(`/api/dashboard/tools/${toolId}/form-settings`);
       const data = await res.ok ? await res.json() : {};
-      const embedBaseUrl = data.formSettings?.publicBaseUrl || baseUrl;
+      const urls = data.formSettings?.publicBaseUrls;
+      const embedBaseUrl = (Array.isArray(urls) && urls[0]) || data.formSettings?.publicBaseUrl || baseUrl;
       const snippet = `<!-- CleanQuote.io embed - public link: ${embedBaseUrl}, slug: ${toolSlug} -->
 <div id="cleaning-quote-widget"></div>
 <script src="${embedBaseUrl}/widget.js"
