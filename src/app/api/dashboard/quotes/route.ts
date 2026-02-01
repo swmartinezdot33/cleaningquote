@@ -6,6 +6,24 @@ import { getOrgsForDashboard, isSuperAdminEmail } from '@/lib/org-auth';
 
 export const dynamic = 'force-dynamic';
 
+/** Derive selected price range from stored payload when price_low/price_high are null (e.g. older quotes). */
+function getSelectedRangeFromPayload(payload: any): { low: number; high: number } | null {
+  if (!payload?.ranges || payload.serviceType == null) return null;
+  const ranges = payload.ranges as Record<string, { low: number; high: number } | undefined>;
+  const frequency = (payload.frequency ?? '') as string;
+  const serviceType = String(payload.serviceType ?? '').toLowerCase();
+  if (frequency === 'weekly' && ranges.weekly) return ranges.weekly;
+  if (frequency === 'bi-weekly' && ranges.biWeekly) return ranges.biWeekly;
+  if ((frequency === 'four-week' || frequency === 'monthly') && ranges.fourWeek) return ranges.fourWeek;
+  if (frequency === 'one-time' || !frequency) {
+    if (serviceType === 'initial' && ranges.initial) return ranges.initial;
+    if (serviceType === 'deep' && ranges.deep) return ranges.deep;
+    if (serviceType === 'general' && ranges.general) return ranges.general;
+    if ((serviceType === 'move-in' || serviceType === 'move-out') && ranges.moveInOutBasic) return ranges.moveInOutBasic;
+  }
+  return null;
+}
+
 /**
  * GET /api/dashboard/quotes
  * List quotes for the current user's tools (from Supabase).
@@ -57,7 +75,7 @@ export async function GET(request: NextRequest) {
         } else {
           const result = await admin
             .from('quotes')
-            .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at')
+            .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at, payload')
             .in('tool_id', toolIdsForOrg)
             .order('created_at', { ascending: false })
             .limit(500);
@@ -67,7 +85,7 @@ export async function GET(request: NextRequest) {
       } catch {
         const result = await supabase
           .from('quotes')
-          .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at')
+          .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at, payload')
           .order('created_at', { ascending: false })
           .limit(500);
         quotes = result.data ?? [];
@@ -76,7 +94,7 @@ export async function GET(request: NextRequest) {
     } else {
       const result = await supabase
         .from('quotes')
-        .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at')
+        .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at, payload')
         .order('created_at', { ascending: false })
         .limit(500);
       quotes = result.data ?? [];
@@ -93,8 +111,20 @@ export async function GET(request: NextRequest) {
 
     const withToolInfo = filtered.map((q: any) => {
       const tool = q.tool_id ? toolMap.get(q.tool_id) : null;
+      let priceLow = q.price_low;
+      let priceHigh = q.price_high;
+      if ((priceLow == null && priceHigh == null) && q.payload) {
+        const range = getSelectedRangeFromPayload(q.payload);
+        if (range) {
+          priceLow = range.low;
+          priceHigh = range.high;
+        }
+      }
+      const { payload: _payload, ...rest } = q;
       return {
-        ...q,
+        ...rest,
+        price_low: priceLow,
+        price_high: priceHigh,
         toolName: tool?.name ?? 'Legacy',
         toolSlug: tool?.slug ?? null,
       };

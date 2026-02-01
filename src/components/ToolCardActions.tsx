@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ExternalLink, Share2, Copy, CopyPlus, Trash2, Check, CodeXml } from 'lucide-react';
+import Link from 'next/link';
+import { ExternalLink, Share2, CopyPlus, Trash2, Check, CodeXml, Pencil } from 'lucide-react';
 interface Org {
   id: string;
   name: string;
@@ -153,6 +154,13 @@ export function ToolCardActions({ toolId, toolName, toolSlug, toolOrgId }: ToolC
 
   return (
     <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+      <Link
+        href={`/dashboard/tools/${toolId}`}
+        className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+        title="Edit tool"
+      >
+        <Pencil className="h-4 w-4" />
+      </Link>
       <IconButton onClick={() => window.open(surveyUrl, '_blank')} title="Open quote form">
         <ExternalLink className="h-4 w-4" />
       </IconButton>

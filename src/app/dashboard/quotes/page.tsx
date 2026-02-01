@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { FileDown, ExternalLink, Loader2, ArrowRightLeft, Search, Filter, Trash2 } from 'lucide-react';
+import { FileDown, ExternalLink, Loader2, ArrowRightLeft, Search, Filter, Trash2, Copy } from 'lucide-react';
 
 interface QuoteRow {
   id: string;
@@ -77,6 +77,7 @@ export default function DashboardQuotesPage() {
   const [filterToolId, setFilterToolId] = useState<string>('');
   const [filterServiceType, setFilterServiceType] = useState<string>('');
   const [filterSearch, setFilterSearch] = useState<string>('');
+  const [copiedQuoteId, setCopiedQuoteId] = useState<string | null>(null);
 
   const loadQuotes = () => {
     Promise.all([
@@ -138,6 +139,14 @@ export default function DashboardQuotesPage() {
   };
 
   const canDelete = isSuperAdmin || isOrgAdmin;
+
+  const copyQuoteLink = (q: QuoteRow) => {
+    const url = `${baseUrl}/quote/${q.quote_id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedQuoteId(q.quote_id);
+      setTimeout(() => setCopiedQuoteId(null), 2000);
+    });
+  };
 
   const confirmDeleteQuote = async () => {
     if (!deleteQuote) return;
@@ -386,7 +395,7 @@ export default function DashboardQuotesPage() {
                     </td>
                     <td className="px-4 py-3">{formatPrice(q.price_low, q.price_high)}</td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <a
                           href={`${baseUrl}/quote/${q.quote_id}`}
                           target="_blank"
@@ -395,6 +404,21 @@ export default function DashboardQuotesPage() {
                         >
                           View <ExternalLink className="h-3.5 w-3.5" />
                         </a>
+                        <button
+                          type="button"
+                          onClick={() => copyQuoteLink(q)}
+                          className="inline-flex items-center gap-1 rounded border border-border bg-muted/50 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted"
+                          title="Copy quote link"
+                        >
+                          {copiedQuoteId === q.quote_id ? (
+                            <>Copied!</>
+                          ) : (
+                            <>
+                              <Copy className="h-3.5 w-3.5" />
+                              Copy link
+                            </>
+                          )}
+                        </button>
                         {isSuperAdmin && (
                           <button
                             type="button"
