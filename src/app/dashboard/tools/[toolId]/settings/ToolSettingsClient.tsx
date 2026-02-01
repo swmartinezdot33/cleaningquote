@@ -767,7 +767,7 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                       <input
                         type="checkbox"
                         id="openSurveyInNewTab"
-                        checked={form.openSurveyInNewTab === 'true'}
+                        checked={String(form.openSurveyInNewTab) === 'true'}
                         onChange={(e) => setForm((f) => ({ ...f, openSurveyInNewTab: e.target.checked ? 'true' : 'false' }))}
                         className="w-4 h-4 rounded border-input"
                       />

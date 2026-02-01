@@ -50,8 +50,13 @@ export async function POST(
         settings[key] = body[key].trim();
       }
     }
+    // Accept boolean or string 'true'/'false' (form state stores as string)
     if (typeof body.openSurveyInNewTab === 'boolean') {
       settings.openSurveyInNewTab = body.openSurveyInNewTab;
+    } else if (body.openSurveyInNewTab === 'true') {
+      settings.openSurveyInNewTab = true;
+    } else if (body.openSurveyInNewTab === 'false') {
+      settings.openSurveyInNewTab = false;
     }
     if (body.publicBaseUrl !== undefined) {
       settings.publicBaseUrl =
