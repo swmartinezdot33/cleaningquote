@@ -2853,15 +2853,15 @@ export default function SettingsPage() {
                   )}
                   </div>
 
-                {/* Open Survey in New Tab Setting */}
+                {/* Open survey in new tab after service area check success */}
                 <div className="border-t border-gray-200 pt-6 mt-6">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <Label htmlFor="open-survey-new-tab" className="text-base font-semibold">
-                        Open Survey Continuation in New Tab
+                        Open survey in new tab after service area check success
                       </Label>
                       <p className="text-sm text-gray-600 mt-2">
-                        When enabled, after the user enters their address and passes the service area check, a new tab will open to continue the survey. Their contact information will be pre-filled, and they'll skip directly to house detail questions.
+                        When enabled, after the user enters their address and passes the service area check, a new tab will open to continue the survey. Their contact information will be pre-filled, and they&apos;ll skip directly to house detail questions.
                         <br />
                         <span className="text-xs text-gray-500 italic mt-1 block">
                           Note: This feature only works when the widget is embedded in an iframe. It will not open a new tab when users access the survey directly on your website.

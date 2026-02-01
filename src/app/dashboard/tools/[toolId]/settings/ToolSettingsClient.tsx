@@ -202,9 +202,9 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
     }
   };
 
-  const saveForm = async () => {
+  const saveForm = async (messageCard: 'form' | 'service-area' = 'form') => {
     setSavingSection('form');
-    clearMessage('form');
+    clearMessage(messageCard);
     try {
       const res = await fetch(`/api/dashboard/tools/${toolId}/form-settings`, {
         method: 'POST',
@@ -213,12 +213,12 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
       });
       const data = await res.json();
       if (res.ok) {
-        setSectionMessage({ card: 'form', type: 'success', text: data.message ?? 'Form settings saved' });
+        setSectionMessage({ card: messageCard, type: 'success', text: data.message ?? 'Form settings saved' });
       } else {
-        setSectionMessage({ card: 'form', type: 'error', text: data.error ?? 'Failed to save' });
+        setSectionMessage({ card: messageCard, type: 'error', text: data.error ?? 'Failed to save' });
       }
     } catch {
-      setSectionMessage({ card: 'form', type: 'error', text: 'Failed to save form settings' });
+      setSectionMessage({ card: messageCard, type: 'error', text: 'Failed to save form settings' });
     } finally {
       setSavingSection(null);
     }
@@ -537,16 +537,6 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                     </div>
                   );
                 })()}
-                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border">
-                  <input
-                    type="checkbox"
-                    id="openSurveyInNewTab"
-                    checked={form.openSurveyInNewTab === 'true'}
-                    onChange={(e) => setForm((f) => ({ ...f, openSurveyInNewTab: e.target.checked ? 'true' : 'false' }))}
-                    className="w-4 h-4 rounded border-input"
-                  />
-                  <Label htmlFor="openSurveyInNewTab" className="text-base font-medium cursor-pointer">Open survey in new tab</Label>
-                </div>
                 <Button onClick={saveForm} disabled={savingSection === 'form'} className="w-full h-11 font-semibold flex items-center gap-2">
                   {savingSection === 'form' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Form Settings</>}
                 </Button>
@@ -760,6 +750,40 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                       )}
                     </Button>
                   )}
+                </div>
+
+                {/* Open survey in new tab after service area check success */}
+                <div className="border-t border-border pt-6 mt-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <Label htmlFor="openSurveyInNewTab" className="text-base font-semibold cursor-pointer">
+                        Open survey in new tab after service area check success
+                      </Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        When enabled, after the user enters their address and passes the service area check, a new tab opens to continue the survey. Contact info is pre-filled and they skip to house details. Only works when the widget is embedded in an iframe.
+                      </p>
+                    </div>
+                    <div className="flex-shrink-0">
+                      <input
+                        type="checkbox"
+                        id="openSurveyInNewTab"
+                        checked={form.openSurveyInNewTab === 'true'}
+                        onChange={(e) => setForm((f) => ({ ...f, openSurveyInNewTab: e.target.checked ? 'true' : 'false' }))}
+                        className="w-4 h-4 rounded border-input"
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => saveForm('service-area')}
+                    disabled={savingSection === 'form'}
+                    className="mt-4 h-10 font-semibold flex items-center gap-2"
+                  >
+                    {savingSection === 'form' ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</>
+                    ) : (
+                      <><Save className="h-4 w-4" /> Save</>
+                    )}
+                  </Button>
                 </div>
               </div>
             </CardContent>

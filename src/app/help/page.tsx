@@ -6,6 +6,16 @@ const guides = [
     title: 'Google Maps API key',
     description: 'Create a Google Cloud API key and enable Maps, Places, and Geocoding so address autocomplete and service area checks work on your quote form.',
   },
+  {
+    slug: 'ghl-integration',
+    title: 'HighLevel integration (PIT token & Location ID)',
+    description: 'Get your HighLevel Private Integration Token (PIT) and Location ID so leads, contacts, appointments, and opportunities sync with CleanQuote.',
+  },
+  {
+    slug: 'service-area-polygon',
+    title: 'Service area polygon in Google',
+    description: 'Create and draw a service area polygon in Google My Maps, export to KML, and upload it to CleanQuote to qualify leads by location.',
+  },
 ] as const;
 
 export default function HelpPage() {

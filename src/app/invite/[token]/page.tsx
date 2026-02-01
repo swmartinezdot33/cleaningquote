@@ -59,7 +59,12 @@ export default function InviteAcceptPage() {
       const res = await fetch(`/api/invite/${token}`, { method: 'POST', credentials: 'include' });
       const data = await res.json();
       if (res.ok) {
-        document.cookie = `selected_org_id=; path=/; max-age=0`;
+        // Set selected org to the one they just joined so dashboard shows correct tools
+        if (data.orgId) {
+          document.cookie = `selected_org_id=${encodeURIComponent(data.orgId)}; path=/; max-age=31536000`;
+        } else {
+          document.cookie = `selected_org_id=; path=/; max-age=0`;
+        }
         const orgParam = invite?.orgName ? `?org=${encodeURIComponent(invite.orgName)}` : '';
         router.push(`/invite/success${orgParam}`);
       } else if (res.status === 401) {

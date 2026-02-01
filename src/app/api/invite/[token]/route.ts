@@ -113,7 +113,7 @@ export async function POST(
     if (memberErr.code === '23505') {
       // @ts-expect-error Supabase types for invitations
       await admin.from('invitations').update({ accepted_at: new Date().toISOString() }).eq('id', inv2.id);
-      return NextResponse.json({ success: true, alreadyMember: true });
+      return NextResponse.json({ success: true, alreadyMember: true, orgId: inv2.org_id });
     }
     return NextResponse.json({ error: memberErr.message }, { status: 400 });
   }
@@ -121,5 +121,5 @@ export async function POST(
   // @ts-expect-error Supabase types for invitations
   await admin.from('invitations').update({ accepted_at: new Date().toISOString() }).eq('id', inv2.id);
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, orgId: inv2.org_id });
 }

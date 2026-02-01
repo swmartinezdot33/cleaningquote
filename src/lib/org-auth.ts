@@ -137,7 +137,14 @@ export async function ensureUserOrgs(userId: string, userEmail: string | undefin
       .order('name');
     const orgs = (orgsRaw ?? []) as Organization[];
     const roleByOrg = new Map(memberships.map((m) => [m.org_id, m.role]));
-    return orgs.map((o) => ({ ...o, role: roleByOrg.get(o.id) ?? 'member' }));
+    const withRoles = orgs.map((o) => ({ ...o, role: roleByOrg.get(o.id) ?? 'member' }));
+    // CRITICAL: Put orgs where user is admin first, then by name. Ensures admins see their org's tools by default.
+    return withRoles.sort((a, b) => {
+      const aAdmin = a.role === 'admin' ? 1 : 0;
+      const bAdmin = b.role === 'admin' ? 1 : 0;
+      if (bAdmin !== aAdmin) return bAdmin - aAdmin;
+      return (a.name ?? '').localeCompare(b.name ?? '');
+    });
   }
 
   const emailPart = (userEmail ?? 'user').split('@')[0];
