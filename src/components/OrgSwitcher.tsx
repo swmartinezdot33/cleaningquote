@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 interface Org {
@@ -13,11 +13,15 @@ interface Org {
 export function OrgSwitcher({
   orgs,
   selectedOrgId,
+  onAfterChange,
 }: {
   orgs: Org[];
   selectedOrgId: string | null;
+  /** Called after org switch (e.g. close mobile menu so user sees refreshed page) */
+  onAfterChange?: () => void;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [current, setCurrent] = useState(selectedOrgId);
 
   useEffect(() => {
@@ -27,7 +31,11 @@ export function OrgSwitcher({
   const handleChange = (orgId: string) => {
     setCurrent(orgId);
     document.cookie = `selected_org_id=${encodeURIComponent(orgId)}; path=/; max-age=31536000`;
-    router.refresh();
+    onAfterChange?.();
+    // Defer refresh so cookie is committed before the refetch (fixes mobile/portal not seeing new org data)
+    const path = pathname ?? '/dashboard';
+    router.push(path);
+    setTimeout(() => router.refresh(), 0);
   };
 
   if (orgs.length <= 1) {

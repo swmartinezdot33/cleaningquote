@@ -169,7 +169,7 @@ export function DashboardHeader({
               >
                 {orgs.length > 0 && (
                   <div className="py-2 border-b border-gray-200 mb-2">
-                    <OrgSwitcher orgs={orgs} selectedOrgId={selectedOrgId} />
+                    <OrgSwitcher orgs={orgs} selectedOrgId={selectedOrgId} onAfterChange={closeMobileMenu} />
                   </div>
                 )}
                 {isSuperAdmin && (
