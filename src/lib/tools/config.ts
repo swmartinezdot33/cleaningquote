@@ -68,6 +68,8 @@ export async function getToolConfigForPage(slug: string): Promise<ToolConfig | n
 /** Brand purple – default/fallback primary color across the app */
 export const DEFAULT_PRIMARY_COLOR = '#7c3aed';
 
+export { normalizeHexColor } from '@/lib/utils/color';
+
 /**
  * Server-side: get primary color for quote/summary page first paint (avoids flash of wrong color).
  * Tool-only: when slug provided use that tool's color; otherwise use brand default. No global fallback.

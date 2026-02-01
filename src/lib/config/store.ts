@@ -5,6 +5,7 @@
 
 import { createSupabaseServer, isSupabaseConfigured } from '@/lib/supabase/server';
 import type { Json, ToolConfigRow, ToolConfigUpdate } from '@/lib/supabase/types';
+import { normalizeHexColor } from '@/lib/utils/color';
 
 export type WidgetSettings = { title: string; subtitle: string; primaryColor: string };
 
@@ -91,13 +92,14 @@ function normalizeWidgetSettings(raw: unknown): WidgetSettings | null {
   const o = raw as Record<string, unknown>;
   const title = typeof o.title === 'string' ? o.title : '';
   const subtitle = typeof o.subtitle === 'string' ? o.subtitle : '';
-  const primaryColor =
+  const rawColor =
     typeof o.primaryColor === 'string'
       ? o.primaryColor
       : typeof o.primary_color === 'string'
         ? o.primary_color
         : '';
-  return { title, subtitle, primaryColor: primaryColor && /^#[0-9A-Fa-f]{6}$/.test(primaryColor) ? primaryColor : BRAND_PRIMARY_COLOR };
+  const primaryColor = normalizeHexColor(rawColor) ?? BRAND_PRIMARY_COLOR;
+  return { title, subtitle, primaryColor };
 }
 
 export async function getWidgetSettings(toolId?: string): Promise<WidgetSettings | null> {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import type { Tool, ToolConfigRow } from '@/lib/supabase/types';
 import * as configStore from '@/lib/config/store';
-import { DEFAULT_WIDGET, DEFAULT_PRIMARY_COLOR } from '@/lib/tools/config';
+import { DEFAULT_WIDGET, DEFAULT_PRIMARY_COLOR, normalizeHexColor } from '@/lib/tools/config';
 import { DEFAULT_SURVEY_QUESTIONS } from '@/lib/survey/schema';
 
 export const dynamic = 'force-dynamic';
@@ -81,10 +81,11 @@ export async function GET(
       };
     };
     const toolWidget = normalize(row?.widget_settings);
+    const primaryColor = normalizeHexColor(toolWidget?.primaryColor) ?? DEFAULT_PRIMARY_COLOR;
     const widget = {
       title: toolWidget?.title ?? '',
       subtitle: toolWidget?.subtitle ?? '',
-      primaryColor: toolWidget?.primaryColor ?? DEFAULT_PRIMARY_COLOR,
+      primaryColor,
     };
 
     const formSettings =
