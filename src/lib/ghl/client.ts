@@ -215,21 +215,6 @@ export async function createOrUpdateContact(
     // GHL 2.0 API: Use upsert endpoint - locationId is in the request body
     const url = `${GHL_API_BASE}/contacts/upsert`;
     
-    console.log('Making GHL upsert contact request:', {
-      url,
-      hasToken: !!finalToken,
-      tokenLength: finalToken?.length || 0,
-      locationId: finalLocationId,
-      payload: {
-        firstName: payload.firstName,
-        lastName: payload.lastName,
-        hasEmail: !!payload.email,
-        hasPhone: !!payload.phone,
-        tagsCount: payload.tags?.length || 0,
-        customFieldsCount: Object.keys(payload.customFields || {}).length,
-      },
-    });
-    
     const options: RequestInit = {
       method: 'POST',
       headers: {
@@ -297,9 +282,6 @@ export async function createOrUpdateContact(
       console.error('Response text:', responseText.substring(0, 500));
       throw new Error('Invalid response from GHL API - could not parse JSON');
     }
-
-    // Log the full response structure for debugging
-    console.log('GHL API upsert contact response:', JSON.stringify(data, null, 2));
 
     // Handle different response structures
     // GHL API might return { contact: { id: ... } } or { id: ... } directly
@@ -540,9 +522,6 @@ export async function createAppointment(
 
     const endpoint = `/calendars/events/appointments`;
 
-    // 1) Try WITHOUT Location-Id header (location-level PIT: token implies location)
-    console.log('[createAppointment] try WITHOUT Location-Id (location-level PIT) | locationId(in body)=' + finalLocationId + ' | calendarId=' + (payload.calendarId || '') + ' | assignedTo=' + (payload.assignedTo || ''));
-
     let response: { appointment?: GHLAppointmentResponse } | GHLAppointmentResponse;
 
     try {
@@ -563,7 +542,6 @@ export async function createAppointment(
         msg.includes('location is required') ||
         (msg.includes('location-id') && msg.includes('required'));
       if (needLocation) {
-        console.log('[createAppointment] retry WITH Location-Id=' + finalLocationId + ' (agency: location required)');
         try {
           response = await makeGHLRequest<{ appointment: GHLAppointmentResponse }>(
             endpoint,
@@ -580,7 +558,6 @@ export async function createAppointment(
       }
     }
 
-    console.log('Appointment created successfully:', (response as any)?.appointment?.id || (response as any)?.id);
     return (response as any)?.appointment || response;
   } catch (error) {
     console.error('Failed to create appointment:', {
@@ -602,8 +579,6 @@ export async function listObjectSchemas(locationId?: string): Promise<any[]> {
     let finalLocationId = locationId || (await getGHLLocationId());
     
     if (!finalLocationId) {
-      // Return empty array instead of throwing - schema listing is optional
-      console.log('⚠️ Location ID not available, skipping schema listing');
       return [];
     }
 
@@ -620,49 +595,23 @@ export async function listObjectSchemas(locationId?: string): Promise<any[]> {
 
     for (const endpoint of endpointsToTry) {
       try {
-        console.log(`Attempting to list object schemas at: ${endpoint}`);
         response = await makeGHLRequest<{ objects?: any[]; data?: any[]; schemas?: any[] }>(
           endpoint,
           'GET'
         );
-        console.log(`✅ Successfully retrieved object schemas from: ${endpoint}`);
-        console.log('Response structure:', {
-          hasObjects: !!response.objects,
-          hasData: !!response.data,
-          hasSchemas: !!response.schemas,
-          isArray: Array.isArray(response),
-          keys: Object.keys(response || {}),
-        });
-        break; // Success, exit loop
+        break;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        console.log(`❌ Failed at ${endpoint}:`, lastError.message);
-        // Continue to next endpoint
       }
     }
 
     if (!response) {
-      // Don't throw - schema listing is optional and may not be available
-      console.log('⚠️ Could not list object schemas (endpoint may not be available or may require different scopes). Will try common schema key variations.');
       return [];
     }
 
-    // GHL may return { objects: [...] } or { data: [...] } or { schemas: [...] } or array directly
     const schemas = response.objects || response.data || response.schemas || (Array.isArray(response) ? response : []);
-    
-    console.log(`Found ${schemas.length} object schemas`);
-    if (schemas.length > 0) {
-      console.log('Schema keys/names:', schemas.map((s: any) => ({
-        key: s.key || s.schemaKey || s.name,
-        name: s.name,
-        id: s.id,
-      })));
-    }
-    
     return schemas;
-  } catch (error) {
-    // Don't throw - schema listing is optional
-    console.log('⚠️ Schema listing failed (non-blocking):', error instanceof Error ? error.message : String(error));
+  } catch {
     return [];
   }
 }
@@ -691,30 +640,10 @@ export async function getObjectSchema(schemaKey: string, locationId?: string): P
 
     for (const endpoint of endpointsToTry) {
       try {
-        console.log(`Attempting to get object schema at: ${endpoint}`);
-        response = await makeGHLRequest<any>(
-          endpoint,
-          'GET'
-        );
-        console.log(`✅ Successfully retrieved object schema from: ${endpoint}`);
-        console.log('Schema structure:', {
-          hasFields: !!response.fields,
-          hasProperties: !!response.properties,
-          keys: Object.keys(response || {}),
-        });
-        if (response.fields) {
-          console.log('Schema fields:', response.fields.map((f: any) => ({
-            key: f.key || f.name,
-            name: f.name,
-            id: f.id,
-            type: f.type,
-          })));
-        }
-        break; // Success, exit loop
+        response = await makeGHLRequest<any>(endpoint, 'GET');
+        break;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        console.log(`❌ Failed at ${endpoint}:`, lastError.message);
-        // Continue to next endpoint
       }
     }
 
@@ -757,9 +686,8 @@ export async function createCustomObject(
     try {
       schemaFields = await getObjectSchema(schemaKeyToFetch, finalLocationId);
       actualSchemaKey = schemaKeyToFetch;
-      console.log('✅ Successfully retrieved object schema from: /objects/' + schemaKeyToFetch);
-    } catch (fetchErr) {
-      console.log('⚠️ Could not fetch schema (will use fallbacks):', fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
+    } catch {
+      // Use fallbacks if schema fetch fails
     }
 
     // Convert customFields object to array format required by GHL API
@@ -897,8 +825,6 @@ export async function createCustomObject(
             originalKey: ourKey,
             fieldType,
           });
-        } else {
-          console.warn(`⚠️ Field "${ourKey}" not found in schema, skipping`);
         }
       });
       
@@ -907,15 +833,6 @@ export async function createCustomObject(
         value: f.value,
         type: f.fieldType,
       }));
-      
-      const originalFieldsCount = Object.keys(data.customFields || {}).length;
-      console.log('📋 Custom fields mapping:', {
-        totalFields: customFieldsArray.length,
-        originalFieldsCount,
-        skippedFields: originalFieldsCount - customFieldsArray.length,
-        fieldKeys: customFieldsArray.map(f => f.key),
-        sampleMapping: validFields.slice(0, 3).map(f => `${f.originalKey} -> ${f.key}`),
-      });
     }
 
     const propertiesFullPath: Record<string, any> = {};
@@ -944,7 +861,6 @@ export async function createCustomObject(
         fv = asTypeValue(fv, k);
         propertiesShortName[k] = fv;
       });
-      console.log('📋 Using data.customFields as properties fallback (no schema match):', Object.keys(propertiesShortName));
     }
 
     // GHL API 2.0 (highlevel-api-docs): POST /objects/{schemaKey}/records
@@ -958,18 +874,6 @@ export async function createCustomObject(
       properties: propertiesShortName || {},
     };
 
-    console.log('📝 Creating custom object with payload:', {
-      endpoint: 'POST /objects/{schemaKey}/records',
-      locationId: finalLocationId,
-      hasContactId: !!data.contactId,
-      customFieldsCount: customFieldsArray?.length || 0,
-      customFieldsKeys: customFieldsArray?.map(f => f.key) || [],
-      customFieldsFull: customFieldsArray?.map(f => ({ key: f.key, value: f.value })) || [],
-      foundSchemaKey: actualSchemaKey,
-      hasSchemaFields: !!schemaFields,
-      schemaFieldCount: schemaFields?.fields?.length || 0,
-    });
-
     // GHL API 2.0 (highlevel-api-docs): POST /objects/{schemaKey}/records — schemaKey must include "custom_objects." prefix
     const schemaKeyForPath = (actualSchemaKey?.startsWith('custom_objects.') ? actualSchemaKey : (actualSchemaKey ? `custom_objects.${actualSchemaKey}` : null))
       || (objectType === 'quotes' || objectType === 'Quote' || objectType === 'quote' ? 'custom_objects.quotes' : `custom_objects.${objectType}`);
@@ -981,25 +885,17 @@ export async function createCustomObject(
     // 1) Try schemaKey path first (per GHL spec: /objects/{schemaKey}/records)
     const schemaKeyEndpoint = `/objects/${schemaKeyForPath}/records`;
     try {
-      console.log(`[GHL] POST ${schemaKeyEndpoint} (schemaKey per spec)`);
       response = await makeGHLRequest<{ record?: { id: string } }>(schemaKeyEndpoint, 'POST', payloadShortName);
-      console.log(`✅ Created at ${schemaKeyEndpoint}`);
     } catch (e) {
       lastError = e instanceof Error ? e : new Error(String(e));
-      console.log(`❌ ${schemaKeyEndpoint}:`, lastError.message);
-      // 2) Fallback: object ID path (some GHL setups accept /objects/{objectId}/records)
       if (objectIdToUse) {
         const objectIdEndpoint = `/objects/${objectIdToUse}/records`;
         try {
-          console.log(`[GHL] POST ${objectIdEndpoint} (objectId fallback)`);
           response = await makeGHLRequest<{ record?: { id: string } }>(objectIdEndpoint, 'POST', payloadShortName);
-          console.log(`✅ Created at ${objectIdEndpoint}`);
         } catch (e2) {
           lastError = e2 instanceof Error ? e2 : new Error(String(e2));
-          console.log(`❌ ${objectIdEndpoint}:`, lastError.message);
           try {
             response = await makeGHLRequest<{ record?: { id: string } }>(objectIdEndpoint, 'POST', payloadFullPath);
-            console.log(`✅ Created at ${objectIdEndpoint} (full paths)`);
           } catch (e3) {
             lastError = e3 instanceof Error ? e3 : new Error(String(e3));
           }
@@ -1065,25 +961,14 @@ export async function createCustomObject(
         const schemaKeyForAssociation = actualSchemaKey || 'custom_objects.quotes';
         
         if (objectIdForAssociation) {
-          console.log(`🔗 Associating custom object ${customObject.id} with contact ${data.contactId}...`, {
-            objectId: objectIdForAssociation,
-            schemaKey: schemaKeyForAssociation,
-            recordId: customObject.id,
-            contactId: data.contactId,
-          });
-          
           await associateCustomObjectWithContact(
             objectIdForAssociation,
             customObject.id,
             data.contactId,
             finalLocationId,
-            schemaKeyForAssociation // Pass the actual schema key used
+            schemaKeyForAssociation
           );
-          
-          console.log(`✅ Successfully associated custom object ${customObject.id} with contact ${data.contactId}`);
           customObject.contactId = data.contactId;
-        } else {
-          console.warn(`⚠️ Cannot associate custom object - object ID not available`);
         }
       } catch (assocError) {
         // Log as error (not just warning) so it's more visible
@@ -1140,12 +1025,9 @@ async function associateCustomObjectWithContact(
     
     for (const assocEndpoint of associationEndpoints) {
       try {
-        console.log(`🔍 Fetching association from ${assocEndpoint}...`);
         const associationsResponse = await makeGHLRequest<any>(assocEndpoint, 'GET');
-        // GHL GET /associations/key/contact_quote returns the association object { id, key, firstObjectKey, secondObjectKey }
         if (assocEndpoint.includes('key/contact_quote') && associationsResponse && typeof associationsResponse === 'object' && (associationsResponse.id || associationsResponse.associationId)) {
           associationId = associationsResponse.id || associationsResponse.associationId;
-          console.log(`✅ Found association from /associations/key/contact_quote: ${associationId}`);
           break;
         }
         let associations: any[] = [];
@@ -1174,24 +1056,14 @@ async function associateCustomObjectWithContact(
         
         if (contactQuoteAssociation) {
           associationId = contactQuoteAssociation.id || contactQuoteAssociation.associationId || contactQuoteAssociation._id;
-          console.log(`✅ Found association definition: ${associationId}`, {
-            firstEntity: contactQuoteAssociation.firstEntityKey || contactQuoteAssociation.firstEntity || contactQuoteAssociation.firstObjectKey,
-            secondEntity: contactQuoteAssociation.secondEntityKey || contactQuoteAssociation.secondEntity || contactQuoteAssociation.secondObjectKey,
-            fullAssociation: contactQuoteAssociation,
-          });
-          break; // Found it, stop searching
+          break;
         }
-      } catch (endpointError) {
-        // Try next endpoint
+      } catch {
         continue;
       }
     }
-    
-    if (!associationId) {
-      console.warn(`⚠️ No Contact-Quote association definition found. You may need to create it in GHL first.`);
-    }
-  } catch (error) {
-    console.warn(`⚠️ Could not fetch association definitions (will try without associationId):`, error instanceof Error ? error.message : String(error));
+  } catch {
+    // Try without associationId
   }
   
   // Step 2: Create the relation using the correct format
@@ -1214,37 +1086,10 @@ async function associateCustomObjectWithContact(
   for (const endpoint of endpointsToTry) {
     for (const payload of payloadsToTry) {
       try {
-        const cleanPayload = { ...payload };
-        
-        console.log(`🔗 Attempting to associate custom object with contact:`, {
-          endpoint,
-          payload: cleanPayload,
-          contactId,
-          recordId,
-        });
-        
-        const response = await makeGHLRequest<any>(
-          endpoint,
-          'POST',
-          cleanPayload
-          // locationId is in body; do not pass Location-Id header (location-level PIT can 403)
-        );
-        
-        console.log(`✅ Successfully associated custom object ${recordId} with contact ${contactId}`, {
-          endpoint,
-          payload: cleanPayload,
-          response: response,
-        });
-        return; // Success
+        await makeGHLRequest<any>(endpoint, 'POST', { ...payload });
+        return;
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        errors.push(errorMsg);
-        console.log(`❌ Failed association attempt:`, {
-          endpoint,
-          payload,
-          error: errorMsg,
-        });
-        // Try next variation
+        errors.push(error instanceof Error ? error.message : String(error));
       }
     }
   }
@@ -1287,13 +1132,9 @@ export async function getCustomObjectById(
     // Based on testing, we know the object ID is the most reliable identifier
     let objectIdToUse: string | null = null;
     
-    // Priority 1: Use known object ID for quotes (fastest, most reliable)
     if (objectType === 'quotes' || objectType === 'Quote' || objectType === 'quote') {
       objectIdToUse = KNOWN_OBJECT_IDS.quotes;
-      console.log(`✅ Using known object ID for quotes: ${objectIdToUse}`);
-    }
-    // Priority 2: Try to fetch schema to get object ID
-    else {
+    } else {
       try {
         const schemaKey = objectType.startsWith('custom_objects.') 
           ? objectType 
@@ -1301,10 +1142,9 @@ export async function getCustomObjectById(
         const schema = await getObjectSchema(schemaKey, finalLocationId);
         if (schema?.object?.id) {
           objectIdToUse = schema.object.id;
-          console.log(`✅ Found object ID from schema: ${objectIdToUse}`);
         }
-      } catch (schemaError) {
-        console.log('⚠️ Could not fetch schema to get object ID, will try fallback endpoints');
+      } catch {
+        // Use fallback endpoints
       }
     }
 
@@ -1339,17 +1179,10 @@ export async function getCustomObjectById(
     
     for (const endpoint of endpointsToTry) {
       try {
-        console.log(`Attempting to get custom object at endpoint: ${endpoint}`);
-        response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(
-          endpoint,
-          'GET'
-        );
-        console.log(`✅ Successfully retrieved custom object from: ${endpoint}`);
-        break; // Success, exit loop
+        response = await makeGHLRequest<{ [key: string]: GHLCustomObjectResponse }>(endpoint, 'GET');
+        break;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        console.log(`❌ Failed at ${endpoint}:`, lastError.message);
-        // Continue to next endpoint
       }
     }
     
@@ -1386,23 +1219,16 @@ export async function getCustomObjectByQuoteId(
     let finalLocationId = locationId || (await getGHLLocationId());
     
     if (!finalLocationId) {
-      console.log('⚠️ Location ID not available, cannot search by quote_id');
       return null;
     }
 
     const objectId = KNOWN_OBJECT_IDS.quotes;
     if (!objectId) {
-      console.log('⚠️ Known quotes object ID not available, cannot search by quote_id');
       return null;
     }
 
-    // Try to list records and search for the one with matching quote_id
-    // Note: GHL API might not support filtering, so we may need to list all and filter client-side
-    // This is a fallback method - prefer using getCustomObjectById with GHL object ID when possible
     try {
       const endpoint = `/objects/${objectId}/records?locationId=${finalLocationId}`;
-      console.log(`🔍 Attempting to search for quote by quote_id: ${quoteId}`);
-      
       const response = await makeGHLRequest<any>(endpoint, 'GET');
       
       // GHL returns records in various formats
@@ -1428,15 +1254,11 @@ export async function getCustomObjectByQuoteId(
       for (const record of records) {
         const recordQuoteId = record.properties?.quote_id || record.customFields?.quote_id || record.quote_id;
         if (recordQuoteId === quoteId) {
-          console.log(`✅ Found quote by quote_id field: ${quoteId}`);
           return record as GHLCustomObjectResponse;
         }
       }
-      
-      console.log(`⚠️ Quote with quote_id ${quoteId} not found in GHL records`);
       return null;
-    } catch (error) {
-      console.log(`⚠️ Failed to search for quote by quote_id:`, error instanceof Error ? error.message : String(error));
+    } catch {
       return null;
     }
   } catch (error) {
@@ -1491,24 +1313,18 @@ export async function createTag(tagName: string): Promise<{ id: string; name: st
       throw new Error('Location ID is required');
     }
 
-    console.log('Creating tag:', tagName);
-
     const response = await makeGHLRequest<any>(
       `/locations/${finalLocationId}/tags`,
       'POST',
       { name: tagName }
     );
 
-    console.log('Tag creation response:', response);
-
-    // Handle different response formats
     const tag = response.tag || response.data || response;
     
     if (!tag || !tag.id) {
       throw new Error('Invalid response from GHL API - no tag ID returned');
     }
 
-    console.log('Tag created successfully:', tag.id);
     return {
       id: tag.id,
       name: tag.name || tagName,
@@ -1610,8 +1426,6 @@ export async function testGHLConnectionComprehensive(token?: string): Promise<GH
         error: 'Location ID is required. Please configure it in the admin settings.' 
       };
     }
-
-    console.log(`🧪 Starting comprehensive GHL API test for location: ${locationId}`);
 
     // Define all endpoints to test - using the ACTUAL endpoints we use in production
     const endpointsToTest = [
@@ -1722,14 +1536,6 @@ export async function testGHLConnectionComprehensive(token?: string): Promise<GH
       failed,
       warnings,
     };
-
-    console.log('🧪 Comprehensive GHL API Test Results:', {
-      total,
-      passed,
-      failed,
-      warnings,
-      locationId,
-    });
 
     return {
       success: failed === 0,

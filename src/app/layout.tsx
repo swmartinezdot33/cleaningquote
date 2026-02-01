@@ -34,9 +34,6 @@ async function getLayoutData(): Promise<{ googleMapsApiKey: string; trackingCode
     ])
     googleMapsApiKey = apiKey || ""
     trackingCodes = codes || {}
-    if (process.env.NODE_ENV === 'development' && trackingCodes.customHeadCode) {
-      console.log('📊 Custom head code loaded from KV (runs on quote summary page only)')
-    }
   } catch (error) {
     console.error("Layout: failed to load KV (Google Maps key / tracking):", error)
   }

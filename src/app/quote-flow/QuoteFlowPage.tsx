@@ -699,8 +699,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         const startAt = params.get('startAt'); // New parameter to specify starting step
 
         if (contactId) {
-          console.log('Found contactId in URL (contactId/ghlContactId):', contactId);
-          
           // Fetch contact data
           const fetchAndPreFillContact = async () => {
             try {
@@ -708,7 +706,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
               const result = await response.json();
 
               if (result.success && result.contact) {
-                console.log('Fetched contact data:', result.contact);
                 const contact = result.contact;
 
                 // Pre-fill form fields using setValue
@@ -731,12 +728,10 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                 if (addressQuestionIndex !== -1) {
                   if (fromOutOfService || startAt === 'address') {
                     // Coming from out-of-service or "Get Another Quote": start AT the address question
-                    console.log('Starting at address question (fromOutOfService or startAt=address)');
                     setCurrentStep(addressQuestionIndex);
                     // Don't mark service area as checked - they need to check a new address
                   } else {
                     // Coming from new tab feature: skip address question and go to next question
-                    console.log('Coming from new tab, skipping address question');
                     setServiceAreaChecked(true);
                     const nextIndex = addressQuestionIndex + 1;
                     if (nextIndex < questions.length) {
@@ -745,7 +740,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                   }
                 }
               } else {
-                console.warn('Failed to fetch contact:', result.message);
                 // Continue with normal flow
               }
             } catch (error) {
@@ -759,7 +753,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           // Handle startAt=address even without contactId (just skip to address step)
           const addressQuestionIndex = questions.findIndex(q => q.type === 'address');
           if (addressQuestionIndex !== -1) {
-            console.log('Starting at address question (startAt=address without contactId)');
             setCurrentStep(addressQuestionIndex);
           }
         }
@@ -919,8 +912,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
       if (isEmpty) {
         // Trigger validation to show error message
         await trigger(fieldName as any);
-        const fieldError = (errors as any)[fieldName]?.message;
-        console.warn('Validation failed - empty value for required field:', fieldName, 'Current value:', currentValue);
         
         // Scroll to the error message to make it more visible
         setTimeout(() => {
@@ -938,10 +929,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
     const isValid = await trigger(fieldName as any);
     
     if (!isValid) {
-      const fieldError = (errors as any)[fieldName]?.message;
-      console.warn('Validation failed for:', fieldName, '(original ID:', currentQuestion.id + ')', 'Current value:', currentValue);
-      console.warn('Field error:', fieldError);
-      
       // Scroll to the error message to make it more visible
       setTimeout(() => {
         const errorElement = document.querySelector(`[data-field-error="${fieldName}"]`);
@@ -987,7 +974,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           });
           const result = await response.json();
           if (result.success && result.ghlContactId) {
-            console.log('Contact created in GHL after email step:', result.ghlContactId);
             setGHLContactId(result.ghlContactId);
           }
         } catch (contactError) {
@@ -1003,7 +989,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
       if (currentQuestion.type === 'address' && addressCoordinates && !serviceAreaChecked && !serviceAreaCheckInProgress.current) {
         // Validate coordinates are not 0,0 (invalid/unknown location)
         if (addressCoordinates.lat === 0 && addressCoordinates.lng === 0) {
-          console.warn('Invalid coordinates (0,0) - skipping service area check. Address may need to be geocoded.');
           setServiceAreaChecked(true);
           setDirection(1);
           
@@ -1021,7 +1006,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         setIsLoading(true);
         serviceAreaCheckInProgress.current = true;
         try {
-          console.log('Checking service area with coordinates:', addressCoordinates);
           const response = await fetch('/api/service-area/check', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1032,7 +1016,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           });
 
           const result = await response.json();
-          console.log('Service area check result:', result);
 
           if (!result.inServiceArea) {
             const data = getValues();
@@ -1095,14 +1078,11 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           }
 
           // In-service area - check if we should open survey in new tab
-          console.log('Service area check - in-service. openSurveyInNewTab:', openSurveyInNewTab, 'createdContactId:', createdContactId);
-
           // Conversion fires only on /quote/[id] after form submit – not on landing.
           // Only open new tab if we're in an iframe (widget mode)
           const isInIframe = window.self !== window.top;
           
           if (openSurveyInNewTab && createdContactId && !tabOpened && isInIframe) {
-            console.log('Opening survey continuation in new tab with contactId:', createdContactId);
             // Mark as checked and tab opened BEFORE opening tab to prevent duplicate opens
             setServiceAreaChecked(true);
             setTabOpened(true);
@@ -1259,7 +1239,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           timestamp: Date.now(),
         }, origin);
       } catch (error) {
-        console.warn('Failed to send tracking event:', error);
       }
     }
   };
@@ -1388,8 +1367,8 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                 type: 'widget:navigate',
                 url: `${window.location.origin}${quoteUrl}`,
               }, '*'); // Use '*' for cross-origin iframe support
-            } catch (e) {
-              console.log('Could not notify parent of navigation:', e);
+            } catch {
+              // Parent may not accept postMessage
             }
           }
           // Update iframe location
@@ -1432,7 +1411,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         setSelectedFrequency('bi-weekly');
       }
       
-      console.log('Quote result - Service Type:', formData.serviceType, 'Frequency:', formData.frequency, 'Is One-Time Service:', isOneTimeServiceType);
       // Store house details for display
       setHouseDetails({
         squareFeet: formData.squareFeet || '',
@@ -1869,14 +1847,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
 
                           const selectedFreqInfo = getFrequencyInfo(selectedFrequency);
                           const selectedServiceInfo = getServiceTypeInfo(selectedServiceType, selectedFrequency);
-                          
-                          // Debug logging for frequency detection
-                          console.log('🔍 Frequency display debug:', {
-                            selectedFrequency,
-                            selectedServiceType,
-                            selectedFreqInfo: selectedFreqInfo ? { name: selectedFreqInfo.name, hasRange: !!selectedFreqInfo.range } : null,
-                            selectedServiceInfo: selectedServiceInfo ? { name: selectedServiceInfo.name } : null,
-                          });
                           
                           // Determine if this is a one-time service
                           const isOneTime = isOneTimeService(selectedServiceType) || selectedFrequency === 'one-time';
@@ -2630,7 +2600,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                         onChange={async (value, placeDetails) => {
                           // Update form value using sanitized field name
                           const fieldName = getFormFieldName(currentQuestion.id);
-                          console.log('Address onChange called:', { fieldName, value, hasPlaceDetails: !!placeDetails });
                           
                           // Set the form value and trigger validation immediately
                           // Use shouldValidate: true to mark the field as valid
@@ -2647,7 +2616,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                           if (placeDetails) {
                             const { lat, lng } = placeDetails;
                             if (lat && lng && lat !== 0 && lng !== 0 && !isNaN(lat) && !isNaN(lng)) {
-                              console.log('Setting valid address coordinates:', { lat, lng, address: value });
                               setAddressCoordinates({ lat, lng });
                               // Reset service area check flag when new coordinates are set
                               setServiceAreaChecked(false);
@@ -2665,10 +2633,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                 // Wait a moment to ensure state is updated, then check service area and advance
                                 autoAdvanceTimeoutRef.current = setTimeout(async () => {
                                   // Prevent concurrent checks
-                                  if (serviceAreaCheckInProgress.current) {
-                                    console.log('Service area check already in progress, skipping');
-                                    return;
-                                  }
+                                  if (serviceAreaCheckInProgress.current) return;
                                   serviceAreaCheckInProgress.current = true;
                                   const data = getValues();
                                   // Contact was created after email step; use ghlContactId from state
@@ -2676,20 +2641,16 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
 
                                   // Run service area check before auto-advancing
                                   try {
-                                    console.log('Auto-advance: Checking service area with coordinates:', { lat, lng });
                                     const response = await fetch('/api/service-area/check', {
                                       method: 'POST',
                                       headers: { 'Content-Type': 'application/json' },
                                       body: JSON.stringify({ lat, lng }),
                                     });
                                     const result = await response.json();
-                                    console.log('Auto-advance: Service area check result:', result);
                                     
                                     if (result.inServiceArea) {
                                       // Conversion fires only on /quote/[id] after form submit – not on landing.
-
                                       // In service area - check if we should open survey in new tab
-                                      console.log('Auto-advance: In-service area. openSurveyInNewTab:', openSurveyInNewTab, 'createdContactId:', createdContactId);
                                       // Mark as checked BEFORE opening tab to prevent duplicate opens
                                       setServiceAreaChecked(true);
                                       
@@ -2697,7 +2658,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                       const isInIframe = window.self !== window.top;
                                       
                                       if (openSurveyInNewTab && createdContactId && !tabOpened && isInIframe) {
-                                        console.log('Auto-advance: Opening survey continuation in new tab with contactId:', createdContactId);
                                         setTabOpened(true);
                                         window.open(`/?contactId=${createdContactId}`, '_blank');
                                         return;
@@ -2707,7 +2667,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                       nextStep();
                                     } else {
                                       // Out of service area - redirect directly without advancing
-                                      console.log('Auto-advance: Address is out of service area - redirecting');
                                       const addressFieldName = getFormFieldName(currentQuestion.id);
                                       const addressValue = data[addressFieldName] || data.address || '';
                                       if (createdContactId) {
@@ -2773,8 +2732,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                   }
                                 }, 200);
                               }
-                            } else {
-                              console.warn('Invalid coordinates received, not setting:', { lat, lng, address: value });
                             }
                           }
                         }}

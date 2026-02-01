@@ -63,7 +63,6 @@ export async function GET(
         const st = String(payload.serviceType || '').toLowerCase().trim();
         const normFreq = oneTimeTypes.includes(st) ? '' : (payload.frequency ?? '');
         const labels = await getQuoteLabelsFromSurvey(payload.serviceType, normFreq, payload.toolId);
-        console.log('✅ Serving quote from Supabase:', quoteId);
         return NextResponse.json({
           ...payload,
           quoteId,
@@ -86,7 +85,6 @@ export async function GET(
         const st = String(parsed.serviceType || '').toLowerCase().trim();
         const normFreq = oneTimeTypes.includes(st) ? '' : (parsed.frequency ?? '');
         const labels = await getQuoteLabelsFromSurvey(parsed.serviceType, normFreq, parsed.toolId);
-        console.log('✅ Serving quote from KV cache:', quoteId);
         return NextResponse.json({
           ...parsed,
           quoteId,
@@ -106,62 +104,32 @@ export async function GET(
         try {
           const kv = getKV();
           const key = `quote:${quoteId}`;
-          console.log(`🔍 Attempting KV lookup for key: ${key}`);
           const stored = await kv.get(key);
-          console.log(`🔍 KV lookup result for ${key}:`, {
-            found: !!stored,
-            type: typeof stored,
-            isString: typeof stored === 'string',
-            length: stored ? (typeof stored === 'string' ? stored.length : 'not string') : 0,
-          });
           if (stored && typeof stored === 'string') {
-            const parsed = JSON.parse(stored);
-            console.log(`✅ Found quote data in KV storage with key: ${key}`);
-            return parsed;
-          } else if (stored) {
-            // KV might return the parsed object directly
-            console.log(`✅ Found quote data in KV storage (already parsed) with key: ${key}`);
+            return JSON.parse(stored);
+          }
+          if (stored) {
             return stored as any;
           }
-          console.log(`⚠️ KV lookup returned null/undefined for key: ${key}`);
           return null;
-        } catch (kvError) {
-          const errorMsg = kvError instanceof Error ? kvError.message : String(kvError);
-          // If KV is not configured, this is expected in local dev
-          if (errorMsg.includes('KV_REST_API_URL') || errorMsg.includes('not configured')) {
-            console.log('⚠️ KV storage not configured - skipping KV lookup (expected in local dev)');
-          } else {
-            console.log(`❌ KV lookup error for quote:${quoteId}:`, errorMsg);
-          }
+        } catch {
           return null;
         }
       })(),
       // Try to fetch Quote custom object from GHL
       (async () => {
         try {
-          // First try direct ID lookup (might be GHL object ID)
           return await getCustomObjectById('quotes', quoteId);
         } catch (error) {
-          console.log('Direct ID lookup failed, trying "Quote" (capitalized)...');
           try {
             return await getCustomObjectById('Quote', quoteId);
           } catch (secondError) {
-            // If direct ID lookup fails, the quoteId might be a generated UUID
-            // stored in the quote_id field. Try searching by that field.
-            console.log('Direct ID lookup failed, quoteId might be a generated UUID in quote_id field');
-            console.log('Attempting to search for quote by quote_id field...');
-            
             try {
               const quoteByQuoteId = await getCustomObjectByQuoteId(quoteId);
-              if (quoteByQuoteId) {
-                console.log('✅ Found quote by searching quote_id field');
-                return quoteByQuoteId;
-              }
-            } catch (searchError) {
-              console.log('Search by quote_id field failed:', searchError instanceof Error ? searchError.message : String(searchError));
+              if (quoteByQuoteId) return quoteByQuoteId;
+            } catch {
+              // Ignore search error
             }
-            
-            // If all GHL lookups failed, throw the original error
             throw secondError;
           }
         }
@@ -184,9 +152,8 @@ export async function GET(
           const stored = await kv.get(`quote:${ghlObjectId}`);
           if (stored && typeof stored === 'string') {
             quoteDataFromKV = JSON.parse(stored);
-            console.log(`✅ Found quote data in KV storage with GHL object ID: ${ghlObjectId}`);
           }
-        } catch (e) {
+        } catch {
           // Ignore
         }
       }
@@ -197,9 +164,8 @@ export async function GET(
           const stored = await kv.get(`quote:${quoteIdField}`);
           if (stored && typeof stored === 'string') {
             quoteDataFromKV = JSON.parse(stored);
-            console.log(`✅ Found quote data in KV storage with generated UUID: ${quoteIdField}`);
           }
-        } catch (e) {
+        } catch {
           // Ignore
         }
       }
@@ -236,20 +202,8 @@ export async function GET(
     let ghlContactId: string | undefined = undefined;
     if (quoteDataFromKV?.ghlContactId) {
       ghlContactId = quoteDataFromKV.ghlContactId;
-      console.log('✅ Found ghlContactId in KV storage:', ghlContactId);
     } else if (quoteObject?.contactId) {
       ghlContactId = quoteObject.contactId;
-      console.log('✅ Found ghlContactId in GHL custom object:', ghlContactId);
-    } else {
-      // Debug: Log what we actually have
-      console.warn('⚠️ No ghlContactId found in KV or GHL object - buttons will be disabled', {
-        hasKVData: !!quoteDataFromKV,
-        kvHasContactId: !!quoteDataFromKV?.ghlContactId,
-        kvContactId: quoteDataFromKV?.ghlContactId,
-        hasGHLObject: !!quoteObject,
-        ghlObjectContactId: quoteObject?.contactId,
-        quoteId,
-      });
     }
 
     // If we have KV data but no GHL object, use KV data directly
@@ -258,7 +212,6 @@ export async function GET(
       const st = String(quoteDataFromKV.serviceType || '').toLowerCase().trim();
       const normFreq = oneTimeTypes.includes(st) ? '' : (quoteDataFromKV.frequency ?? '');
       const labels = await getQuoteLabelsFromSurvey(quoteDataFromKV.serviceType, normFreq);
-      console.log('Using quote data from KV storage (GHL fetch failed)');
       return NextResponse.json({
         ...quoteDataFromKV,
         quoteId: quoteId,
@@ -281,17 +234,6 @@ export async function GET(
     // GHL returns custom fields in properties object
     // Based on testing, the response structure is: { properties: { quote_id: ..., type: [...] } }
     const customFields = quoteObject?.properties || quoteObject?.customFields || {};
-
-    // Debug: Log custom fields to see what we're getting from GHL
-    console.log('🔍 Custom fields from GHL:', {
-      square_footage: customFields.square_footage,
-      bedrooms: customFields.bedrooms,
-      full_baths: customFields.full_baths,
-      half_baths: customFields.half_baths,
-      people_in_home: customFields.people_in_home,
-      shedding_pets: customFields.shedding_pets,
-      allFields: Object.keys(customFields),
-    });
 
     // Extract data from custom fields
     // Handle type field - it's an array for MULTIPLE_OPTIONS

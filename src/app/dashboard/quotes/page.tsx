@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { FileDown, ExternalLink, Loader2, ArrowRightLeft, Search, Filter } from 'lucide-react';
+import { FileDown, ExternalLink, Loader2, ArrowRightLeft, Search, Filter, Trash2 } from 'lucide-react';
 
 interface QuoteRow {
   id: string;
@@ -65,7 +65,10 @@ export default function DashboardQuotesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isOrgAdmin, setIsOrgAdmin] = useState(false);
   const [reassignQuote, setReassignQuote] = useState<QuoteRow | null>(null);
+  const [deleteQuote, setDeleteQuote] = useState<QuoteRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [toolsForReassign, setToolsForReassign] = useState<ToolOption[]>([]);
   const [selectedToolId, setSelectedToolId] = useState<string>('');
   const [reassigning, setReassigning] = useState(false);
@@ -82,17 +85,18 @@ export default function DashboardQuotesPage() {
     ])
       .then(([quotesRes, toolsRes]) => {
         return quotesRes.ok
-          ? quotesRes.json().then((data: { quotes?: QuoteRow[]; isSuperAdmin?: boolean }) => ({
+          ? quotesRes.json().then((data: { quotes?: QuoteRow[]; isSuperAdmin?: boolean; isOrgAdmin?: boolean }) => ({
               quotes: data.quotes ?? [],
               isSuperAdminFromQuotes: !!data.isSuperAdmin,
+              isOrgAdminFromQuotes: !!data.isOrgAdmin,
               toolsOk: toolsRes.ok,
             }))
           : Promise.reject(new Error('Failed to load quotes'));
       })
-      .then(({ quotes: list, isSuperAdminFromQuotes, toolsOk }) => {
+      .then(({ quotes: list, isSuperAdminFromQuotes, isOrgAdminFromQuotes, toolsOk }) => {
         setQuotes(list);
-        // Show Reassign if quotes API says super admin, OR if user can access super-admin tools (fallback when env differs per route)
         setIsSuperAdmin(!!isSuperAdminFromQuotes || !!toolsOk);
+        setIsOrgAdmin(!!isOrgAdminFromQuotes);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -130,6 +134,25 @@ export default function DashboardQuotesPage() {
       }
     } finally {
       setReassigning(false);
+    }
+  };
+
+  const canDelete = isSuperAdmin || isOrgAdmin;
+
+  const confirmDeleteQuote = async () => {
+    if (!deleteQuote) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/dashboard/quotes/${deleteQuote.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        setDeleteQuote(null);
+        loadQuotes();
+      } else {
+        setError(data.error ?? 'Failed to delete quote');
+      }
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -383,6 +406,17 @@ export default function DashboardQuotesPage() {
                             Reassign
                           </button>
                         )}
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => setDeleteQuote(q)}
+                            className="inline-flex items-center gap-1 rounded border border-red-500/50 bg-red-500/10 px-2 py-1 text-xs text-red-700 hover:bg-red-500/20 dark:text-red-400"
+                            title="Delete quote"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -393,6 +427,38 @@ export default function DashboardQuotesPage() {
         </div>
           )}
         </>
+      )}
+
+      {deleteQuote && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-lg border border-border bg-card p-4 shadow-lg">
+            <h3 className="font-semibold text-foreground">Delete quote</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {deleteQuote.first_name} {deleteQuote.last_name} · {deleteQuote.quote_id}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Are you sure you want to delete this quote? This action cannot be undone.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={confirmDeleteQuote}
+                disabled={deleting}
+                className="rounded bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeleteQuote(null)}
+                disabled={deleting}
+                className="rounded border border-input px-3 py-1.5 text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {reassignQuote && (

@@ -98,7 +98,11 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({ quotes: withToolInfo, isSuperAdmin: !!isSuperAdmin });
+    return NextResponse.json({
+      quotes: withToolInfo,
+      isSuperAdmin: !!isSuperAdmin,
+      isOrgAdmin: !!isOrgAdmin,
+    });
   } catch (err) {
     console.error('Dashboard quotes error:', err);
     return NextResponse.json(

@@ -89,7 +89,6 @@ export async function POST(request: NextRequest) {
           ...(country && { country: country }),
         };
         ghlContact = await updateContact(ghlContactId, updateData, ghlToken ?? undefined, ghlLocationId ?? undefined);
-        console.log('Contact updated in GHL with address:', { ghlContactId: ghlContact.id });
       } else if (hasAddress) {
         // No existing contact: create/update by upsert with address
         const fullAddress = address2 ? `${address} ${address2}`.trim() : address;
@@ -113,11 +112,9 @@ export async function POST(request: NextRequest) {
           ...(country && { country: country }),
         };
         ghlContact = await createOrUpdateContact(contactData, ghlToken ?? undefined, ghlLocationId ?? undefined);
-        console.log('Contact created/updated in GHL (with address):', { ghlContactId: ghlContact.id });
       } else {
         // After email step: create contact with name, phone, email only (upsert finds existing by email/phone)
         ghlContact = await createOrUpdateContact(baseContactData, ghlToken ?? undefined, ghlLocationId ?? undefined);
-        console.log('Contact created in GHL (after email step):', { ghlContactId: ghlContact.id });
       }
 
       return NextResponse.json({

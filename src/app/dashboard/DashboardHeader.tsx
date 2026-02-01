@@ -54,18 +54,18 @@ export function DashboardHeader({
       {isSuperAdmin && (
         <>
           <Link
-            href="/dashboard/super-admin/inbox"
-            onClick={closeMobileMenu}
-            className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
-          >
-            Inbox
-          </Link>
-          <Link
             href="/dashboard/super-admin"
             onClick={closeMobileMenu}
             className="text-sm font-medium text-amber-600 hover:text-amber-700 hover:underline"
           >
             Super Admin
+          </Link>
+          <Link
+            href="/dashboard/super-admin/inbox"
+            onClick={closeMobileMenu}
+            className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+          >
+            Inbox
           </Link>
         </>
       )}
@@ -175,18 +175,18 @@ export function DashboardHeader({
                 {isSuperAdmin && (
                   <>
                     <Link
-                      href="/dashboard/super-admin/inbox"
-                      onClick={closeMobileMenu}
-                      className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
-                    >
-                      Inbox
-                    </Link>
-                    <Link
                       href="/dashboard/super-admin"
                       onClick={closeMobileMenu}
                       className="py-3 px-3 text-sm font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-md transition-colors"
                     >
                       Super Admin
+                    </Link>
+                    <Link
+                      href="/dashboard/super-admin/inbox"
+                      onClick={closeMobileMenu}
+                      className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                    >
+                      Inbox
                     </Link>
                   </>
                 )}

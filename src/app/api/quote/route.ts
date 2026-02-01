@@ -159,11 +159,6 @@ export async function POST(request: NextRequest) {
       }
     });
     
-    // Log UTM parameters for debugging
-    if (Object.keys(utmParams).length > 0) {
-      console.log('📊 UTM parameters captured:', utmParams);
-    }
-
     // Use utm_source only for Source – never the full URL. If absent, we use "Website Quote Form" later.
     const effectiveUtmSource = utmParams.utm_source && String(utmParams.utm_source).trim()
       ? utmParams.utm_source.trim()
@@ -298,28 +293,22 @@ export async function POST(request: NextRequest) {
         // Source = utm_source only when present; otherwise "Website Quote Form". Never use full URL.
         if (effectiveUtmSource) {
           contactData.utmSource = effectiveUtmSource;
-          console.log(`✅ Added UTM source to contact (native field): ${effectiveUtmSource}`);
         }
         contactData.source = effectiveUtmSource || 'Website Quote Form';
         if (utmParams.utm_medium) {
           contactData.utmMedium = utmParams.utm_medium;
-          console.log(`✅ Added UTM medium to contact (native field): ${utmParams.utm_medium}`);
         }
         if (utmParams.utm_campaign) {
           contactData.utmCampaign = utmParams.utm_campaign;
-          console.log(`✅ Added UTM campaign to contact (native field): ${utmParams.utm_campaign}`);
         }
         if (utmParams.utm_term) {
           contactData.utmTerm = utmParams.utm_term;
-          console.log(`✅ Added UTM term to contact (native field): ${utmParams.utm_term}`);
         }
         if (utmParams.utm_content) {
           contactData.utmContent = utmParams.utm_content;
-          console.log(`✅ Added UTM content to contact (native field): ${utmParams.utm_content}`);
         }
         if (utmParams.gclid) {
           contactData.gclid = utmParams.gclid;
-          console.log(`✅ Added GCLID to contact (native field): ${utmParams.gclid}`);
         }
 
         // Iframe / widget passthrough params for attribution (e.g. start=iframe-Staver, tashiane=Verther)
@@ -330,7 +319,6 @@ export async function POST(request: NextRequest) {
             const v = String(val).trim();
             contactData.tags = contactData.tags || [];
             contactData.tags.push(`${key}:${v}`);
-            console.log(`✅ Added passthrough to contact: ${key}=${v}`);
           }
         });
 
@@ -348,30 +336,6 @@ export async function POST(request: NextRequest) {
             const sanitizedId = question.id.replace(/\./g, '_');
             fieldIdToMapping.set(sanitizedId, question.ghlFieldMapping.trim());
           }
-        });
-
-        // Enhanced logging to verify mappings are loaded correctly
-        const questionsWithMappings = surveyQuestions.filter(q => q.ghlFieldMapping && q.ghlFieldMapping.trim() !== '');
-        console.log('🔍 Custom field mapping debug:', {
-          surveyQuestionCount: surveyQuestions.length,
-          questionsWithMappings: questionsWithMappings.length,
-          mappingsFound: Array.from(fieldIdToMapping.entries()).map(([id, mapping]) => ({ id, mapping })),
-          bodyKeys: Object.keys(body),
-          bodyKeysWithValues: Object.keys(body).filter(key => body[key] !== undefined && body[key] !== null && body[key] !== ''),
-          allQuestionsWithMappings: questionsWithMappings.map(q => ({
-            id: q.id,
-            sanitizedId: q.id.replace(/\./g, '_'),
-            label: q.label,
-            ghlFieldMapping: q.ghlFieldMapping,
-          })),
-          sampleQuestions: surveyQuestions.slice(0, 10).map(q => ({
-            id: q.id,
-            sanitizedId: q.id.replace(/\./g, '_'),
-            label: q.label,
-            hasMapping: !!q.ghlFieldMapping && q.ghlFieldMapping.trim() !== '',
-            mapping: q.ghlFieldMapping,
-          })),
-          fieldIdToMappingSize: fieldIdToMapping.size,
         });
 
         // Iterate through ALL fields in the body and map them to GHL fields
@@ -394,7 +358,6 @@ export async function POST(request: NextRequest) {
           if (!mapping) {
             // No mapping found - this field won't be sent to GHL
             skippedFieldsCount++;
-            console.log(`⏭️  Skipping unmapped field "${bodyKey}": ${fieldValue}`);
             return;
           }
           
@@ -442,11 +405,6 @@ export async function POST(request: NextRequest) {
           }
           
           mappedFieldsCount++;
-          console.log(`🔍 Mapping field "${bodyKey}":`, {
-            bodyKey,
-            fieldValue,
-            mapping,
-          });
           
           // Handle native fields (firstName, lastName, email, phone, address1, city, state, postalCode, country)
           // Check if mapping is a native field - strip prefix first to check
@@ -458,29 +416,13 @@ export async function POST(request: NextRequest) {
             // Map address -> address1 for consistency with GHL API
             const nativeFieldName = mappingWithoutPrefix === 'address' ? 'address1' : mappingWithoutPrefix;
             contactData[nativeFieldName] = String(fieldValue);
-            console.log(`✅ Mapped to native field (admin mapping): ${nativeFieldName} = ${fieldValue}`, {
-              originalMapping: mapping,
-              nativeFieldName,
-            });
           } else {
             // Custom field with explicit admin-set mapping
             // GHL API expects just the field key without "contact." or "opportunity." prefix
             // Strip prefix if present to ensure compatibility with GHL API
             const cleanedMapping = mapping.replace(/^(contact|opportunity)\./, '');
             contactData.customFields![cleanedMapping] = String(fieldValue);
-            console.log(`✅ Added custom field (admin mapping): ${cleanedMapping} = ${fieldValue}`, {
-              originalMapping: mapping,
-              cleanedMapping,
-              fieldValue,
-            });
           }
-        });
-        
-        console.log('📊 Field mapping summary:', {
-          totalBodyFields: Object.keys(body).length,
-          mappedFields: mappedFieldsCount,
-          skippedFields: skippedFieldsCount,
-          customFieldsCount: Object.keys(contactData.customFields || {}).length,
         });
 
         // Fallback to direct body fields if no mappings exist (backward compatibility)
@@ -509,13 +451,6 @@ export async function POST(request: NextRequest) {
             const fieldKey = ghlConfig.quotedAmountField.replace(/^(contact|opportunity)\./, '');
             // Store the range as a string like "$150 - $200"
             contactData.customFields![fieldKey] = `$${selectedRange.low} - $${selectedRange.high}`;
-            console.log(`✅ Added quoted amount range to contact custom field:`, {
-              originalField: ghlConfig.quotedAmountField,
-              cleanedFieldKey: fieldKey,
-              range: `$${selectedRange.low} - $${selectedRange.high}`,
-              low: selectedRange.low,
-              high: selectedRange.high,
-            });
           }
         }
 
@@ -523,22 +458,6 @@ export async function POST(request: NextRequest) {
         if (Object.keys(contactData.customFields || {}).length === 0) {
           delete contactData.customFields;
         }
-
-        console.log('📞 Sending contact data to GHL:', {
-          firstName: contactData.firstName,
-          lastName: contactData.lastName,
-          email: contactData.email,
-          phone: contactData.phone,
-          source: contactData.source,
-          tags: contactData.tags,
-          customFieldsCount: Object.keys(contactData.customFields || {}).length,
-          customFields: contactData.customFields,
-          customFieldsDetail: contactData.customFields ? Object.entries(contactData.customFields).map(([key, value]) => ({
-            ghlFieldKey: key,
-            value: value,
-            valueType: typeof value,
-          })) : [],
-        });
 
         // If contact was already created after email step, update it with address + quote data. Otherwise upsert.
         const contact = ghlContactId
@@ -562,11 +481,6 @@ export async function POST(request: NextRequest) {
         }
 
         ghlContactId = contact.id;
-        const hadContactId = !!(providedContactId || bodyContactId);
-        console.log(
-          hadContactId ? '✅ Contact updated in GHL:' : '✅ Contact found/created via upsert (existing contact matched by email/phone):',
-          ghlContactId
-        );
 
         // Prepare promises for parallel execution (opportunity, custom object, note)
         let opportunityPromise: Promise<any> | null = null;
@@ -643,13 +557,6 @@ export async function POST(request: NextRequest) {
             const fieldKey = ghlConfig.quotedAmountField.replace(/^(opportunity|contact)\./, '');
             // Store the range as a string like "$150 - $200"
             opportunityCustomFields[fieldKey] = `$${selectedRange.low} - $${selectedRange.high}`;
-            console.log(`✅ Added quoted amount range to opportunity custom field:`, {
-              originalField: ghlConfig.quotedAmountField,
-              cleanedFieldKey: fieldKey,
-              range: `$${selectedRange.low} - $${selectedRange.high}`,
-              low: selectedRange.low,
-              high: selectedRange.high,
-            });
           }
 
           // Resolve pipeline and stage using routing rules
@@ -700,7 +607,6 @@ export async function POST(request: NextRequest) {
                   resolvedOpportunityTags = rule.opportunityTags;
                 }
                 
-                console.log(`✅ Pipeline routing: rule matched (${rule.utmParam} ${rule.match} "${rule.value}") -> pipeline ${rule.pipelineId}`);
                 break; // First match wins
               }
             }
@@ -854,11 +760,6 @@ export async function POST(request: NextRequest) {
             // Sanitize all custom fields to ensure values are properly formatted
             quoteCustomFields = sanitizeCustomFields(quoteCustomFields);
             
-            // Log UTM parameters being added to quote
-            if (Object.keys(utmParams).length > 0) {
-              console.log('📊 Adding UTM parameters to quote custom object:', utmParams);
-            }
-            
             // Note: quote_range_low and quote_range_high are not in the schema
             // If you want to store these, you'll need to add them as fields in GHL first
 
@@ -895,7 +796,6 @@ export async function POST(request: NextRequest) {
           }
         } else {
           // No contact ID - still prepare quoteCustomFields for KV storage
-          console.log('⚠️ No GHL contact ID available - quote will be stored in KV only');
         }
 
         // Prepare note creation (will parallelize with opportunity and custom object)
@@ -930,11 +830,6 @@ export async function POST(request: NextRequest) {
             const ghlObjectId = quoteResult.value.id;
             quoteId = ghlObjectId; // For GHL-based retrieval
             ghlQuoteCreated = true;
-            console.log('✅ Quote custom object created in GHL:', {
-              objectId: ghlObjectId,
-              quoteIdField: generatedQuoteId,
-              contactId: ghlContactId,
-            });
           } else if (quoteObjectPromise) {
             // Custom object creation failed - log detailed error
             const error = quoteResult?.status === 'rejected' ? quoteResult.reason : null;
@@ -962,12 +857,7 @@ export async function POST(request: NextRequest) {
           
           if (notePromise) {
             const noteResult = results.find((_, idx) => ghlOperations[idx] === notePromise);
-            if (noteResult?.status === 'fulfilled') {
-              console.log('✅ Note created successfully:', {
-                noteId: noteResult.value?.id,
-                contactId: ghlContactId,
-              });
-            } else if (noteResult?.status === 'rejected') {
+            if (noteResult?.status === 'rejected') {
               console.error('⚠️ Failed to create note:', noteResult.reason);
               console.error('Note creation error details:', {
                 error: noteResult.reason instanceof Error ? noteResult.reason.message : String(noteResult.reason),
@@ -977,8 +867,6 @@ export async function POST(request: NextRequest) {
             }
           }
         }
-
-        console.log('Successfully synced quote to GHL for contact:', ghlContactId);
       } catch (ghlError) {
         console.error('GHL integration failed (quote still delivered):', ghlError);
         console.error('Error details:', {
@@ -1043,8 +931,6 @@ export async function POST(request: NextRequest) {
       });
       if (error) {
         console.error('❌ Failed to store quote in Supabase:', error);
-      } else {
-        console.log(`✅ Stored quote in Supabase: ${generatedQuoteId}`);
       }
     } catch (sbError) {
       console.error('❌ Supabase quote insert failed:', sbError);
@@ -1077,8 +963,8 @@ export async function POST(request: NextRequest) {
       const frequencyQ = surveyQuestions.find(q => q.id === 'frequency');
       if (serviceTypeQ?.options) serviceTypeOptions = serviceTypeQ.options.filter(o => o.value?.trim()).map(o => ({ value: o.value!.trim(), label: o.label || o.value! }));
       if (frequencyQ?.options) frequencyOptions = frequencyQ.options.filter(o => o.value?.trim()).map(o => ({ value: o.value!.trim(), label: o.label || o.value! }));
-    } catch (e) {
-      console.warn('Could not load survey labels for quote response:', e);
+    } catch {
+      // Use built-in labels if survey labels fail to load
     }
 
     return NextResponse.json({

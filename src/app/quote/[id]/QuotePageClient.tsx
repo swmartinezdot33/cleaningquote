@@ -256,7 +256,6 @@ export default function QuotePageClient({
                 url: `${window.location.origin}${confirmationUrl}`,
               }, '*'); // Use '*' for cross-origin iframe support
             } catch (e) {
-              console.log('Could not notify parent of navigation:', e);
             }
           }
           // Update iframe location
@@ -268,7 +267,6 @@ export default function QuotePageClient({
         return;
       } else {
         if (data.details && typeof data.details === 'string') {
-          console.warn('Appointment create API details (see Network tab for full response):', data.details);
         }
         setBookingMessage({
           type: 'error',
@@ -331,7 +329,6 @@ export default function QuotePageClient({
                 url: `${window.location.origin}${confirmationUrl}`,
               }, '*'); // Use '*' for cross-origin iframe support
             } catch (e) {
-              console.log('Could not notify parent of navigation:', e);
             }
           }
           // Update iframe location
@@ -343,7 +340,6 @@ export default function QuotePageClient({
         return;
       } else {
         if (data.details && typeof data.details === 'string') {
-          console.warn('Call create API details (see Network tab for full response):', data.details);
         }
         setCallMessage({
           type: 'error',
