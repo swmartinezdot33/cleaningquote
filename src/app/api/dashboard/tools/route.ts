@@ -4,6 +4,8 @@ import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { slugToSafe } from '@/lib/supabase/tools';
 import { canAccessTool, isSuperAdminEmail } from '@/lib/org-auth';
+import * as configStore from '@/lib/config/store';
+import { DEFAULT_SURVEY_QUESTIONS } from '@/lib/survey/schema';
 
 export async function POST(request: NextRequest) {
   try {
