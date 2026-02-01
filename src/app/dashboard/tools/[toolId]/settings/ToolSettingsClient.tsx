@@ -201,7 +201,11 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
       });
       const data = await res.json();
       if (res.ok) {
-        setSectionMessage({ card: 'widget', type: 'success', text: data.message ?? 'Widget settings saved' });
+        setSectionMessage({
+          card: 'widget',
+          type: 'success',
+          text: data.message ?? 'Widget settings saved. Changes appear on the live tool when you refresh that page or switch back to its tab.',
+        });
       } else {
         setSectionMessage({ card: 'widget', type: 'error', text: data.error ?? 'Failed to save' });
       }

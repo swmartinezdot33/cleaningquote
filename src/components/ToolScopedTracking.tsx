@@ -3,15 +3,15 @@
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { TrackingScripts } from '@/components/TrackingScripts';
+import { getToolSlugFromPath } from '@/lib/tools/path';
 
-/** Tool-scoped tracking: on /t/[slug] or /t/[slug]/quote/... fetches that tool's tracking and passes to TrackingScripts. No global analytics. */
+/** Tool-scoped tracking: on /t/[slug] or /t/[org]/[tool] fetches that tool's tracking and passes to TrackingScripts. No global analytics. */
 export function ToolScopedTracking() {
   const pathname = usePathname();
   const [trackingCodes, setTrackingCodes] = useState<{ customHeadCode?: string }>({});
 
   useEffect(() => {
-    const match = pathname?.match(/^\/t\/([^/]+)/);
-    const slug = match?.[1];
+    const slug = getToolSlugFromPath(pathname ?? null);
     if (!slug) {
       setTrackingCodes({});
       return;

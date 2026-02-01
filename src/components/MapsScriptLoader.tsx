@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { getToolSlugFromPath } from '@/lib/tools/path';
 
 const SCRIPT_ID = 'cleanquote-google-maps-api';
 
 /**
  * Loads the Google Maps script with the correct API key:
- * - On /t/[slug] routes, fetches that tool's key from /api/tools/[slug]/config (tool-only) and injects once known.
+ * - On /t/[slug] or /t/[org]/[tool] routes, fetches that tool's key from /api/tools/[slug]/config (tool-only) and injects once known.
  * - Otherwise uses the global key from the server.
  * Ensures each tool uses its own key so tools are independent.
  */
@@ -16,8 +17,7 @@ export function MapsScriptLoader({ globalKey }: { globalKey: string }) {
   const [keyToUse, setKeyToUse] = useState<string | null>(null);
 
   useEffect(() => {
-    const match = pathname?.match(/^\/t\/([^/]+)/);
-    const slug = match?.[1];
+    const slug = getToolSlugFromPath(pathname ?? null);
 
     if (!slug) {
       setKeyToUse(globalKey || null);
