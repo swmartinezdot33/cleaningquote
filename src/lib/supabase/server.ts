@@ -15,6 +15,12 @@ export function createSupabaseServer() {
   }
   return createClient<Database>(supabaseUrl, supabaseServiceKey, {
     auth: { persistSession: false },
+    global: {
+      // Disable Next.js fetch cache - always get fresh data from Supabase
+      fetch: (url, options = {}) => {
+        return fetch(url, { ...options, cache: 'no-store' });
+      },
+    },
   });
 }
 
