@@ -90,8 +90,8 @@ export async function GET(
 
     const formSettings =
       row?.form_settings && typeof row.form_settings === 'object' ? row.form_settings : {};
-    const rawQuestions = row?.survey_questions;
-    const questions =
+    let rawQuestions = row?.survey_questions;
+    let questions: unknown[] =
       Array.isArray(rawQuestions)
         ? rawQuestions
         : typeof rawQuestions === 'string'
@@ -104,6 +104,29 @@ export async function GET(
               }
             })()
           : [];
+
+    // Row exists but survey_questions was never set (null) — seed defaults so the form loads. Only leave [] when explicitly stored as [].
+    if (row && questions.length === 0 && rawQuestions == null) {
+      try {
+        await configStore.setSurveyQuestionsInConfig(DEFAULT_SURVEY_QUESTIONS, toolId);
+        const { data: updated } = await supabase
+          .from('tool_config')
+          .select('survey_questions')
+          .eq('tool_id', toolId)
+          .maybeSingle();
+        const q = (updated as { survey_questions?: unknown } | null)?.survey_questions;
+        questions = Array.isArray(q) ? q : typeof q === 'string' ? (() => {
+          try {
+            const p = JSON.parse(q);
+            return Array.isArray(p) ? p : DEFAULT_SURVEY_QUESTIONS;
+          } catch {
+            return DEFAULT_SURVEY_QUESTIONS;
+          }
+        })() : DEFAULT_SURVEY_QUESTIONS;
+      } catch (seedErr) {
+        console.error('GET /api/tools/[slug]/config seed null survey_questions:', seedErr);
+      }
+    }
 
     type GhlRedirectShape = { redirectAfterAppointment?: boolean; appointmentRedirectUrl?: string };
     const ghl: GhlRedirectShape | null =
