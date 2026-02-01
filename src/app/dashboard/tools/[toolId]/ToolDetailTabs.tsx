@@ -29,7 +29,10 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
   const [nameError, setNameError] = useState<string | null>(null);
   const [savingBaseUrl, setSavingBaseUrl] = useState(false);
   const [baseUrlMessage, setBaseUrlMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [dnsInstructions, setDnsInstructions] = useState<{ cname: { name: string; value: string }; a: { name: string; value: string } } | null>(null);
+  const [dnsInstructions, setDnsInstructions] = useState<{
+    cname: { type: string; host: string; value: string; ttl: string };
+    a: { type: string; host: string; value: string; ttl: string };
+  } | null>(null);
   const [vercelDomainError, setVercelDomainError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -367,20 +370,32 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
             {dnsInstructions && (
               <div className="mt-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
                 <p className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-2">Add these DNS records at your domain registrar</p>
-                <p className="text-xs text-blue-800 dark:text-blue-300 mb-3">Add one of these records where you manage DNS (e.g. GoDaddy, Namecheap, Cloudflare). Wait 5–60 minutes for propagation.</p>
-                <div className="space-y-2 text-sm">
-                  <div className="flex flex-wrap gap-2 items-center">
-                    <span className="font-medium text-blue-900 dark:text-blue-200">CNAME:</span>
-                    <code className="rounded bg-blue-100 dark:bg-blue-900/50 px-2 py-1 text-xs">{dnsInstructions.cname.name}</code>
-                    <span className="text-blue-700 dark:text-blue-300">→</span>
-                    <code className="rounded bg-blue-100 dark:bg-blue-900/50 px-2 py-1 text-xs">{dnsInstructions.cname.value}</code>
-                  </div>
-                  <div className="flex flex-wrap gap-2 items-center">
-                    <span className="font-medium text-blue-900 dark:text-blue-200">A:</span>
-                    <code className="rounded bg-blue-100 dark:bg-blue-900/50 px-2 py-1 text-xs">{dnsInstructions.a.name}</code>
-                    <span className="text-blue-700 dark:text-blue-300">→</span>
-                    <code className="rounded bg-blue-100 dark:bg-blue-900/50 px-2 py-1 text-xs">{dnsInstructions.a.value}</code>
-                  </div>
+                <p className="text-xs text-blue-800 dark:text-blue-300 mb-3">Add one of these records where you manage DNS (e.g. GoDaddy, Namecheap, Cloudflare). Use the lowest TTL available (e.g. 60 seconds). Wait 5–60 minutes for propagation.</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse border border-blue-200 dark:border-blue-800">
+                    <thead>
+                      <tr className="bg-blue-100 dark:bg-blue-900/50">
+                        <th className="border border-blue-200 dark:border-blue-800 px-3 py-2 text-left font-semibold text-blue-900 dark:text-blue-200">Type</th>
+                        <th className="border border-blue-200 dark:border-blue-800 px-3 py-2 text-left font-semibold text-blue-900 dark:text-blue-200">Host</th>
+                        <th className="border border-blue-200 dark:border-blue-800 px-3 py-2 text-left font-semibold text-blue-900 dark:text-blue-200">Value</th>
+                        <th className="border border-blue-200 dark:border-blue-800 px-3 py-2 text-left font-semibold text-blue-900 dark:text-blue-200">TTL</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="bg-blue-50/50 dark:bg-blue-950/20">
+                        <td className="border border-blue-200 dark:border-blue-800 px-3 py-2 font-mono text-blue-900 dark:text-blue-200">{dnsInstructions.cname.type}</td>
+                        <td className="border border-blue-200 dark:border-blue-800 px-3 py-2 font-mono text-blue-900 dark:text-blue-200">{dnsInstructions.cname.host}</td>
+                        <td className="border border-blue-200 dark:border-blue-800 px-3 py-2 font-mono text-blue-900 dark:text-blue-200 break-all">{dnsInstructions.cname.value}</td>
+                        <td className="border border-blue-200 dark:border-blue-800 px-3 py-2 font-mono text-blue-900 dark:text-blue-200">{dnsInstructions.cname.ttl}</td>
+                      </tr>
+                      <tr className="bg-blue-50/50 dark:bg-blue-950/20">
+                        <td className="border border-blue-200 dark:border-blue-800 px-3 py-2 font-mono text-blue-900 dark:text-blue-200">{dnsInstructions.a.type}</td>
+                        <td className="border border-blue-200 dark:border-blue-800 px-3 py-2 font-mono text-blue-900 dark:text-blue-200">{dnsInstructions.a.host}</td>
+                        <td className="border border-blue-200 dark:border-blue-800 px-3 py-2 font-mono text-blue-900 dark:text-blue-200">{dnsInstructions.a.value}</td>
+                        <td className="border border-blue-200 dark:border-blue-800 px-3 py-2 font-mono text-blue-900 dark:text-blue-200">{dnsInstructions.a.ttl}</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}

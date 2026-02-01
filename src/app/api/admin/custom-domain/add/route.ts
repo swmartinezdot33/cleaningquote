@@ -83,6 +83,35 @@ export async function POST(request: NextRequest) {
     // Vercel returns: name, apexName, projectId, verified, verification, redirect, etc.
     const verified = data.verified === true;
     const verification = data.verification || [];
+    const sub = domain.startsWith('www.') ? 'www' : domain.split('.')[0] || 'quote';
+    let cnameValue = 'cname.vercel-dns.com';
+    let aValue = '76.76.21.21';
+
+    // Fetch domain config for exact DNS values
+    const projectId = process.env.VERCEL_PROJECT_ID?.trim() || process.env.VERCEL_PROJECT_NAME?.trim();
+    const teamId = process.env.VERCEL_TEAM_ID?.trim();
+    const configUrl = new URL(`https://api.vercel.com/v6/domains/${encodeURIComponent(domain)}/config`);
+    if (projectId) configUrl.searchParams.set('projectIdOrName', projectId);
+    if (teamId) configUrl.searchParams.set('teamId', teamId);
+    try {
+      const configRes = await fetch(configUrl.toString(), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const configData = (await configRes.json().catch(() => ({}))) as {
+        recommendedCNAME?: Array<{ rank?: number; value?: string }>;
+        recommendedIPv4?: Array<{ rank?: number; value?: string[] }>;
+      };
+      if (configRes.ok && configData.recommendedCNAME?.length) {
+        const cnameRec = configData.recommendedCNAME.find((r) => r.rank === 1) || configData.recommendedCNAME[0];
+        if (cnameRec?.value) cnameValue = cnameRec.value;
+      }
+      if (configRes.ok && configData.recommendedIPv4?.length) {
+        const aRec = configData.recommendedIPv4.find((r) => r.rank === 1) || configData.recommendedIPv4[0];
+        if (aRec?.value?.[0]) aValue = aRec.value[0];
+      }
+    } catch {
+      // Fall back to generic values
+    }
 
     return NextResponse.json({
       success: true,
@@ -93,14 +122,8 @@ export async function POST(request: NextRequest) {
         ? 'Domain added and verified. Customer can now add DNS records and set Public link base URL.'
         : 'Domain added. Customer must add DNS records to verify.',
       dnsInstructions: {
-        cname: {
-          name: domain.startsWith('www.') ? 'www' : domain.split('.')[0] || 'quote',
-          value: 'cname.vercel-dns.com',
-        },
-        a: {
-          name: domain.startsWith('www.') ? 'www' : domain.split('.')[0] || 'quote',
-          value: '76.76.21.21',
-        },
+        cname: { type: 'CNAME', host: sub, value: cnameValue, ttl: '60' },
+        a: { type: 'A', host: sub, value: aValue, ttl: '60' },
       },
       verification:
         verification.length > 0

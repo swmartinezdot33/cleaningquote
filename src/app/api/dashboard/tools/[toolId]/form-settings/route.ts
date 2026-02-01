@@ -58,7 +58,10 @@ export async function POST(
     } else if (body.openSurveyInNewTab === 'false') {
       settings.openSurveyInNewTab = false;
     }
-    let dnsInstructions: { cname: { name: string; value: string }; a: { name: string; value: string } } | undefined;
+    let dnsInstructions: {
+      cname: { type: string; host: string; value: string; ttl: string };
+      a: { type: string; host: string; value: string; ttl: string };
+    } | undefined;
     let vercelDomainAdded = false;
     let vercelDomainError: string | undefined;
     if (body.publicBaseUrl !== undefined) {
@@ -73,10 +76,8 @@ export async function POST(
           const hostname = u.hostname;
           if (hostname && hostname !== 'localhost' && !hostname.endsWith('.vercel.app')) {
             const sub = hostname.startsWith('www.') ? 'www' : hostname.split('.')[0] || 'quote';
-            dnsInstructions = {
-              cname: { name: sub, value: 'cname.vercel-dns.com' },
-              a: { name: sub, value: '76.76.21.21' },
-            };
+            let cnameValue = 'cname.vercel-dns.com';
+            let aValue = '76.76.21.21';
 
             const token = process.env.VERCEL_TOKEN?.trim();
             const projectId = process.env.VERCEL_PROJECT_ID?.trim() || process.env.VERCEL_PROJECT_NAME?.trim();
@@ -85,6 +86,7 @@ export async function POST(
             if (!token || !projectId) {
               vercelDomainError = 'VERCEL_TOKEN and VERCEL_PROJECT_ID (or VERCEL_PROJECT_NAME) must be set in Vercel Environment Variables. Add the domain manually in Vercel Dashboard → Settings → Domains.';
             } else {
+              // Add domain to Vercel
               const vercelUrl = new URL(`https://api.vercel.com/v10/projects/${encodeURIComponent(projectId)}/domains`);
               if (teamId) vercelUrl.searchParams.set('teamId', teamId);
 
@@ -107,7 +109,37 @@ export async function POST(
                   : msg;
                 console.warn('Vercel domain add failed:', vercelRes.status, vercelData);
               }
+
+              // Fetch domain config from Vercel for exact DNS values
+              const configUrl = new URL(`https://api.vercel.com/v6/domains/${encodeURIComponent(hostname)}/config`);
+              configUrl.searchParams.set('projectIdOrName', projectId);
+              if (teamId) configUrl.searchParams.set('teamId', teamId);
+
+              try {
+                const configRes = await fetch(configUrl.toString(), {
+                  headers: { Authorization: `Bearer ${token}` },
+                });
+                const configData = (await configRes.json().catch(() => ({}))) as {
+                  recommendedCNAME?: Array<{ rank?: number; value?: string }>;
+                  recommendedIPv4?: Array<{ rank?: number; value?: string[] }>;
+                };
+                if (configRes.ok && configData.recommendedCNAME?.length) {
+                  const cnameRec = configData.recommendedCNAME.find((r) => r.rank === 1) || configData.recommendedCNAME[0];
+                  if (cnameRec?.value) cnameValue = cnameRec.value;
+                }
+                if (configRes.ok && configData.recommendedIPv4?.length) {
+                  const aRec = configData.recommendedIPv4.find((r) => r.rank === 1) || configData.recommendedIPv4[0];
+                  if (aRec?.value?.[0]) aValue = aRec.value[0];
+                }
+              } catch {
+                // Fall back to generic values
+              }
             }
+
+            dnsInstructions = {
+              cname: { type: 'CNAME', host: sub, value: cnameValue, ttl: '60' },
+              a: { type: 'A', host: sub, value: aValue, ttl: '60' },
+            };
           }
         } catch (domainErr) {
           vercelDomainError = domainErr instanceof Error ? domainErr.message : 'Failed to add domain to Vercel';

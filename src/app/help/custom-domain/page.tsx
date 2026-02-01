@@ -23,15 +23,14 @@ export default function CustomDomainHelpPage() {
 
       <h2 className="text-lg font-semibold text-foreground mt-8">2. Add DNS records at your domain registrar</h2>
       <p className="text-foreground">
-        Add one of these records where you manage DNS for your domain (e.g. GoDaddy, Namecheap, Cloudflare):
+        Add one of these records where you manage DNS (e.g. GoDaddy, Namecheap, Cloudflare). Use the exact values shown when you save — Vercel may provide project-specific values.
       </p>
-      <ul className="list-disc list-inside space-y-1 text-foreground ml-2 mt-2">
-        <li>
-          <strong className="text-foreground">CNAME record (recommended):</strong> Name <code className="bg-muted px-1 rounded">quote</code> (or your subdomain), Value <code className="bg-muted px-1 rounded">cname.vercel-dns.com</code>
-        </li>
-        <li>
-          <strong className="text-foreground">A record (alternative):</strong> Name <code className="bg-muted px-1 rounded">quote</code>, Value <code className="bg-muted px-1 rounded">76.76.21.21</code>
-        </li>
+      <p className="text-sm font-medium text-foreground mt-3">Record format:</p>
+      <ul className="list-disc list-inside space-y-1 text-foreground ml-2 mt-1 space-y-1 text-sm">
+        <li><strong className="text-foreground">Type:</strong> CNAME or A</li>
+        <li><strong className="text-foreground">Host:</strong> Your subdomain (e.g. <code className="bg-muted px-1 rounded">main2</code> for main2.cleanquote.io)</li>
+        <li><strong className="text-foreground">Value:</strong> From Vercel (e.g. <code className="bg-muted px-1 rounded">xxx.vercel-dns.com</code> for CNAME, or an IP for A)</li>
+        <li><strong className="text-foreground">TTL:</strong> 60 or lowest available</li>
       </ul>
       <p className="text-sm text-muted-foreground mt-2">
         Wait for DNS propagation (usually 5–60 minutes). SSL is provisioned automatically.

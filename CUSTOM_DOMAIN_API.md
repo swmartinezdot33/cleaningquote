@@ -44,12 +44,14 @@ curl -X POST https://your-site.com/api/admin/custom-domain/add \
   "verified": false,
   "message": "Domain added. Customer must add DNS records to verify.",
   "dnsInstructions": {
-    "cname": { "name": "quote", "value": "cname.vercel-dns.com" },
-    "a": { "name": "quote", "value": "76.76.21.21" }
+    "cname": { "type": "CNAME", "host": "quote", "value": "cname.vercel-dns.com", "ttl": "60" },
+    "a": { "type": "A", "host": "quote", "value": "76.76.21.21", "ttl": "60" }
   },
   "verification": []
 }
 ```
+
+Add DNS records with: **Type**, **Host**, **Value**, **TTL** (use lowest available, e.g. 60).
 
 **If domain needs TXT verification:** `verification` includes `type`, `domain`, `value`, `reason` — customer adds that TXT record.
 
