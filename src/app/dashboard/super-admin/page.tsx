@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Pencil, Trash2, KeyRound, Link2, Copy } from 'lucide-react';
+import { Plus, Pencil, Trash2, KeyRound, Link2, Copy, UserPlus } from 'lucide-react';
 
 interface User {
   id: string;
@@ -47,6 +47,7 @@ export default function SuperAdminPage() {
   const [resetLinkUserId, setResetLinkUserId] = useState<string | null>(null);
   const [resetLinkResult, setResetLinkResult] = useState<{ link: string; email: string } | null>(null);
   const [loadingResetLink, setLoadingResetLink] = useState(false);
+  const [assignModalUserId, setAssignModalUserId] = useState<string | null>(null);
 
   const load = () => {
     setMessage(null);
@@ -96,6 +97,7 @@ export default function SuperAdminPage() {
       if (res.ok) {
         setMembers((prev) => [...prev.filter((x) => !(x.user_id === newAssign.user_id && x.org_id === newAssign.org_id)), { org_id: newAssign.org_id, user_id: newAssign.user_id, role: newAssign.role }]);
         setNewAssign({ user_id: '', org_id: '', role: 'member' });
+        setAssignModalUserId(null);
       } else {
         const d = await res.json();
         setMessage({ type: 'error', text: d.error ?? 'Failed to assign' });
@@ -392,7 +394,7 @@ export default function SuperAdminPage() {
                 <th className="p-3 text-left">Slug</th>
                 <th className="p-3 text-left">Members</th>
                 <th className="p-3 text-left">Tools</th>
-                <th className="p-3 text-left"></th>
+                <th className="p-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -416,8 +418,8 @@ export default function SuperAdminPage() {
                       </td>
                       <td className="p-3">{stats.memberCount[o.id] ?? 0}</td>
                       <td className="p-3">{stats.toolCount[o.id] ?? 0}</td>
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
                           <button onClick={saveOrg} disabled={savingOrg} className="text-primary text-xs">Save</button>
                           <button onClick={() => setEditingOrg(null)} className="text-muted-foreground text-xs">Cancel</button>
                           <button
@@ -437,17 +439,17 @@ export default function SuperAdminPage() {
                       <td className="p-3 font-mono text-xs">{o.slug}</td>
                       <td className="p-3">{stats.memberCount[o.id] ?? 0}</td>
                       <td className="p-3">{stats.toolCount[o.id] ?? 0}</td>
-                      <td className="p-3">
-                        <div className="flex items-center gap-1">
-                          <button type="button" onClick={() => startEditOrg(o)} className="text-muted-foreground hover:text-foreground" title="Edit">
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button type="button" onClick={() => startEditOrg(o)} className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground" title="Edit organization">
                             <Pencil className="h-4 w-4" />
                           </button>
                           <button
                             type="button"
                             onClick={() => deleteOrg(o.id)}
                             disabled={!!deletingOrgId}
-                            className="text-destructive/80 hover:text-destructive disabled:opacity-50"
-                            title="Delete org"
+                            className="rounded p-2 text-destructive/80 hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                            title="Delete organization"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -525,7 +527,7 @@ export default function SuperAdminPage() {
               <tr className="border-b bg-muted/50">
                 <th className="p-3 text-left">Email</th>
                 <th className="p-3 text-left">Organizations</th>
-                <th className="p-3 text-left">Actions</th>
+                <th className="p-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -563,36 +565,44 @@ export default function SuperAdminPage() {
                       </span>
                     ))}
                   </td>
-                  <td className="p-3">
-                    <div className="flex flex-wrap items-center gap-1">
+                  <td className="p-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAssignModalUserId(u.id);
+                          setNewAssign({ user_id: u.id, org_id: '', role: 'member' });
+                        }}
+                        className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        title="Add user to organization"
+                      >
+                        <UserPlus className="h-4 w-4" />
+                      </button>
                       <button
                         type="button"
                         onClick={() => setSetPasswordUserId(u.id)}
-                        className="inline-flex items-center gap-1 rounded border border-input bg-background px-2 py-1 text-xs hover:bg-muted"
+                        className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
                         title="Set new password"
                       >
-                        <KeyRound className="h-3.5 w-3.5" />
-                        Set password
+                        <KeyRound className="h-4 w-4" />
                       </button>
                       <button
                         type="button"
                         onClick={() => sendResetLink(u.id)}
                         disabled={!!loadingResetLink}
-                        className="inline-flex items-center gap-1 rounded border border-input bg-background px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
-                        title="Generate reset link to copy"
+                        className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                        title="Generate password reset link to copy"
                       >
-                        <Link2 className="h-3.5 w-3.5" />
-                        Reset link
+                        <Link2 className="h-4 w-4" />
                       </button>
                       <button
                         type="button"
                         onClick={() => deleteUser(u.id)}
                         disabled={!!deletingUserId}
-                        className="inline-flex items-center gap-1 rounded border border-destructive/50 bg-destructive/10 px-2 py-1 text-xs text-destructive hover:bg-destructive/20 disabled:opacity-50"
+                        className="rounded p-2 text-destructive/80 hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
                         title="Delete user"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Delete
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </td>
@@ -675,49 +685,63 @@ export default function SuperAdminPage() {
         </div>
       )}
 
-      <section>
-        <h2 className="text-lg font-semibold">Assign user to organization</h2>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <select
-            value={newAssign.user_id}
-            onChange={(e) => setNewAssign((p) => ({ ...p, user_id: e.target.value }))}
-            className="rounded border px-3 py-2 text-sm"
-          >
-            <option value="">Select user</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.email ?? u.id}{!u.email_confirmed_at ? ' (pending)' : ''}
-              </option>
-            ))}
-          </select>
-          <select
-            value={newAssign.org_id}
-            onChange={(e) => setNewAssign((p) => ({ ...p, org_id: e.target.value }))}
-            className="rounded border px-3 py-2 text-sm"
-          >
-            <option value="">Select org</option>
-            {orgs.map((o) => (
-              <option key={o.id} value={o.id}>{o.name}</option>
-            ))}
-          </select>
-          <select
-            value={newAssign.role}
-            onChange={(e) => setNewAssign((p) => ({ ...p, role: e.target.value }))}
-            className="rounded border px-3 py-2 text-sm"
-          >
-            <option value="member">Member</option>
-            <option value="admin">Admin</option>
-          </select>
-          <button
-            type="button"
-            onClick={assign}
-            disabled={!newAssign.user_id || !newAssign.org_id || !!assigning}
-            className="rounded bg-primary px-4 py-2 text-sm text-primary-foreground hover:opacity-90 disabled:opacity-50"
-          >
-            Assign
-          </button>
+      {/* Add user to organization modal */}
+      {assignModalUserId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setAssignModalUserId(null)}>
+          <div className="w-full max-w-md rounded-lg border border-border bg-card p-4 shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-foreground">Add user to organization</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {userById[assignModalUserId]?.email ?? assignModalUserId}
+            </p>
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">Organization</label>
+                <select
+                  value={newAssign.org_id}
+                  onChange={(e) => setNewAssign((p) => ({ ...p, org_id: e.target.value }))}
+                  className="w-full rounded border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select org</option>
+                  {orgs.map((o) => (
+                    <option key={o.id} value={o.id}>{o.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Role</label>
+                <select
+                  value={newAssign.role}
+                  onChange={(e) => setNewAssign((p) => ({ ...p, role: e.target.value }))}
+                  className="w-full rounded border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="member">Member</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            </div>
+            {message?.type === 'error' && message.text.includes('assign') && (
+              <p className="mt-2 text-sm text-destructive">{message.text}</p>
+            )}
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setAssignModalUserId(null)}
+                className="rounded border border-input px-4 py-2 text-sm font-medium hover:bg-muted"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={assign}
+                disabled={!newAssign.org_id || !!assigning}
+                className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {assigning ? 'Assigning…' : 'Assign'}
+              </button>
+            </div>
+          </div>
         </div>
-      </section>
+      )}
     </div>
   );
 }
