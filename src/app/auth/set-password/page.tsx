@@ -1,8 +1,8 @@
 'use client';
 
 import '../../globals.css';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createSupabaseBrowser } from '@/lib/supabase/client';
 import { BrandLogo } from '@/components/BrandLogo';
@@ -11,10 +11,12 @@ import { Lock, Loader2 } from 'lucide-react';
 /**
  * Set-password page for invite / recovery flows.
  * User lands here with #access_token=... in the URL (from Supabase invite link).
- * We establish the session, show a form to set their password, then redirect to dashboard.
+ * We establish the session, show a form to set their password, then redirect.
  */
-export default function SetPasswordPage() {
+function SetPasswordContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextUrl = searchParams.get('next');
   const [sessionReady, setSessionReady] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -76,7 +78,8 @@ export default function SetPasswordPage() {
         return;
       }
       setSubmitted(true);
-      router.replace('/dashboard');
+      const dest = nextUrl && nextUrl.startsWith('/') && !nextUrl.startsWith('//') ? nextUrl : '/dashboard';
+      router.replace(dest);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to set password');
     } finally {
@@ -179,5 +182,17 @@ export default function SetPasswordPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <SetPasswordContent />
+    </Suspense>
   );
 }

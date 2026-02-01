@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { createSupabaseBrowser } from '@/lib/supabase/client';
 
 interface InviteData {
   orgName: string;
@@ -22,8 +23,22 @@ export default function InviteAcceptPage() {
 
   useEffect(() => {
     if (!token) return;
-    // Clear Supabase auth hash (e.g. error=access_denied) so we show a clean invite UI
-    if (typeof window !== 'undefined' && window.location.hash) {
+    const hash = typeof window !== 'undefined' ? window.location.hash : '';
+    const params_ = hash ? new URLSearchParams(hash.replace(/^#/, '')) : null;
+    const accessToken = params_?.get('access_token');
+    const refreshToken = params_?.get('refresh_token');
+    if (accessToken && refreshToken) {
+      const supabase = createSupabaseBrowser();
+      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error: setErr }) => {
+        if (!setErr) {
+          window.location.href = `/auth/set-password?next=${encodeURIComponent(`/invite/${token}`)}`;
+        } else {
+          setError(setErr.message || 'Could not verify your link.');
+        }
+      });
+      return;
+    }
+    if (typeof window !== 'undefined' && window.location.hash && !hash.includes('access_token')) {
       window.history.replaceState(null, '', window.location.pathname);
     }
     fetch(`/api/invite/${token}`)
