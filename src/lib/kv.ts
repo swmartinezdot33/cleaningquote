@@ -3,17 +3,6 @@ import { isSupabaseConfigured } from '@/lib/supabase/server';
 import * as configStore from '@/lib/config/store';
 import type { PricingTable } from '@/lib/pricing/types';
 
-const PRICING_KEY = 'pricing:file:2026';
-const PRICING_DATA_KEY = 'pricing:data:table';
-const PRICING_NETWORK_PATH_KEY = 'pricing:network:path';
-const GHL_TOKEN_KEY = 'ghl:api:token';
-const GHL_LOCATION_ID_KEY = 'ghl:location:id';
-const GHL_CONFIG_KEY = 'ghl:config';
-const WIDGET_SETTINGS_KEY = 'widget:settings';
-const SURVEY_QUESTIONS_KEY = 'survey:questions';
-const SERVICE_AREA_POLYGON_KEY = 'service:area:polygon';
-const SERVICE_AREA_NETWORK_LINK_KEY = 'service:area:network:link';
-const FORM_SETTINGS_KEY = 'admin:form-settings';
 const INBOX_META_PREFIX = 'inbox:meta:';
 
 /** Inbox meta (flag/delete) per received email ID. Stored in KV; Resend does not support these. */
@@ -43,7 +32,7 @@ export function toolKey(toolId: string | undefined, key: string): string {
 }
 
 /**
- * Check if KV is configured
+ * Check if KV is configured (used for inbox meta, quote cache, auth sessions).
  */
 function isKVConfigured(): boolean {
   return !!(
@@ -52,198 +41,121 @@ function isKVConfigured(): boolean {
   );
 }
 
+/** Throws if Supabase is not configured. Config is Supabase-only. */
+function requireSupabaseForConfig(): void {
+  if (!isSupabaseConfigured()) {
+    throw new Error(
+      'Supabase is required for configuration. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'
+    );
+  }
+}
+
 /**
- * Get the KV client (lazy initialization)
- * Returns null if KV is not configured (for local dev)
+ * Get the KV client (for inbox meta, optional quote cache, auth sessions).
  */
 export function getKV() {
   if (!isKVConfigured()) {
     throw new Error('KV_REST_API_URL and KV_REST_API_TOKEN environment variables are required. KV storage is not configured.');
   }
-  // KV client is auto-initialized from environment variables
-  // Vercel automatically injects: KV_REST_API_URL, KV_REST_API_TOKEN, KV_REST_API_READ_ONLY_TOKEN
   return kv;
 }
 
 /**
- * Store pricing file buffer (Supabase source of truth when configured).
+ * Store pricing file buffer (Supabase only).
  */
 export async function storePricingFile(buffer: Buffer, toolId?: string): Promise<void> {
-  if (isSupabaseConfigured()) {
-    await configStore.setPricingFileBase64InConfig(buffer.toString('base64'), toolId);
-    await configStore.setPricingFileMetadataInConfig(
-      {
-        uploadedAt: new Date().toISOString(),
-        size: buffer.length,
-        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      },
-      toolId
-    );
-    return;
-  }
-  const kv = getKV();
-  const k = toolKey(toolId, PRICING_KEY);
-  await kv.set(k, buffer.toString('base64'));
-  await kv.set(`${k}:metadata`, {
-    uploadedAt: new Date().toISOString(),
-    size: buffer.length,
-    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  });
+  requireSupabaseForConfig();
+  await configStore.setPricingFileBase64InConfig(buffer.toString('base64'), toolId);
+  await configStore.setPricingFileMetadataInConfig(
+    {
+      uploadedAt: new Date().toISOString(),
+      size: buffer.length,
+      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    },
+    toolId
+  );
 }
 
 /**
- * Get pricing file buffer (Supabase source of truth when configured).
+ * Get pricing file buffer (Supabase only).
  */
 export async function getPricingFile(toolId?: string): Promise<Buffer> {
-  if (isSupabaseConfigured()) {
-    const base64 = await configStore.getPricingFileBase64FromConfig(toolId);
-    if (!base64) {
-      throw new Error(
-        `Pricing file not found. Please upload a pricing file using the /api/admin/upload-pricing endpoint.`
-      );
-    }
-    return Buffer.from(base64, 'base64');
-  }
-  const kv = getKV();
-  const base64Data = await kv.get<string>(toolKey(toolId, PRICING_KEY));
-  if (!base64Data) {
+  requireSupabaseForConfig();
+  const base64 = await configStore.getPricingFileBase64FromConfig(toolId);
+  if (!base64) {
     throw new Error(
-      `Pricing file not found in KV storage. Please upload a pricing file using the /api/admin/upload-pricing endpoint.`
+      `Pricing file not found. Please upload a pricing file using the /api/admin/upload-pricing endpoint.`
     );
   }
-  return Buffer.from(base64Data, 'base64');
+  return Buffer.from(base64, 'base64');
 }
 
 /**
- * Get pricing table (parsed JSON) - Supabase source of truth when configured.
+ * Get pricing table (Supabase only).
  */
 export async function getPricingTable(toolId?: string): Promise<PricingTable | null> {
-  if (isSupabaseConfigured()) {
-    const p = await configStore.getPricingTableFromConfig(toolId);
-    return (p as unknown as PricingTable) || null;
-  }
-  try {
-    const kv = getKV();
-    const data = await kv.get<PricingTable>(toolKey(toolId, PRICING_DATA_KEY));
-    return data || null;
-  } catch {
-    return null;
-  }
+  requireSupabaseForConfig();
+  const p = await configStore.getPricingTableFromConfig(toolId);
+  return (p as unknown as PricingTable) || null;
 }
 
 /**
- * Set pricing table (parsed JSON) - Supabase source of truth when configured.
+ * Set pricing table (Supabase only).
  */
 export async function setPricingTable(table: PricingTable | null, toolId?: string): Promise<void> {
-  if (isSupabaseConfigured()) {
-    await configStore.setPricingTableInConfig(table as unknown as Record<string, unknown>, toolId);
-    return;
-  }
-  const kv = getKV();
-  if (table === null) {
-    await kv.del(toolKey(toolId, PRICING_DATA_KEY));
-  } else {
-    await kv.set(toolKey(toolId, PRICING_DATA_KEY), table);
-  }
+  requireSupabaseForConfig();
+  await configStore.setPricingTableInConfig(table as unknown as Record<string, unknown>, toolId);
 }
 
 /**
- * Clear pricing data (table and file) - when Supabase configured clears both in config row.
+ * Clear pricing data (Supabase only).
  */
 export async function clearPricingData(toolId?: string): Promise<void> {
-  if (isSupabaseConfigured()) {
-    await configStore.setPricingTableInConfig(null, toolId);
-    await configStore.setPricingFileBase64InConfig(null, toolId);
-    return;
-  }
-  const kv = getKV();
-  await kv.del(toolKey(toolId, PRICING_DATA_KEY));
-  await kv.del(toolKey(toolId, PRICING_KEY));
-  await kv.del(toolKey(toolId, `${PRICING_KEY}:metadata`));
+  requireSupabaseForConfig();
+  await configStore.setPricingTableInConfig(null, toolId);
+  await configStore.setPricingFileBase64InConfig(null, toolId);
 }
 
 /**
- * Get pricing file metadata (Supabase source of truth when configured).
- * @param toolId - When provided, reads from this quoting tool (multi-tenant).
+ * Get pricing file metadata (Supabase only).
  */
 export async function getPricingFileMetadata(toolId?: string) {
-  if (isSupabaseConfigured()) {
-    const meta = await configStore.getPricingFileMetadataFromConfig(toolId);
-    return meta ?? null;
-  }
-  const kv = getKV();
-  const k = toolKey(toolId, PRICING_KEY);
-  return await kv.get(`${k}:metadata`);
+  requireSupabaseForConfig();
+  const meta = await configStore.getPricingFileMetadataFromConfig(toolId);
+  return meta ?? null;
 }
 
 /**
- * Check if pricing file exists (Supabase source of truth when configured).
- * @param toolId - When provided, checks this quoting tool (multi-tenant).
+ * Check if pricing file exists (Supabase only).
  */
 export async function pricingFileExists(toolId?: string): Promise<boolean> {
-  if (isSupabaseConfigured()) {
-    const base64 = await configStore.getPricingFileBase64FromConfig(toolId);
-    return !!base64 && base64.length > 0;
-  }
-  try {
-    const kv = getKV();
-    const k = toolKey(toolId, PRICING_KEY);
-    const exists = await kv.exists(k);
-    return exists === 1;
-  } catch {
-    return false;
-  }
+  requireSupabaseForConfig();
+  const base64 = await configStore.getPricingFileBase64FromConfig(toolId);
+  return !!base64 && base64.length > 0;
 }
 
 /**
- * Store network path for pricing file (Supabase source of truth when configured).
- * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
+ * Store network path for pricing file (Supabase only).
  */
 export async function storeNetworkPricingPath(path: string, toolId?: string): Promise<void> {
-  if (isSupabaseConfigured()) {
-    await configStore.setPricingNetworkPathInConfig(path, toolId);
-    return;
-  }
-  try {
-    const kv = getKV();
-    await kv.set(toolKey(toolId, PRICING_NETWORK_PATH_KEY), path);
-  } catch (error) {
-    console.error('Error storing network pricing path:', error);
-    throw error;
-  }
+  requireSupabaseForConfig();
+  await configStore.setPricingNetworkPathInConfig(path, toolId);
 }
 
 /**
- * Get network path for pricing file (Supabase source of truth when configured).
- * @param toolId - When provided, reads from this quoting tool (multi-tenant).
+ * Get network path for pricing file (Supabase only).
  */
 export async function getNetworkPricingPath(toolId?: string): Promise<string | null> {
-  if (isSupabaseConfigured()) return configStore.getPricingNetworkPathFromConfig(toolId);
-  try {
-    const kv = getKV();
-    const path = await kv.get<string>(toolKey(toolId, PRICING_NETWORK_PATH_KEY));
-    return path || null;
-  } catch {
-    return null;
-  }
+  requireSupabaseForConfig();
+  return configStore.getPricingNetworkPathFromConfig(toolId);
 }
 
 /**
- * Delete network path for pricing file (Supabase source of truth when configured).
- * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
+ * Delete network path for pricing file (Supabase only).
  */
 export async function deleteNetworkPricingPath(toolId?: string): Promise<void> {
-  if (isSupabaseConfigured()) {
-    await configStore.setPricingNetworkPathInConfig(null, toolId);
-    return;
-  }
-  try {
-    const kv = getKV();
-    await kv.del(toolKey(toolId, PRICING_NETWORK_PATH_KEY));
-  } catch (error) {
-    console.error('Error deleting network pricing path:', error);
-    throw error;
-  }
+  requireSupabaseForConfig();
+  await configStore.setPricingNetworkPathInConfig(null, toolId);
 }
 
 /**
@@ -256,70 +168,43 @@ export async function deleteNetworkPricingPath(toolId?: string): Promise<void> {
  */
 
 /**
- * Store GHL API token (Supabase source of truth when configured).
+ * Store GHL API token (Supabase only).
  */
 export async function storeGHLToken(token: string, toolId?: string): Promise<void> {
-  if (isSupabaseConfigured()) {
-    await configStore.setGHLToken(token, toolId);
-    return;
-  }
-  const kv = getKV();
-  await kv.set(toolKey(toolId, GHL_TOKEN_KEY), token);
+  requireSupabaseForConfig();
+  await configStore.setGHLToken(token, toolId);
 }
 
 /**
- * Get GHL API token (Supabase source of truth when configured).
+ * Get GHL API token (Supabase only).
  */
 export async function getGHLToken(toolId?: string): Promise<string | null> {
-  if (isSupabaseConfigured()) return configStore.getGHLToken(toolId);
-  try {
-    const kv = getKV();
-    const token = await kv.get<string>(toolKey(toolId, GHL_TOKEN_KEY));
-    return token || null;
-  } catch (error) {
-    console.error('Error retrieving GHL token:', error);
-    return null;
-  }
+  requireSupabaseForConfig();
+  return configStore.getGHLToken(toolId);
 }
 
 /**
- * Check if GHL token exists (Supabase source of truth when configured).
+ * Check if GHL token exists (Supabase only).
  */
 export async function ghlTokenExists(toolId?: string): Promise<boolean> {
-  if (isSupabaseConfigured()) return configStore.ghlTokenExists(toolId);
-  try {
-    const kv = getKV();
-    const exists = await kv.exists(toolKey(toolId, GHL_TOKEN_KEY));
-    return exists === 1;
-  } catch {
-    return false;
-  }
+  requireSupabaseForConfig();
+  return configStore.ghlTokenExists(toolId);
 }
 
 /**
- * Store GHL Location ID (Supabase source of truth when configured).
+ * Store GHL Location ID (Supabase only).
  */
 export async function storeGHLLocationId(locationId: string, toolId?: string): Promise<void> {
-  if (isSupabaseConfigured()) {
-    await configStore.setGHLLocationId(locationId, toolId);
-    return;
-  }
-  const kv = getKV();
-  await kv.set(toolKey(toolId, GHL_LOCATION_ID_KEY), locationId);
+  requireSupabaseForConfig();
+  await configStore.setGHLLocationId(locationId, toolId);
 }
 
 /**
- * Get GHL Location ID (Supabase source of truth when configured).
+ * Get GHL Location ID (Supabase only).
  */
 export async function getGHLLocationId(toolId?: string): Promise<string | null> {
-  if (isSupabaseConfigured()) return configStore.getGHLLocationId(toolId);
-  try {
-    const kv = getKV();
-    const locationId = await kv.get<string>(toolKey(toolId, GHL_LOCATION_ID_KEY));
-    return locationId || null;
-  } catch {
-    return null;
-  }
+  requireSupabaseForConfig();
+  return configStore.getGHLLocationId(toolId);
 }
 
 /**
@@ -351,17 +236,8 @@ export async function storeGHLConfig(config: {
   appointmentBookedTags?: string[];
   quoteCompletedTags?: string[];
 }, toolId?: string): Promise<void> {
-  if (isSupabaseConfigured()) {
-    await configStore.setGHLConfig(config as Record<string, unknown>, toolId);
-    return;
-  }
-  try {
-    const kv = getKV();
-    await kv.set(toolKey(toolId, GHL_CONFIG_KEY), config);
-  } catch (error) {
-    console.error('Error storing GHL config:', error);
-    throw error;
-  }
+  requireSupabaseForConfig();
+  await configStore.setGHLConfig(config as Record<string, unknown>, toolId);
 }
 
 /**
@@ -393,17 +269,9 @@ export async function getGHLConfig(toolId?: string): Promise<{
   appointmentBookedTags?: string[];
   quoteCompletedTags?: string[];
 } | null> {
-  if (isSupabaseConfigured()) {
-    const c = await configStore.getGHLConfig(toolId);
-    return c as ReturnType<typeof getGHLConfig> extends Promise<infer R> ? R : never;
-  }
-  try {
-    const kv = getKV();
-    const config = await kv.get(toolKey(toolId, GHL_CONFIG_KEY));
-    return config as any;
-  } catch {
-    return null;
-  }
+  requireSupabaseForConfig();
+  const c = await configStore.getGHLConfig(toolId);
+  return c as ReturnType<typeof getGHLConfig> extends Promise<infer R> ? R : never;
 }
 
 /**
@@ -427,49 +295,24 @@ export interface SurveyQuestion {
 }
 
 /**
- * DEPRECATED: Use @/lib/survey/manager instead
- * Store survey questions (Supabase source of truth when configured).
- * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
+ * DEPRECATED: Use @/lib/survey/manager instead. Store survey questions (Supabase only).
  */
 export async function storeSurveyQuestions(questions: SurveyQuestion[], toolId?: string): Promise<void> {
   console.warn('⚠️ storeSurveyQuestions is deprecated. Use survey/manager.saveSurveyQuestions instead');
-  if (isSupabaseConfigured()) {
-    const sorted = [...questions].sort((a, b) => a.order - b.order);
-    await configStore.setSurveyQuestionsInConfig(sorted as unknown as Record<string, unknown>[], toolId);
-    return;
-  }
-  try {
-    const kv = getKV();
-    const sortedQuestions = [...questions].sort((a, b) => a.order - b.order);
-    await kv.set(toolKey(toolId, SURVEY_QUESTIONS_KEY), sortedQuestions);
-  } catch (error) {
-    console.error('Error storing survey questions:', error);
-    throw error;
-  }
+  requireSupabaseForConfig();
+  const sorted = [...questions].sort((a, b) => a.order - b.order);
+  await configStore.setSurveyQuestionsInConfig(sorted as unknown as Record<string, unknown>[], toolId);
 }
 
 /**
- * DEPRECATED: Use @/lib/survey/manager instead
- * Get survey questions (Supabase source of truth when configured).
- * @param toolId - When provided, reads from this quoting tool (multi-tenant).
+ * DEPRECATED: Use @/lib/survey/manager instead. Get survey questions (Supabase only).
  */
 export async function getSurveyQuestions(toolId?: string): Promise<SurveyQuestion[]> {
   console.warn('⚠️ getSurveyQuestions is deprecated. Use survey/manager.getSurveyQuestions instead');
-  if (isSupabaseConfigured()) {
-    const q = await configStore.getSurveyQuestionsFromConfig(toolId);
-    if (!q || !Array.isArray(q)) return [];
-    return (q as SurveyQuestion[]).sort((a, b) => a.order - b.order);
-  }
-  try {
-    const kv = getKV();
-    const questions = await kv.get<SurveyQuestion[]>(toolKey(toolId, SURVEY_QUESTIONS_KEY));
-    if (!questions || !Array.isArray(questions)) {
-      return [];
-    }
-    return questions.sort((a, b) => a.order - b.order);
-  } catch {
-    return [];
-  }
+  requireSupabaseForConfig();
+  const q = await configStore.getSurveyQuestionsFromConfig(toolId);
+  if (!q || !Array.isArray(q)) return [];
+  return (q as SurveyQuestion[]).sort((a, b) => a.order - b.order);
 }
 
 /**
@@ -478,237 +321,125 @@ export async function getSurveyQuestions(toolId?: string): Promise<SurveyQuestio
 export type ServiceAreaPolygon = Array<[number, number]>;
 
 /**
- * Store service area polygon (Supabase source of truth when configured).
- * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
+ * Store service area polygon (Supabase only).
  */
 export async function storeServiceAreaPolygon(polygon: ServiceAreaPolygon, toolId?: string): Promise<void> {
-  if (isSupabaseConfigured()) {
-    await configStore.setServiceAreaPolygonInConfig(polygon as unknown as Record<string, unknown>, toolId);
-    return;
-  }
-  try {
-    const kv = getKV();
-    await kv.set(toolKey(toolId, SERVICE_AREA_POLYGON_KEY), polygon);
-  } catch (error) {
-    console.error('Error storing service area polygon:', error);
-    throw error;
-  }
+  requireSupabaseForConfig();
+  await configStore.setServiceAreaPolygonInConfig(polygon as unknown as Record<string, unknown>, toolId);
 }
 
 /**
- * Get service area polygon (Supabase source of truth when configured).
- * @param toolId - When provided, reads from this quoting tool (multi-tenant).
+ * Get service area polygon (Supabase only).
  */
 export async function getServiceAreaPolygon(toolId?: string): Promise<ServiceAreaPolygon | null> {
-  if (isSupabaseConfigured()) {
-    const p = await configStore.getServiceAreaPolygonFromConfig(toolId);
-    return (p as ServiceAreaPolygon) ?? null;
-  }
-  try {
-    const kv = getKV();
-    const polygon = await kv.get<ServiceAreaPolygon>(toolKey(toolId, SERVICE_AREA_POLYGON_KEY));
-    return polygon || null;
-  } catch {
-    return null;
-  }
+  requireSupabaseForConfig();
+  const p = await configStore.getServiceAreaPolygonFromConfig(toolId);
+  return (p as ServiceAreaPolygon) ?? null;
 }
 
 /**
- * Check if service area polygon exists (Supabase source of truth when configured).
- * @param toolId - When provided, checks this quoting tool (multi-tenant).
+ * Check if service area polygon exists (Supabase only).
  */
 export async function serviceAreaPolygonExists(toolId?: string): Promise<boolean> {
-  if (isSupabaseConfigured()) {
-    const p = await configStore.getServiceAreaPolygonFromConfig(toolId);
-    return Array.isArray(p) && p.length > 0;
-  }
-  try {
-    const kv = getKV();
-    const exists = await kv.exists(toolKey(toolId, SERVICE_AREA_POLYGON_KEY));
-    return exists === 1;
-  } catch {
-    return false;
-  }
+  requireSupabaseForConfig();
+  const p = await configStore.getServiceAreaPolygonFromConfig(toolId);
+  return Array.isArray(p) && p.length > 0;
 }
 
 /**
- * Store service area network link URL (Supabase source of truth when configured).
- * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
+ * Store service area network link URL (Supabase only).
  */
 export async function storeServiceAreaNetworkLink(url: string, toolId?: string): Promise<void> {
-  if (isSupabaseConfigured()) {
-    await configStore.setServiceAreaNetworkLinkInConfig(url, toolId);
-    return;
-  }
-  try {
-    const kv = getKV();
-    await kv.set(toolKey(toolId, SERVICE_AREA_NETWORK_LINK_KEY), url);
-  } catch (error) {
-    console.error('Error storing service area network link:', error);
-    throw error;
-  }
+  requireSupabaseForConfig();
+  await configStore.setServiceAreaNetworkLinkInConfig(url, toolId);
 }
 
 /**
- * Get service area network link URL (Supabase source of truth when configured).
- * @param toolId - When provided, reads from this quoting tool (multi-tenant).
+ * Get service area network link URL (Supabase only).
  */
 export async function getServiceAreaNetworkLink(toolId?: string): Promise<string | null> {
-  if (isSupabaseConfigured()) return configStore.getServiceAreaNetworkLinkFromConfig(toolId);
-  try {
-    const kv = getKV();
-    const url = await kv.get<string>(toolKey(toolId, SERVICE_AREA_NETWORK_LINK_KEY));
-    return url || null;
-  } catch {
-    return null;
-  }
+  requireSupabaseForConfig();
+  return configStore.getServiceAreaNetworkLinkFromConfig(toolId);
 }
 
 /**
- * Delete service area network link (Supabase source of truth when configured).
- * @param toolId - When provided, scoped to this quoting tool (multi-tenant).
+ * Delete service area network link (Supabase only).
  */
 export async function deleteServiceAreaNetworkLink(toolId?: string): Promise<void> {
-  if (isSupabaseConfigured()) {
-    await configStore.setServiceAreaNetworkLinkInConfig(null, toolId);
-    return;
-  }
-  try {
-    const kv = getKV();
-    await kv.del(toolKey(toolId, SERVICE_AREA_NETWORK_LINK_KEY));
-  } catch (error) {
-    console.error('Error deleting service area network link:', error);
-    throw error;
-  }
+  requireSupabaseForConfig();
+  await configStore.setServiceAreaNetworkLinkInConfig(null, toolId);
 }
 
 /** Widget settings shape (title, subtitle, primaryColor). */
 export type WidgetSettings = { title: string; subtitle: string; primaryColor: string };
 
 /**
- * Get widget settings (Supabase source of truth when configured).
+ * Get widget settings (Supabase only).
  */
 export async function getWidgetSettings(toolId?: string): Promise<WidgetSettings | null> {
-  if (isSupabaseConfigured()) return configStore.getWidgetSettings(toolId);
-  try {
-    const kv = getKV();
-    const settings = await kv.get<WidgetSettings>(toolKey(toolId, WIDGET_SETTINGS_KEY));
-    return settings || null;
-  } catch {
-    return null;
-  }
+  requireSupabaseForConfig();
+  return configStore.getWidgetSettings(toolId);
 }
 
 /**
- * Set widget settings (Supabase source of truth when configured).
+ * Set widget settings (Supabase only).
  */
 export async function setWidgetSettings(
   settings: { title: string; subtitle: string; primaryColor: string },
   toolId?: string
 ): Promise<void> {
-  if (isSupabaseConfigured()) {
-    await configStore.setWidgetSettings(settings, toolId);
-    return;
-  }
-  const kv = getKV();
-  await kv.set(toolKey(toolId, WIDGET_SETTINGS_KEY), settings);
+  requireSupabaseForConfig();
+  await configStore.setWidgetSettings(settings, toolId);
 }
 
 /**
- * Get form settings (Supabase source of truth when configured).
+ * Get form settings (Supabase only).
  */
 export async function getFormSettings(toolId?: string): Promise<Record<string, unknown> | null> {
-  if (isSupabaseConfigured()) return configStore.getFormSettings(toolId);
-  try {
-    const kv = getKV();
-    const settings = await kv.get<Record<string, unknown>>(toolKey(toolId, FORM_SETTINGS_KEY));
-    return settings || null;
-  } catch {
-    return null;
-  }
+  requireSupabaseForConfig();
+  return configStore.getFormSettings(toolId);
 }
 
 /**
- * Set form settings (Supabase source of truth when configured).
+ * Set form settings (Supabase only).
  */
 export async function setFormSettings(settings: Record<string, unknown>, toolId?: string): Promise<void> {
-  if (isSupabaseConfigured()) {
-    await configStore.setFormSettings(settings, toolId);
-    return;
-  }
-  const kv = getKV();
-  await kv.set(toolKey(toolId, FORM_SETTINGS_KEY), settings);
+  requireSupabaseForConfig();
+  await configStore.setFormSettings(settings, toolId);
 }
 
-const TRACKING_CODES_KEY = 'admin:tracking-codes';
-
-/** Get tracking codes (Supabase source of truth when configured). */
+/** Get tracking codes (Supabase only). */
 export async function getTrackingCodes(toolId?: string): Promise<{ customHeadCode?: string } | null> {
-  if (isSupabaseConfigured()) return configStore.getTrackingCodes(toolId);
-  try {
-    const kv = getKV();
-    const v = await kv.get<{ customHeadCode?: string }>(toolKey(toolId, TRACKING_CODES_KEY));
-    return v || null;
-  } catch {
-    return null;
-  }
+  requireSupabaseForConfig();
+  return configStore.getTrackingCodes(toolId);
 }
 
-/** Set tracking codes (Supabase source of truth when configured). */
+/** Set tracking codes (Supabase only). */
 export async function setTrackingCodes(settings: { customHeadCode?: string }, toolId?: string): Promise<void> {
-  if (isSupabaseConfigured()) {
-    await configStore.setTrackingCodes(settings, toolId);
-    return;
-  }
-  const kv = getKV();
-  await kv.set(toolKey(toolId, TRACKING_CODES_KEY), settings);
+  requireSupabaseForConfig();
+  await configStore.setTrackingCodes(settings, toolId);
 }
 
-const INITIAL_CLEANING_CONFIG_KEY = 'admin:initial-cleaning-config';
-
-/** Get initial cleaning config (Supabase source of truth when configured). */
+/** Get initial cleaning config (Supabase only). */
 export async function getInitialCleaningConfig(toolId?: string): Promise<configStore.InitialCleaningConfig | null> {
-  if (isSupabaseConfigured()) return configStore.getInitialCleaningConfig(toolId);
-  try {
-    const kv = getKV();
-    const v = await kv.get<configStore.InitialCleaningConfig>(toolKey(toolId, INITIAL_CLEANING_CONFIG_KEY));
-    return v || null;
-  } catch {
-    return null;
-  }
+  requireSupabaseForConfig();
+  return configStore.getInitialCleaningConfig(toolId);
 }
 
-/** Set initial cleaning config (Supabase source of truth when configured). */
+/** Set initial cleaning config (Supabase only). */
 export async function setInitialCleaningConfig(config: configStore.InitialCleaningConfig, toolId?: string): Promise<void> {
-  if (isSupabaseConfigured()) {
-    await configStore.setInitialCleaningConfig(config, toolId);
-    return;
-  }
-  const kv = getKV();
-  await kv.set(toolKey(toolId, INITIAL_CLEANING_CONFIG_KEY), config);
+  requireSupabaseForConfig();
+  await configStore.setInitialCleaningConfig(config, toolId);
 }
 
-const GOOGLE_MAPS_API_KEY = 'admin:google-maps-api-key';
-
-/** Get Google Maps API key (Supabase source of truth when configured). */
+/** Get Google Maps API key (Supabase only). */
 export async function getGoogleMapsKey(toolId?: string): Promise<string | null> {
-  if (isSupabaseConfigured()) return configStore.getGoogleMapsKey(toolId);
-  try {
-    const kv = getKV();
-    const v = await kv.get<string>(toolKey(toolId, GOOGLE_MAPS_API_KEY));
-    return v || null;
-  } catch {
-    return null;
-  }
+  requireSupabaseForConfig();
+  return configStore.getGoogleMapsKey(toolId);
 }
 
-/** Set Google Maps API key (Supabase source of truth when configured). */
+/** Set Google Maps API key (Supabase only). */
 export async function setGoogleMapsKey(key: string | null, toolId?: string): Promise<void> {
-  if (isSupabaseConfigured()) {
-    await configStore.setGoogleMapsKey(key, toolId);
-    return;
-  }
-  const kv = getKV();
-  if (key === null) await kv.del(toolKey(toolId, GOOGLE_MAPS_API_KEY));
-  else await kv.set(toolKey(toolId, GOOGLE_MAPS_API_KEY), key);
+  requireSupabaseForConfig();
+  await configStore.setGoogleMapsKey(key, toolId);
 }

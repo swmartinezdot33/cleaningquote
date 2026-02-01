@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDashboardUserAndTool } from '@/lib/dashboard-auth';
-import { getKV, toolKey } from '@/lib/kv';
+import { getTrackingCodes, setTrackingCodes } from '@/lib/kv';
 
 export const dynamic = 'force-dynamic';
-
-const KEY = 'admin:tracking-codes';
-
-interface TrackingCodes {
-  customHeadCode?: string;
-}
 
 export async function GET(
   _req: NextRequest,
@@ -18,8 +12,7 @@ export async function GET(
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const kv = getKV();
-    const data = await kv.get<TrackingCodes>(toolKey(auth.tool.id, KEY));
+    const data = await getTrackingCodes(auth.tool.id);
     return NextResponse.json({ trackingCodes: data ?? {} });
   } catch (e) {
     console.error('GET dashboard tracking-codes:', e);
@@ -40,11 +33,10 @@ export async function POST(
   try {
     const body = await request.json();
     const customHeadCode = body.customHeadCode;
-    const trackingCodes: TrackingCodes = {};
+    const trackingCodes: { customHeadCode?: string } = {};
     if (customHeadCode?.trim()) trackingCodes.customHeadCode = customHeadCode.trim();
 
-    const kv = getKV();
-    await kv.set(toolKey(auth.tool.id, KEY), trackingCodes);
+    await setTrackingCodes(trackingCodes, auth.tool.id);
     return NextResponse.json({ success: true, message: 'Tracking codes saved' });
   } catch (e) {
     console.error('POST dashboard tracking-codes:', e);

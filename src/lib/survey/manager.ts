@@ -1,15 +1,20 @@
 /**
  * Survey Manager
- * Handles all survey CRUD operations. Supabase is source of truth when configured; otherwise KV.
+ * Handles all survey CRUD operations. Supabase is the only source of truth for config.
  */
 
-import { getKV, toolKey } from '@/lib/kv';
 import { isSupabaseConfigured } from '@/lib/supabase/server';
 import * as configStore from '@/lib/config/store';
 import { SurveyQuestion, DEFAULT_SURVEY_QUESTIONS, validateSurveyQuestion } from './schema';
 import { validateFieldTypeCompatibility } from './field-type-validator';
 
-const SURVEY_QUESTIONS_KEY = 'survey:questions:v2';
+function requireSupabaseForSurvey(): void {
+  if (!isSupabaseConfigured()) {
+    throw new Error(
+      'Supabase is required for survey configuration. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'
+    );
+  }
+}
 
 function restoreCoreFields(questions: SurveyQuestion[]): { questions: SurveyQuestion[]; needsSave: boolean } {
   const coreFieldIds = ['firstName', 'lastName', 'email', 'phone', 'address', 'squareFeet'];
@@ -26,70 +31,33 @@ function restoreCoreFields(questions: SurveyQuestion[]): { questions: SurveyQues
 }
 
 /**
- * Initialize surveys - creates defaults if none exist
+ * Initialize surveys - creates defaults if none exist (Supabase only).
  */
 export async function initializeSurvey(toolId?: string): Promise<SurveyQuestion[]> {
-  if (isSupabaseConfigured()) {
-    const existing = await configStore.getSurveyQuestionsFromConfig(toolId);
-    if (existing && Array.isArray(existing) && existing.length > 0) {
-      return (existing as SurveyQuestion[]).sort((a, b) => (a as SurveyQuestion).order - (b as SurveyQuestion).order);
-    }
-    await configStore.setSurveyQuestionsInConfig(DEFAULT_SURVEY_QUESTIONS, toolId);
-    return DEFAULT_SURVEY_QUESTIONS;
+  requireSupabaseForSurvey();
+  const existing = await configStore.getSurveyQuestionsFromConfig(toolId);
+  if (existing && Array.isArray(existing) && existing.length > 0) {
+    return (existing as SurveyQuestion[]).sort((a, b) => (a as SurveyQuestion).order - (b as SurveyQuestion).order);
   }
-  try {
-    const kv = getKV();
-    const key = toolKey(toolId, SURVEY_QUESTIONS_KEY);
-    const existing = await kv.get<SurveyQuestion[]>(key);
-    if (existing && Array.isArray(existing) && existing.length > 0) {
-      return existing.sort((a, b) => a.order - b.order);
-    }
-    await kv.set(key, DEFAULT_SURVEY_QUESTIONS);
-    return DEFAULT_SURVEY_QUESTIONS;
-  } catch (error) {
-    console.error('Error initializing survey:', error);
-    throw error;
-  }
+  await configStore.setSurveyQuestionsInConfig(DEFAULT_SURVEY_QUESTIONS, toolId);
+  return DEFAULT_SURVEY_QUESTIONS;
 }
 
 /**
- * Get all survey questions - Supabase or KV source of truth
+ * Get all survey questions (Supabase only).
  */
 export async function getSurveyQuestions(toolId?: string): Promise<SurveyQuestion[]> {
-  if (isSupabaseConfigured()) {
-    const questions = await configStore.getSurveyQuestionsFromConfig(toolId);
-    if (!questions || !Array.isArray(questions) || questions.length === 0) {
-      return await initializeSurvey(toolId);
-    }
-    const typed = questions as SurveyQuestion[];
-    const { questions: restored, needsSave } = restoreCoreFields(typed);
-    if (needsSave) {
-      await configStore.setSurveyQuestionsInConfig(restored, toolId);
-    }
-    return restored.sort((a, b) => a.order - b.order);
+  requireSupabaseForSurvey();
+  const questions = await configStore.getSurveyQuestionsFromConfig(toolId);
+  if (!questions || !Array.isArray(questions) || questions.length === 0) {
+    return await initializeSurvey(toolId);
   }
-  try {
-    const kv = getKV();
-    const key = toolKey(toolId, SURVEY_QUESTIONS_KEY);
-    const questions = await kv.get<SurveyQuestion[]>(key);
-    if (!questions || !Array.isArray(questions)) {
-      const oldKey = toolKey(toolId, 'survey:questions');
-      const oldQuestions = await kv.get<SurveyQuestion[]>(oldKey);
-      if (oldQuestions && Array.isArray(oldQuestions) && oldQuestions.length > 0) {
-        await kv.set(key, oldQuestions);
-        return oldQuestions.sort((a, b) => a.order - b.order);
-      }
-      return await initializeSurvey(toolId);
-    }
-    const { questions: restored, needsSave } = restoreCoreFields(questions);
-    if (needsSave) {
-      await kv.set(key, restored);
-    }
-    return restored.sort((a, b) => a.order - b.order);
-  } catch (error) {
-    console.warn('KV storage not available, returning default questions:', error instanceof Error ? error.message : 'unknown error');
-    return DEFAULT_SURVEY_QUESTIONS.sort((a, b) => a.order - b.order);
+  const typed = questions as SurveyQuestion[];
+  const { questions: restored, needsSave } = restoreCoreFields(typed);
+  if (needsSave) {
+    await configStore.setSurveyQuestionsInConfig(restored, toolId);
   }
+  return restored.sort((a, b) => a.order - b.order);
 }
 
 /**
@@ -115,18 +83,9 @@ export async function saveSurveyQuestions(questions: SurveyQuestion[], toolId?: 
     isCoreField: q.isCoreField !== undefined ? q.isCoreField : coreFieldIds.includes(q.id),
   }));
 
-  if (isSupabaseConfigured()) {
-    await configStore.setSurveyQuestionsInConfig(questionsToSave, toolId);
-    return sorted;
-  }
-  try {
-    const kv = getKV();
-    await kv.set(toolKey(toolId, SURVEY_QUESTIONS_KEY), questionsToSave);
-    return sorted;
-  } catch (error) {
-    console.error('Error saving survey questions:', error);
-    throw error;
-  }
+  requireSupabaseForSurvey();
+  await configStore.setSurveyQuestionsInConfig(questionsToSave, toolId);
+  return sorted;
 }
 
 /**
@@ -293,21 +252,12 @@ export async function reorderQuestions(orders: Array<{ id: string; order: number
 }
 
 /**
- * Reset to defaults
+ * Reset to defaults (Supabase only).
  */
 export async function resetToDefaults(toolId?: string): Promise<SurveyQuestion[]> {
-  if (isSupabaseConfigured()) {
-    await configStore.setSurveyQuestionsInConfig(DEFAULT_SURVEY_QUESTIONS, toolId);
-    return DEFAULT_SURVEY_QUESTIONS;
-  }
-  try {
-    const kv = getKV();
-    await kv.set(toolKey(toolId, SURVEY_QUESTIONS_KEY), DEFAULT_SURVEY_QUESTIONS);
-    return DEFAULT_SURVEY_QUESTIONS;
-  } catch (error) {
-    console.error('Error resetting to defaults:', error);
-    throw error;
-  }
+  requireSupabaseForSurvey();
+  await configStore.setSurveyQuestionsInConfig(DEFAULT_SURVEY_QUESTIONS, toolId);
+  return DEFAULT_SURVEY_QUESTIONS;
 }
 
 /**

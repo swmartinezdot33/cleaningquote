@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDashboardUserAndTool } from '@/lib/dashboard-auth';
-import { getKV, toolKey, storePricingFile } from '@/lib/kv';
+import { storePricingFile, setPricingTable } from '@/lib/kv';
 import { invalidatePricingCache, loadPricingTable } from '@/lib/pricing/loadPricingTable';
 
 export const dynamic = 'force-dynamic';
-
-const PRICING_DATA_KEY = 'pricing:data:table';
 
 /** POST - Upload pricing Excel file for this tool */
 export async function POST(
@@ -45,8 +43,7 @@ export async function POST(
     try {
       invalidatePricingCache(toolId);
       const parsedTable = await loadPricingTable(toolId);
-      const kv = getKV();
-      await kv.set(toolKey(toolId, PRICING_DATA_KEY), parsedTable);
+      if (parsedTable) await setPricingTable(parsedTable, toolId);
       parseSuccess = true;
     } catch (err) {
       parseError = err instanceof Error ? err.message : 'Unknown error';

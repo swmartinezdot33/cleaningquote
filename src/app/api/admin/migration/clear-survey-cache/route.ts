@@ -1,26 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isSupabaseConfigured } from '@/lib/supabase/server';
 import * as configStore from '@/lib/config/store';
-import { getKV } from '@/lib/kv';
 
-const SURVEY_QUESTIONS_KEY = 'survey:questions';
+const SUPABASE_REQUIRED_MSG =
+  'Supabase is required for configuration. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.';
 
 /**
- * EMERGENCY MIGRATION: Clear survey questions cache (Supabase or KV)
- * This forces the system to regenerate default questions with correct field types
+ * EMERGENCY MIGRATION: Clear survey questions (Supabase only).
+ * This forces the system to regenerate default questions with correct field types.
  */
 export async function POST(request: NextRequest) {
   try {
-    if (isSupabaseConfigured()) {
-      console.log('🔄 MIGRATION: Clearing survey questions from Supabase config...');
-      await configStore.setSurveyQuestionsInConfig([], undefined);
-      console.log('✅ MIGRATION: Survey questions cleared (Supabase)');
-    } else {
-      console.log('🔄 MIGRATION: Clearing survey questions cache from Vercel KV...');
-      const kv = getKV();
-      await kv.del(SURVEY_QUESTIONS_KEY);
-      console.log('✅ MIGRATION: Survey questions cache cleared (KV)');
+    if (!isSupabaseConfigured()) {
+      return NextResponse.json(
+        { success: false, error: SUPABASE_REQUIRED_MSG },
+        { status: 503 }
+      );
     }
+    console.log('🔄 MIGRATION: Clearing survey questions from Supabase config...');
+    await configStore.setSurveyQuestionsInConfig([], undefined);
+    console.log('✅ MIGRATION: Survey questions cleared');
 
     return NextResponse.json({
       success: true,
@@ -40,34 +39,22 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET endpoint to check migration status and manually trigger if needed
+ * GET endpoint to check migration status and manually trigger if needed.
  */
 export async function GET(request: NextRequest) {
   try {
-    if (isSupabaseConfigured()) {
-      const questions = await configStore.getSurveyQuestionsFromConfig(undefined);
-      const cacheExists = Array.isArray(questions) && questions.length > 0;
-      return NextResponse.json({
-        cacheExists,
-        message: cacheExists ? 'Survey questions exist in Supabase config' : 'Survey questions are empty. Default questions will be used.',
-        ...(cacheExists && { cachedQuestions: questions, action: 'POST to this endpoint with Bearer token to clear' }),
-      });
+    if (!isSupabaseConfigured()) {
+      return NextResponse.json(
+        { error: SUPABASE_REQUIRED_MSG, cacheExists: false },
+        { status: 503 }
+      );
     }
-
-    const kv = getKV();
-    const exists = await kv.exists(SURVEY_QUESTIONS_KEY);
-    if (exists === 1) {
-      const questions = await kv.get(SURVEY_QUESTIONS_KEY);
-      return NextResponse.json({
-        cacheExists: true,
-        message: 'Survey questions cache exists',
-        cachedQuestions: questions,
-        action: 'POST to this endpoint with Bearer token to clear cache',
-      });
-    }
+    const questions = await configStore.getSurveyQuestionsFromConfig(undefined);
+    const cacheExists = Array.isArray(questions) && questions.length > 0;
     return NextResponse.json({
-      cacheExists: false,
-      message: 'Survey questions cache is already empty. Default questions will be used.',
+      cacheExists,
+      message: cacheExists ? 'Survey questions exist in Supabase config' : 'Survey questions are empty. Default questions will be used.',
+      ...(cacheExists && { cachedQuestions: questions, action: 'POST to this endpoint with Bearer token to clear' }),
     });
   } catch (error) {
     return NextResponse.json(

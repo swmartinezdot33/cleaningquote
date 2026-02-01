@@ -11,6 +11,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/help",
     "/help/google-maps-api",
     "/help/ghl-integration",
+    "/help/ghl-config",
     "/help/service-area-polygon",
     "/help/survey-builder",
     "/help/pricing-structure-builder",

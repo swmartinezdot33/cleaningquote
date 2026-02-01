@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDashboardUserAndTool } from '@/lib/dashboard-auth';
-import { getKV, toolKey } from '@/lib/kv';
+import { getGoogleMapsKey, setGoogleMapsKey } from '@/lib/kv';
 
 export const dynamic = 'force-dynamic';
-
-const KEY = 'admin:google-maps-api-key';
 
 export async function GET(
   _req: NextRequest,
@@ -14,8 +12,7 @@ export async function GET(
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const kv = getKV();
-    const apiKey = await kv.get<string>(toolKey(auth.tool.id, KEY));
+    const apiKey = await getGoogleMapsKey(auth.tool.id);
     const maskedKey = apiKey
       ? apiKey.substring(0, 7) + '*'.repeat(Math.max(0, apiKey.length - 10)) + apiKey.substring(apiKey.length - 3)
       : '';
@@ -46,8 +43,7 @@ export async function POST(
       return NextResponse.json({ error: 'API key appears to be invalid (too short)' }, { status: 400 });
     }
 
-    const kv = getKV();
-    await kv.set(toolKey(auth.tool.id, KEY), apiKey);
+    await setGoogleMapsKey(apiKey, auth.tool.id);
     return NextResponse.json({ success: true, message: 'Google Maps API key saved' });
   } catch (e) {
     console.error('POST dashboard google-maps-key:', e);
@@ -66,8 +62,7 @@ export async function DELETE(
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const kv = getKV();
-    await kv.del(toolKey(auth.tool.id, KEY));
+    await setGoogleMapsKey(null, auth.tool.id);
     return NextResponse.json({ success: true, message: 'Google Maps API key removed' });
   } catch (e) {
     console.error('DELETE dashboard google-maps-key:', e);

@@ -1,15 +1,15 @@
 import { PricingTable, QuoteInputs, QuoteRanges, QuoteResult } from './types';
 import { loadPricingTable } from './loadPricingTable';
-import { getKV, toolKey } from '@/lib/kv';
+import { getInitialCleaningConfig as getInitialCleaningConfigFromStore } from '@/lib/kv';
 
 // Re-export for backward compatibility
 export { loadPricingTable } from './loadPricingTable';
 
 /**
  * Default configuration for Initial Cleaning
- * Can be overridden by admin settings in KV
+ * Can be overridden by admin settings (Supabase or KV).
  */
-interface InitialCleaningConfig {
+export interface InitialCleaningConfig {
   multiplier: number;
   requiredConditions: string[];
   recommendedConditions: string[];
@@ -26,14 +26,12 @@ const DEFAULT_INITIAL_CLEANING_CONFIG: InitialCleaningConfig = {
 };
 
 /**
- * Get Initial Cleaning configuration (from KV or defaults)
+ * Get Initial Cleaning configuration (from Supabase/KV or defaults).
  * @param toolId - When provided, reads from this quoting tool (multi-tenant).
  */
 export async function getInitialCleaningConfig(toolId?: string): Promise<InitialCleaningConfig> {
   try {
-    const kv = getKV();
-    const key = toolKey(toolId, 'admin:initial-cleaning-config');
-    const config = await kv.get<InitialCleaningConfig>(key);
+    const config = await getInitialCleaningConfigFromStore(toolId);
     return {
       ...DEFAULT_INITIAL_CLEANING_CONFIG,
       ...(config || {}),
@@ -41,7 +39,7 @@ export async function getInitialCleaningConfig(toolId?: string): Promise<Initial
       peopleMultiplier: config?.peopleMultiplier ?? DEFAULT_INITIAL_CLEANING_CONFIG.peopleMultiplier,
     };
   } catch (error) {
-    console.warn('Failed to load Initial Cleaning config from KV, using defaults:', error);
+    console.warn('Failed to load Initial Cleaning config, using defaults:', error);
     return DEFAULT_INITIAL_CLEANING_CONFIG;
   }
 }

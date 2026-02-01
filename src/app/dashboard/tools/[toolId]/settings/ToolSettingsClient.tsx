@@ -602,6 +602,234 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
         </Card>
       </motion.div>
 
+      {/* Service Area Configuration */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.13 }}>
+        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
+          <CardHeader
+            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
+            onClick={() => toggleCard('service-area')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                  <MapPin className="h-5 w-5 text-purple-600" />
+                  Service Area Configuration
+                </CardTitle>
+                <CardDescription className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  Upload a KML file with your service area polygon, and configure tags for in-service and out-of-service customers.
+                  <Link href="/help/service-area-polygon" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                    <BookOpen className="h-3.5 w-3.5" />
+                    Instructions
+                  </Link>
+                </CardDescription>
+              </div>
+              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('service-area') ? 'rotate-180' : ''}`} />
+            </div>
+          </CardHeader>
+          {isCardExpanded('service-area') && (
+            <CardContent className="pt-8 pb-8">
+              <div className="space-y-6">
+                {sectionMessage?.card === 'service-area' && (
+                  <div
+                    className={`p-4 rounded-lg flex items-center gap-3 ${
+                      sectionMessage.type === 'success'
+                        ? 'bg-green-50 text-green-800 border border-green-200'
+                        : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}
+                  >
+                    {sectionMessage.type === 'success' ? (
+                      <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                    )}
+                    <p>{sectionMessage.text}</p>
+                  </div>
+                )}
+
+                {/* KML Upload */}
+                <div>
+                  <Label className="text-base font-semibold">Upload Service Area Polygon (KML)</Label>
+
+                  {/* Status Display */}
+                  {serviceAreaStatus && serviceAreaStatus.type !== 'none' && (
+                    <div
+                      className={`mt-3 p-4 rounded-lg border-2 ${
+                        serviceAreaStatus.type === 'network'
+                          ? 'bg-blue-50 border-blue-200'
+                          : 'bg-emerald-50 border-emerald-200'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <p
+                            className={`font-semibold ${
+                              serviceAreaStatus.type === 'network' ? 'text-blue-900' : 'text-emerald-900'
+                            }`}
+                          >
+                            {serviceAreaStatus.type === 'network'
+                              ? '🔗 NetworkLink Active'
+                              : '✓ Direct Polygon Active'}
+                          </p>
+                          <p
+                            className={`text-sm mt-1 ${
+                              serviceAreaStatus.type === 'network' ? 'text-blue-800' : 'text-emerald-800'
+                            }`}
+                          >
+                            {serviceAreaStatus.type === 'network'
+                              ? `Automatically fetching from: ${serviceAreaStatus.networkLink ?? 'URL'}`
+                              : `${serviceAreaStatus.polygonCount ?? 0} coordinates loaded`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-3 p-4 border-2 border-dashed border-border rounded-lg text-center">
+                    <input
+                      type="file"
+                      accept=".kml,.kmz"
+                      onChange={(e) => setServiceAreaFile(e.target.files?.[0] ?? null)}
+                      className="hidden"
+                      id="kml-file-input"
+                    />
+                    <label htmlFor="kml-file-input" className="cursor-pointer block">
+                      <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="font-semibold text-foreground">Click to select KML file</p>
+                      <p className="text-sm text-muted-foreground">or drag and drop</p>
+                      {serviceAreaFile && (
+                        <p className="text-sm text-emerald-600 mt-2">📁 {serviceAreaFile.name}</p>
+                      )}
+                    </label>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Export your service area as a KML file from Google Maps or other mapping software. The system supports:
+                  </p>
+                  <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1 ml-2 mt-1">
+                    <li>
+                      <strong>Direct KML files</strong> - Traditional KML with polygon coordinates. Uploads once and stores the data.
+                    </li>
+                    <li>
+                      <strong>NetworkLink references</strong> - KML files that link to a remote server. The system will automatically fetch and update the polygon data periodically, so you don&apos;t need to re-upload when your map changes!
+                    </li>
+                  </ul>
+                  {serviceAreaFile && (
+                    <Button
+                      onClick={uploadServiceArea}
+                      disabled={serviceAreaUploading}
+                      className="w-full mt-4 h-10 font-semibold flex items-center gap-2"
+                    >
+                      {serviceAreaUploading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4" />
+                          Upload Polygon
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+
+                {/* Open survey in new tab after service area check success */}
+                <div className="border-t border-border pt-6 mt-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <Label htmlFor="openSurveyInNewTab" className="text-base font-semibold cursor-pointer">
+                        Open survey in new tab after service area check success
+                      </Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        When enabled, after the user enters their address and passes the service area check, a new tab opens to continue the survey. Contact info is pre-filled and they skip to house details. Only works when the widget is embedded in an iframe.
+                      </p>
+                    </div>
+                    <div className="flex-shrink-0">
+                      <input
+                        type="checkbox"
+                        id="openSurveyInNewTab"
+                        checked={String(form.openSurveyInNewTab) === 'true'}
+                        onChange={(e) => setForm((f) => ({ ...f, openSurveyInNewTab: e.target.checked ? 'true' : 'false' }))}
+                        className="w-4 h-4 rounded border-input"
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => saveForm('service-area')}
+                    disabled={savingSection === 'form'}
+                    className="mt-4 h-10 font-semibold flex items-center gap-2"
+                  >
+                    {savingSection === 'form' ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</>
+                    ) : (
+                      <><Save className="h-4 w-4" /> Save</>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      </motion.div>
+
+      {/* Google Maps API Key */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14 }}>
+        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
+          <CardHeader
+            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
+            onClick={() => toggleCard('maps')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                  <Code className="h-5 w-5 text-primary" />
+                  Google Maps API Key
+                </CardTitle>
+                <CardDescription className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  Required for address autocomplete and geocoding on the quote form.
+                  <Link href="/help/google-maps-api" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                    <BookOpen className="h-3.5 w-3.5" />
+                    Instructions
+                  </Link>
+                </CardDescription>
+              </div>
+              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('maps') ? 'rotate-180' : ''}`} />
+            </div>
+          </CardHeader>
+          {isCardExpanded('maps') && (
+            <CardContent className="pt-8 pb-8">
+              <div className="space-y-6">
+                {sectionMessage?.card === 'maps' && (
+                  <div
+                    className={`p-4 rounded-lg flex items-center gap-3 ${
+                      sectionMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}
+                  >
+                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
+                    <p>{sectionMessage.text}</p>
+                  </div>
+                )}
+                {googleMapsExists && <p className="text-sm text-muted-foreground">API key is set. Enter a new value below to replace.</p>}
+                <div>
+                  <Label htmlFor="google-maps-key" className="text-base font-semibold">API key</Label>
+                  <Input
+                    id="google-maps-key"
+                    type="password"
+                    placeholder={googleMapsExists ? '••••••••' : 'Paste Google Maps API key'}
+                    value={googleMapsKey}
+                    onChange={(e) => setGoogleMapsKey(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <Button onClick={saveGoogleMaps} disabled={savingSection === 'maps'} className="w-full h-11 font-semibold flex items-center gap-2">
+                  {savingSection === 'maps' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Google Maps key</>}
+                </Button>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      </motion.div>
+
       {/* HighLevel Connection */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
         <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
@@ -696,8 +924,12 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                   <Settings className="h-5 w-5 text-primary" />
                   HighLevel Config
                 </CardTitle>
-                <CardDescription className="text-muted-foreground mt-1">
+                <CardDescription className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                   Configure CRM behavior when a quote is submitted (contacts, opportunities, notes, calendars, tags). Save HighLevel connection first.
+                  <Link href="/help/ghl-config" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                    <BookOpen className="h-3.5 w-3.5" />
+                    Instructions
+                  </Link>
                 </CardDescription>
               </div>
               <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('ghl-config') ? 'rotate-180' : ''}`} />
@@ -1192,236 +1424,6 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                 {loadingGhlLists && <p className="text-sm text-muted-foreground">Loading pipelines, users, calendars…</p>}
                 <Button onClick={saveGhlConfig} disabled={savingSection === 'ghl-config'} className="w-full h-11 font-semibold flex items-center gap-2">
                   {savingSection === 'ghl-config' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save HighLevel config</>}
-                </Button>
-              </div>
-            </CardContent>
-          )}
-        </Card>
-      </motion.div>
-
-      {/* Service Area Configuration - matches main admin app */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
-          <CardHeader
-            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
-            onClick={() => toggleCard('service-area')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                  <MapPin className="h-5 w-5 text-purple-600" />
-                  Service Area Configuration
-                </CardTitle>
-                <CardDescription className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                  Upload a KML file with your service area polygon, and configure tags for in-service and out-of-service customers.
-                  <Link href="/help/service-area-polygon" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-                    <BookOpen className="h-3.5 w-3.5" />
-                    Instructions
-                  </Link>
-                </CardDescription>
-              </div>
-              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('service-area') ? 'rotate-180' : ''}`} />
-            </div>
-          </CardHeader>
-          {isCardExpanded('service-area') && (
-            <CardContent className="pt-8 pb-8">
-              <div className="space-y-6">
-                {sectionMessage?.card === 'service-area' && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`p-4 rounded-lg flex items-center gap-3 ${
-                      sectionMessage.type === 'success'
-                        ? 'bg-green-50 text-green-800 border border-green-200'
-                        : 'bg-red-50 text-red-800 border border-red-200'
-                    }`}
-                  >
-                    {sectionMessage.type === 'success' ? (
-                      <CheckCircle className="h-5 w-5 flex-shrink-0" />
-                    ) : (
-                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                    )}
-                    <p>{sectionMessage.text}</p>
-                  </motion.div>
-                )}
-
-                {/* KML Upload */}
-                <div>
-                  <Label className="text-base font-semibold">Upload Service Area Polygon (KML)</Label>
-
-                  {/* Status Display */}
-                  {serviceAreaStatus && serviceAreaStatus.type !== 'none' && (
-                    <div
-                      className={`mt-3 p-4 rounded-lg border-2 ${
-                        serviceAreaStatus.type === 'network'
-                          ? 'bg-blue-50 border-blue-200'
-                          : 'bg-emerald-50 border-emerald-200'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1">
-                          <p
-                            className={`font-semibold ${
-                              serviceAreaStatus.type === 'network' ? 'text-blue-900' : 'text-emerald-900'
-                            }`}
-                          >
-                            {serviceAreaStatus.type === 'network'
-                              ? '🔗 NetworkLink Active'
-                              : '✓ Direct Polygon Active'}
-                          </p>
-                          <p
-                            className={`text-sm mt-1 ${
-                              serviceAreaStatus.type === 'network' ? 'text-blue-800' : 'text-emerald-800'
-                            }`}
-                          >
-                            {serviceAreaStatus.type === 'network'
-                              ? `Automatically fetching from: ${serviceAreaStatus.networkLink ?? 'URL'}`
-                              : `${serviceAreaStatus.polygonCount ?? 0} coordinates loaded`}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mt-3 p-4 border-2 border-dashed border-border rounded-lg text-center">
-                    <input
-                      type="file"
-                      accept=".kml,.kmz"
-                      onChange={(e) => setServiceAreaFile(e.target.files?.[0] ?? null)}
-                      className="hidden"
-                      id="kml-file-input"
-                    />
-                    <label htmlFor="kml-file-input" className="cursor-pointer block">
-                      <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                      <p className="font-semibold text-foreground">Click to select KML file</p>
-                      <p className="text-sm text-muted-foreground">or drag and drop</p>
-                      {serviceAreaFile && (
-                        <p className="text-sm text-emerald-600 mt-2">📁 {serviceAreaFile.name}</p>
-                      )}
-                    </label>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Export your service area as a KML file from Google Maps or other mapping software. The system supports:
-                  </p>
-                  <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1 ml-2 mt-1">
-                    <li>
-                      <strong>Direct KML files</strong> - Traditional KML with polygon coordinates. Uploads once and stores the data.
-                    </li>
-                    <li>
-                      <strong>NetworkLink references</strong> - KML files that link to a remote server. The system will automatically fetch and update the polygon data periodically, so you don&apos;t need to re-upload when your map changes!
-                    </li>
-                  </ul>
-                  {serviceAreaFile && (
-                    <Button
-                      onClick={uploadServiceArea}
-                      disabled={serviceAreaUploading}
-                      className="w-full mt-4 h-10 font-semibold flex items-center gap-2"
-                    >
-                      {serviceAreaUploading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="h-4 w-4" />
-                          Upload Polygon
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-
-                {/* Open survey in new tab after service area check success */}
-                <div className="border-t border-border pt-6 mt-6">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <Label htmlFor="openSurveyInNewTab" className="text-base font-semibold cursor-pointer">
-                        Open survey in new tab after service area check success
-                      </Label>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        When enabled, after the user enters their address and passes the service area check, a new tab opens to continue the survey. Contact info is pre-filled and they skip to house details. Only works when the widget is embedded in an iframe.
-                      </p>
-                    </div>
-                    <div className="flex-shrink-0">
-                      <input
-                        type="checkbox"
-                        id="openSurveyInNewTab"
-                        checked={String(form.openSurveyInNewTab) === 'true'}
-                        onChange={(e) => setForm((f) => ({ ...f, openSurveyInNewTab: e.target.checked ? 'true' : 'false' }))}
-                        className="w-4 h-4 rounded border-input"
-                      />
-                    </div>
-                  </div>
-                  <Button
-                    onClick={() => saveForm('service-area')}
-                    disabled={savingSection === 'form'}
-                    className="mt-4 h-10 font-semibold flex items-center gap-2"
-                  >
-                    {savingSection === 'form' ? (
-                      <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</>
-                    ) : (
-                      <><Save className="h-4 w-4" /> Save</>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          )}
-        </Card>
-      </motion.div>
-
-      {/* Google Maps API Key */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
-          <CardHeader
-            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
-            onClick={() => toggleCard('maps')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                  <Code className="h-5 w-5 text-primary" />
-                  Google Maps API Key
-                </CardTitle>
-                <CardDescription className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                  Required for address autocomplete and geocoding on the quote form.
-                  <Link href="/help/google-maps-api" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-                    <BookOpen className="h-3.5 w-3.5" />
-                    Instructions
-                  </Link>
-                </CardDescription>
-              </div>
-              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('maps') ? 'rotate-180' : ''}`} />
-            </div>
-          </CardHeader>
-          {isCardExpanded('maps') && (
-            <CardContent className="pt-8 pb-8">
-              <div className="space-y-6">
-                {sectionMessage?.card === 'maps' && (
-                  <div
-                    className={`p-4 rounded-lg flex items-center gap-3 ${
-                      sectionMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
-                    }`}
-                  >
-                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
-                    <p>{sectionMessage.text}</p>
-                  </div>
-                )}
-                {googleMapsExists && <p className="text-sm text-muted-foreground">API key is set. Enter a new value below to replace.</p>}
-                <div>
-                  <Label htmlFor="google-maps-key" className="text-base font-semibold">API key</Label>
-                  <Input
-                    id="google-maps-key"
-                    type="password"
-                    placeholder={googleMapsExists ? '••••••••' : 'Paste Google Maps API key'}
-                    value={googleMapsKey}
-                    onChange={(e) => setGoogleMapsKey(e.target.value)}
-                    className={inputClass}
-                  />
-                </div>
-                <Button onClick={saveGoogleMaps} disabled={savingSection === 'maps'} className="w-full h-11 font-semibold flex items-center gap-2">
-                  {savingSection === 'maps' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Google Maps key</>}
                 </Button>
               </div>
             </CardContent>

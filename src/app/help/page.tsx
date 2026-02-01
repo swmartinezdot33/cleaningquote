@@ -20,6 +20,11 @@ const guides = [
     description: 'Get your HighLevel Private Integration Token (PIT) and Location ID so leads, contacts, appointments, and opportunities sync with CleanQuote.',
   },
   {
+    slug: 'ghl-config',
+    title: 'HighLevel Config',
+    description: 'Guide to every HighLevel Config setting: contacts, notes, opportunities, pipelines, calendars, and tags when a quote is submitted.',
+  },
+  {
     slug: 'service-area-polygon',
     title: 'Service area polygon in Google',
     description: 'Create and draw a service area polygon in Google My Maps, export to KML, and upload it to CleanQuote to qualify leads by location.',

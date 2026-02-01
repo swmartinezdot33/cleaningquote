@@ -2,37 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServer, isSupabaseConfigured } from '@/lib/supabase/server';
 import type { ToolInsert } from '@/lib/supabase/types';
 import * as configStore from '@/lib/config/store';
-import { getKV, toolKey } from '@/lib/kv';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const GLOBAL_KEYS_TO_COPY = [
-  'pricing:file:2026',
-  'pricing:network:path',
-  'pricing:data:table',
-  'ghl:api:token',
-  'ghl:location:id',
-  'ghl:config',
-  'widget:settings',
-  'survey:questions',
-  'survey:questions:v2',
-  'service:area:polygon',
-  'service:area:network:link',
-  'admin:form-settings',
-  'admin:initial-cleaning-config',
-  'admin:tracking-codes',
-  'admin:google-maps-api-key',
-];
-
-const METADATA_SUFFIX = 'pricing:file:2026:metadata';
+const SUPABASE_REQUIRED_MSG =
+  'Supabase is required for configuration. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.';
 
 /**
  * POST /api/admin/migration/to-multitenant
  *
- * Option B migration: create first user + first tool and copy global KV keys to tool-scoped keys.
+ * Creates first user + first tool and copies global tool_config to the new tool (Supabase only).
  * Protected: send x-admin-password or x-migration-secret (MIGRATION_SECRET env) or set RUN_MIGRATION=true.
- * Body/query not required; uses env MIGRATION_USER_EMAIL, MIGRATION_USER_PASSWORD, MIGRATION_DEFAULT_SLUG (default: "default").
  */
 export async function POST(request: NextRequest) {
   try {
@@ -76,8 +57,15 @@ export async function POST(request: NextRequest) {
     let toolId: string;
     if (existingTools.length > 0 && !runMigration) {
       return NextResponse.json(
-        { message: 'Tools already exist. Set RUN_MIGRATION=true to re-copy KV into first tool.', tools: existingTools.length },
+        { message: 'Tools already exist. Set RUN_MIGRATION=true to re-copy global config into first tool.', tools: existingTools.length },
         { status: 200 }
+      );
+    }
+
+    if (!isSupabaseConfigured()) {
+      return NextResponse.json(
+        { error: SUPABASE_REQUIRED_MSG, success: false },
+        { status: 503 }
       );
     }
 
@@ -131,42 +119,16 @@ export async function POST(request: NextRequest) {
     }
 
     let copied = 0;
-    if (isSupabaseConfigured()) {
-      try {
-        await configStore.copyGlobalConfigToTool(toolId);
-        copied = 1; // one config row copied
-      } catch (err) {
-        console.error('to-multitenant: Supabase config copy failed:', err);
-      }
-    } else {
-      const kv = getKV();
-      for (const key of GLOBAL_KEYS_TO_COPY) {
-        try {
-          const value = await kv.get(key);
-          if (value !== null && value !== undefined) {
-            await kv.set(toolKey(toolId, key), value);
-            copied++;
-          }
-        } catch {
-          // skip
-        }
-      }
-      try {
-        const meta = await kv.get(METADATA_SUFFIX);
-        if (meta !== null && meta !== undefined) {
-          await kv.set(toolKey(toolId, METADATA_SUFFIX), meta);
-          copied++;
-        }
-      } catch {
-        // skip
-      }
+    try {
+      await configStore.copyGlobalConfigToTool(toolId);
+      copied = 1;
+    } catch (err) {
+      console.error('to-multitenant: config copy failed:', err);
     }
 
     return NextResponse.json({
       success: true,
-      message: isSupabaseConfigured()
-        ? 'Migration complete. Copied global config to tool (Supabase).'
-        : 'Migration complete. Copied ' + copied + ' keys to tool (KV).',
+      message: 'Migration complete. Copied global config to tool (Supabase).',
       toolId,
       slug: process.env.MIGRATION_DEFAULT_SLUG || 'default',
       keysCopied: copied,

@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDashboardUserAndTool } from '@/lib/dashboard-auth';
-import { getKV, toolKey } from '@/lib/kv';
+import { getPricingTable, setPricingTable, clearPricingData } from '@/lib/kv';
 import { invalidatePricingCache } from '@/lib/pricing/loadPricingTable';
 import type { PricingTable } from '@/lib/pricing/types';
 
 export const dynamic = 'force-dynamic';
-
-const PRICING_DATA_KEY = 'pricing:data:table';
 
 /** GET - Get pricing table for this tool */
 export async function GET(
@@ -18,8 +16,7 @@ export async function GET(
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const kv = getKV();
-    const pricingData = await kv.get<PricingTable>(toolKey(toolId, PRICING_DATA_KEY));
+    const pricingData = await getPricingTable(toolId);
 
     if (!pricingData) {
       return NextResponse.json({
@@ -33,7 +30,7 @@ export async function GET(
     if (err instanceof Error && err.message.includes('KV')) {
       return NextResponse.json({
         exists: false,
-        message: 'KV storage not configured.',
+        message: 'Storage not configured.',
       });
     }
     console.error('GET dashboard pricing:', err);
@@ -69,8 +66,7 @@ export async function POST(
       }
     }
 
-    const kv = getKV();
-    await kv.set(toolKey(toolId, PRICING_DATA_KEY), pricingData);
+    await setPricingTable(pricingData, toolId);
     invalidatePricingCache(toolId);
 
     return NextResponse.json({
@@ -98,10 +94,7 @@ export async function DELETE(
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const kv = getKV();
-    await kv.del(toolKey(toolId, PRICING_DATA_KEY));
-    await kv.del(toolKey(toolId, 'pricing:file:2026'));
-    await kv.del(toolKey(toolId, 'pricing:file:2026:metadata'));
+    await clearPricingData(toolId);
     invalidatePricingCache(toolId);
     return NextResponse.json({ success: true, message: 'Pricing data deleted' });
   } catch (err) {

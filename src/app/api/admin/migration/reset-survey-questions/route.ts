@@ -2,17 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SurveyQuestion } from '@/lib/kv';
 import { isSupabaseConfigured } from '@/lib/supabase/server';
 import * as configStore from '@/lib/config/store';
-import { getKV } from '@/lib/kv';
+
+const SUPABASE_REQUIRED_MSG =
+  'Supabase is required for configuration. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.';
 
 /**
- * EMERGENCY MIGRATION: Reset survey questions to correct defaults
- * This forces the system to use the correct field types for:
+ * EMERGENCY MIGRATION: Reset survey questions to correct defaults (Supabase only).
  * - squareFeet (must be select with range options)
  * - halfBaths (must be select with 0 as default)
  * - sheddingPets (must be select with 0 as default)
  */
-
-const SURVEY_QUESTIONS_KEY = 'survey:questions:v2';
 
 // Define the correct default questions
 const CORRECTED_DEFAULT_QUESTIONS: SurveyQuestion[] = [
@@ -197,21 +196,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('🔄 MIGRATION START: Resetting survey questions to correct defaults...');
-
-    let stored: SurveyQuestion[] | null = null;
-    if (isSupabaseConfigured()) {
-      await configStore.setSurveyQuestionsInConfig(CORRECTED_DEFAULT_QUESTIONS as unknown as Record<string, unknown>[], undefined);
-      const q = await configStore.getSurveyQuestionsFromConfig(undefined);
-      stored = Array.isArray(q) ? (q as SurveyQuestion[]) : null;
-      console.log('✅ Stored corrected defaults in Supabase config');
-    } else {
-      const kv = getKV();
-      await kv.del(SURVEY_QUESTIONS_KEY);
-      await kv.set(SURVEY_QUESTIONS_KEY, CORRECTED_DEFAULT_QUESTIONS);
-      stored = await kv.get<SurveyQuestion[]>(SURVEY_QUESTIONS_KEY);
-      console.log('✅ Stored corrected defaults in KV');
+    if (!isSupabaseConfigured()) {
+      return NextResponse.json(
+        { success: false, error: SUPABASE_REQUIRED_MSG },
+        { status: 503 }
+      );
     }
+
+    console.log('🔄 MIGRATION START: Resetting survey questions to correct defaults...');
+    await configStore.setSurveyQuestionsInConfig(CORRECTED_DEFAULT_QUESTIONS as unknown as Record<string, unknown>[], undefined);
+    const q = await configStore.getSurveyQuestionsFromConfig(undefined);
+    const stored = Array.isArray(q) ? (q as SurveyQuestion[]) : null;
+    console.log('✅ Stored corrected defaults in Supabase config');
 
     return NextResponse.json({
       success: true,
@@ -241,18 +237,18 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET - Check current state and show migration instructions
+ * GET - Check current state and show migration instructions (Supabase only).
  */
 export async function GET(request: NextRequest) {
   try {
-    let stored: SurveyQuestion[] | null = null;
-    if (isSupabaseConfigured()) {
-      const q = await configStore.getSurveyQuestionsFromConfig(undefined);
-      stored = Array.isArray(q) ? (q as SurveyQuestion[]) : null;
-    } else {
-      const kv = getKV();
-      stored = await kv.get<SurveyQuestion[]>(SURVEY_QUESTIONS_KEY);
+    if (!isSupabaseConfigured()) {
+      return NextResponse.json(
+        { error: SUPABASE_REQUIRED_MSG, migrationNeeded: false },
+        { status: 503 }
+      );
     }
+    const q = await configStore.getSurveyQuestionsFromConfig(undefined);
+    const stored = Array.isArray(q) ? (q as SurveyQuestion[]) : null;
 
     const squareFeetQ = stored?.find(q => q.id === 'squareFeet');
     const halfBathsQ = stored?.find(q => q.id === 'halfBaths');

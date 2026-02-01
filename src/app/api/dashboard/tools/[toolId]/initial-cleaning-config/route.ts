@@ -1,18 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDashboardUserAndTool } from '@/lib/dashboard-auth';
-import { getKV, toolKey } from '@/lib/kv';
+import { getInitialCleaningConfig, setInitialCleaningConfig } from '@/lib/kv';
 
 export const dynamic = 'force-dynamic';
-
-const KEY = 'admin:initial-cleaning-config';
-
-interface InitialCleaningConfig {
-  multiplier: number;
-  requiredConditions: string[];
-  recommendedConditions: string[];
-  sheddingPetsMultiplier?: number;
-  peopleMultiplier?: number;
-}
 
 export async function GET(
   _req: NextRequest,
@@ -22,8 +12,7 @@ export async function GET(
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const kv = getKV();
-    const config = await kv.get<InitialCleaningConfig>(toolKey(auth.tool.id, KEY));
+    const config = await getInitialCleaningConfig(auth.tool.id);
     if (!config) {
       return NextResponse.json({
         multiplier: 1.5,
@@ -71,7 +60,7 @@ export async function POST(
       return NextResponse.json({ error: 'Conditions must be arrays' }, { status: 400 });
     }
 
-    const config: InitialCleaningConfig = {
+    const config = {
       multiplier,
       requiredConditions: requiredConditions.map((c: string) => String(c).toLowerCase()),
       recommendedConditions: recommendedConditions.map((c: string) => String(c).toLowerCase()),
@@ -79,8 +68,7 @@ export async function POST(
       peopleMultiplier: peopleMultiplier ?? 1.05,
     };
 
-    const kv = getKV();
-    await kv.set(toolKey(auth.tool.id, KEY), config);
+    await setInitialCleaningConfig(config, auth.tool.id);
     return NextResponse.json({ success: true, message: 'Initial Cleaning configuration saved', config });
   } catch (e) {
     console.error('POST dashboard initial-cleaning-config:', e);
