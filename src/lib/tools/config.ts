@@ -19,28 +19,27 @@ export interface ToolConfig {
   redirect: { redirectAfterAppointment: boolean; appointmentRedirectUrl: string };
 }
 
-const DEFAULT_WIDGET = { title: 'Get Your Quote', subtitle: "Let's get your price!", primaryColor: '#7c3aed' };
+/** Preset widget settings seeded when a tool is created. Never use global/other-org fallback. */
+export const DEFAULT_WIDGET = { title: 'Get Your Quote', subtitle: "Let's get your price!", primaryColor: '#7c3aed' };
 
-/** Server-side: get full tool config by tool id. All settings are tool-scoped; only primaryColor may fall back to global (site customization global color). */
+/** Server-side: get full tool config by tool id. Tool-only; no global fallback. Use tool's settings or in-code defaults. */
 export async function getToolConfigByToolId(toolId: string): Promise<ToolConfig | null> {
   try {
-    const [widgetSettings, formSettings, questions, ghlConfig, globalWidgetOnlyForColor] = await Promise.all([
+    const [widgetSettings, formSettings, questions, ghlConfig] = await Promise.all([
       getWidgetSettings(toolId),
       getFormSettings(toolId),
       getSurveyQuestions(toolId),
       getGHLConfig(toolId),
-      getWidgetSettings(undefined), // only for primaryColor fallback (site customization global color)
     ]);
     const toolWidget = widgetSettings ?? null;
-    const globalColor = globalWidgetOnlyForColor?.primaryColor ?? null;
     return {
       widget: {
-        title: toolWidget?.title ?? DEFAULT_WIDGET.title,
-        subtitle: toolWidget?.subtitle ?? DEFAULT_WIDGET.subtitle,
-        primaryColor: toolWidget?.primaryColor ?? globalColor ?? DEFAULT_WIDGET.primaryColor,
+        title: toolWidget?.title ?? '',
+        subtitle: toolWidget?.subtitle ?? '',
+        primaryColor: toolWidget?.primaryColor ?? 'transparent',
       },
       formSettings: formSettings ?? {},
-      questions: (questions && questions.length > 0 ? questions : []) ?? [],
+      questions: Array.isArray(questions) ? questions : [],
       redirect: ghlConfig
         ? {
             redirectAfterAppointment: ghlConfig.redirectAfterAppointment === true,
@@ -71,17 +70,16 @@ export const DEFAULT_PRIMARY_COLOR = '#7c3aed';
 
 /**
  * Server-side: get primary color for quote/summary page first paint (avoids flash of wrong color).
- * @param slug - When provided (e.g. /t/[slug]/quote/[id]), use that tool's widget color; otherwise admin default.
+ * Tool-only: when slug provided use that tool's color; otherwise use brand default. No global fallback.
  */
 export async function getQuotePagePrimaryColor(slug?: string): Promise<string> {
   try {
     if (slug) {
       const config = await getToolConfigForPage(slug);
-      return config?.widget?.primaryColor ?? DEFAULT_PRIMARY_COLOR;
+      return config?.widget?.primaryColor ?? 'transparent';
     }
-    const settings = await getWidgetSettings(undefined);
-    return settings?.primaryColor ?? DEFAULT_PRIMARY_COLOR;
+    return 'transparent';
   } catch {
-    return DEFAULT_PRIMARY_COLOR;
+    return 'transparent';
   }
 }

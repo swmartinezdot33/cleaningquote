@@ -17,7 +17,7 @@ interface LocationData {
 
 export default function OutOfService() {
   const [mounted, setMounted] = useState(false);
-  const [primaryColor, setPrimaryColor] = useState('#7c3aed');
+  const [primaryColor, setPrimaryColor] = useState('transparent');
   const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [contactId, setContactId] = useState<string | null>(null);
 
@@ -57,6 +57,7 @@ export default function OutOfService() {
   };
 
   const hexToRgba = (hex: string, alpha: number = 1) => {
+    if (!hex || hex === 'transparent' || !/^#[0-9A-Fa-f]{6}$/.test(hex)) return 'rgba(0,0,0,0)';
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
     const b = parseInt(hex.slice(5, 7), 16);

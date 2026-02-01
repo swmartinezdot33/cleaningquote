@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import type { Tool, ToolConfigRow } from '@/lib/supabase/types';
+import { DEFAULT_WIDGET } from '@/lib/tools/config';
 import { DEFAULT_SURVEY_QUESTIONS } from '@/lib/survey/schema';
 
 export const dynamic = 'force-dynamic';
 
-const DEFAULT_WIDGET = { title: 'Get Your Quote', subtitle: "Let's get your price!", primaryColor: '#7c3aed' };
-
-/** GET - Public config bundle. Reads tool_config directly from Supabase (no kv/config layer) so config always matches DB. */
+/** GET - Public config bundle. Tool-only: reads this tool's tool_config. No global fallback; use tool's settings or presets from creation. */
 export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ slug: string }> }
@@ -38,35 +37,32 @@ export async function GET(
 
     const row = rowData as ToolConfigRow | null;
 
-    // Only global fallback: site customization primary color. All other settings are tool-scoped (no global GHL, analytics, form, questions).
-    const { data: globalData } = await supabase
-      .from('tool_config')
-      .select('widget_settings')
-      .is('tool_id', null)
-      .maybeSingle();
-
-    const globalRow = globalData as Pick<ToolConfigRow, 'widget_settings'> | null;
-
-    type WidgetShape = { title?: string; subtitle?: string; primaryColor?: string };
-    const toolWidget: WidgetShape | null =
-      row?.widget_settings && typeof row.widget_settings === 'object' && !Array.isArray(row.widget_settings)
-        ? (row.widget_settings as WidgetShape)
-        : null;
-    const globalPrimaryColor =
-      globalRow?.widget_settings && typeof globalRow.widget_settings === 'object' && !Array.isArray(globalRow.widget_settings)
-        ? (globalRow.widget_settings as WidgetShape).primaryColor ?? null
-        : null;
+    // Normalize widget_settings from DB (camelCase or snake_case). Tool-only; no global row.
+    type WidgetShape = { title?: string; subtitle?: string; primaryColor?: string; primary_color?: string };
+    const normalize = (raw: unknown): { title?: string; subtitle?: string; primaryColor?: string } | null => {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+      const o = raw as Record<string, unknown>;
+      return {
+        title: typeof o.title === 'string' ? o.title : undefined,
+        subtitle: typeof o.subtitle === 'string' ? o.subtitle : undefined,
+        primaryColor:
+          typeof o.primaryColor === 'string'
+            ? o.primaryColor
+            : typeof (o as WidgetShape).primary_color === 'string'
+              ? (o as WidgetShape).primary_color
+              : undefined,
+      };
+    };
+    const toolWidget = normalize(row?.widget_settings);
     const widget = {
-      title: toolWidget?.title ?? DEFAULT_WIDGET.title,
-      subtitle: toolWidget?.subtitle ?? DEFAULT_WIDGET.subtitle,
-      primaryColor: toolWidget?.primaryColor ?? globalPrimaryColor ?? DEFAULT_WIDGET.primaryColor,
+      title: toolWidget?.title ?? '',
+      subtitle: toolWidget?.subtitle ?? '',
+      primaryColor: toolWidget?.primaryColor ?? 'transparent',
     };
 
     const formSettings =
       row?.form_settings && typeof row.form_settings === 'object' ? row.form_settings : {};
-    // Use tool's questions if present; otherwise fall back to default survey so the form loads (e.g. existing tools created before defaults-at-creation).
-    const toolQuestions = Array.isArray(row?.survey_questions) && row.survey_questions.length > 0 ? row.survey_questions : [];
-    const questions = toolQuestions.length > 0 ? toolQuestions : DEFAULT_SURVEY_QUESTIONS;
+    const questions = Array.isArray(row?.survey_questions) ? row.survey_questions : [];
 
     type GhlRedirectShape = { redirectAfterAppointment?: boolean; appointmentRedirectUrl?: string };
     const ghl: GhlRedirectShape | null =

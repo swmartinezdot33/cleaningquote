@@ -5,6 +5,7 @@ import { createSupabaseServer } from '@/lib/supabase/server';
 import { slugToSafe } from '@/lib/supabase/tools';
 import { canAccessTool, isSuperAdminEmail } from '@/lib/org-auth';
 import * as configStore from '@/lib/config/store';
+import { DEFAULT_WIDGET } from '@/lib/tools/config';
 import { DEFAULT_SURVEY_QUESTIONS } from '@/lib/survey/schema';
 
 export async function POST(request: NextRequest) {
@@ -58,10 +59,11 @@ export async function POST(request: NextRequest) {
 
     const toolId = (tool as { id: string }).id;
     try {
+      await configStore.setWidgetSettings(DEFAULT_WIDGET, toolId);
       await configStore.setSurveyQuestionsInConfig(DEFAULT_SURVEY_QUESTIONS, toolId);
     } catch (configErr) {
-      console.error('Tool created but failed to set default survey questions:', configErr);
-      // Still return success; tool exists, user can add questions in settings
+      console.error('Tool created but failed to seed default config:', configErr);
+      // Still return success; tool exists, user can configure in settings
     }
 
     return NextResponse.json({ tool });

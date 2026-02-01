@@ -16,11 +16,7 @@ export async function GET(
   try {
     const settings = await getWidgetSettings(toolId);
     return NextResponse.json(
-      settings ?? {
-        title: 'Get Your Quote',
-        subtitle: "Let's get your price!",
-        primaryColor: '#7c3aed',
-      }
+      settings ?? { title: '', subtitle: '', primaryColor: 'transparent' }
     );
   } catch (err) {
     console.error('GET dashboard widget-settings:', err);
@@ -44,19 +40,14 @@ export async function POST(
     const body = await request.json();
     const { title, subtitle, primaryColor } = body;
 
-    if (!title || typeof title !== 'string') {
-      return NextResponse.json({ error: 'Title is required' }, { status: 400 });
-    }
-    if (!subtitle || typeof subtitle !== 'string') {
-      return NextResponse.json({ error: 'Subtitle is required' }, { status: 400 });
-    }
-
-    const color = primaryColor && /^#[0-9A-F]{6}$/i.test(primaryColor) ? primaryColor : '#7c3aed';
-    await setWidgetSettings({ title, subtitle, primaryColor: color }, toolId);
+    const titleStr = typeof title === 'string' ? title : '';
+    const subtitleStr = typeof subtitle === 'string' ? subtitle : '';
+    const color = primaryColor && /^#[0-9A-Fa-f]{6}$/.test(primaryColor) ? primaryColor : 'transparent';
+    await setWidgetSettings({ title: titleStr, subtitle: subtitleStr, primaryColor: color }, toolId);
 
     return NextResponse.json({
       success: true,
-      settings: { title, subtitle, primaryColor: color },
+      settings: { title: titleStr, subtitle: subtitleStr, primaryColor: color },
     });
   } catch (err) {
     console.error('POST dashboard widget-settings:', err);

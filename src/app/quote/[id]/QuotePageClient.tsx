@@ -58,16 +58,18 @@ interface QuoteResponse {
   frequencyLabels?: Record<string, string>;
 }
 
-// Helper function to convert hex to rgba
+// Helper function to convert hex to rgba (handles transparent / no color)
 const hexToRgba = (hex: string, alpha: number = 1) => {
+  if (!hex || hex === 'transparent' || !/^#[0-9A-Fa-f]{6}$/.test(hex)) return 'rgba(0,0,0,0)';
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-// Helper function to convert hex to HSL
+// Helper function to convert hex to HSL (handles transparent / no color)
 const hexToHsl = (hex: string): string => {
+  if (!hex || hex === 'transparent' || !/^#[0-9A-Fa-f]{6}$/.test(hex)) return '0 0% 50%';
   const r = parseInt(hex.slice(1, 3), 16) / 255;
   const g = parseInt(hex.slice(3, 5), 16) / 255;
   const b = parseInt(hex.slice(5, 7), 16) / 255;
@@ -145,7 +147,7 @@ export default function QuotePageClient({
         if (widgetResponse.ok) {
           const widgetData = await widgetResponse.json();
           setWidgetTitle(widgetData.title || 'Get Your Quote');
-          setPrimaryColor(widgetData.primaryColor || '#7c3aed');
+          setPrimaryColor(widgetData.primaryColor ?? 'transparent');
         }
       } catch (error) {
         console.error('Failed to load settings:', error);

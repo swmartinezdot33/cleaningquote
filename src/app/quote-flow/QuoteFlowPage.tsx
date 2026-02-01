@@ -268,9 +268,9 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   // Redirect settings from admin
   const [redirectAfterAppointment, setRedirectAfterAppointment] = useState<boolean>(initialConfig?.redirect?.redirectAfterAppointment ?? false);
   const [appointmentRedirectUrl, setAppointmentRedirectUrl] = useState<string>(initialConfig?.redirect?.appointmentRedirectUrl ?? '');
-  const [widgetTitle, setWidgetTitle] = useState(initialConfig?.widget?.title ?? 'Get Your Quote');
-  const [widgetSubtitle, setWidgetSubtitle] = useState(initialConfig?.widget?.subtitle ?? "Let's get your professional cleaning price!");
-  const [primaryColor, setPrimaryColor] = useState(initialConfig?.widget?.primaryColor ?? '#7c3aed');
+  const [widgetTitle, setWidgetTitle] = useState(initialConfig?.widget?.title ?? '');
+  const [widgetSubtitle, setWidgetSubtitle] = useState(initialConfig?.widget?.subtitle ?? '');
+  const [primaryColor, setPrimaryColor] = useState(initialConfig?.widget?.primaryColor ?? 'transparent');
   const initialQuestions = (initialConfig?.questions ?? []) as SurveyQuestion[];
   const [questions, setQuestions] = useState<SurveyQuestion[]>(initialQuestions);
   const [quoteSchema, setQuoteSchema] = useState<z.ZodObject<any>>(generateSchemaFromQuestions(initialQuestions));
@@ -285,6 +285,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   const callFormRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
   const addressAutocompleteRef = useRef<{ geocodeCurrentValue: () => Promise<{ lat: number; lng: number; formattedAddress: string } | null> } | null>(null);
+  const [configLoaded, setConfigLoaded] = useState(false);
 
   // When slug is set (multi-tenant /t/[slug]), load all config from one endpoint. Cache-bust so CDN/browser never serves stale.
   const loadConfigFromSlug = async (toolSlug: string, retry = false) => {
@@ -294,53 +295,51 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
       if (!response.ok) throw new Error(`Failed to load config: ${response.status}`);
       const data = await response.json();
       if (data.widget) {
-        setWidgetTitle(data.widget.title || 'Quote');
-        setWidgetSubtitle(data.widget.subtitle || "Let's get your price!");
-        setPrimaryColor(data.widget.primaryColor || '#7c3aed');
+        setWidgetTitle(data.widget.title ?? '');
+        setWidgetSubtitle(data.widget.subtitle ?? '');
+        setPrimaryColor(data.widget.primaryColor ?? 'transparent');
       }
       if (data.formSettings) {
         setFormSettings(data.formSettings);
         setOpenSurveyInNewTab(!!data.formSettings?.openSurveyInNewTab);
       }
-      if (data.questions && Array.isArray(data.questions)) {
+      if (Array.isArray(data.questions)) {
         const sorted = [...data.questions].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
         setQuestions(sorted);
         setQuoteSchema(generateSchemaFromQuestions(sorted));
+      } else {
+        setQuestions([]);
+        setQuoteSchema(generateSchemaFromQuestions([]));
       }
       if (data.redirect) {
         setRedirectAfterAppointment(data.redirect.redirectAfterAppointment === true);
         setAppointmentRedirectUrl(data.redirect.appointmentRedirectUrl || '');
       }
-      // If response looks like defaults and we haven't retried, fetch again (avoids stuck cached response)
-      const looksDefault =
-        data.widget?.title === 'Get Your Quote' &&
-        data.widget?.subtitle === "Let's get your price!" &&
-        (!data.questions || data.questions.length === 0);
-      if (looksDefault && !retry) {
-        setTimeout(() => loadConfigFromSlug(toolSlug, true), 300);
-      }
+      setConfigLoaded(true);
     } catch (e) {
       console.error('Failed to load tool config:', e);
       if (!retry) {
         setTimeout(() => loadConfigFromSlug(toolSlug, true), 500);
       } else {
+        setConfigLoaded(true);
         alert('Error loading form. Please refresh the page.');
       }
     }
   };
 
-  // When visiting by tool slug (/t/[slug] or /t/org/slug), always fetch config from API so we get latest
-  // widget/form/survey (avoids showing defaults when server had partial or stale initialConfig).
+  // When visiting by tool slug (/t/[slug]), fetch config from API. No slug = legacy path with server initialConfig.
   useEffect(() => {
     setMounted(true);
     if (slug) {
       loadConfigFromSlug(slug);
     } else {
-      if (hasInitialData) return;
-      loadWidgetSettings();
-      loadSurveyQuestions();
-      loadFormSettings();
-      loadRedirectSettings();
+      if (!hasInitialData) {
+        loadWidgetSettings();
+        loadSurveyQuestions();
+        loadFormSettings();
+        loadRedirectSettings();
+      }
+      setConfigLoaded(true);
     }
   }, [slug, hasInitialData]);
 
@@ -467,9 +466,9 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
       const response = await fetch('/api/admin/widget-settings');
       if (response.ok) {
         const data = await response.json();
-        setWidgetTitle(data.title || 'Get Your Quote');
-        setWidgetSubtitle(data.subtitle || "Let's get your professional cleaning price!");
-        setPrimaryColor(data.primaryColor || '#7c3aed');
+        setWidgetTitle(data.title ?? '');
+        setWidgetSubtitle(data.subtitle ?? '');
+        setPrimaryColor(data.primaryColor ?? 'transparent');
       }
     } catch (error) {
       console.error('Failed to load widget settings:', error);
@@ -493,8 +492,9 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
     }
   };
 
-  // Helper function to convert hex color to rgba
+  // Helper function to convert hex color to rgba (handles transparent / no color)
   const hexToRgba = (hex: string, alpha: number = 1) => {
+    if (!hex || hex === 'transparent' || !/^#[0-9A-Fa-f]{6}$/.test(hex)) return `rgba(0,0,0,0)`;
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
     const b = parseInt(hex.slice(5, 7), 16);
@@ -530,8 +530,9 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
     return `${month}/${day}/${year}`;
   };
 
-  // Helper function to convert hex to HSL for Tailwind CSS variables
+  // Helper function to convert hex to HSL for Tailwind CSS variables (handles transparent / no color)
   const hexToHsl = (hex: string): string => {
+    if (!hex || hex === 'transparent' || !/^#[0-9A-Fa-f]{6}$/.test(hex)) return '0 0% 50%';
     const r = parseInt(hex.slice(1, 3), 16) / 255;
     const g = parseInt(hex.slice(3, 5), 16) / 255;
     const b = parseInt(hex.slice(5, 7), 16) / 255;
@@ -1719,13 +1720,23 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
 
   const currentQuestion = questions[currentStep];
   
-  // Show loading state while questions are being fetched
-  if (questions.length === 0 && mounted) {
+  // Loading: waiting for config (slug path only). Empty questions after load = user chose no questions.
+  if (questions.length === 0 && mounted && (slug ? !configLoaded : true)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600 mb-4"></div>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-gray-400 mb-4"></div>
           <p className="text-gray-600">Loading form...</p>
+        </div>
+      </div>
+    );
+  }
+  if (questions.length === 0 && mounted && slug && configLoaded) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+        <div className="text-center text-gray-600">
+          <p>No questions configured for this tool.</p>
+          <p className="text-sm mt-2">Add questions in the survey builder in your dashboard.</p>
         </div>
       </div>
     );

@@ -22,7 +22,7 @@ function GhlHelpIcon({ anchor }: { anchor: string }) {
 }
 
 export default function ToolSettingsClient({ toolId }: { toolId: string }) {
-  const [widget, setWidget] = useState({ title: '', subtitle: '', primaryColor: '#7c3aed' });
+  const [widget, setWidget] = useState({ title: '', subtitle: '', primaryColor: 'transparent' });
   const [form, setForm] = useState<Record<string, string>>({});
   const [ghlToken, setGhlToken] = useState('');
   const [ghlLocationId, setGhlLocationId] = useState('');
@@ -115,7 +115,7 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
         ]);
         if (wRes.ok) {
           const w = await wRes.json();
-          setWidget({ title: w.title ?? '', subtitle: w.subtitle ?? '', primaryColor: w.primaryColor ?? '#7c3aed' });
+          setWidget({ title: w.title ?? '', subtitle: w.subtitle ?? '', primaryColor: w.primaryColor ?? 'transparent' });
         }
         if (fRes.ok) {
           const { formSettings } = await fRes.json();
