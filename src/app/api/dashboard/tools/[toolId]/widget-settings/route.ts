@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDashboardUserAndTool } from '@/lib/dashboard-auth';
 import { getWidgetSettings, setWidgetSettings } from '@/lib/kv';
+import { DEFAULT_PRIMARY_COLOR } from '@/lib/tools/config';
 
 export const dynamic = 'force-dynamic';
 

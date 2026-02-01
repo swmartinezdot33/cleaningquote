@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { Copy, ChevronLeft, ChevronRight, Sparkles, Calendar, Clock, Loader2, Check, AlertCircle } from 'lucide-react';
 import { SurveyQuestion } from '@/lib/survey/schema';
-import type { ToolConfig } from '@/lib/tools/config';
+import { type ToolConfig, DEFAULT_PRIMARY_COLOR } from '@/lib/tools/config';
 import { GooglePlacesAutocomplete, PlaceDetails } from '@/components/GooglePlacesAutocomplete';
 import { CalendarBooking } from '@/components/CalendarBooking';
 
