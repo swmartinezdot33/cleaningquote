@@ -79,7 +79,6 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
   const [calendars, setCalendars] = useState<{ id: string; name: string }[]>([]);
   const [ghlTags, setGhlTags] = useState<{ id: string; name: string }[]>([]);
   const [customFields, setCustomFields] = useState<{ key: string; name: string }[]>([]);
-  const [opportunityCustomFields, setOpportunityCustomFields] = useState<{ key: string; name: string }[]>([]);
   const [quotedAmountFieldSearch, setQuotedAmountFieldSearch] = useState('');
   const [loadingGhlLists, setLoadingGhlLists] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -157,13 +156,12 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
     const loadLists = async () => {
       setLoadingGhlLists(true);
       try {
-        const [pipeRes, usrRes, calRes, tagRes, fieldsRes, oppFieldsRes] = await Promise.all([
+        const [pipeRes, usrRes, calRes, tagRes, fieldsRes] = await Promise.all([
           fetch(`/api/dashboard/tools/${toolId}/ghl-pipelines`),
           fetch(`/api/dashboard/tools/${toolId}/ghl-users`),
           fetch(`/api/dashboard/tools/${toolId}/ghl-calendars`),
           fetch(`/api/dashboard/tools/${toolId}/ghl-tags`),
           fetch(`/api/dashboard/tools/${toolId}/ghl-custom-fields`),
-          fetch(`/api/dashboard/tools/${toolId}/ghl-custom-fields?model=opportunity`),
         ]);
         if (pipeRes.ok) {
           const d = await pipeRes.json();
@@ -184,10 +182,6 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
         if (fieldsRes.ok) {
           const d = await fieldsRes.json();
           setCustomFields(d.fields ?? []);
-        }
-        if (oppFieldsRes.ok) {
-          const d = await oppFieldsRes.json();
-          setOpportunityCustomFields(d.fields ?? []);
         }
       } finally {
         setLoadingGhlLists(false);
@@ -528,12 +522,7 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                     <div className="space-y-2">
                       <Label className="text-base font-semibold">Query link (copy and replace placeholders with your variables)</Label>
                       <p className="text-sm text-muted-foreground">Append this to your survey URL. Replace each <code className="bg-muted px-1 rounded">{'{{param}}'}</code> with your CRM/email variable (e.g. HighLevel <code className="bg-muted px-1 rounded">{'{{contact.first_name}}'}</code>).</p>
-                      <div className="flex gap-2">
-                        <Input
-                          readOnly
-                          value={queryLink || '(configure at least one param above)'}
-                          className={`font-mono text-sm ${queryLink ? 'bg-background' : 'bg-muted/50 text-muted-foreground'}`}
-                        />
+                      <div className="flex gap-2 items-center">
                         <Button
                           type="button"
                           variant="outline"
@@ -545,10 +534,16 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                             setQueryLinkCopied(true);
                             setTimeout(() => setQueryLinkCopied(false), 2000);
                           }}
+                          title={queryLinkCopied ? 'Copied!' : 'Copy query link'}
                         >
                           <Copy className="h-4 w-4" />
                           {queryLinkCopied ? 'Copied!' : 'Copy'}
                         </Button>
+                        <Input
+                          readOnly
+                          value={queryLink || '(configure at least one param above)'}
+                          className={`font-mono text-sm flex-1 min-w-0 ${queryLink ? 'bg-background' : 'bg-muted/50 text-muted-foreground'}`}
+                        />
                       </div>
                     </div>
                   );
@@ -1278,8 +1273,8 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                       <Label className="text-base font-semibold">Quoted amount field (HighLevel custom field key)</Label>
                       <GhlHelpIcon anchor="quoted-amount-field" />
                     </div>
-                    <p className="text-xs text-muted-foreground mb-2">Opportunity custom fields from your HighLevel location. Select one or enter a custom key below.</p>
-                    {opportunityCustomFields.length > 0 ? (
+                    <p className="text-xs text-muted-foreground mb-2">Contact custom fields from your HighLevel location. Select one or enter a custom key below (e.g. quoted_cleaning_price).</p>
+                    {customFields.length > 0 ? (
                       <>
                         <Input
                           type="text"
@@ -1290,7 +1285,7 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                         />
                         <select
                           className={`${selectClass} w-full max-w-md`}
-                          value={opportunityCustomFields.some((f) => f.key === (ghlConfig.quotedAmountField ?? '')) ? (ghlConfig.quotedAmountField ?? '') : '__custom__'}
+                          value={customFields.some((f) => f.key === (ghlConfig.quotedAmountField ?? '')) ? (ghlConfig.quotedAmountField ?? '') : '__custom__'}
                           onChange={(e) => {
                             const v = e.target.value;
                             if (v === '__custom__') {
@@ -1301,7 +1296,7 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                           }}
                         >
                           <option value="">— Select field —</option>
-                          {opportunityCustomFields
+                          {customFields
                             .filter(
                               (f) =>
                                 !quotedAmountFieldSearch.trim() ||
@@ -1315,13 +1310,13 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                             ))}
                           <option value="__custom__">— Enter custom key —</option>
                         </select>
-                        {!opportunityCustomFields.some((f) => f.key === (ghlConfig.quotedAmountField ?? '')) && (
+                        {!customFields.some((f) => f.key === (ghlConfig.quotedAmountField ?? '')) && (
                           <div className="mt-2">
                             <Label className="text-xs text-muted-foreground">Custom key (if not in list)</Label>
                             <Input
                               value={ghlConfig.quotedAmountField ?? ''}
                               onChange={(e) => setGhlConfig((c) => ({ ...c, quotedAmountField: e.target.value || undefined }))}
-                              placeholder="e.g. quoted_amount"
+                              placeholder="e.g. quoted_cleaning_price"
                               className={`${inputClass} max-w-xs mt-1`}
                             />
                           </div>
@@ -1332,11 +1327,11 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                         <Input
                           value={ghlConfig.quotedAmountField ?? ''}
                           onChange={(e) => setGhlConfig((c) => ({ ...c, quotedAmountField: e.target.value || undefined }))}
-                          placeholder="e.g. quoted_amount"
+                          placeholder="e.g. quoted_cleaning_price"
                           className={`${inputClass} max-w-xs`}
                         />
                         <p className="text-xs text-muted-foreground">
-                          {loadingGhlLists ? 'Loading opportunity custom fields…' : 'Connect HighLevel and expand this card to load opportunity custom fields from your location.'}
+                          {loadingGhlLists ? 'Loading contact custom fields…' : 'Connect HighLevel and expand this card to load contact custom fields from your location.'}
                         </p>
                       </div>
                     )}

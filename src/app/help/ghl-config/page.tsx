@@ -65,9 +65,9 @@ export default function GHLConfigHelpPage() {
         When enabled, the opportunity&apos;s value in HighLevel is set to the quoted total from CleanQuote. This helps with pipeline value and reporting.
       </p>
 
-      <h2 className="text-lg font-semibold text-foreground mt-8">Quoted amount field (HighLevel custom field key)</h2>
+      <h2 id="quoted-amount-field" className="text-lg font-semibold text-foreground mt-8">Quoted amount field (HighLevel custom field key)</h2>
       <p className="text-foreground">
-        The HighLevel custom field key where the quoted amount is stored (e.g. <code className="bg-muted px-1 rounded">quoted_amount</code>). Must be a numeric or currency field in your location. You can type the key or pick from existing opportunity custom fields if CleanQuote has loaded them.
+        The HighLevel <strong>contact</strong> custom field key where the quoted amount is stored (e.g. <code className="bg-muted px-1 rounded">quoted_cleaning_price</code>). Must be a numeric or currency field in your location. You can pick from contact custom fields or enter a custom key (e.g. <code className="bg-muted px-1 rounded">contact.quoted_cleaning_price</code> or just the key name).
       </p>
 
       <h2 id="opportunity-assigned-to" className="text-lg font-semibold text-foreground mt-8">Opportunity assigned to</h2>

@@ -37,3 +37,34 @@
 
 - All **config** read/write will go through `kv.ts` (and thus Supabase when `NEXT_PUBLIC_SUPABASE_URL` + service role are set).
 - **KV** remains only for: inbox meta, auth sessions/rate limiting, and optional quote cache.
+
+---
+
+## One-time: Migrate existing KV settings to Supabase (user/org)
+
+If you had config in Vercel KV (global or tool-scoped) and want it in Supabase so the dashboard and app use it:
+
+1. Ensure `.env.local` has:
+   - `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+   - `KV_REST_API_URL`, `KV_REST_API_TOKEN` (e.g. from `vercel env pull`)
+
+2. Run the migration script:
+   ```bash
+   node scripts/migrate-kv-config-to-supabase.mjs
+   ```
+   This script:
+   - Reads config from KV (global keys, and tool-scoped keys for the default tool if present).
+   - Writes to Supabase `tool_config`: one global row (`tool_id = null`) and one row for the tool with slug **default** (so the dashboard sees your user/org settings when you open that tool).
+
+3. To target a different tool slug (e.g. your org’s tool):
+   ```bash
+   MIGRATE_TOOL_SLUG=your-slug node scripts/migrate-kv-config-to-supabase.mjs
+   ```
+
+4. After running, the dashboard will read config from Supabase for that tool; no code change required.
+
+5. To migrate **all tools** in one run (ensure every tool has config from KV in Supabase):
+   ```bash
+   MIGRATE_ALL_TOOLS=1 node scripts/migrate-kv-config-to-supabase.mjs
+   ```
+   This reads global KV and each tool’s `tool:${id}:*` keys, then upserts one `tool_config` row per tool. Tools with no KV config are skipped (existing Supabase row is not overwritten with nulls).
