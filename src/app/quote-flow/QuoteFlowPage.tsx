@@ -316,15 +316,14 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
     }
   };
 
+  // When visiting by tool slug (/t/[slug] or /t/org/slug), always fetch config from API so we get latest
+  // widget/form/survey (avoids showing defaults when server had partial or stale initialConfig).
   useEffect(() => {
-    if (hasInitialData) {
-      setMounted(true);
-      return;
-    }
     setMounted(true);
     if (slug) {
       loadConfigFromSlug(slug);
     } else {
+      if (hasInitialData) return;
       loadWidgetSettings();
       loadSurveyQuestions();
       loadFormSettings();
