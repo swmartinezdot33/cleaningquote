@@ -58,14 +58,54 @@ export async function POST(
     } else if (body.openSurveyInNewTab === 'false') {
       settings.openSurveyInNewTab = false;
     }
+    let dnsInstructions: { cname: { name: string; value: string }; a: { name: string; value: string } } | undefined;
     if (body.publicBaseUrl !== undefined) {
-      settings.publicBaseUrl =
-        typeof body.publicBaseUrl === 'string' && body.publicBaseUrl.trim()
-          ? body.publicBaseUrl.trim()
-          : undefined;
+      const raw = typeof body.publicBaseUrl === 'string' ? body.publicBaseUrl.trim() : '';
+      settings.publicBaseUrl = raw || undefined;
+
+      // Automatically add custom domain to Vercel when user sets a custom URL
+      if (raw) {
+        try {
+          const u = new URL(raw);
+          const hostname = u.hostname;
+          const token = process.env.VERCEL_TOKEN?.trim();
+          const projectId = process.env.VERCEL_PROJECT_ID?.trim() || process.env.VERCEL_PROJECT_NAME?.trim();
+          const teamId = process.env.VERCEL_TEAM_ID?.trim();
+
+          if (token && projectId && hostname && !hostname.endsWith('.vercel.app')) {
+            const vercelUrl = new URL(`https://api.vercel.com/v10/projects/${encodeURIComponent(projectId)}/domains`);
+            if (teamId) vercelUrl.searchParams.set('teamId', teamId);
+
+            const vercelRes = await fetch(vercelUrl.toString(), {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ name: hostname }),
+            });
+            await vercelRes.json().catch(() => null); // Consume body
+
+            const sub = hostname.startsWith('www.') ? 'www' : hostname.split('.')[0] || 'quote';
+            dnsInstructions = {
+              cname: { name: sub, value: 'cname.vercel-dns.com' },
+              a: { name: sub, value: '76.76.21.21' },
+            };
+            // Always return DNS instructions when we have a custom domain
+            // (added successfully, already exists, or failed - user may still need them)
+          }
+        } catch (domainErr) {
+          console.warn('Vercel domain add (non-blocking):', domainErr);
+          // Save anyway - don't block the user
+        }
+      }
     }
     await setFormSettings(settings, toolId);
-    return NextResponse.json({ success: true, message: 'Form settings saved' });
+    return NextResponse.json({
+      success: true,
+      message: 'Form settings saved',
+      ...(dnsInstructions && { dnsInstructions }),
+    });
   } catch (err) {
     console.error('POST dashboard form-settings:', err);
     return NextResponse.json(

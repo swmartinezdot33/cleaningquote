@@ -7,7 +7,7 @@ import type { Tool } from '@/lib/supabase/types';
 import ToolSettingsClient from './settings/ToolSettingsClient';
 import ToolSurveyClient from './survey/ToolSurveyClient';
 import ToolPricingClient from './pricing/ToolPricingClient';
-import { ExternalLink, Copy, Check, Loader2, Share2, Pencil, CodeXml } from 'lucide-react';
+import { ExternalLink, Copy, Check, Loader2, Share2, Pencil, CodeXml, BookOpen } from 'lucide-react';
 import { CloneToolButton } from '@/components/CloneToolButton';
 
 type TabId = 'overview' | 'settings' | 'survey' | 'pricing';
@@ -27,6 +27,9 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
   const [nameInput, setNameInput] = useState(tool.name);
   const [savingName, setSavingName] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
+  const [savingBaseUrl, setSavingBaseUrl] = useState(false);
+  const [baseUrlMessage, setBaseUrlMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [dnsInstructions, setDnsInstructions] = useState<{ cname: { name: string; value: string }; a: { name: string; value: string } } | null>(null);
 
   useEffect(() => {
     setOverviewMounted(true);
@@ -126,6 +129,45 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
       setSlugError('Failed to update slug');
     } finally {
       setSavingSlug(false);
+    }
+  };
+
+  const saveBaseUrl = async () => {
+    setBaseUrlMessage(null);
+    setDnsInstructions(null);
+    const trimmed = publicBaseUrl.trim();
+    if (trimmed) {
+      try {
+        const u = new URL(trimmed);
+        if (u.protocol !== 'https:') {
+          setBaseUrlMessage({ type: 'error', text: 'URL must start with https://' });
+          return;
+        }
+      } catch {
+        setBaseUrlMessage({ type: 'error', text: 'Please enter a valid URL (e.g. https://quote.yourcompany.com)' });
+        return;
+      }
+    }
+    setSavingBaseUrl(true);
+    try {
+      const res = await fetch(`/api/dashboard/tools/${toolId}/form-settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publicBaseUrl: trimmed }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setBaseUrlMessage({ type: 'error', text: data.error || 'Failed to save' });
+        return;
+      }
+      setBaseUrlMessage({ type: 'success', text: 'Base URL saved' });
+      if (data.dnsInstructions) {
+        setDnsInstructions(data.dnsInstructions);
+      }
+    } catch {
+      setBaseUrlMessage({ type: 'error', text: 'Failed to save base URL' });
+    } finally {
+      setSavingBaseUrl(false);
     }
   };
 
@@ -279,24 +321,63 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
             </div>
           </div>
 
-          {/* Customize base URL - Coming soon */}
-          <div className="rounded-xl border border-border bg-card p-4 opacity-90">
+          <div className="rounded-xl border border-border bg-card p-4">
             <h2 className="text-sm font-medium text-foreground">Public link base URL</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground mb-3">
+            <p className="mt-0.5 text-sm text-muted-foreground mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
               Set the base URL for your public links (e.g. your production domain). Leave blank to use this site.
+              <Link href="/help/custom-domain" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                <BookOpen className="h-3.5 w-3.5" />
+                How to use a custom domain
+              </Link>
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <input
                 type="url"
-                value={baseUrl}
-                readOnly
-                disabled
-                className="flex-1 min-w-[200px] rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-muted-foreground cursor-not-allowed"
+                value={publicBaseUrl}
+                onChange={(e) => setPublicBaseUrl(e.target.value)}
+                placeholder="e.g. https://www.yoursite.com (leave blank to use this site)"
+                className="flex-1 min-w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               />
-              <span className="rounded-md bg-muted px-3 py-2 text-xs font-medium text-muted-foreground">
-                Coming soon
-              </span>
+              <button
+                type="button"
+                onClick={saveBaseUrl}
+                disabled={savingBaseUrl}
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+              >
+                {savingBaseUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                {savingBaseUrl ? 'Saving…' : 'Save'}
+              </button>
             </div>
+            {baseUrlMessage && (
+              <p className={`mt-2 text-sm ${baseUrlMessage.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
+                {baseUrlMessage.text}
+              </p>
+            )}
+            {dnsInstructions && (
+              <div className="mt-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                <p className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-2">Add these DNS records at your domain registrar</p>
+                <p className="text-xs text-blue-800 dark:text-blue-300 mb-3">Add one of these records where you manage DNS (e.g. GoDaddy, Namecheap, Cloudflare). Wait 5–60 minutes for propagation.</p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <span className="font-medium text-blue-900 dark:text-blue-200">CNAME:</span>
+                    <code className="rounded bg-blue-100 dark:bg-blue-900/50 px-2 py-1 text-xs">{dnsInstructions.cname.name}</code>
+                    <span className="text-blue-700 dark:text-blue-300">→</span>
+                    <code className="rounded bg-blue-100 dark:bg-blue-900/50 px-2 py-1 text-xs">{dnsInstructions.cname.value}</code>
+                  </div>
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <span className="font-medium text-blue-900 dark:text-blue-200">A:</span>
+                    <code className="rounded bg-blue-100 dark:bg-blue-900/50 px-2 py-1 text-xs">{dnsInstructions.a.name}</code>
+                    <span className="text-blue-700 dark:text-blue-300">→</span>
+                    <code className="rounded bg-blue-100 dark:bg-blue-900/50 px-2 py-1 text-xs">{dnsInstructions.a.value}</code>
+                  </div>
+                </div>
+              </div>
+            )}
+            {publicBaseUrl && baseUrl && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Links will use: <code className="rounded bg-muted px-1">{baseUrl}</code>
+              </p>
+            )}
           </div>
 
           {/* Public links with copy */}

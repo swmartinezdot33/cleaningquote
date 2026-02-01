@@ -88,6 +88,37 @@ See [SUPABASE_MULTITENANT_SETUP.md](SUPABASE_MULTITENANT_SETUP.md) for creating 
 
 ---
 
+## Vercel API (custom domain management)
+
+Used by `/api/admin/custom-domain/add` and `/api/admin/custom-domain/verify` to add and verify customer custom domains on Vercel programmatically.
+
+### `VERCEL_TOKEN`
+**Required:** Yes (when using custom domain API)  
+**Type:** String  
+**Description:** Vercel account token for API calls. Create at [vercel.com/account/tokens](https://vercel.com/account/tokens).  
+**Where to Set:** Vercel → Environment Variables (server only)
+
+### `VERCEL_PROJECT_ID`
+**Required:** Optional (Vercel sets this automatically in deployments)  
+**Type:** String  
+**Description:** Vercel project ID. Usually auto-set by Vercel. Override only if needed.
+
+### `VERCEL_PROJECT_NAME`
+**Required:** Optional (fallback if `VERCEL_PROJECT_ID` not set)  
+**Type:** String  
+**Description:** Vercel project name (e.g. `cleaningquote`). Used when `VERCEL_PROJECT_ID` is not available (e.g. local dev).  
+**Example:** `cleaningquote`
+
+### `VERCEL_TEAM_ID`
+**Required:** Optional (for team projects)  
+**Type:** String  
+**Description:** Vercel team ID when the project belongs to a team.  
+**Where to Set:** Vercel → Environment Variables
+
+See [CUSTOM_DOMAIN_API.md](CUSTOM_DOMAIN_API.md) for API usage.
+
+---
+
 ## Migration (Option B — first user and default tool)
 
 Used by the migration script and API to create the first user and first quoting tool and copy existing global KV config into that tool.

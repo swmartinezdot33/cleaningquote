@@ -26,6 +26,11 @@ const guides = [
     title: 'Pricing structure builder',
     description: 'Create pricing tiers manually or import from Excel so your quote form calculates prices correctly.',
   },
+  {
+    slug: 'custom-domain',
+    title: 'Custom domain for public links',
+    description: 'Set your custom domain in Public link base URL and save. CleanQuote adds it automatically and shows you the DNS records to add at your registrar.',
+  },
 ] as const;
 
 export default function HelpPage() {
