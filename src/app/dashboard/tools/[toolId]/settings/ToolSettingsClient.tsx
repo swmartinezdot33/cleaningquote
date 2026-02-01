@@ -537,7 +537,7 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                     </div>
                   );
                 })()}
-                <Button onClick={saveForm} disabled={savingSection === 'form'} className="w-full h-11 font-semibold flex items-center gap-2">
+                <Button onClick={() => saveForm('form')} disabled={savingSection === 'form'} className="w-full h-11 font-semibold flex items-center gap-2">
                   {savingSection === 'form' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Form Settings</>}
                 </Button>
               </div>
