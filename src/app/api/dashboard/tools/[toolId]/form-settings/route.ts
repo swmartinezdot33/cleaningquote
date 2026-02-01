@@ -4,6 +4,16 @@ import { getFormSettings, setFormSettings } from '@/lib/kv';
 
 export const dynamic = 'force-dynamic';
 
+/** Canonical form for base URL (origin, no path/trailing slash) so add/remove match. */
+function normalizeBaseUrl(s: string): string {
+  const t = s.trim();
+  try {
+    return new URL(t).origin;
+  } catch {
+    return t;
+  }
+}
+
 /** GET - Get form settings for this tool */
 export async function GET(
   _request: NextRequest,
@@ -100,11 +110,21 @@ export async function POST(
       }
       const list = (Array.isArray(existing.publicBaseUrls) ? existing.publicBaseUrls : []) as string[];
       const migratedList = list.length > 0 ? list : (typeof existing.publicBaseUrl === 'string' && existing.publicBaseUrl.trim() ? [existing.publicBaseUrl.trim()] : []);
-      if (migratedList.includes(addRaw)) {
+      const addNormalized = normalizeBaseUrl(addRaw);
+      const pending = typeof existing.pendingBaseUrl === 'string' ? existing.pendingBaseUrl.trim() : '';
+      const alreadyInList = migratedList.some((u) => normalizeBaseUrl(u) === addNormalized);
+      const sameAsPending = pending && normalizeBaseUrl(pending) === addNormalized;
+      if (alreadyInList) {
         return NextResponse.json({ error: 'This URL is already in your list' }, { status: 400 });
       }
+      // If only pending matches, allow re-add (e.g. they removed from Vercel and want to add again)
+      if (sameAsPending) {
+        delete settings.pendingBaseUrl;
+        delete settings.domainVerified;
+        delete settings.domainVerifiedDomain;
+      }
       settings.publicBaseUrls = migratedList;
-      settings.pendingBaseUrl = addRaw;
+      settings.pendingBaseUrl = addNormalized;
       delete settings.domainVerified;
       delete settings.domainVerifiedDomain;
 
@@ -160,7 +180,7 @@ export async function POST(
       });
     }
 
-    // Remove one base URL from the list and from Vercel
+    // Remove one base URL from the list and from Vercel (match by normalized origin)
     if (body.removeBaseUrl !== undefined) {
       const removeRaw = typeof body.removeBaseUrl === 'string' ? body.removeBaseUrl.trim() : '';
       if (!removeRaw) {
@@ -168,8 +188,39 @@ export async function POST(
       }
       const list = (Array.isArray(existing.publicBaseUrls) ? existing.publicBaseUrls : []) as string[];
       const migratedList = list.length > 0 ? list : (typeof existing.publicBaseUrl === 'string' && existing.publicBaseUrl.trim() ? [existing.publicBaseUrl.trim()] : []);
-      const nextList = migratedList.filter((u) => u !== removeRaw);
+      const removeNormalized = normalizeBaseUrl(removeRaw);
+      const nextList = migratedList.filter((u) => normalizeBaseUrl(u) !== removeNormalized);
       if (nextList.length === migratedList.length) {
+        const pending = typeof existing.pendingBaseUrl === 'string' ? existing.pendingBaseUrl.trim() : '';
+        if (pending && normalizeBaseUrl(pending) === removeNormalized) {
+          settings.pendingBaseUrl = undefined;
+          delete settings.pendingBaseUrl;
+          delete settings.domainVerified;
+          delete settings.domainVerifiedDomain;
+          let removeHostname: string | null = null;
+          try {
+            removeHostname = new URL(removeRaw).hostname;
+            if (!removeHostname || removeHostname === 'localhost' || removeHostname.endsWith('.vercel.app')) removeHostname = null;
+          } catch {}
+          if (removeHostname) {
+            const token = process.env.VERCEL_TOKEN?.trim();
+            const projectId = process.env.VERCEL_PROJECT_ID?.trim() || process.env.VERCEL_PROJECT_NAME?.trim();
+            const teamId = process.env.VERCEL_TEAM_ID?.trim();
+            if (token && projectId) {
+              const deleteUrl = new URL(
+                `https://api.vercel.com/v10/projects/${encodeURIComponent(projectId)}/domains/${encodeURIComponent(removeHostname)}`
+              );
+              if (teamId) deleteUrl.searchParams.set('teamId', teamId);
+              try {
+                await fetch(deleteUrl.toString(), { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+              } catch (e) {
+                console.warn('Vercel domain remove (non-blocking):', e);
+              }
+            }
+          }
+          await setFormSettings(settings, toolId);
+          return NextResponse.json({ success: true, message: 'URL removed from setup and from Vercel.' });
+        }
         return NextResponse.json({ error: 'URL not found in list' }, { status: 400 });
       }
       let removeHostname: string | null = null;
@@ -194,7 +245,8 @@ export async function POST(
         }
       }
       settings.publicBaseUrls = nextList;
-      if (existing.pendingBaseUrl === removeRaw) delete settings.pendingBaseUrl;
+      const pending = typeof existing.pendingBaseUrl === 'string' ? existing.pendingBaseUrl.trim() : '';
+      if (pending && normalizeBaseUrl(pending) === removeNormalized) delete settings.pendingBaseUrl;
       delete settings.domainVerified;
       delete settings.domainVerifiedDomain;
       await setFormSettings(settings, toolId);
