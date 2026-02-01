@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { createSupabaseServer } from '@/lib/supabase/server';
 import { getSurveyQuestions } from '@/lib/survey/manager';
 import type { Tool } from '@/lib/supabase/types';
 
 export const dynamic = 'force-dynamic';
 
-/** GET - Public survey questions for a tool by slug */
+/** GET - Public survey questions for a tool by slug. Uses service role so unauthenticated visitors can load. */
 export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ slug: string }> }
@@ -15,7 +15,7 @@ export async function GET(
     if (!slug) {
       return NextResponse.json({ error: 'Slug required' }, { status: 400 });
     }
-    const supabase = await createSupabaseServerSSR();
+    const supabase = createSupabaseServer();
     const { data } = await supabase.from('tools').select('id').eq('slug', slug).single();
     const tool = data as Tool | null;
     if (!tool) {

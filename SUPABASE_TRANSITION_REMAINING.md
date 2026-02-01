@@ -1,12 +1,11 @@
-# Finishing the KV → Supabase Transition
+# KV → Supabase Transition (Complete)
 
 ## Current state
 
-- **Config (pricing, survey, widget, GHL, form, tracking, service area, etc.)** – `src/lib/kv.ts` already delegates to Supabase (`config/store`) when `isSupabaseConfigured()`. Reading/writing through `kv.ts` uses Supabase when configured.
-- **Some dashboard API routes** still call `getKV()` and key names directly, so they **bypass** that logic and always use KV. Switching them to the `kv.ts` helpers completes the transition for config.
-- **Quote data** – Stored in Supabase; KV is used only as an optional cache (`quote:${id}` with TTL). No change required unless you want to drop the KV quote cache.
-- **Auth (sessions, rate limiting)** – Stored in KV in `src/lib/security/auth.ts`. Ephemeral/session data; fine to keep in KV unless you add a Supabase sessions table later.
-- **Inbox meta** – `inbox:meta:*` in KV; Resend doesn’t support this. Stays in KV.
+- **Config (pricing, survey, widget, GHL, form, tracking, service area, etc.)** – **Supabase-only.** All config in `src/lib/kv.ts` and `src/lib/survey/manager.ts` calls `requireSupabaseForConfig()` and uses the config store. No KV fallback. Migration and clone routes return 503 if Supabase is not configured.
+- **Quote data** – Stored in Supabase; KV is used only as an optional cache (`quote:${id}` with TTL).
+- **Auth (sessions, rate limiting)** – Stored in KV in `src/lib/security/auth.ts`. Unchanged.
+- **Inbox meta** – `inbox:meta:*` in KV. Unchanged.
 
 ---
 
@@ -68,3 +67,22 @@ If you had config in Vercel KV (global or tool-scoped) and want it in Supabase s
    MIGRATE_ALL_TOOLS=1 node scripts/migrate-kv-config-to-supabase.mjs
    ```
    This reads global KV and each tool’s `tool:${id}:*` keys, then upserts one `tool_config` row per tool. Tools with no KV config are skipped (existing Supabase row is not overwritten with nulls).
+
+---
+
+## Anything else?
+
+**Required for deployment**
+
+- Set **Supabase** in every environment (Vercel, local, etc.):
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `SUPABASE_SERVICE_ROLE_KEY`
+- Set **KV** in every environment (still used for inbox meta, auth, optional quote cache):
+  - `KV_REST_API_URL`
+  - `KV_REST_API_TOKEN`
+
+**Optional**
+
+- **Docs:** Update `ENVIRONMENT_VARIABLES.md` or `PRODUCTION_READINESS.md` to state that Supabase is required for config (not optional).
+- **Migration script:** Keep `scripts/migrate-kv-config-to-supabase.mjs` for one-time migration from existing KV; safe to remove from the repo after all envs are migrated and you no longer need it.
+- **Legacy scripts:** `copy-global-kv-to-default-tool.mjs`, `migrate-to-multitenant.mjs` target KV; they’re obsolete for config copy (use dashboard clone or to-multitenant API instead). You can archive or delete them if you don’t need KV-based migration anymore.

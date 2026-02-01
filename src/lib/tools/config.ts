@@ -1,4 +1,4 @@
-import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { createSupabaseServer } from '@/lib/supabase/server';
 import { getWidgetSettings, getFormSettings, getGHLConfig } from '@/lib/kv';
 import { getSurveyQuestions } from '@/lib/survey/manager';
 import type { Tool } from '@/lib/supabase/types';
@@ -45,10 +45,10 @@ export async function getToolConfigByToolId(toolId: string): Promise<ToolConfig 
   }
 }
 
-/** Server-side: get full tool config for a slug. Returns null if tool not found or KV unavailable. */
+/** Server-side: get full tool config for a slug. Uses service role so public pages can load tool config. */
 export async function getToolConfigForPage(slug: string): Promise<ToolConfig | null> {
   try {
-    const supabase = await createSupabaseServerSSR();
+    const supabase = createSupabaseServer();
     const { data } = await supabase.from('tools').select('id').eq('slug', slug).single();
     const tool = data as Tool | null;
     if (!tool) return null;
