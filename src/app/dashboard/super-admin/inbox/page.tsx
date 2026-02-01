@@ -238,23 +238,26 @@ export default function SuperAdminInboxPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] min-h-[400px] flex-col rounded-xl border border-border bg-card shadow-sm">
-      <div className="flex border-b border-border px-4 py-2">
-        <Link
-          href="/dashboard/super-admin"
-          className="text-muted-foreground hover:text-foreground mr-4 flex items-center gap-1 text-sm"
-        >
-          ← Super Admin
-        </Link>
-        <button
-          type="button"
-          onClick={openCompose}
-          className="mr-4 flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
-          <PenSquare className="h-4 w-4" />
-          Compose
-        </button>
-        <nav className="flex gap-1">
+    <div className="flex h-[calc(100vh-8rem)] min-h-[300px] sm:min-h-[400px] flex-col rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      {/* Toolbar: responsive wrap + scrollable filters on mobile */}
+      <div className="flex flex-col gap-2 border-b border-border px-3 py-2 sm:px-4 sm:flex-row sm:flex-nowrap sm:items-center">
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href="/dashboard/super-admin"
+            className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm py-1"
+          >
+            ← Super Admin
+          </Link>
+          <button
+            type="button"
+            onClick={openCompose}
+            className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 touch-manipulation"
+          >
+            <PenSquare className="h-4 w-4" />
+            Compose
+          </button>
+        </div>
+        <nav className="flex gap-1 overflow-x-auto overflow-y-hidden pb-1 -mx-1 px-1 md:overflow-visible md:pb-0 md:mx-0 md:px-0">
           {(
             [
               { id: 'inbox' as Filter, label: 'Inbox', icon: Inbox },
@@ -267,7 +270,7 @@ export default function SuperAdminInboxPage() {
               key={id}
               type="button"
               onClick={() => setFilter(id)}
-              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-lg px-3 py-2 text-sm font-medium shrink-0 touch-manipulation ${
                 filter === id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}
             >
@@ -279,8 +282,10 @@ export default function SuperAdminInboxPage() {
       </div>
 
       <div className="flex flex-1 min-h-0">
-        {/* List */}
-        <div className="flex w-80 flex-col border-r border-border bg-muted/30">
+        {/* List: full width on mobile when no email selected; sidebar on desktop */}
+        <div
+          className={`flex w-full md:w-80 flex-col border-r border-border bg-muted/30 ${selectedId ? 'hidden md:flex' : 'flex'}`}
+        >
           {loading ? (
             <div className="flex flex-1 items-center justify-center p-4">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -311,7 +316,7 @@ export default function SuperAdminInboxPage() {
                         setSelectedId(e.id);
                         setSelectedDirection(e.direction ?? 'received');
                       }}
-                      className={`flex w-full flex-col gap-0.5 border-b border-border px-3 py-2.5 text-left transition-colors hover:bg-muted/50 ${
+                      className={`flex w-full flex-col gap-0.5 border-b border-border px-3 py-3 sm:py-2.5 text-left transition-colors hover:bg-muted/50 touch-manipulation active:bg-muted/70 ${
                         isSelected ? 'bg-primary/10 ring-inset ring-1 ring-primary/20' : ''
                       }`}
                     >
@@ -339,8 +344,10 @@ export default function SuperAdminInboxPage() {
           )}
         </div>
 
-        {/* Detail */}
-        <div className="flex flex-1 flex-col min-w-0 bg-background">
+        {/* Detail: full width on mobile when email selected; show back button on mobile */}
+        <div
+          className={`flex flex-1 flex-col min-w-0 bg-background ${!selectedId ? 'hidden md:flex' : 'flex'}`}
+        >
           {!selectedId ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 text-muted-foreground">
               <Mail className="h-12 w-12" />
@@ -352,12 +359,22 @@ export default function SuperAdminInboxPage() {
             </div>
           ) : email ? (
             <>
+              {/* Mobile: back to list */}
+              <div className="flex items-center gap-2 border-b border-border px-3 py-2 md:hidden">
+                <button
+                  type="button"
+                  onClick={() => setSelectedId(null)}
+                  className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted touch-manipulation"
+                >
+                  ← Back to list
+                </button>
+              </div>
               {email.direction !== 'sent' && (
-              <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2">
+              <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4">
                 <button
                   type="button"
                   onClick={openReply}
-                  className="flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+                  className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 touch-manipulation"
                 >
                   <Reply className="h-4 w-4" />
                   Reply
@@ -366,7 +383,7 @@ export default function SuperAdminInboxPage() {
                   type="button"
                   onClick={() => patchMeta(email.id, { flagged: !email.flagged })}
                   disabled={patchingMeta === email.id}
-                  className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50"
+                  className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 touch-manipulation"
                 >
                   {patchingMeta === email.id ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -380,7 +397,7 @@ export default function SuperAdminInboxPage() {
                     type="button"
                     onClick={() => patchMeta(email.id, { deleted: true })}
                     disabled={patchingMeta === email.id}
-                    className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                    className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50 touch-manipulation"
                   >
                     <Trash2 className="h-4 w-4" />
                     Delete
@@ -390,20 +407,20 @@ export default function SuperAdminInboxPage() {
                     type="button"
                     onClick={() => patchMeta(email.id, { deleted: false })}
                     disabled={patchingMeta === email.id}
-                    className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50"
+                    className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 touch-manipulation"
                   >
                     Restore
                   </button>
                 )}
               </div>
               )}
-              <div className="flex flex-col gap-1 border-b border-border px-4 py-2 text-sm">
-                <p><span className="font-medium text-muted-foreground">From:</span> {email.from}</p>
-                <p><span className="font-medium text-muted-foreground">To:</span> {(email.to ?? []).join(', ')}</p>
-                <p><span className="font-medium text-muted-foreground">Subject:</span> {email.subject || '(no subject)'}</p>
+              <div className="flex flex-col gap-1 border-b border-border px-3 py-2 sm:px-4 text-sm break-words">
+                <p className="min-w-0"><span className="font-medium text-muted-foreground">From:</span> <span className="break-all">{email.from}</span></p>
+                <p className="min-w-0"><span className="font-medium text-muted-foreground">To:</span> <span className="break-all">{(email.to ?? []).join(', ')}</span></p>
+                <p className="min-w-0"><span className="font-medium text-muted-foreground">Subject:</span> {email.subject || '(no subject)'}</p>
                 <p className="text-muted-foreground">{formatDate(email.created_at)}</p>
               </div>
-              <div className="flex-1 overflow-auto p-4">
+              <div className="flex-1 overflow-auto p-3 sm:p-4 min-h-0">
                 {email.html ? (
                   <iframe
                     title="Email body"
@@ -428,49 +445,53 @@ export default function SuperAdminInboxPage() {
 
       {/* Compose modal */}
       {composeOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-xl border border-border bg-card p-4 shadow-lg">
-            <h3 className="mb-4 text-lg font-semibold">Compose</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-muted-foreground">To</label>
-                <input
-                  type="email"
-                  value={composeTo}
-                  onChange={(e) => setComposeTo(e.target.value)}
-                  placeholder="recipient@example.com"
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-muted-foreground">Subject</label>
-                <input
-                  type="text"
-                  value={composeSubject}
-                  onChange={(e) => setComposeSubject(e.target.value)}
-                  placeholder="Subject"
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-muted-foreground">Message</label>
-                <textarea
-                  value={composeBody}
-                  onChange={(e) => setComposeBody(e.target.value)}
-                  rows={6}
-                  placeholder="Write your message..."
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                />
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4 overflow-y-auto">
+          <div className="w-full max-w-lg max-h-[90vh] rounded-xl border border-border bg-card shadow-lg flex flex-col my-auto">
+            <div className="p-4 shrink-0">
+              <h3 className="text-lg font-semibold">Compose</h3>
             </div>
-            {composeError && (
-              <p className="mt-2 text-sm text-destructive">{composeError}</p>
-            )}
-            <div className="mt-4 flex justify-end gap-2">
+            <div className="overflow-y-auto px-4 pb-4 flex-1 min-h-0">
+              <div className="space-y-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">To</label>
+                  <input
+                    type="email"
+                    value={composeTo}
+                    onChange={(e) => setComposeTo(e.target.value)}
+                    placeholder="recipient@example.com"
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">Subject</label>
+                  <input
+                    type="text"
+                    value={composeSubject}
+                    onChange={(e) => setComposeSubject(e.target.value)}
+                    placeholder="Subject"
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">Message</label>
+                  <textarea
+                    value={composeBody}
+                    onChange={(e) => setComposeBody(e.target.value)}
+                    rows={6}
+                    placeholder="Write your message..."
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              {composeError && (
+                <p className="mt-2 text-sm text-destructive">{composeError}</p>
+              )}
+            </div>
+            <div className="p-4 pt-0 flex justify-end gap-2 shrink-0 border-t border-border">
               <button
                 type="button"
                 onClick={() => setComposeOpen(false)}
-                className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted touch-manipulation"
               >
                 Cancel
               </button>
@@ -478,7 +499,7 @@ export default function SuperAdminInboxPage() {
                 type="button"
                 onClick={sendCompose}
                 disabled={sendingCompose}
-                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 touch-manipulation"
               >
                 {sendingCompose && <Loader2 className="h-4 w-4 animate-spin" />}
                 Send
@@ -490,46 +511,50 @@ export default function SuperAdminInboxPage() {
 
       {/* Reply modal */}
       {replyOpen && email && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-xl border border-border bg-card p-4 shadow-lg">
-            <h3 className="mb-4 text-lg font-semibold">Reply</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-muted-foreground">To</label>
-                <input
-                  type="email"
-                  value={replyTo}
-                  onChange={(e) => setReplyTo(e.target.value)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-muted-foreground">Subject</label>
-                <input
-                  type="text"
-                  value={replySubject}
-                  onChange={(e) => setReplySubject(e.target.value)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-muted-foreground">Message</label>
-                <textarea
-                  value={replyBody}
-                  onChange={(e) => setReplyBody(e.target.value)}
-                  rows={6}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                />
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4 overflow-y-auto">
+          <div className="w-full max-w-lg max-h-[90vh] rounded-xl border border-border bg-card shadow-lg flex flex-col my-auto">
+            <div className="p-4 shrink-0">
+              <h3 className="text-lg font-semibold">Reply</h3>
             </div>
-            {replyError && (
-              <p className="mt-2 text-sm text-destructive">{replyError}</p>
-            )}
-            <div className="mt-4 flex justify-end gap-2">
+            <div className="overflow-y-auto px-4 pb-4 flex-1 min-h-0">
+              <div className="space-y-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">To</label>
+                  <input
+                    type="email"
+                    value={replyTo}
+                    onChange={(e) => setReplyTo(e.target.value)}
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">Subject</label>
+                  <input
+                    type="text"
+                    value={replySubject}
+                    onChange={(e) => setReplySubject(e.target.value)}
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">Message</label>
+                  <textarea
+                    value={replyBody}
+                    onChange={(e) => setReplyBody(e.target.value)}
+                    rows={6}
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              {replyError && (
+                <p className="mt-2 text-sm text-destructive">{replyError}</p>
+              )}
+            </div>
+            <div className="p-4 pt-0 flex justify-end gap-2 shrink-0 border-t border-border">
               <button
                 type="button"
                 onClick={() => setReplyOpen(false)}
-                className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted touch-manipulation"
               >
                 Cancel
               </button>
@@ -537,7 +562,7 @@ export default function SuperAdminInboxPage() {
                 type="button"
                 onClick={sendReply}
                 disabled={sendingReply}
-                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 touch-manipulation"
               >
                 {sendingReply && <Loader2 className="h-4 w-4 animate-spin" />}
                 Send
