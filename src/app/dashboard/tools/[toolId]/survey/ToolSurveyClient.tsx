@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import Link from 'next/link';
 import {
   Save,
   Plus,
@@ -20,6 +21,7 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
+  BookOpen,
 } from 'lucide-react';
 import type { SurveyQuestion } from '@/lib/survey/schema';
 
@@ -267,7 +269,13 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
         <Sparkles className="h-6 w-6 text-primary" />
         <div>
           <h2 className="text-xl font-bold text-foreground">Survey Builder</h2>
-          <p className="text-sm text-muted-foreground">Customize your quote form questions for this tool</p>
+          <p className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
+            Customize your quote form questions for this tool.
+            <Link href="/help/survey-builder" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+              <BookOpen className="h-3.5 w-3.5" />
+              Instructions
+            </Link>
+          </p>
         </div>
       </div>
 

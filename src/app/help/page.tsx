@@ -16,6 +16,16 @@ const guides = [
     title: 'Service area polygon in Google',
     description: 'Create and draw a service area polygon in Google My Maps, export to KML, and upload it to CleanQuote to qualify leads by location.',
   },
+  {
+    slug: 'survey-builder',
+    title: 'Survey builder',
+    description: 'Add, edit, reorder quote form questions and map them to HighLevel fields for lead sync.',
+  },
+  {
+    slug: 'pricing-structure-builder',
+    title: 'Pricing structure builder',
+    description: 'Create pricing tiers manually or import from Excel so your quote form calculates prices correctly.',
+  },
 ] as const;
 
 export default function HelpPage() {

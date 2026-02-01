@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Link from 'next/link';
 import {
   Upload,
   Save,
@@ -22,6 +23,7 @@ import {
   ArrowUp,
   ArrowDown,
   Sparkles,
+  BookOpen,
 } from 'lucide-react';
 import type { PricingTable } from '@/lib/pricing/types';
 
@@ -262,7 +264,13 @@ export default function ToolPricingClient({ toolId }: { toolId: string }) {
         <Sparkles className="h-6 w-6 text-primary" />
         <div>
           <h2 className="text-xl font-bold text-foreground">Pricing Builder</h2>
-          <p className="text-sm text-muted-foreground">Create and manage your quoting structure for this tool</p>
+          <p className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
+            Create and manage your quoting structure for this tool.
+            <Link href="/help/pricing-structure-builder" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+              <BookOpen className="h-3.5 w-3.5" />
+              Instructions
+            </Link>
+          </p>
         </div>
       </div>
 
