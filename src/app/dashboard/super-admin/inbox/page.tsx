@@ -12,6 +12,7 @@ import {
   Mail,
   AlertCircle,
   Send,
+  PenSquare,
 } from 'lucide-react';
 
 type Filter = 'inbox' | 'flagged' | 'trash' | 'sent';
@@ -74,12 +75,19 @@ export default function SuperAdminInboxPage() {
   const [replyBody, setReplyBody] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [composeTo, setComposeTo] = useState('');
+  const [composeSubject, setComposeSubject] = useState('');
+  const [composeBody, setComposeBody] = useState('');
+  const [sendingCompose, setSendingCompose] = useState(false);
+  const [composeError, setComposeError] = useState<string | null>(null);
   const [patchingMeta, setPatchingMeta] = useState<string | null>(null);
 
-  const loadList = () => {
+  const loadList = (overrideFilter?: Filter) => {
+    const f = overrideFilter ?? filter;
     setLoading(true);
     setError(null);
-    fetch(`/api/dashboard/super-admin/inbox?filter=${filter}&limit=50`)
+    fetch(`/api/dashboard/super-admin/inbox?filter=${f}&limit=50`)
       .then((r) => r.json())
       .then((data) => {
         if (data.error) {
@@ -188,6 +196,47 @@ export default function SuperAdminInboxPage() {
     }
   };
 
+  const openCompose = () => {
+    setComposeTo('');
+    setComposeSubject('');
+    setComposeBody('');
+    setComposeError(null);
+    setComposeOpen(true);
+  };
+
+  const sendCompose = async () => {
+    if (!composeTo.trim()) {
+      setComposeError('Enter a recipient');
+      return;
+    }
+    setSendingCompose(true);
+    setComposeError(null);
+    try {
+      const res = await fetch('/api/dashboard/super-admin/inbox/reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: composeTo.trim(),
+          subject: composeSubject.trim() || '(no subject)',
+          html: composeBody ? `<p>${composeBody.replace(/\n/g, '</p><p>')}</p>` : '<p>(No content)</p>',
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setComposeOpen(false);
+        setFilter('sent');
+        setSelectedId(null);
+        loadList('sent');
+      } else {
+        setComposeError(data.error ?? 'Failed to send');
+      }
+    } catch {
+      setComposeError('Failed to send');
+    } finally {
+      setSendingCompose(false);
+    }
+  };
+
   return (
     <div className="flex h-[calc(100vh-8rem)] min-h-[400px] flex-col rounded-xl border border-border bg-card shadow-sm">
       <div className="flex border-b border-border px-4 py-2">
@@ -197,6 +246,14 @@ export default function SuperAdminInboxPage() {
         >
           ← Super Admin
         </Link>
+        <button
+          type="button"
+          onClick={openCompose}
+          className="mr-4 flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+        >
+          <PenSquare className="h-4 w-4" />
+          Compose
+        </button>
         <nav className="flex gap-1">
           {(
             [
@@ -368,6 +425,68 @@ export default function SuperAdminInboxPage() {
           )}
         </div>
       </div>
+
+      {/* Compose modal */}
+      {composeOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-xl border border-border bg-card p-4 shadow-lg">
+            <h3 className="mb-4 text-lg font-semibold">Compose</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-muted-foreground">To</label>
+                <input
+                  type="email"
+                  value={composeTo}
+                  onChange={(e) => setComposeTo(e.target.value)}
+                  placeholder="recipient@example.com"
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-muted-foreground">Subject</label>
+                <input
+                  type="text"
+                  value={composeSubject}
+                  onChange={(e) => setComposeSubject(e.target.value)}
+                  placeholder="Subject"
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-muted-foreground">Message</label>
+                <textarea
+                  value={composeBody}
+                  onChange={(e) => setComposeBody(e.target.value)}
+                  rows={6}
+                  placeholder="Write your message..."
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+            {composeError && (
+              <p className="mt-2 text-sm text-destructive">{composeError}</p>
+            )}
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setComposeOpen(false)}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={sendCompose}
+                disabled={sendingCompose}
+                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {sendingCompose && <Loader2 className="h-4 w-4 animate-spin" />}
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reply modal */}
       {replyOpen && email && (
