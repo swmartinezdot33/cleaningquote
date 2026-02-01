@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, AlertCircle, Loader2, Save, RotateCw, Eye, EyeOff, Sparkles, ArrowLeft, Copy, Code, ChevronDown, FileText, Upload, MapPin, Plus } from 'lucide-react';
+import { CheckCircle, AlertCircle, Loader2, Save, RotateCw, Eye, EyeOff, Sparkles, ArrowLeft, Copy, Code, ChevronDown, FileText, Upload, MapPin, Plus, BookOpen } from 'lucide-react';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -1293,8 +1294,12 @@ export default function SettingsPage() {
                     <Sparkles className="h-6 w-6 text-primary" />
                     HighLevel Integration
                   </CardTitle>
-                  <CardDescription className="text-gray-600 mt-1">
-                    Configure your HighLevel token and CRM integration settings
+                  <CardDescription className="text-gray-600 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    Configure your HighLevel token and CRM integration settings.
+                    <Link href="/help/ghl-integration" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                      <BookOpen className="h-3.5 w-3.5" />
+                      Instructions
+                    </Link>
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-3">
@@ -2742,8 +2747,12 @@ export default function SettingsPage() {
                     <MapPin className="h-5 w-5 text-emerald-600" />
                     Service Area Configuration
                   </CardTitle>
-                  <CardDescription className="text-gray-600 mt-1">
-                    Upload a KML file with your service area polygon, and configure tags for in-service and out-of-service customers
+                  <CardDescription className="text-gray-600 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    Upload a KML file with your service area polygon, and configure tags for in-service and out-of-service customers.
+                    <Link href="/help/service-area-polygon" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                      <BookOpen className="h-3.5 w-3.5" />
+                      Instructions
+                    </Link>
                   </CardDescription>
                 </div>
                 <ChevronDown 
@@ -2903,8 +2912,12 @@ export default function SettingsPage() {
                     <Code className="h-5 w-5 text-blue-600" />
                     Google Maps API Key
                   </CardTitle>
-                  <CardDescription className="text-gray-600 mt-1">
-                    Configure your Google Maps API key for address autocomplete and service area mapping
+                  <CardDescription className="text-gray-600 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    Configure your Google Maps API key for address autocomplete and service area mapping.
+                    <Link href="/help/google-maps-api" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                      <BookOpen className="h-3.5 w-3.5" />
+                      Instructions
+                    </Link>
                   </CardDescription>
                 </div>
                 <ChevronDown 

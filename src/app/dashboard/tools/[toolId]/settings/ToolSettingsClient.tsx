@@ -559,8 +559,12 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                   <Sparkles className="h-6 w-6 text-primary" />
                   HighLevel Integration
                 </CardTitle>
-                <CardDescription className="text-muted-foreground mt-1">
-                  Configure your HighLevel API token and Location ID for this tool
+                <CardDescription className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  Configure your HighLevel API token and Location ID for this tool.
+                  <Link href="/help/ghl-integration" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                    <BookOpen className="h-3.5 w-3.5" />
+                    Instructions
+                  </Link>
                 </CardDescription>
               </div>
               <div className="flex items-center gap-3">
@@ -627,7 +631,7 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
         <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
           <CardHeader
-            className="bg-gradient-to-r from-purple-500/10 to-violet-500/10 border-b border-border pb-6 cursor-pointer"
+            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
             onClick={() => toggleCard('service-area')}
           >
             <div className="flex items-center justify-between">
@@ -636,8 +640,12 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                   <MapPin className="h-5 w-5 text-purple-600" />
                   Service Area Configuration
                 </CardTitle>
-                <CardDescription className="text-muted-foreground mt-1">
-                  Upload a KML file with your service area polygon, and configure tags for in-service and out-of-service customers
+                <CardDescription className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  Upload a KML file with your service area polygon, and configure tags for in-service and out-of-service customers.
+                  <Link href="/help/service-area-polygon" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                    <BookOpen className="h-3.5 w-3.5" />
+                    Instructions
+                  </Link>
                 </CardDescription>
               </div>
               <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('service-area') ? 'rotate-180' : ''}`} />
