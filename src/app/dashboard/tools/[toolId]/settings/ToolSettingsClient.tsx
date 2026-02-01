@@ -21,7 +21,7 @@ function GhlHelpIcon({ anchor }: { anchor: string }) {
   );
 }
 
-export default function ToolSettingsClient({ toolId }: { toolId: string }) {
+export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: string; toolSlug?: string }) {
   const [widget, setWidget] = useState({ title: '', subtitle: '', primaryColor: 'transparent' });
   const [form, setForm] = useState<Record<string, string>>({});
   const [ghlToken, setGhlToken] = useState('');
@@ -391,6 +391,11 @@ export default function ToolSettingsClient({ toolId }: { toolId: string }) {
                 <CardTitle className="text-2xl font-bold">Site Customization</CardTitle>
                 <CardDescription className="text-muted-foreground mt-1">
                   Customize the title, subtitle, and primary color for this quoting tool
+                  {toolSlug && (
+                    <span className="block mt-2 text-foreground/80">
+                      Changes apply at <code className="rounded bg-muted px-1">/t/{toolSlug}</code>. View that URL (or your custom domain with that path) and refresh to see updates.
+                    </span>
+                  )}
                 </CardDescription>
               </div>
               <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('widget') ? 'rotate-180' : ''}`} />

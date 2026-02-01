@@ -23,7 +23,7 @@ export default async function ToolSettingsPage({
         </Link>
       </div>
       <h1 className="text-2xl font-bold text-gray-900">Settings — {tool.name}</h1>
-      <ToolSettingsClient toolId={toolId} />
+      <ToolSettingsClient toolId={toolId} toolSlug={tool.slug} />
     </div>
   );
 }
