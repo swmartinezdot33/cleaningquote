@@ -3,6 +3,7 @@ import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { randomBytes } from 'crypto';
 import { getSiteUrl } from '@/lib/canonical-url';
+import { canManageOrg } from '@/lib/org-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,18 +45,12 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const admin = createSupabaseServer();
-  const { data: memberRaw } = await admin
-    .from('organization_members')
-    .select('role')
-    .eq('org_id', orgId)
-    .eq('user_id', user.id)
-    .single();
-  const member = memberRaw as { role: string } | null;
-
-  if (!member || member.role !== 'admin') {
-    return NextResponse.json({ error: 'Only admins can invite' }, { status: 403 });
+  const canManage = await canManageOrg(user.id, user.email ?? undefined, orgId);
+  if (!canManage) {
+    return NextResponse.json({ error: 'Only org admins or super admins can invite' }, { status: 403 });
   }
+
+  const admin = createSupabaseServer();
 
   const body = await request.json().catch(() => ({}));
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';

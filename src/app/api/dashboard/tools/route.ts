@@ -3,7 +3,7 @@ import type { ToolInsert } from '@/lib/supabase/types';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { slugToSafe } from '@/lib/supabase/tools';
-import { canAccessTool, isSuperAdminEmail } from '@/lib/org-auth';
+import { canAccessTool } from '@/lib/org-auth';
 import * as configStore from '@/lib/config/store';
 import { DEFAULT_WIDGET } from '@/lib/tools/config';
 import { DEFAULT_SURVEY_QUESTIONS } from '@/lib/survey/schema';
@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
     }
 
     const insert: ToolInsert = { org_id: orgId, user_id: user.id, name: name || slug, slug };
-    // Super admins may create tools for orgs they're not a member of; RLS would block. Use service role for insert.
-    const insertClient = isSuperAdminEmail(user.email ?? undefined) ? createSupabaseServer() : supabase;
+    // Use service role for insert so RLS never blocks: we already verified access with canAccessTool. Ensures every "Create quoting tool" adds a row to tools.
+    const insertClient = createSupabaseServer();
     const { data: tool, error } = await insertClient
       .from('tools')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

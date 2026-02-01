@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { createSupabaseServer } from '@/lib/supabase/server';
+import { canManageOrg } from '@/lib/org-auth';
 
 export const dynamic = 'force-dynamic';
 
-/** GET - List org members and pending invites */
+/** GET - List org members and pending invites (org admin or super admin only) */
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ orgId: string }> }
@@ -14,6 +15,11 @@ export async function GET(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const canManage = await canManageOrg(user.id, user.email ?? undefined, orgId);
+  if (!canManage) {
+    return NextResponse.json({ error: 'Only org admins or super admins can list members' }, { status: 403 });
   }
 
   const admin = createSupabaseServer();

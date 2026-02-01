@@ -65,6 +65,26 @@ export async function canAccessTool(
   return !!data;
 }
 
+/**
+ * Check if user can manage an org (invite, remove, list members, cancel invites).
+ * True for super admin (env email) or org admin (organization_members.role = 'admin').
+ */
+export async function canManageOrg(
+  userId: string,
+  userEmail: string | undefined,
+  orgId: string
+): Promise<boolean> {
+  if (isSuperAdminEmail(userEmail)) return true;
+  const supabase = await createSupabaseServerSSR();
+  const { data } = await supabase
+    .from('organization_members')
+    .select('role')
+    .eq('user_id', userId)
+    .eq('org_id', orgId)
+    .maybeSingle();
+  return (data as { role?: string } | null)?.role === 'admin';
+}
+
 /** Check if org has Stripe and requires an active subscription for access */
 export function orgRequiresSubscription(org: Pick<Organization, 'stripe_customer_id' | 'subscription_status'>): boolean {
   return !!org?.stripe_customer_id;

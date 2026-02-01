@@ -53,10 +53,10 @@ export async function POST() {
   const org = orgRaw as { id: string; name: string; slug: string };
   const { error: memberErr } = await supabase
     .from('organization_members')
-    .insert({ org_id: org.id, user_id: user.id, role: 'owner' } as any);
+    .insert({ org_id: org.id, user_id: user.id, role: 'admin' } as any);
 
   if (memberErr) {
-    return NextResponse.json({ error: 'Failed to add you as owner' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to add you as admin' }, { status: 500 });
   }
 
   return NextResponse.json({

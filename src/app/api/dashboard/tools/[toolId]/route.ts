@@ -6,7 +6,7 @@ import { slugToSafe } from '@/lib/supabase/tools';
 
 export const dynamic = 'force-dynamic';
 
-/** DELETE - Delete tool */
+/** DELETE - Delete tool. Use service role so RLS never blocks after we've verified access. */
 export async function DELETE(
   _request: Request,
   context: { params: Promise<{ toolId: string }> }
@@ -15,8 +15,7 @@ export async function DELETE(
   const auth = await getDashboardUserAndToolWithClient(toolId);
   if (auth instanceof NextResponse) return auth;
 
-  const { supabase } = auth;
-
+  const supabase = createSupabaseServer();
   const { error } = await supabase.from('tools').delete().eq('id', toolId);
 
   if (error) {
