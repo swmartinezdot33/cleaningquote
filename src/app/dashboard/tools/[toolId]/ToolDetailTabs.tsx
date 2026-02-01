@@ -389,108 +389,22 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-xl border border-border bg-card p-4 opacity-60">
             <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
               Public link base URL
-              {isVerified && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 dark:bg-green-950/50 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-300">
-                  <span className="h-1.5 w-1.5 rounded-full bg-green-500" aria-hidden />
-                  DNS verified
-                </span>
-              )}
+              <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                Coming soon
+              </span>
             </h2>
-            <p className="mt-0.5 text-sm text-muted-foreground mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <p className="mt-0.5 text-sm text-muted-foreground mb-3">
               Set the base URL for your public links (e.g. your production domain). Leave blank to use this site.
-              <Link href="/help/custom-domain" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-                <BookOpen className="h-3.5 w-3.5" />
-                How to use a custom domain
-              </Link>
             </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="url"
-                value={publicBaseUrl}
-                onChange={(e) => setPublicBaseUrl(e.target.value)}
-                placeholder="e.g. https://www.yoursite.com (leave blank to use this site)"
-                className="flex-1 min-w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-              />
-              <button
-                type="button"
-                onClick={saveBaseUrl}
-                disabled={savingBaseUrl}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
-              >
-                {savingBaseUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                {savingBaseUrl ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-            {baseUrlMessage && (
-              <p className={`mt-2 text-sm ${baseUrlMessage.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
-                {baseUrlMessage.text}
-              </p>
-            )}
-            {vercelDomainError && (
-              <div className="mt-4 p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
-                <p className="text-sm font-semibold text-amber-900 dark:text-amber-200 mb-1">Domain not added to Vercel</p>
-                <p className="text-sm text-amber-800 dark:text-amber-300">{vercelDomainError}</p>
-              </div>
-            )}
-            {hasCustomDomain && (
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={verifyRecords}
-                  disabled={verifyingDomain}
-                  className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50"
-                >
-                  {verifyingDomain ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Verify records
-                </button>
-                {verifyResult && (
-                  <span className={`text-sm ${verifyResult.verified ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                    {verifyResult.verified ? '✓ ' : ''}{verifyResult.message}
-                  </span>
-                )}
-              </div>
-            )}
-            {dnsInstructions && (
-              <div className="mt-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
-                <p className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-2">Add these DNS records at your domain registrar</p>
-                <p className="text-xs text-blue-800 dark:text-blue-300 mb-3">Add one of these records where you manage DNS (e.g. GoDaddy, Namecheap, Cloudflare). Use the lowest TTL available (e.g. 60 seconds). Wait 5–60 minutes for propagation.</p>
-                <p className="text-xs text-blue-700 dark:text-blue-400 mb-2">If Vercel shows &quot;DNS Change Recommended&quot; in your project&apos;s Domains settings, use the CNAME value shown there (e.g. <code className="bg-blue-100 dark:bg-blue-900/50 px-1 rounded">xxx.vercel-dns-016.com</code>) instead of the value above.</p>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm border-collapse border border-blue-200 dark:border-blue-800">
-                    <thead>
-                      <tr className="bg-blue-100 dark:bg-blue-900/50">
-                        <th className="border border-blue-200 dark:border-blue-800 px-3 py-2 text-left font-semibold text-blue-900 dark:text-blue-200">Type</th>
-                        <th className="border border-blue-200 dark:border-blue-800 px-3 py-2 text-left font-semibold text-blue-900 dark:text-blue-200">Host</th>
-                        <th className="border border-blue-200 dark:border-blue-800 px-3 py-2 text-left font-semibold text-blue-900 dark:text-blue-200">Value</th>
-                        <th className="border border-blue-200 dark:border-blue-800 px-3 py-2 text-left font-semibold text-blue-900 dark:text-blue-200">TTL</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="bg-blue-50/50 dark:bg-blue-950/20">
-                        <td className="border border-blue-200 dark:border-blue-800 px-3 py-2 font-mono text-blue-900 dark:text-blue-200">{dnsInstructions.cname.type}</td>
-                        <td className="border border-blue-200 dark:border-blue-800 px-3 py-2 font-mono text-blue-900 dark:text-blue-200">{dnsInstructions.cname.host}</td>
-                        <td className="border border-blue-200 dark:border-blue-800 px-3 py-2 font-mono text-blue-900 dark:text-blue-200 break-all">{dnsInstructions.cname.value}</td>
-                        <td className="border border-blue-200 dark:border-blue-800 px-3 py-2 font-mono text-blue-900 dark:text-blue-200">{dnsInstructions.cname.ttl}</td>
-                      </tr>
-                      <tr className="bg-blue-50/50 dark:bg-blue-950/20">
-                        <td className="border border-blue-200 dark:border-blue-800 px-3 py-2 font-mono text-blue-900 dark:text-blue-200">{dnsInstructions.a.type}</td>
-                        <td className="border border-blue-200 dark:border-blue-800 px-3 py-2 font-mono text-blue-900 dark:text-blue-200">{dnsInstructions.a.host}</td>
-                        <td className="border border-blue-200 dark:border-blue-800 px-3 py-2 font-mono text-blue-900 dark:text-blue-200">{dnsInstructions.a.value}</td>
-                        <td className="border border-blue-200 dark:border-blue-800 px-3 py-2 font-mono text-blue-900 dark:text-blue-200">{dnsInstructions.a.ttl}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-            {publicBaseUrl && baseUrl && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                Links will use: <code className="rounded bg-muted px-1">{baseUrl}</code>
-              </p>
-            )}
+            <input
+              type="url"
+              disabled
+              placeholder="e.g. https://www.yoursite.com (leave blank to use this site)"
+              className="w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed"
+            />
           </div>
 
           {/* Public links with copy */}
