@@ -36,6 +36,8 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
   const [vercelDomainError, setVercelDomainError] = useState<string | null>(null);
   const [verifyingDomain, setVerifyingDomain] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ verified: boolean; message: string } | null>(null);
+  const [domainVerified, setDomainVerified] = useState(false);
+  const [domainVerifiedDomain, setDomainVerifiedDomain] = useState<string | null>(null);
 
   useEffect(() => {
     setOverviewMounted(true);
@@ -54,8 +56,12 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
         if (!res.ok || cancelled) return;
         const data = await res.json();
         const base = data.formSettings?.publicBaseUrl ?? '';
+        const verified = data.formSettings?.domainVerified === true;
+        const verifiedDomain = typeof data.formSettings?.domainVerifiedDomain === 'string' ? data.formSettings.domainVerifiedDomain : null;
         if (!cancelled) {
           setPublicBaseUrl(base);
+          setDomainVerified(verified);
+          setDomainVerifiedDomain(verifiedDomain);
         }
       } catch {
         if (!cancelled && typeof window !== 'undefined') {
@@ -143,6 +149,8 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
     setDnsInstructions(null);
     setVercelDomainError(null);
     setVerifyResult(null);
+    setDomainVerified(false);
+    setDomainVerifiedDomain(null);
     const trimmed = publicBaseUrl.trim();
     if (trimmed) {
       try {
@@ -193,6 +201,10 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
         return;
       }
       setVerifyResult({ verified: data.verified, message: data.message });
+      if (data.verified && data.domainVerifiedDomain) {
+        setDomainVerified(true);
+        setDomainVerifiedDomain(data.domainVerifiedDomain);
+      }
     } catch {
       setVerifyResult({ verified: false, message: 'Failed to verify domain' });
     } finally {
@@ -211,6 +223,21 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
         return false;
       }
     })();
+
+  const currentHostname = hasCustomDomain
+    ? (() => {
+        try {
+          return new URL(publicBaseUrl.trim()).hostname;
+        } catch {
+          return null;
+        }
+      })()
+    : null;
+  const isVerified =
+    domainVerified &&
+    domainVerifiedDomain &&
+    currentHostname &&
+    domainVerifiedDomain.toLowerCase() === currentHostname.toLowerCase();
 
   const copyToClipboard = async (text: string, id: string) => {
     try {
@@ -363,7 +390,15 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
           </div>
 
           <div className="rounded-xl border border-border bg-card p-4">
-            <h2 className="text-sm font-medium text-foreground">Public link base URL</h2>
+            <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
+              Public link base URL
+              {isVerified && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 dark:bg-green-950/50 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-500" aria-hidden />
+                  DNS verified
+                </span>
+              )}
+            </h2>
             <p className="mt-0.5 text-sm text-muted-foreground mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
               Set the base URL for your public links (e.g. your production domain). Leave blank to use this site.
               <Link href="/help/custom-domain" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">

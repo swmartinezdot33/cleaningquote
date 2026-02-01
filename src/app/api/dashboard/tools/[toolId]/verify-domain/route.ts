@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDashboardUserAndTool } from '@/lib/dashboard-auth';
-import { getFormSettings } from '@/lib/kv';
+import { getFormSettings, setFormSettings } from '@/lib/kv';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,6 +73,15 @@ export async function POST(
     }
 
     const verified = data.verified === true;
+
+    if (verified) {
+      const existing = (await getFormSettings(toolId)) ?? {};
+      await setFormSettings(
+        { ...existing, domainVerified: true, domainVerifiedDomain: hostname },
+        toolId
+      );
+    }
+
     return NextResponse.json({
       success: true,
       domain: hostname,
@@ -81,6 +90,7 @@ export async function POST(
         ? 'DNS records verified. SSL will be provisioned automatically.'
         : 'DNS records not yet verified. Check that records match and allow 5–60 minutes for propagation.',
       verification: data.verification,
+      ...(verified && { domainVerified: true, domainVerifiedDomain: hostname }),
     });
   } catch (err) {
     console.error('Verify domain error:', err);

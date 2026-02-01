@@ -67,6 +67,9 @@ export async function POST(
     if (body.publicBaseUrl !== undefined) {
       const raw = typeof body.publicBaseUrl === 'string' ? body.publicBaseUrl.trim() : '';
       settings.publicBaseUrl = raw || undefined;
+      // Clear persisted verification when domain changes
+      delete settings.domainVerified;
+      delete settings.domainVerifiedDomain;
 
       // Automatically add custom domain to Vercel when user sets a custom URL
       // Always return DNS instructions so user sees what records to add
