@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { FileDown, ExternalLink, Loader2, ArrowRightLeft, Search, Filter, Trash2, Copy } from 'lucide-react';
+import { FileDown, ExternalLink, Loader2, ArrowRightLeft, Search, Filter, Trash2, Copy, Check } from 'lucide-react';
 
 interface QuoteRow {
   id: string;
@@ -395,50 +395,46 @@ export default function DashboardQuotesPage() {
                     </td>
                     <td className="px-4 py-3">{formatPrice(q.price_low, q.price_high)}</td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <a
                           href={`${baseUrl}/quote/${q.quote_id}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-primary hover:underline"
+                          className="inline-flex items-center justify-center rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          title="View quote"
                         >
-                          View <ExternalLink className="h-3.5 w-3.5" />
+                          <ExternalLink className="h-4 w-4" />
                         </a>
                         <button
                           type="button"
                           onClick={() => copyQuoteLink(q)}
-                          className="inline-flex items-center gap-1 rounded border border-border bg-muted/50 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted"
-                          title="Copy quote link"
+                          className="inline-flex items-center justify-center rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          title={copiedQuoteId === q.quote_id ? 'Copied!' : 'Copy quote link'}
                         >
                           {copiedQuoteId === q.quote_id ? (
-                            <>Copied!</>
+                            <Check className="h-4 w-4 text-primary" />
                           ) : (
-                            <>
-                              <Copy className="h-3.5 w-3.5" />
-                              Copy link
-                            </>
+                            <Copy className="h-4 w-4" />
                           )}
                         </button>
                         {isSuperAdmin && (
                           <button
                             type="button"
                             onClick={() => openReassign(q)}
-                            className="inline-flex items-center gap-1 rounded border border-amber-500/50 bg-amber-500/10 px-2 py-1 text-xs text-amber-700 hover:bg-amber-500/20 dark:text-amber-400"
+                            className="inline-flex items-center justify-center rounded p-2 text-amber-700 hover:bg-amber-500/20 dark:text-amber-400"
                             title="Reassign to another org’s tool"
                           >
-                            <ArrowRightLeft className="h-3.5 w-3.5" />
-                            Reassign
+                            <ArrowRightLeft className="h-4 w-4" />
                           </button>
                         )}
                         {canDelete && (
                           <button
                             type="button"
                             onClick={() => setDeleteQuote(q)}
-                            className="inline-flex items-center gap-1 rounded border border-red-500/50 bg-red-500/10 px-2 py-1 text-xs text-red-700 hover:bg-red-500/20 dark:text-red-400"
+                            className="inline-flex items-center justify-center rounded p-2 text-red-700 hover:bg-red-500/20 dark:text-red-400"
                             title="Delete quote"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            Delete
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         )}
                       </div>
