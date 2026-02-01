@@ -457,6 +457,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
               <div className="mt-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
                 <p className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-2">Add these DNS records at your domain registrar</p>
                 <p className="text-xs text-blue-800 dark:text-blue-300 mb-3">Add one of these records where you manage DNS (e.g. GoDaddy, Namecheap, Cloudflare). Use the lowest TTL available (e.g. 60 seconds). Wait 5–60 minutes for propagation.</p>
+                <p className="text-xs text-blue-700 dark:text-blue-400 mb-2">If Vercel shows &quot;DNS Change Recommended&quot; in your project&apos;s Domains settings, use the CNAME value shown there (e.g. <code className="bg-blue-100 dark:bg-blue-900/50 px-1 rounded">xxx.vercel-dns-016.com</code>) instead of the value above.</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm border-collapse border border-blue-200 dark:border-blue-800">
                     <thead>

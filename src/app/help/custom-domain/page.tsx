@@ -35,6 +35,9 @@ export default function CustomDomainHelpPage() {
       <p className="text-sm text-muted-foreground mt-2">
         Wait for DNS propagation (usually 5–60 minutes). SSL is provisioned automatically.
       </p>
+      <p className="text-sm text-amber-700 dark:text-amber-300 mt-2 p-2 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+        <strong className="text-foreground">If Vercel shows &quot;DNS Change Recommended&quot;</strong> in your project&apos;s Domains settings (Vercel Dashboard → your project → Settings → Domains), use the <strong className="text-foreground">CNAME value shown there</strong> (e.g. <code className="bg-muted px-1 rounded">xxx.vercel-dns-016.com</code>). That value overrides the one shown in CleanQuote and is required for the link to work.
+      </p>
 
       <h2 className="text-lg font-semibold text-foreground mt-8">3. Verify after DNS propagates</h2>
       <p className="text-foreground">
