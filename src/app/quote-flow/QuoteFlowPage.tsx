@@ -982,6 +982,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
               email: data.email || '',
               phone: data.phone || '',
               ...utmForContact,
+              ...(toolId && { toolId }),
             }),
           });
           const result = await response.json();
@@ -1061,6 +1062,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                     country: data.country || 'US',
                     ghlContactId: createdContactId,
                     ...utmForContact,
+                    ...(toolId && { toolId }),
                   }),
                 });
               } catch (contactError) {
@@ -1165,6 +1167,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                       country: data.country || 'US',
                       ghlContactId: createdContactId,
                       ...utmForContact,
+                      ...(toolId && { toolId }),
                     }),
                   });
                 } catch (e) {
@@ -1297,13 +1300,15 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
 
       // Build the API payload, mapping sanitized fields back to original IDs
       const urlContactId = params.get('contactId') || params.get('ghlContactId');
+      // Resolve contact ID: from state (set after email step) or URL param. CRITICAL for correct quote-contact association.
+      const resolvedContactId = ghlContactId || urlContactId || undefined;
       // For one-time services (move-in, move-out, deep), send empty frequency so quote summary shows correct selection
       const oneTimeServiceTypes = ['move-in', 'move-out', 'deep'];
       const payloadServiceType = formData.serviceType || '';
       const payloadFrequency = oneTimeServiceTypes.includes(payloadServiceType) ? '' : (formData.frequency || '');
       const apiPayload: any = {
-        ghlContactId: ghlContactId || urlContactId || undefined, // From state (address step or contactId pre-fill) or URL param
-        ...(urlContactId && { contactId: urlContactId }), // Fallback for quote API when ghlContactId not in state
+        ghlContactId: resolvedContactId,
+        ...(resolvedContactId && { contactId: resolvedContactId }), // Always pass both - quote API uses either for association
         firstName: formData.firstName || formData.first_name,
         lastName: formData.lastName || formData.last_name,
         email: formData.email,
@@ -2724,6 +2729,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                               country: data.country || 'US',
                                               ghlContactId: createdContactId,
                                               ...utmForContact,
+                                              ...(toolId && { toolId }),
                                             }),
                                           });
                                         } catch (e) {

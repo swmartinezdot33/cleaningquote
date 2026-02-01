@@ -562,7 +562,11 @@ export async function POST(request: NextRequest) {
         }
 
         ghlContactId = contact.id;
-        console.log(providedContactId || bodyContactId ? '✅ Contact updated in GHL:' : '✅ Contact created in GHL:', ghlContactId);
+        const hadContactId = !!(providedContactId || bodyContactId);
+        console.log(
+          hadContactId ? '✅ Contact updated in GHL:' : '✅ Contact found/created via upsert (existing contact matched by email/phone):',
+          ghlContactId
+        );
 
         // Prepare promises for parallel execution (opportunity, custom object, note)
         let opportunityPromise: Promise<any> | null = null;

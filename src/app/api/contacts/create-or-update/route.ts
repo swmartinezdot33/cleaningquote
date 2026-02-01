@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createOrUpdateContact, updateContact } from '@/lib/ghl/client';
-import { ghlTokenExists, getGHLConfig } from '@/lib/kv';
+import { ghlTokenExists, getGHLConfig, getGHLToken, getGHLLocationId } from '@/lib/kv';
 import { getSurveyQuestions } from '@/lib/survey/manager';
 import { SurveyQuestion } from '@/lib/survey/schema';
 import { parseAddress } from '@/lib/utils/parseAddress';
@@ -10,11 +10,12 @@ import { parseAddress } from '@/lib/utils/parseAddress';
  * - After email step (no address): creates contact with name, phone, email only. Returns ghlContactId.
  * - At address step with existing ghlContactId: updates that contact with address (PUT by id).
  * - At address step without ghlContactId: creates/updates by upsert (email/phone) with address.
+ * - toolId: When provided (multi-tenant), uses the same GHL location as the quote flow for consistent association.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { firstName, lastName, email, phone, address, address2, city, state, postalCode, country, ghlContactId } = body;
+    const { firstName, lastName, email, phone, address, address2, city, state, postalCode, country, ghlContactId, toolId } = body;
 
     // Always require name, email, phone. Address is optional (required only when updating with address).
     if (!firstName || !lastName || !email || !phone) {
@@ -35,7 +36,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const hasGHLToken = await ghlTokenExists().catch(() => false);
+    const resolvedToolId = typeof toolId === 'string' && toolId.trim() ? toolId.trim() : undefined;
+    const hasGHLToken = await ghlTokenExists(resolvedToolId).catch(() => false);
     if (!hasGHLToken) {
       return NextResponse.json(
         { success: true, ghlContactId: null, message: 'GHL not configured, contact saved locally' }
@@ -43,8 +45,12 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const ghlConfig = await getGHLConfig();
-      const surveyQuestions = await getSurveyQuestions();
+      const [ghlToken, ghlLocationId] = await Promise.all([
+        getGHLToken(resolvedToolId),
+        getGHLLocationId(resolvedToolId),
+      ]);
+      const ghlConfig = await getGHLConfig(resolvedToolId);
+      const surveyQuestions = await getSurveyQuestions(resolvedToolId);
       const utmSource = body.utm_source && String(body.utm_source).trim();
       const effectiveSource = utmSource || 'Website Quote Form';
 
@@ -82,7 +88,7 @@ export async function POST(request: NextRequest) {
           ...(parsedPostalCode && { postalCode: parsedPostalCode }),
           ...(country && { country: country }),
         };
-        ghlContact = await updateContact(ghlContactId, updateData);
+        ghlContact = await updateContact(ghlContactId, updateData, ghlToken ?? undefined, ghlLocationId ?? undefined);
         console.log('Contact updated in GHL with address:', { ghlContactId: ghlContact.id });
       } else if (hasAddress) {
         // No existing contact: create/update by upsert with address
@@ -106,11 +112,11 @@ export async function POST(request: NextRequest) {
           ...(parsedPostalCode && { postalCode: parsedPostalCode }),
           ...(country && { country: country }),
         };
-        ghlContact = await createOrUpdateContact(contactData);
+        ghlContact = await createOrUpdateContact(contactData, ghlToken ?? undefined, ghlLocationId ?? undefined);
         console.log('Contact created/updated in GHL (with address):', { ghlContactId: ghlContact.id });
       } else {
-        // After email step: create contact with name, phone, email only
-        ghlContact = await createOrUpdateContact(baseContactData);
+        // After email step: create contact with name, phone, email only (upsert finds existing by email/phone)
+        ghlContact = await createOrUpdateContact(baseContactData, ghlToken ?? undefined, ghlLocationId ?? undefined);
         console.log('Contact created in GHL (after email step):', { ghlContactId: ghlContact.id });
       }
 
