@@ -34,6 +34,8 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
     a: { type: string; host: string; value: string; ttl: string };
   } | null>(null);
   const [vercelDomainError, setVercelDomainError] = useState<string | null>(null);
+  const [verifyingDomain, setVerifyingDomain] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<{ verified: boolean; message: string } | null>(null);
 
   useEffect(() => {
     setOverviewMounted(true);
@@ -140,6 +142,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
     setBaseUrlMessage(null);
     setDnsInstructions(null);
     setVercelDomainError(null);
+    setVerifyResult(null);
     const trimmed = publicBaseUrl.trim();
     if (trimmed) {
       try {
@@ -178,6 +181,36 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
       setSavingBaseUrl(false);
     }
   };
+
+  const verifyRecords = async () => {
+    setVerifyResult(null);
+    setVerifyingDomain(true);
+    try {
+      const res = await fetch(`/api/dashboard/tools/${toolId}/verify-domain`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        setVerifyResult({ verified: false, message: data.error || 'Verification failed' });
+        return;
+      }
+      setVerifyResult({ verified: data.verified, message: data.message });
+    } catch {
+      setVerifyResult({ verified: false, message: 'Failed to verify domain' });
+    } finally {
+      setVerifyingDomain(false);
+    }
+  };
+
+  const hasCustomDomain =
+    publicBaseUrl.trim() &&
+    (() => {
+      try {
+        const u = new URL(publicBaseUrl.trim());
+        const h = u.hostname;
+        return h && h !== 'localhost' && !h.endsWith('.vercel.app');
+      } catch {
+        return false;
+      }
+    })();
 
   const copyToClipboard = async (text: string, id: string) => {
     try {
@@ -365,6 +398,24 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
               <div className="mt-4 p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
                 <p className="text-sm font-semibold text-amber-900 dark:text-amber-200 mb-1">Domain not added to Vercel</p>
                 <p className="text-sm text-amber-800 dark:text-amber-300">{vercelDomainError}</p>
+              </div>
+            )}
+            {hasCustomDomain && (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={verifyRecords}
+                  disabled={verifyingDomain}
+                  className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50"
+                >
+                  {verifyingDomain ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Verify records
+                </button>
+                {verifyResult && (
+                  <span className={`text-sm ${verifyResult.verified ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                    {verifyResult.verified ? '✓ ' : ''}{verifyResult.message}
+                  </span>
+                )}
               </div>
             )}
             {dnsInstructions && (
