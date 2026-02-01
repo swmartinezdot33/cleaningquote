@@ -94,6 +94,10 @@ export async function POST(
       if (!hostname || hostname === 'localhost' || hostname.endsWith('.vercel.app')) {
         return NextResponse.json({ error: 'Custom domain required (not localhost or *.vercel.app)' }, { status: 400 });
       }
+      const hostLower = hostname.toLowerCase();
+      if (hostLower === 'cleanquote.io' || hostLower.endsWith('.cleanquote.io')) {
+        return NextResponse.json({ error: 'Cannot use cleanquote.io domains. Use your own custom domain.' }, { status: 400 });
+      }
       const list = (Array.isArray(existing.publicBaseUrls) ? existing.publicBaseUrls : []) as string[];
       const migratedList = list.length > 0 ? list : (typeof existing.publicBaseUrl === 'string' && existing.publicBaseUrl.trim() ? [existing.publicBaseUrl.trim()] : []);
       if (migratedList.includes(addRaw)) {

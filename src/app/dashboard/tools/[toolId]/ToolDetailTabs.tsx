@@ -163,6 +163,11 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
         setBaseUrlMessage({ type: 'error', text: 'URL must start with https://' });
         return;
       }
+      const host = u.hostname.toLowerCase();
+      if (host === 'cleanquote.io' || host.endsWith('.cleanquote.io')) {
+        setBaseUrlMessage({ type: 'error', text: 'Cannot use cleanquote.io domains. Use your own custom domain.' });
+        return;
+      }
     } catch {
       setBaseUrlMessage({ type: 'error', text: 'Please enter a valid URL (e.g. https://quote.yourcompany.com)' });
       return;
@@ -467,7 +472,11 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
                     </span>
                     <button
                       type="button"
-                      onClick={() => removeBaseUrl(url)}
+                      onClick={() => {
+                        if (window.confirm(`Remove ${url} from this tool and from Vercel? Public links using this domain will stop working.`)) {
+                          removeBaseUrl(url);
+                        }
+                      }}
                       disabled={removingUrl === url}
                       className="shrink-0 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
                       title="Remove from setup and from Vercel"
