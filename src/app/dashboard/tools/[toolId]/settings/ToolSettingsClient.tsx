@@ -201,10 +201,17 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
       });
       const data = await res.json();
       if (res.ok) {
+        if (data.settings) {
+          setWidget({
+            title: data.settings.title ?? '',
+            subtitle: data.settings.subtitle ?? '',
+            primaryColor: data.settings.primaryColor ?? '#7c3aed',
+          });
+        }
         setSectionMessage({
           card: 'widget',
           type: 'success',
-          text: data.message ?? 'Widget settings saved. Changes appear on the live tool when you refresh that page or switch back to its tab.',
+          text: data.message ?? 'Widget settings saved. Refresh the live tool page to see changes.',
         });
       } else {
         setSectionMessage({ card: 'widget', type: 'error', text: data.error ?? 'Failed to save' });

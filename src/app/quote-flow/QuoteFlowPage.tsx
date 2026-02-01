@@ -363,18 +363,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
     }
   }, [slug, hasInitialData]);
 
-  // Refetch config when page becomes visible (e.g. user saved in dashboard and switched back to tool tab).
-  useEffect(() => {
-    if (!slug) return;
-    const onVisible = () => {
-      if (document.visibilityState === 'visible' && configLoaded) {
-        loadConfigFromSlug(slug);
-      }
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [slug, configLoaded]);
-
   // Auto-scroll when appointment form opens
   useEffect(() => {
     if (showAppointmentForm && appointmentFormRef.current) {
