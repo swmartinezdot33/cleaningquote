@@ -171,8 +171,17 @@ export async function setGHLConfig(config: Record<string, unknown>, toolId?: str
 // ---- Survey questions ----
 export async function getSurveyQuestionsFromConfig(toolId?: string): Promise<unknown[] | null> {
   const row = await getConfigRow(toolId);
-  const q = row?.survey_questions;
-  return Array.isArray(q) ? q : null;
+  const raw = row?.survey_questions;
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      return Array.isArray(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 export async function setSurveyQuestionsInConfig(questions: unknown[], toolId?: string): Promise<void> {

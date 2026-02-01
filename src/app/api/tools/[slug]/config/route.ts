@@ -54,11 +54,22 @@ export async function GET(
       }
     }
 
-    // Normalize widget_settings from DB (camelCase or snake_case). Tool-only; no global row.
+    // Normalize widget_settings from DB (camelCase or snake_case). Parse if stored as JSON string.
     type WidgetShape = { title?: string; subtitle?: string; primaryColor?: string; primary_color?: string };
+    const parseWidgetRaw = (raw: unknown): unknown => {
+      if (typeof raw === 'string') {
+        try {
+          return JSON.parse(raw) as unknown;
+        } catch {
+          return null;
+        }
+      }
+      return raw;
+    };
     const normalize = (raw: unknown): { title?: string; subtitle?: string; primaryColor?: string } | null => {
-      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-      const o = raw as Record<string, unknown>;
+      const parsed = parseWidgetRaw(raw);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+      const o = parsed as Record<string, unknown>;
       return {
         title: typeof o.title === 'string' ? o.title : undefined,
         subtitle: typeof o.subtitle === 'string' ? o.subtitle : undefined,

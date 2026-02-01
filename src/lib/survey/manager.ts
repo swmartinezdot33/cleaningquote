@@ -49,8 +49,11 @@ export async function initializeSurvey(toolId?: string): Promise<SurveyQuestion[
 export async function getSurveyQuestions(toolId?: string): Promise<SurveyQuestion[]> {
   requireSupabaseForSurvey();
   const questions = await configStore.getSurveyQuestionsFromConfig(toolId);
-  if (!questions || !Array.isArray(questions) || questions.length === 0) {
+  if (!questions || !Array.isArray(questions)) {
     return await initializeSurvey(toolId);
+  }
+  if (questions.length === 0) {
+    return [];
   }
   const typed = questions as SurveyQuestion[];
   const { questions: restored, needsSave } = restoreCoreFields(typed);
