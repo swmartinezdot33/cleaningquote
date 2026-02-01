@@ -399,18 +399,9 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
                 type="url"
                 value={publicBaseUrl}
                 onChange={(e) => setPublicBaseUrl(e.target.value)}
-                placeholder="e.g. https://www.yoursite.com (leave blank to use this site)"
+                placeholder="e.g. https://quote.yourcompany.com (leave blank to use this site)"
                 className="flex-1 min-w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               />
-              {origin && (
-                <button
-                  type="button"
-                  onClick={() => setPublicBaseUrl(origin)}
-                  className="rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
-                  Use this site
-                </button>
-              )}
               <button
                 type="button"
                 onClick={saveBaseUrl}
@@ -418,7 +409,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
                 className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
               >
                 {savingBaseUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                {savingBaseUrl ? 'Saving…' : 'Save'}
+                {savingBaseUrl ? 'Saving…' : (publicBaseUrl.trim() ? 'Add' : 'Save')}
               </button>
             </div>
             {baseUrlMessage && (
@@ -433,6 +424,9 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
                   <p><span className="text-muted-foreground">CNAME:</span> {dnsInstructions.cname.host} → {dnsInstructions.cname.value}</p>
                   <p><span className="text-muted-foreground">A:</span> {dnsInstructions.a.host} → {dnsInstructions.a.value}</p>
                 </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Add these records at your registrar, then click Verify below.
+                </p>
                 <button
                   type="button"
                   onClick={verifyRecords}
@@ -440,7 +434,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
                   className="mt-3 inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
                 >
                   {verifyingDomain ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                  Verify DNS
+                  Verify
                 </button>
                 {verifyResult && (
                   <p className={`mt-2 text-xs ${verifyResult.verified ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
@@ -456,6 +450,13 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
             )}
             {hasCustomDomain && vercelDomainError && (
               <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">{vercelDomainError}</p>
+            )}
+            {hasCustomDomain && isVerified && currentHostname && !dnsInstructions && (
+              <div className="mt-4">
+                <span className="inline-flex items-center gap-1 rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-400">
+                  <Check className="h-3.5 w-3.5" /> Verified: {currentHostname}
+                </span>
+              </div>
             )}
           </div>
 
