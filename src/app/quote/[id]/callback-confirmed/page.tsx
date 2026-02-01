@@ -13,6 +13,7 @@ export default function CallbackConfirmedPage() {
   const searchParams = useSearchParams();
   const quoteId = params.id as string;
   const slug = typeof params.slug === 'string' ? params.slug : undefined;
+  const toolSlug = typeof params.toolSlug === 'string' ? params.toolSlug : undefined;
   const [isLoadingAnotherQuote, setIsLoadingAnotherQuote] = useState(false);
 
   // Preserve UTM parameters for tracking
@@ -22,8 +23,9 @@ export default function CallbackConfirmedPage() {
     if (value) utmParams.set(param, value);
   });
 
-  const quotePath = slug ? `/t/${slug}/quote/${quoteId}` : `/quote/${quoteId}`;
-  const startPath = slug ? `/t/${slug}` : '/';
+  // Org-scoped: /t/orgslug/toolslug/quote/id → use both segments
+  const quotePath = (slug && toolSlug) ? `/t/${slug}/${toolSlug}/quote/${quoteId}` : slug ? `/t/${slug}/quote/${quoteId}` : `/quote/${quoteId}`;
+  const startPath = (slug && toolSlug) ? `/t/${slug}/${toolSlug}` : slug ? `/t/${slug}` : '/';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center px-4">

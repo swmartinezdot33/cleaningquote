@@ -180,7 +180,11 @@ export default function OutOfService() {
 
               <div className="flex flex-col gap-3 mt-10">
                 <Link href={getStartQuoteUrl()} className="w-full">
-                  <Button className="w-full h-12 text-base font-bold" size="lg">
+                  <Button 
+                    className="w-full h-12 text-base font-bold" 
+                    size="lg"
+                    style={{ backgroundColor: primaryColor, borderColor: primaryColor }}
+                  >
                     <ArrowLeft className="mr-2 h-5 w-5" />
                     Start New Quote
                   </Button>
@@ -194,6 +198,7 @@ export default function OutOfService() {
                     variant="outline"
                     className="w-full h-12 text-base font-bold"
                     size="lg"
+                    style={{ borderColor: primaryColor, color: primaryColor }}
                   >
                     Contact Us
                   </Button>

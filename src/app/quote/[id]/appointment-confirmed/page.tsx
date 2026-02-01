@@ -13,6 +13,9 @@ export default function AppointmentConfirmedPage() {
   const searchParams = useSearchParams();
   const quoteId = params.id as string;
   const slug = typeof params.slug === 'string' ? params.slug : undefined;
+  const toolSlug = typeof params.toolSlug === 'string' ? params.toolSlug : undefined;
+  // Org-scoped: /t/orgslug/toolslug/quote/id → start at /t/orgslug/toolslug
+  const startPath = slug && toolSlug ? `/t/${slug}/${toolSlug}` : slug ? `/t/${slug}` : '/';
   const [redirectAfterAppointment, setRedirectAfterAppointment] = useState<boolean>(false);
   const [appointmentRedirectUrl, setAppointmentRedirectUrl] = useState<string>('');
   const [isLoadingAnotherQuote, setIsLoadingAnotherQuote] = useState(false);
@@ -27,7 +30,7 @@ export default function AppointmentConfirmedPage() {
   useEffect(() => {
     const loadRedirectSettings = async () => {
       try {
-        const url = slug ? `/api/tools/${slug}/config` : '/api/admin/ghl-config';
+        const url = (slug && toolSlug) ? `/api/tools/${toolSlug}/config` : slug ? `/api/tools/${slug}/config` : '/api/admin/ghl-config';
         const response = await fetch(url);
         if (response.ok) {
           const data = await response.json();
@@ -43,7 +46,7 @@ export default function AppointmentConfirmedPage() {
     };
 
     loadRedirectSettings();
-  }, [slug]);
+  }, [slug, toolSlug]);
 
   // Handle redirect after 5 seconds if enabled
   useEffect(() => {
@@ -86,7 +89,7 @@ export default function AppointmentConfirmedPage() {
             <div className="space-y-4">
               <Button
                 onClick={() => {
-                  const path = slug ? `/t/${slug}/quote/${quoteId}` : `/quote/${quoteId}`;
+                  const path = (slug && toolSlug) ? `/t/${slug}/${toolSlug}/quote/${quoteId}` : slug ? `/t/${slug}/quote/${quoteId}` : `/quote/${quoteId}`;
                   router.push(`${path}${utmParams.toString() ? `?${utmParams.toString()}` : ''}`);
                 }}
                 variant="outline"
@@ -105,12 +108,10 @@ export default function AppointmentConfirmedPage() {
                     const p = new URLSearchParams(utmParams);
                     p.set('startAt', 'address');
                     if (data?.ghlContactId) p.set('contactId', data.ghlContactId);
-                    const startPath = slug ? `/t/${slug}` : '/';
                     router.push(`${startPath}?${p.toString()}`);
                   } catch {
                     const p = new URLSearchParams(utmParams);
                     p.set('startAt', 'address');
-                    const startPath = slug ? `/t/${slug}` : '/';
                     router.push(`${startPath}?${p.toString()}`);
                   } finally {
                     setIsLoadingAnotherQuote(false);

@@ -1755,10 +1755,13 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                   <div className="text-center py-8">
                     <h2 className="text-2xl font-bold text-red-600 mb-4">Out of Limits</h2>
                     <p className="text-gray-700 mb-6">{quoteResult.message}</p>
-                    <Button onClick={() => {
-                      setQuoteResult(null);
-                      setHouseDetails(null);
-                    }}>Go Back and Edit</Button>
+                    <Button 
+                      onClick={() => {
+                        setQuoteResult(null);
+                        setHouseDetails(null);
+                      }}
+                      style={{ backgroundColor: primaryColor, borderColor: primaryColor }}
+                    >Go Back and Edit</Button>
                   </div>
                 </CardContent>
               </Card>
@@ -2308,7 +2311,8 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                             setBookingMessage(null);
                           }}
                           variant="outline"
-                          className="gap-2 border-2 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                          className="gap-2 border-2 hover:bg-gray-100"
+                          style={{ borderColor: primaryColor, color: primaryColor }}
                         >
                           <ChevronLeft className="h-5 w-5" />
                           Back to summary
@@ -3080,6 +3084,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
             variant="outline"
             size="lg"
             className="flex items-center gap-2 disabled:opacity-50 min-w-[140px]"
+            style={{ borderColor: primaryColor, color: primaryColor }}
           >
             <ChevronLeft className="h-5 w-5" />
             Previous

@@ -105,6 +105,10 @@ export default function QuotePageClient({
   const searchParams = useSearchParams();
   const quoteId = (params.id ?? (params as { quoteId?: string }).quoteId) as string;
   const slug = typeof params.slug === 'string' ? params.slug : undefined;
+  const toolSlug = typeof params.toolSlug === 'string' ? params.toolSlug : undefined;
+  // Org-scoped: /t/orgslug/toolslug/quote/id → start at /t/orgslug/toolslug
+  const quoteStartPath = (slug && toolSlug) ? `/t/${slug}/${toolSlug}` : slug ? `/t/${slug}` : '/';
+  const quoteBasePath = (slug && toolSlug) ? `/t/${slug}/${toolSlug}/quote/${quoteId}` : slug ? `/t/${slug}/quote/${quoteId}` : `/quote/${quoteId}`;
 
   // Preserve all query params (UTM, start, gclid, etc.) through appointment/callback redirects
   const getPassthroughParams = (): string => {
@@ -135,7 +139,8 @@ export default function QuotePageClient({
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const url = slug ? `/api/tools/${slug}/widget-settings` : '/api/admin/widget-settings';
+        const apiSlug = (slug && toolSlug) ? toolSlug : slug;
+        const url = apiSlug ? `/api/tools/${apiSlug}/widget-settings` : '/api/admin/widget-settings';
         const widgetResponse = await fetch(url);
         if (widgetResponse.ok) {
           const widgetData = await widgetResponse.json();
@@ -148,7 +153,7 @@ export default function QuotePageClient({
     };
 
     loadSettings();
-  }, [slug]);
+  }, [slug, toolSlug]);
 
   // Fetch quote data
   useEffect(() => {
@@ -239,8 +244,7 @@ export default function QuotePageClient({
       if (response.ok) {
         // Redirect to confirmation with all query params preserved (UTM, start, etc.)
         const qs = getPassthroughParams();
-        const base = slug ? `/t/${slug}/quote/${quoteId}` : `/quote/${quoteId}`;
-        const confirmationUrl = `${base}/appointment-confirmed${qs ? `?${qs}` : ''}`;
+        const confirmationUrl = `${quoteBasePath}/appointment-confirmed${qs ? `?${qs}` : ''}`;
         
         // If embedded in iframe, notify parent and update iframe src
         if (window.location.search.includes('embedded=true') || window.self !== window.top) {
@@ -315,8 +319,7 @@ export default function QuotePageClient({
       if (response.ok) {
         // Redirect to confirmation with all query params preserved (UTM, start, etc.)
         const qs = getPassthroughParams();
-        const base = slug ? `/t/${slug}/quote/${quoteId}` : `/quote/${quoteId}`;
-        const confirmationUrl = `${base}/callback-confirmed${qs ? `?${qs}` : ''}`;
+        const confirmationUrl = `${quoteBasePath}/callback-confirmed${qs ? `?${qs}` : ''}`;
         
         // If embedded in iframe, notify parent and update iframe src
         if (window.location.search.includes('embedded=true') || window.self !== window.top) {
@@ -378,11 +381,14 @@ export default function QuotePageClient({
               <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Quote Not Found</h2>
               <p className="text-gray-600 mb-6">{error || 'The quote you are looking for could not be found.'}</p>
-              <Button onClick={() => {
-                const p = new URLSearchParams(getPassthroughParams());
-                p.set('startAt', 'address');
-                router.push(slug ? `/t/${slug}?${p.toString()}` : `/?${p.toString()}`);
-              }}>Start New Quote</Button>
+              <Button 
+                onClick={() => {
+                  const p = new URLSearchParams(getPassthroughParams());
+                  p.set('startAt', 'address');
+                  router.push(`${quoteStartPath}?${p.toString()}`);
+                }}
+                style={{ backgroundColor: primaryColor, borderColor: primaryColor }}
+              >Start New Quote</Button>
             </div>
           </CardContent>
         </Card>
@@ -398,12 +404,15 @@ export default function QuotePageClient({
             <div className="text-center">
               <h2 className="text-2xl font-bold text-red-600 mb-4">Out of Limits</h2>
               <p className="text-gray-700 mb-6">{quoteResult.message}</p>
-              <Button onClick={() => {
-                const p = new URLSearchParams(getPassthroughParams());
-                p.set('startAt', 'address');
-                if (quoteResult?.ghlContactId) p.set('contactId', quoteResult.ghlContactId);
-                router.push(slug ? `/t/${slug}?${p.toString()}` : `/?${p.toString()}`);
-              }}>Start New Quote</Button>
+              <Button 
+                onClick={() => {
+                  const p = new URLSearchParams(getPassthroughParams());
+                  p.set('startAt', 'address');
+                  if (quoteResult?.ghlContactId) p.set('contactId', quoteResult.ghlContactId);
+                  router.push(`${quoteStartPath}?${p.toString()}`);
+                }}
+                style={{ backgroundColor: primaryColor, borderColor: primaryColor }}
+              >Start New Quote</Button>
             </div>
           </CardContent>
         </Card>
@@ -904,7 +913,8 @@ export default function QuotePageClient({
                                   setCallMessage(null);
                                 }}
                                 variant="outline"
-                                className="gap-2 border-2 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                                className="gap-2 border-2 hover:bg-gray-100"
+                                style={{ borderColor: primaryColor, color: primaryColor }}
                               >
                                 <ChevronLeft className="h-5 w-5" />
                                 Back to summary
@@ -967,7 +977,7 @@ export default function QuotePageClient({
                             const p = new URLSearchParams(getPassthroughParams());
                             if (quoteResult?.ghlContactId) p.set('contactId', quoteResult.ghlContactId);
                             p.set('startAt', 'address');
-                            router.push(slug ? `/t/${slug}?${p.toString()}` : `/?${p.toString()}`);
+                            router.push(`${quoteStartPath}?${p.toString()}`);
                           }}
                           className="text-sm font-medium primary-text hover:opacity-80 transition-opacity inline-flex items-center gap-1"
                           style={{ color: primaryColor }}
