@@ -2,29 +2,30 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceAreaPolygon, getServiceAreaNetworkLink } from '@/lib/kv';
 import { pointInPolygon, PolygonCoordinates } from '@/lib/service-area/pointInPolygon';
 import { fetchAndParseNetworkKML } from '@/lib/service-area/fetchNetworkKML';
+import { createSupabaseServer } from '@/lib/supabase/server';
+
+/**
+ * Resolve toolSlug to toolId. Returns null if slug missing or tool not found.
+ */
+async function resolveToolId(toolSlug: string | undefined): Promise<string | undefined> {
+  if (!toolSlug || typeof toolSlug !== 'string') return undefined;
+  const supabase = createSupabaseServer();
+  const { data } = await supabase.from('tools').select('id').eq('slug', toolSlug.trim()).maybeSingle();
+  return (data as { id: string } | null)?.id ?? undefined;
+}
 
 /**
  * POST /api/service-area/check
- * Check if an address is within the service area
- * 
- * Automatically uses NetworkLink URL if available, otherwise falls back to stored polygon.
- * 
+ * Check if an address is within the service area.
+ * Uses the tool's service area when toolSlug is provided; otherwise global (backward compat).
+ *
  * Request body:
- * {
- *   lat: number,
- *   lng: number
- * }
- * 
- * Response:
- * {
- *   inServiceArea: boolean,
- *   message?: string
- * }
+ * { lat: number, lng: number, toolSlug?: string }
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { lat, lng } = body;
+    const { lat, lng, toolSlug } = body;
 
     // Validate coordinates
     if (typeof lat !== 'number' || typeof lng !== 'number') {
@@ -41,12 +42,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Try to get polygons: first from NetworkLink if available, then from stored polygon
+    const toolId = await resolveToolId(toolSlug);
+
+    // Try to get polygons: first from NetworkLink if available, then from stored polygon (tool-scoped or global)
     let polygons: PolygonCoordinates[] = [];
     let polygonSource = 'none';
 
-    // Check if we have a NetworkLink configured
-    const networkLink = await getServiceAreaNetworkLink();
+    const networkLink = await getServiceAreaNetworkLink(toolId);
     if (networkLink) {
       try {
         const result = await fetchAndParseNetworkKML(networkLink);
@@ -63,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     // Fall back to stored polygon if NetworkLink didn't work
     if (polygons.length === 0) {
-      const storedPolygon = await getServiceAreaPolygon();
+      const storedPolygon = await getServiceAreaPolygon(toolId);
       if (storedPolygon && storedPolygon.length > 0) {
         polygons = [storedPolygon];
         polygonSource = 'stored';

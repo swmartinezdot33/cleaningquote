@@ -286,11 +286,12 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   const calendarRef = useRef<HTMLDivElement>(null);
   const addressAutocompleteRef = useRef<{ geocodeCurrentValue: () => Promise<{ lat: number; lng: number; formattedAddress: string } | null> } | null>(null);
 
-  // When slug is set (multi-tenant /t/[slug]), load all config from one endpoint
-  const loadConfigFromSlug = async (toolSlug: string) => {
+  // When slug is set (multi-tenant /t/[slug]), load all config from one endpoint. Cache-bust so CDN/browser never serves stale.
+  const loadConfigFromSlug = async (toolSlug: string, retry = false) => {
     try {
-      const response = await fetch(`/api/tools/${toolSlug}/config`, { cache: 'no-store' });
-      if (!response.ok) throw new Error('Failed to load config');
+      const url = `/api/tools/${encodeURIComponent(toolSlug)}/config?t=${Date.now()}`;
+      const response = await fetch(url, { cache: 'no-store', headers: { Pragma: 'no-cache' } });
+      if (!response.ok) throw new Error(`Failed to load config: ${response.status}`);
       const data = await response.json();
       if (data.widget) {
         setWidgetTitle(data.widget.title || 'Quote');
@@ -310,9 +311,21 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         setRedirectAfterAppointment(data.redirect.redirectAfterAppointment === true);
         setAppointmentRedirectUrl(data.redirect.appointmentRedirectUrl || '');
       }
+      // If response looks like defaults and we haven't retried, fetch again (avoids stuck cached response)
+      const looksDefault =
+        data.widget?.title === 'Get Your Quote' &&
+        data.widget?.subtitle === "Let's get your price!" &&
+        (!data.questions || data.questions.length === 0);
+      if (looksDefault && !retry) {
+        setTimeout(() => loadConfigFromSlug(toolSlug, true), 300);
+      }
     } catch (e) {
       console.error('Failed to load tool config:', e);
-      alert('Error loading form. Please refresh the page.');
+      if (!retry) {
+        setTimeout(() => loadConfigFromSlug(toolSlug, true), 500);
+      } else {
+        alert('Error loading form. Please refresh the page.');
+      }
     }
   };
 
@@ -1011,6 +1024,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
             body: JSON.stringify({
               lat: addressCoordinates.lat,
               lng: addressCoordinates.lng,
+              ...(slug && { toolSlug: slug }),
             }),
           });
 
@@ -1061,6 +1075,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                     email: data.email || '',
                     phone: data.phone || '',
                     address: addressValue,
+                    ...(slug && { toolSlug: slug }),
                   }),
                 });
               } catch (contactError) {
@@ -1116,7 +1131,11 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
             const response = await fetch('/api/service-area/check', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ lat: placeDetails.lat, lng: placeDetails.lng }),
+              body: JSON.stringify({
+                lat: placeDetails.lat,
+                lng: placeDetails.lng,
+                ...(slug && { toolSlug: slug }),
+              }),
             });
             const result = await response.json();
 
@@ -1163,6 +1182,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                       email: data.email || '',
                       phone: data.phone || '',
                       address: addressValue,
+                      ...(slug && { toolSlug: slug }),
                     }),
                   });
                 } catch (e) {
@@ -1471,11 +1491,13 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           contactId: quoteResult.ghlContactId,
           date: finalDate,
           time: finalTime,
-          timestamp: timestamp, // Send the exact timestamp from availability API
+          timestamp: timestamp,
           notes: finalNotes || 'Appointment booked through quote form',
           type: 'appointment',
-          serviceType: selectedServiceType, // Pass the selected service type
-          frequency: selectedFrequency, // Pass the selected frequency
+          serviceType: selectedServiceType,
+          frequency: selectedFrequency,
+          ...(slug && { toolSlug: slug }),
+          ...(toolId && { toolId }),
         }),
       });
 
@@ -1582,7 +1604,13 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
 
     try {
       const response = await fetch(
-        `/api/calendar-availability?type=call&date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}`
+        `/api/calendar-availability?${new URLSearchParams({
+          type: 'call',
+          date,
+          time,
+          ...(slug && { toolSlug: slug }),
+          ...(toolId && { toolId }),
+        }).toString()}`
       );
 
       if (response.ok) {
@@ -1645,9 +1673,11 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           contactId: quoteResult.ghlContactId,
           date: finalDate,
           time: finalTime,
-          timestamp: timestamp, // Send the exact timestamp from availability API
+          timestamp: timestamp,
           notes: finalNotes || 'Call scheduled through quote form',
           type: 'call',
+          ...(slug && { toolSlug: slug }),
+          ...(toolId && { toolId }),
         }),
       });
 
@@ -2210,6 +2240,8 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                   )}
                                   <CalendarBooking
                                     type="call"
+                                    toolSlug={slug}
+                                    toolId={toolId}
                                     onConfirm={(date, time, notes, timestamp) => {
                                       setCallDate(date);
                                       setCallTime(time);
@@ -2643,7 +2675,11 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                     const response = await fetch('/api/service-area/check', {
                                       method: 'POST',
                                       headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({ lat, lng }),
+                                      body: JSON.stringify({
+                                        lat,
+                                        lng,
+                                        ...(slug && { toolSlug: slug }),
+                                      }),
                                     });
                                     const result = await response.json();
                                     
@@ -2708,6 +2744,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                               email: data.email || '',
                                               phone: data.phone || '',
                                               address: addressValue,
+                                              ...(slug && { toolSlug: slug }),
                                             }),
                                           });
                                         } catch (error) {

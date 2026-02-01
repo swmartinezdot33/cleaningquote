@@ -54,6 +54,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create tool' }, { status: 500 });
     }
 
+    const toolId = (tool as { id: string }).id;
+    try {
+      await configStore.setSurveyQuestionsInConfig(DEFAULT_SURVEY_QUESTIONS, toolId);
+    } catch (configErr) {
+      console.error('Tool created but failed to set default survey questions:', configErr);
+      // Still return success; tool exists, user can add questions in settings
+    }
+
     return NextResponse.json({ tool });
   } catch (err) {
     console.error('POST /api/dashboard/tools:', err);

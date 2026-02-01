@@ -21,36 +21,30 @@ export interface ToolConfig {
 
 const DEFAULT_WIDGET = { title: 'Get Your Quote', subtitle: "Let's get your price!", primaryColor: '#7c3aed' };
 
-/** Server-side: get full tool config by tool id. Falls back to global config when tool has no row (e.g. rcc missing in prod). */
+/** Server-side: get full tool config by tool id. All settings are tool-scoped; only primaryColor may fall back to global (site customization global color). */
 export async function getToolConfigByToolId(toolId: string): Promise<ToolConfig | null> {
   try {
-    const [widgetSettings, formSettings, questions, ghlConfig] = await Promise.all([
+    const [widgetSettings, formSettings, questions, ghlConfig, globalWidgetOnlyForColor] = await Promise.all([
       getWidgetSettings(toolId),
       getFormSettings(toolId),
       getSurveyQuestions(toolId),
       getGHLConfig(toolId),
+      getWidgetSettings(undefined), // only for primaryColor fallback (site customization global color)
     ]);
-    const toolHasConfig = widgetSettings || formSettings || (questions && questions.length > 0) || ghlConfig;
-    let globalWidget: Awaited<ReturnType<typeof getWidgetSettings>> | null = null;
-    let globalForm: Awaited<ReturnType<typeof getFormSettings>> | null = null;
-    let globalQuestions: Awaited<ReturnType<typeof getSurveyQuestions>> | null = null;
-    let globalGhl: Awaited<ReturnType<typeof getGHLConfig>> | null = null;
-    if (!toolHasConfig) {
-      [globalWidget, globalForm, globalQuestions, globalGhl] = await Promise.all([
-        getWidgetSettings(undefined),
-        getFormSettings(undefined),
-        getSurveyQuestions(undefined),
-        getGHLConfig(undefined),
-      ]);
-    }
+    const toolWidget = widgetSettings ?? null;
+    const globalColor = globalWidgetOnlyForColor?.primaryColor ?? null;
     return {
-      widget: widgetSettings ?? globalWidget ?? DEFAULT_WIDGET,
-      formSettings: formSettings ?? globalForm ?? {},
-      questions: (questions && questions.length > 0 ? questions : globalQuestions) ?? [],
-      redirect: (ghlConfig ?? globalGhl)
+      widget: {
+        title: toolWidget?.title ?? DEFAULT_WIDGET.title,
+        subtitle: toolWidget?.subtitle ?? DEFAULT_WIDGET.subtitle,
+        primaryColor: toolWidget?.primaryColor ?? globalColor ?? DEFAULT_WIDGET.primaryColor,
+      },
+      formSettings: formSettings ?? {},
+      questions: (questions && questions.length > 0 ? questions : []) ?? [],
+      redirect: ghlConfig
         ? {
-            redirectAfterAppointment: (ghlConfig ?? globalGhl)!.redirectAfterAppointment === true,
-            appointmentRedirectUrl: (ghlConfig ?? globalGhl)!.appointmentRedirectUrl ?? '',
+            redirectAfterAppointment: ghlConfig.redirectAfterAppointment === true,
+            appointmentRedirectUrl: ghlConfig.appointmentRedirectUrl ?? '',
           }
         : { redirectAfterAppointment: false, appointmentRedirectUrl: '' },
     };

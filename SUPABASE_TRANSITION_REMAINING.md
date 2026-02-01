@@ -68,6 +68,12 @@ If you had config in Vercel KV (global or tool-scoped) and want it in Supabase s
    ```
    This reads global KV and each tool’s `tool:${id}:*` keys, then upserts one `tool_config` row per tool. Tools with no KV config are skipped (existing Supabase row is not overwritten with nulls).
 
+6. **Verify** that every tool has config (run after migrations or when a tool shows defaults):
+   ```bash
+   node scripts/verify-tool-config.mjs
+   ```
+   This lists each tool, whether it has a `tool_config` row, and whether that row has data. Exit code 1 if any tool is missing a row or has an empty row; then run the migration for that tool (or `MIGRATE_ALL_TOOLS=1`) against that environment.
+
 ---
 
 ## Anything else?

@@ -1,16 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGHLToken, getGHLLocationId, getGHLConfig } from '@/lib/kv';
+import { createSupabaseServer } from '@/lib/supabase/server';
+
+async function resolveToolId(toolSlug: string | null, toolIdParam: string | null): Promise<string | undefined> {
+  if (toolIdParam && typeof toolIdParam === 'string' && toolIdParam.trim()) return toolIdParam.trim();
+  if (!toolSlug || typeof toolSlug !== 'string' || !toolSlug.trim()) return undefined;
+  const supabase = createSupabaseServer();
+  const { data } = await supabase.from('tools').select('id').eq('slug', toolSlug.trim()).maybeSingle();
+  return (data as { id: string } | null)?.id ?? undefined;
+}
 
 /**
- * GET - Check calendar availability using GHL's free-slots API
- * Query params: type ('appointment' | 'call'), date (YYYY-MM-DD), time (HH:MM)
- * Uses GHL calendar configuration and real-time availability
+ * GET - Check calendar availability using GHL's free-slots API (tool-scoped).
+ * Query params: type, date, time, toolSlug or toolId (required for multi-tenant)
  */
 export async function GET(request: NextRequest) {
   try {
-    const token = await getGHLToken();
-    const locationId = await getGHLLocationId();
-    
+    const url = new URL(request.url);
+    const toolSlug = url.searchParams.get('toolSlug');
+    const toolIdParam = url.searchParams.get('toolId');
+    const toolId = await resolveToolId(toolSlug, toolIdParam);
+
+    if (!toolId) {
+      return NextResponse.json(
+        { error: 'toolSlug or toolId is required' },
+        { status: 400 }
+      );
+    }
+
+    const token = await getGHLToken(toolId);
+    const locationId = await getGHLLocationId(toolId);
+
     if (!token || !locationId) {
       return NextResponse.json(
         { error: 'GHL not configured' },
@@ -18,7 +38,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const url = new URL(request.url);
     const type = url.searchParams.get('type'); // 'appointment' or 'call'
     const date = url.searchParams.get('date'); // YYYY-MM-DD
     const time = url.searchParams.get('time'); // HH:MM
@@ -30,8 +49,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get GHL config to determine which calendar to check
-    const ghlConfig = await getGHLConfig();
+    const ghlConfig = await getGHLConfig(toolId);
     
     let calendarId: string | undefined;
     if (type === 'call') {

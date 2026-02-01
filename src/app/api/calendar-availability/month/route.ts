@@ -1,44 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGHLToken, getGHLLocationId, getGHLConfig } from '@/lib/kv';
+import { createSupabaseServer } from '@/lib/supabase/server';
+
+async function resolveToolId(toolSlug: string | null, toolIdParam: string | null): Promise<string | undefined> {
+  if (toolIdParam && typeof toolIdParam === 'string' && toolIdParam.trim()) return toolIdParam.trim();
+  if (!toolSlug || typeof toolSlug !== 'string' || !toolSlug.trim()) return undefined;
+  const supabase = createSupabaseServer();
+  const { data } = await supabase.from('tools').select('id').eq('slug', toolSlug.trim()).maybeSingle();
+  return (data as { id: string } | null)?.id ?? undefined;
+}
 
 /**
- * GET - Get available time slots for a date range
- * Query params: type ('appointment' | 'call'), from (timestamp in ms), to (timestamp in ms)
- * Returns available slots grouped by date
+ * GET - Get available time slots for a date range (tool-scoped).
+ * Query params: type, from, to, toolSlug or toolId (required for multi-tenant)
  */
 export async function GET(request: NextRequest) {
-  // Log immediately - this should always appear
-  console.log('========================================');
-  console.log('[calendar-availability/month] ROUTE CALLED');
-  console.log('[calendar-availability/month] Timestamp:', new Date().toISOString());
-  console.log('[calendar-availability/month] URL:', request.url);
-  console.log('========================================');
-  
+  console.log('[calendar-availability/month] ROUTE CALLED', new Date().toISOString(), request.url);
+
   try {
-    const token = await getGHLToken();
-    const locationId = await getGHLLocationId();
-    
-    console.log('[calendar-availability/month] Starting request');
-    console.log('[calendar-availability/month] Token exists:', !!token);
-    console.log('[calendar-availability/month] LocationId exists:', !!locationId);
-    
-    if (!token || !locationId) {
-      console.error('[calendar-availability/month] GHL not configured - token:', !!token, 'locationId:', !!locationId);
+    const url = new URL(request.url);
+    const toolSlug = url.searchParams.get('toolSlug');
+    const toolIdParam = url.searchParams.get('toolId');
+    const toolId = await resolveToolId(toolSlug, toolIdParam);
+
+    if (!toolId) {
       return NextResponse.json(
-        { error: 'GHL not configured', slots: {} },
-        { status: 200 } // Return 200 with error so client can handle it
+        { error: 'toolSlug or toolId is required', slots: {} },
+        { status: 200 }
       );
     }
 
-    const url = new URL(request.url);
-    const type = url.searchParams.get('type'); // 'appointment' or 'call'
+    const token = await getGHLToken(toolId);
+    const locationId = await getGHLLocationId(toolId);
+
+    if (!token || !locationId) {
+      return NextResponse.json(
+        { error: 'GHL not configured', slots: {} },
+        { status: 200 }
+      );
+    }
+
+    const type = url.searchParams.get('type');
     const fromParam = url.searchParams.get('from');
     const toParam = url.searchParams.get('to');
 
-    console.log('[calendar-availability/month] Request params:', { type, fromParam, toParam });
-
     if (!type || !fromParam || !toParam) {
-      console.error('[calendar-availability/month] Missing required params');
       return NextResponse.json(
         { error: 'type, from, and to are required', slots: {} },
         { status: 200 }
@@ -49,15 +55,13 @@ export async function GET(request: NextRequest) {
     const toTime = parseInt(toParam, 10);
 
     if (isNaN(fromTime) || isNaN(toTime)) {
-      console.error('[calendar-availability/month] Invalid timestamps');
       return NextResponse.json(
         { error: 'from and to must be valid timestamps in milliseconds', slots: {} },
         { status: 200 }
       );
     }
 
-    // Get GHL config to determine which calendar to check
-    const ghlConfig = await getGHLConfig();
+    const ghlConfig = await getGHLConfig(toolId);
     
     let calendarId: string | undefined;
     if (type === 'call') {

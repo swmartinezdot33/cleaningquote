@@ -9,9 +9,12 @@ interface TrackingScriptsProps {
   };
 }
 
-/** True when on a quote results page (e.g. /quote/QT-123456-ABCDE). Custom code loads only here to track when quotes are given. */
+/** True when on a quote results page (/quote/[id] or /t/[slug]/quote/[id]). Custom code loads only here to track when quotes are given. */
 function isQuotePage(pathname: string | null): boolean {
-  return !!pathname?.match(/^\/quote\/[^/]+$/);
+  if (!pathname) return false;
+  if (pathname.match(/^\/quote\/[^/]+$/)) return true;
+  if (pathname.match(/^\/t\/[^/]+\/quote\/[^/]+$/)) return true;
+  return false;
 }
 
 export function TrackingScripts({ trackingCodes }: TrackingScriptsProps) {

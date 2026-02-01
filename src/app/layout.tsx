@@ -1,8 +1,9 @@
 import type { Metadata } from "next"
 import { Plus_Jakarta_Sans } from "next/font/google"
 import "./globals.css"
-import { TrackingScripts } from "@/components/TrackingScripts"
+import { ToolScopedTracking } from "@/components/ToolScopedTracking"
 import { MetaPixel } from "@/components/MetaPixel"
+import { MapsScriptLoader } from "@/components/MapsScriptLoader"
 import { CANONICAL_SITE_URL } from "@/lib/canonical-url"
 
 const font = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-sans" })
@@ -88,25 +89,17 @@ export const metadata: Metadata = {
   },
 }
 
-interface TrackingCodes {
-  customHeadCode?: string;
-}
-
-async function getLayoutData(): Promise<{ googleMapsApiKey: string; trackingCodes: TrackingCodes }> {
+// No global keys or analytics: each tool uses its own (Maps + tracking loaded per-tool on /t/[slug]).
+async function getLayoutData(): Promise<{ googleMapsApiKey: string }> {
   let googleMapsApiKey = ""
-  let trackingCodes: TrackingCodes = {}
   try {
-    const { getGoogleMapsKey, getTrackingCodes } = await import("@/lib/kv")
-    const [apiKey, codes] = await Promise.all([
-      getGoogleMapsKey(),
-      getTrackingCodes(),
-    ])
+    const { getGoogleMapsKey } = await import("@/lib/kv")
+    const apiKey = await getGoogleMapsKey(undefined)
     googleMapsApiKey = apiKey || ""
-    trackingCodes = codes || {}
   } catch (error) {
-    console.error("Layout: failed to load config (Google Maps key / tracking):", error)
+    console.error("Layout: failed to load config:", error)
   }
-  return { googleMapsApiKey, trackingCodes }
+  return { googleMapsApiKey }
 }
 
 export default async function RootLayout({
@@ -114,7 +107,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { googleMapsApiKey, trackingCodes } = await getLayoutData()
+  const { googleMapsApiKey } = await getLayoutData()
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -162,14 +155,6 @@ export default async function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        {/* Google Maps API with Places library - required for autocomplete and geocoding */}
-        {googleMapsApiKey && (
-          <script
-            src={`https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places&loading=async`}
-            async
-            defer
-          />
-        )}
         {/* CleanQuote external tracking */}
         <script
           src="https://go.cleanquote.io/js/external-tracking.js"
@@ -178,10 +163,12 @@ export default async function RootLayout({
         />
       </head>
       <body className={font.className}>
+        {/* Google Maps: global key for non-tool routes; on /t/[slug] the loader fetches that tool's key */}
+        <MapsScriptLoader globalKey={googleMapsApiKey} />
         {/* Meta Pixel: only on allowed frontend pages (no dashboard, quote tool, or customer data) */}
         <MetaPixel />
-        {/* Tracking scripts - EXCLUDED on admin pages */}
-        <TrackingScripts trackingCodes={trackingCodes} />
+        {/* Tool-scoped tracking only (no global analytics) */}
+        <ToolScopedTracking />
         {children}
       </body>
     </html>

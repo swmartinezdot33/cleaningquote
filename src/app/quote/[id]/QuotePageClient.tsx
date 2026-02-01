@@ -224,6 +224,7 @@ export default function QuotePageClient({
     setBookingMessage(null);
 
     try {
+      const apiToolSlug = (slug && toolSlug) ? toolSlug : slug;
       const response = await fetch('/api/appointments/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -236,6 +237,7 @@ export default function QuotePageClient({
           type: 'appointment',
           serviceType: quoteResult.serviceType,
           frequency: quoteResult.frequency,
+          ...(apiToolSlug && { toolSlug: apiToolSlug }),
         }),
       });
 
@@ -297,6 +299,7 @@ export default function QuotePageClient({
     setCallMessage(null);
 
     try {
+      const apiToolSlug = (slug && toolSlug) ? toolSlug : slug;
       const response = await fetch('/api/appointments/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -309,6 +312,7 @@ export default function QuotePageClient({
           type: 'call',
           serviceType: quoteResult.serviceType,
           frequency: quoteResult.frequency,
+          ...(apiToolSlug && { toolSlug: apiToolSlug }),
         }),
       });
 
@@ -826,6 +830,7 @@ export default function QuotePageClient({
                                 )}
                                 <CalendarBooking
                                   type="appointment"
+                                  toolSlug={(slug && toolSlug) ? toolSlug : slug}
                                   onConfirm={(date, time, notes, timestamp) => {
                                     setAppointmentDate(date);
                                     setAppointmentTime(time);
@@ -869,6 +874,7 @@ export default function QuotePageClient({
                                 )}
                                 <CalendarBooking
                                   type="call"
+                                  toolSlug={(slug && toolSlug) ? toolSlug : slug}
                                   onConfirm={(date, time, notes, timestamp) => {
                                     handleScheduleCall(date, time, notes, timestamp);
                                   }}

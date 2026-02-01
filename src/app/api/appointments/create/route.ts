@@ -1,61 +1,71 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAppointment, makeGHLRequest } from '@/lib/ghl/client';
-import { ghlTokenExists, getGHLConfig, getGHLLocationId } from '@/lib/kv';
+import { ghlTokenExists, getGHLConfig, getGHLToken, getGHLLocationId } from '@/lib/kv';
 import { getServiceName, getServiceTypeDisplayName } from '@/lib/pricing/format';
+import { createSupabaseServer } from '@/lib/supabase/server';
+
+async function resolveToolId(toolSlug: string | undefined, toolIdParam: string | undefined): Promise<string | undefined> {
+  if (toolIdParam && typeof toolIdParam === 'string' && toolIdParam.trim()) return toolIdParam.trim();
+  if (!toolSlug || typeof toolSlug !== 'string' || !toolSlug.trim()) return undefined;
+  const supabase = createSupabaseServer();
+  const { data } = await supabase.from('tools').select('id').eq('slug', toolSlug.trim()).maybeSingle();
+  return (data as { id: string } | null)?.id ?? undefined;
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { contactId, date, time, timestamp, notes, type = 'appointment', serviceType, frequency } = body;
+    const { contactId, date, time, timestamp, notes, type = 'appointment', serviceType, frequency, toolSlug, toolId: toolIdParam } = body;
+
+    const toolId = await resolveToolId(toolSlug, toolIdParam);
+    if (!toolId) {
+      return NextResponse.json(
+        { error: 'toolSlug or toolId is required', userMessage: 'Invalid request.' },
+        { status: 400 }
+      );
+    }
 
     console.log('Appointment creation request:', {
       type,
       hasContactId: !!contactId,
       date,
       time,
-      hasNotes: !!notes,
+      toolId,
     });
 
-    // Validate required fields
     if (!contactId || !date || !time) {
-      console.error('Missing required fields:', { contactId: !!contactId, date: !!date, time: !!time });
       return NextResponse.json(
-        { 
-          error: 'Missing required fields: contactId, date, time',
-          userMessage: 'Please ensure all required fields are filled.',
-        },
+        { error: 'Missing required fields: contactId, date, time', userMessage: 'Please ensure all required fields are filled.' },
         { status: 400 }
       );
     }
 
-    // Check if GHL is configured
-    const hasGHLToken = await ghlTokenExists().catch(() => false);
-
+    const hasGHLToken = await ghlTokenExists(toolId).catch(() => false);
     if (!hasGHLToken) {
       return NextResponse.json(
-        {
-          error:
-            'GHL integration not configured. Please set up your GHL API token in admin settings.',
-        },
+        { error: 'GHL integration not configured. Please set up your GHL API token in tool settings.', userMessage: 'GHL is not configured for this tool.' },
         { status: 500 }
       );
     }
 
-    // Get GHL config and Location ID from Admin (used for contact fetch and createAppointment)
-    const ghlConfig = await getGHLConfig();
-    const locationIdFromSettings = await getGHLLocationId();
+    const [ghlConfig, locationIdFromSettings, ghlToken] = await Promise.all([
+      getGHLConfig(toolId),
+      getGHLLocationId(toolId),
+      getGHLToken(toolId),
+    ]);
 
     console.log('[appointments/create] FROM SETTINGS Location-Id=' + (locationIdFromSettings || '') + ' | appointmentCalendarId=' + (ghlConfig?.appointmentCalendarId || '') + ' | appointmentUserId=' + (ghlConfig?.appointmentUserId || ''));
 
-    // Fetch contact information to get the contact name
     let contactName = '';
     try {
-      const locationId = locationIdFromSettings;
-      // Try with locationId in query string (for location-level tokens)
+      const locationId = locationIdFromSettings ?? undefined;
       const endpoint = locationId ? `/contacts/${contactId}?locationId=${locationId}` : `/contacts/${contactId}`;
       const contactResponse = await makeGHLRequest<{ contact?: { firstName?: string; lastName?: string; name?: string } } | { firstName?: string; lastName?: string; name?: string }>(
         endpoint,
-        'GET'
+        'GET',
+        undefined,
+        locationId,
+        ghlToken ?? undefined
       );
       
       // Handle both response formats: { contact: {...} } or direct contact object
@@ -214,39 +224,39 @@ export async function POST(request: NextRequest) {
         calendarId,
         assignedTo,
       },
-      locationIdFromSettings ?? undefined
+      locationIdFromSettings ?? undefined,
+      ghlToken ?? undefined
     );
 
     // Add appointment booked tags if configured
     if (ghlConfig?.appointmentBookedTags && Array.isArray(ghlConfig.appointmentBookedTags) && ghlConfig.appointmentBookedTags.length > 0) {
       try {
-        const locationId = await getGHLLocationId();
+        const locationId = locationIdFromSettings ?? undefined;
         const endpoint = locationId ? `/contacts/${contactId}?locationId=${locationId}` : `/contacts/${contactId}`;
-        
-        // Fetch current contact to get existing tags
+
         const contactResponse = await makeGHLRequest<{ contact?: { tags?: string[] } } | { tags?: string[] }>(
           endpoint,
-          'GET'
+          'GET',
+          undefined,
+          locationId,
+          ghlToken ?? undefined
         );
-        
+
         let currentTags: string[] = [];
-        let contact: any;
         if ('contact' in contactResponse && contactResponse.contact) {
-          contact = contactResponse.contact;
-          currentTags = contact.tags || [];
+          currentTags = contactResponse.contact.tags || [];
         } else if ('tags' in contactResponse) {
           currentTags = (contactResponse as any).tags || [];
-          contact = contactResponse;
         }
-        
-        // Combine current tags with appointment booked tags (remove duplicates)
+
         const allTags = Array.from(new Set([...currentTags, ...ghlConfig.appointmentBookedTags]));
-        
-        // Update contact with new tags
+
         await makeGHLRequest(
           endpoint,
           'PUT',
-          { tags: allTags }
+          { tags: allTags },
+          locationId,
+          ghlToken ?? undefined
         );
         
         console.log('Added appointment booked tags to contact:', ghlConfig.appointmentBookedTags);

@@ -13,6 +13,8 @@ interface CalendarBookingProps {
   onCancel: () => void;
   isBooking: boolean;
   primaryColor?: string;
+  toolSlug?: string;
+  toolId?: string;
 }
 
 interface AvailableSlot {
@@ -37,6 +39,8 @@ export function CalendarBooking({
   onCancel,
   isBooking,
   primaryColor = '#7c3aed',
+  toolSlug,
+  toolId,
 }: CalendarBookingProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -84,8 +88,14 @@ export function CalendarBooking({
       const lastDay = new Date(y, m + 1, 0);
       const startTime = firstDay.getTime();
       const endTime = lastDay.getTime() + 24 * 60 * 60 * 1000 - 1;
-      const apiUrl = `/api/calendar-availability/month?type=${type}&from=${startTime}&to=${endTime}`;
-      const response = await fetch(apiUrl);
+      const params = new URLSearchParams({
+        type,
+        from: String(startTime),
+        to: String(endTime),
+        ...(toolSlug && { toolSlug }),
+        ...(toolId && { toolId }),
+      });
+      const response = await fetch(`/api/calendar-availability/month?${params.toString()}`);
       const data = await response.json();
       if (data.error) {
         return { daysMap: new Map(), apiError: data.message || data.error || 'Unable to load calendar availability' };
@@ -196,9 +206,14 @@ export function CalendarBooking({
       const dayEnd = new Date(date);
       dayEnd.setHours(23, 59, 59, 999);
 
-      const response = await fetch(
-        `/api/calendar-availability/month?type=${type}&from=${dayStart.getTime()}&to=${dayEnd.getTime()}`
-      );
+      const params = new URLSearchParams({
+        type,
+        from: String(dayStart.getTime()),
+        to: String(dayEnd.getTime()),
+        ...(toolSlug && { toolSlug }),
+        ...(toolId && { toolId }),
+      });
+      const response = await fetch(`/api/calendar-availability/month?${params.toString()}`);
 
       const data = await response.json();
       

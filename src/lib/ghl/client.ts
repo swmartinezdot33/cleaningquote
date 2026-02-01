@@ -37,10 +37,11 @@ export async function makeGHLRequest<T>(
   endpoint: string,
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   body?: Record<string, any>,
-  locationId?: string // Optional: pass locationId to add as header if needed
+  locationId?: string,
+  tokenOverride?: string // When provided (e.g. tool-scoped), use instead of global getGHLToken()
 ): Promise<T> {
   try {
-    const token = await getGHLToken();
+    const token = tokenOverride ?? (await getGHLToken());
 
     if (!token || typeof token !== 'string') {
       throw new Error('GHL API token not configured. Please set it in the admin settings.');
@@ -500,11 +501,12 @@ export async function createNote(noteData: GHLNote, locationId?: string): Promis
  */
 export async function createAppointment(
   appointmentData: GHLAppointment,
-  locationId?: string
+  locationId?: string,
+  tokenOverride?: string
 ): Promise<GHLAppointmentResponse> {
   try {
-    const stored = await getGHLLocationId();
-    const finalLocationId = locationId || stored;
+    const stored = locationId ?? (await getGHLLocationId());
+    const finalLocationId = stored;
     if (!finalLocationId) {
       throw new Error('Location ID is required. Please configure it in the admin settings.');
     }
@@ -528,13 +530,12 @@ export async function createAppointment(
       response = await makeGHLRequest<{ appointment: GHLAppointmentResponse }>(
         endpoint,
         'POST',
-        payload
-        // no 4th arg: no Location-Id header
+        payload,
+        undefined,
+        tokenOverride
       );
     } catch (first: any) {
       const msg = (first?.message || String(first)).toLowerCase();
-      // Do NOT retry with Location-Id when error is "token does not have access to this location"
-      // — that indicates sending/implying Location-Id is wrong (e.g. location-level PIT).
       const tokenNoAccessToLocation = msg.includes('token does not have access') && msg.includes('location');
       const needLocation =
         !tokenNoAccessToLocation &&
@@ -547,7 +548,8 @@ export async function createAppointment(
             endpoint,
             'POST',
             payload,
-            finalLocationId
+            finalLocationId,
+            tokenOverride
           );
         } catch (retryErr) {
           console.error('Appointment create failed (with and without Location-Id):', retryErr instanceof Error ? retryErr.message : String(retryErr));

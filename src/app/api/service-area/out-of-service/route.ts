@@ -2,24 +2,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getGHLToken, getGHLLocationId, getGHLConfig } from '@/lib/kv';
 import { createOrUpdateContact } from '@/lib/ghl/client';
 import { parseAddress } from '@/lib/utils/parseAddress';
+import { createSupabaseServer } from '@/lib/supabase/server';
+
+async function resolveToolId(toolSlug: string | undefined, toolIdParam: string | undefined): Promise<string | undefined> {
+  if (toolIdParam && typeof toolIdParam === 'string') return toolIdParam;
+  if (!toolSlug || typeof toolSlug !== 'string') return undefined;
+  const supabase = createSupabaseServer();
+  const { data } = await supabase.from('tools').select('id').eq('slug', toolSlug.trim()).maybeSingle();
+  return (data as { id: string } | null)?.id ?? undefined;
+}
 
 /**
  * POST /api/service-area/out-of-service
- * Create a contact in GHL with out-of-service tags
- * 
- * Request body:
- * {
- *   firstName: string,
- *   lastName: string,
- *   email: string,
- *   phone: string,
- *   address?: string
- * }
+ * Create a contact in GHL with out-of-service tags.
+ * Uses the tool's GHL when toolSlug or toolId is provided; otherwise global.
+ *
+ * Request body: { firstName, lastName, email, phone, address?, address2?, toolSlug?, toolId? }
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { firstName, lastName, email, phone, address, address2 } = body;
+    const { firstName, lastName, email, phone, address, address2, toolSlug, toolId: toolIdParam } = body;
 
     if (!firstName || !lastName || !email || !phone) {
       return NextResponse.json(
@@ -28,10 +31,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get GHL token and config
-    const token = await getGHLToken();
-    const locationId = await getGHLLocationId();
-    const config = await getGHLConfig();
+    const toolId = await resolveToolId(toolSlug, toolIdParam);
+
+    const token = await getGHLToken(toolId);
+    const locationId = await getGHLLocationId(toolId);
+    const config = await getGHLConfig(toolId);
 
     if (!token) {
       return NextResponse.json(
