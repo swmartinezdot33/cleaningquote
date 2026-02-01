@@ -1,14 +1,13 @@
 import { notFound } from 'next/navigation';
-import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { createSupabaseServer } from '@/lib/supabase/server';
 import { Home } from '@/app/quote-flow/QuoteFlowPage';
 import { getToolConfigByToolId } from '@/lib/tools/config';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Org-scoped tool URL: /t/[slug]/[toolSlug] (first segment = org slug, second = tool slug)
- * Resolves tool unambiguously by org + tool slug so quotes always go to the right org.
- * First segment uses name "slug" to satisfy Next.js same-name requirement for dynamic routes.
+ * Org-scoped tool URL: /t/[slug]/[toolSlug] (first segment = org slug, second = tool slug).
+ * Public page: use service-role client so org/tool resolution works for unauthenticated users (RLS would block anon reads on organizations).
  */
 export default async function OrgScopedToolPage({
   params,
@@ -18,7 +17,7 @@ export default async function OrgScopedToolPage({
   const { slug: orgSlug, toolSlug } = await params;
   if (!orgSlug || !toolSlug) notFound();
 
-  const supabase = await createSupabaseServerSSR();
+  const supabase = createSupabaseServer();
   const { data: org } = await supabase
     .from('organizations')
     .select('id')

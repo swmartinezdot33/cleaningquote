@@ -389,22 +389,74 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-4 opacity-60">
-            <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
-              Public link base URL
-              <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                Coming soon
-              </span>
-            </h2>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <h2 className="text-sm font-medium text-foreground">Public link base URL</h2>
             <p className="mt-0.5 text-sm text-muted-foreground mb-3">
               Set the base URL for your public links (e.g. your production domain). Leave blank to use this site.
             </p>
-            <input
-              type="url"
-              disabled
-              placeholder="e.g. https://www.yoursite.com (leave blank to use this site)"
-              className="w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed"
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="url"
+                value={publicBaseUrl}
+                onChange={(e) => setPublicBaseUrl(e.target.value)}
+                placeholder="e.g. https://www.yoursite.com (leave blank to use this site)"
+                className="flex-1 min-w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              />
+              {origin && (
+                <button
+                  type="button"
+                  onClick={() => setPublicBaseUrl(origin)}
+                  className="rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  Use this site
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={saveBaseUrl}
+                disabled={savingBaseUrl}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {savingBaseUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                {savingBaseUrl ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+            {baseUrlMessage && (
+              <p className={`mt-2 text-sm ${baseUrlMessage.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
+                {baseUrlMessage.text}
+              </p>
+            )}
+            {hasCustomDomain && dnsInstructions && (
+              <div className="mt-4 rounded-md border border-border bg-muted/30 p-3 text-sm">
+                <p className="font-medium text-foreground mb-2">DNS records (add at your registrar)</p>
+                <div className="space-y-1.5 font-mono text-xs">
+                  <p><span className="text-muted-foreground">CNAME:</span> {dnsInstructions.cname.host} → {dnsInstructions.cname.value}</p>
+                  <p><span className="text-muted-foreground">A:</span> {dnsInstructions.a.host} → {dnsInstructions.a.value}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={verifyRecords}
+                  disabled={verifyingDomain}
+                  className="mt-3 inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
+                >
+                  {verifyingDomain ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  Verify DNS
+                </button>
+                {verifyResult && (
+                  <p className={`mt-2 text-xs ${verifyResult.verified ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
+                    {verifyResult.message}
+                  </p>
+                )}
+                {isVerified && currentHostname && (
+                  <span className="inline-flex items-center gap-1 mt-2 rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
+                    <Check className="h-3 w-3" /> Verified: {currentHostname}
+                  </span>
+                )}
+              </div>
+            )}
+            {hasCustomDomain && vercelDomainError && (
+              <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">{vercelDomainError}</p>
+            )}
           </div>
 
           {/* Public links with copy */}
