@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import type { Tool, ToolConfigRow } from '@/lib/supabase/types';
@@ -6,6 +7,12 @@ import { DEFAULT_WIDGET, DEFAULT_PRIMARY_COLOR, normalizeHexColor } from '@/lib/
 import { DEFAULT_SURVEY_QUESTIONS } from '@/lib/survey/schema';
 
 export const dynamic = 'force-dynamic';
+
+/** Short hash of Supabase URL so we can verify dashboard and public API use same DB. */
+function getDbRef(): string {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+  return createHash('sha256').update(url).digest('hex').slice(0, 8);
+}
 
 /**
  * GET - Public config by tool ID (unambiguous).
@@ -31,6 +38,8 @@ export async function GET(request: NextRequest) {
       .from('tool_config')
       .select('*')
       .eq('tool_id', id)
+      .order('updated_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (rowErr) {
@@ -180,6 +189,7 @@ export async function GET(request: NextRequest) {
         ? (row.tracking_codes as { customHeadCode?: string })
         : {};
 
+    const responseTs = Date.now();
     return NextResponse.json(
       {
         widget,
@@ -188,7 +198,12 @@ export async function GET(request: NextRequest) {
         redirect,
         googleMapsKey,
         trackingCodes,
-        _meta: { toolId: id, slug, configUpdatedAt: row?.updated_at ?? null },
+        _meta: {
+          toolId: id,
+          slug,
+          configUpdatedAt: row?.updated_at ?? null,
+          _ts: responseTs,
+        },
       },
       {
         headers: {
@@ -200,6 +215,8 @@ export async function GET(request: NextRequest) {
           'X-Tool-Id': id,
           'X-Tool-Slug': slug,
           'X-Config-Updated': row?.updated_at ?? '',
+          'X-DB-Ref': getDbRef(),
+          'X-Response-Time': String(responseTs),
         },
       }
     );

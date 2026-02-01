@@ -29,6 +29,8 @@ export async function GET(
       .from('tool_config')
       .select('*')
       .eq('tool_id', toolId)
+      .order('updated_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (rowErr) {

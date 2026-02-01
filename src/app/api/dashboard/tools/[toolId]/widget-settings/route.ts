@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDashboardUserAndTool } from '@/lib/dashboard-auth';
 import { getWidgetSettings } from '@/lib/kv';
@@ -5,6 +6,12 @@ import { createSupabaseServer } from '@/lib/supabase/server';
 import { DEFAULT_PRIMARY_COLOR, normalizeHexColor } from '@/lib/tools/config';
 
 export const dynamic = 'force-dynamic';
+
+/** Short hash of Supabase URL so we can verify dashboard and public API use same DB. */
+function getDbRef(): string {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+  return createHash('sha256').update(url).digest('hex').slice(0, 8);
+}
 
 /** GET - Get widget settings for this tool */
 export async function GET(
@@ -99,11 +106,13 @@ export async function POST(
         toolId,
         persisted: true,
         _writtenPrimaryColor: settings.primaryColor,
+        _savedAt: row.updated_at,
       },
       {
         headers: {
           'Cache-Control': 'no-store',
           'CDN-Cache-Control': 'no-store',
+          'X-DB-Ref': getDbRef(),
         },
       }
     );
