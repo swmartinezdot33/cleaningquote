@@ -9,7 +9,8 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET - Public config by tool ID (unambiguous).
- * Use ?toolId=xxx so the widget always loads the exact tool's config, never wrong tool when slug is ambiguous or path is wrong.
+ * Path /api/tools/by-id/config avoids [slug] matching "config" and returning 404.
+ * Use ?toolId=xxx so the widget always loads the exact tool's config.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
       .maybeSingle();
 
     if (rowErr) {
-      console.error('GET /api/tools/config?toolId= tool_config read:', rowErr);
+      console.error('GET /api/tools/by-id/config tool_config read:', rowErr);
       return NextResponse.json({ error: 'Config read failed' }, { status: 500 });
     }
 
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
           .maybeSingle();
         if (!reErr && newRow) row = newRow as ToolConfigRow;
       } catch (initErr) {
-        console.error('GET /api/tools/config?toolId= lazy init config row:', initErr);
+        console.error('GET /api/tools/by-id/config lazy init config row:', initErr);
       }
     }
 
@@ -149,7 +150,7 @@ export async function GET(request: NextRequest) {
           }
         })() : DEFAULT_SURVEY_QUESTIONS;
       } catch (seedErr) {
-        console.error('GET /api/tools/config?toolId= seed null survey_questions:', seedErr);
+        console.error('GET /api/tools/by-id/config seed null survey_questions:', seedErr);
       }
     }
 
@@ -203,7 +204,7 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (err) {
-    console.error('GET /api/tools/config?toolId=:', err);
+    console.error('GET /api/tools/by-id/config:', err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Failed to get config' },
       { status: 500 }

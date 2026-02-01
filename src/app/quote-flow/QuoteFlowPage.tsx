@@ -289,16 +289,21 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   const addressAutocompleteRef = useRef<{ geocodeCurrentValue: () => Promise<{ lat: number; lng: number; formattedAddress: string } | null> } | null>(null);
   const [configLoaded, setConfigLoaded] = useState(useServerConfig);
 
-  // When slug/toolId set, load config. Prefer toolId so we always get THIS tool's config (no wrong tool when slug is ambiguous).
+  // When slug/toolId set, load config. Prefer toolId via /api/tools/by-id/config (path avoids [slug] matching "config").
+  // On toolId endpoint failure, fall back to slug-based URL so config still loads.
   const loadConfigFromSlug = async (toolSlug: string, retry = false) => {
-    try {
-      const q = `t=${Date.now()}`;
-      const url = toolId
-        ? `/api/tools/config?toolId=${encodeURIComponent(toolId)}&${q}`
-        : `/api/tools/${encodeURIComponent(toolSlug)}/config?${q}`;
+    const q = `t=${Date.now()}`;
+    const urlByToolId = toolId ? `/api/tools/by-id/config?toolId=${encodeURIComponent(toolId)}&${q}` : null;
+    const urlBySlug = `/api/tools/${encodeURIComponent(toolSlug)}/config?${q}`;
+    const tryFetch = async (url: string) => {
       const response = await fetch(url, { cache: 'no-store', headers: { Pragma: 'no-cache' } });
       if (!response.ok) throw new Error(`Failed to load config: ${response.status}`);
-      const data = await response.json();
+      return response.json();
+    };
+    try {
+      const data = urlByToolId
+        ? await tryFetch(urlByToolId).catch(() => tryFetch(urlBySlug))
+        : await tryFetch(urlBySlug);
       if (data.widget) {
         setWidgetTitle(data.widget.title ?? '');
         setWidgetSubtitle(data.widget.subtitle ?? '');
