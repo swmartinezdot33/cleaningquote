@@ -45,6 +45,7 @@ export default function SuperAdminPage() {
   const [setPasswordValue, setSetPasswordValue] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
   const [resetLinkUserId, setResetLinkUserId] = useState<string | null>(null);
+  const [confirmResetUserId, setConfirmResetUserId] = useState<string | null>(null);
   const [loadingResetLink, setLoadingResetLink] = useState(false);
   const [assignModalUserId, setAssignModalUserId] = useState<string | null>(null);
 
@@ -580,10 +581,10 @@ export default function SuperAdminPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => sendResetLink(u.id)}
+                        onClick={() => setConfirmResetUserId(u.id)}
                         disabled={!!loadingResetLink}
                         className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
-                        title="Generate password reset link to copy"
+                        title="Send password reset email"
                       >
                         <Link2 className="h-4 w-4" />
                       </button>
@@ -604,6 +605,40 @@ export default function SuperAdminPage() {
           </table>
         </div>
       </section>
+
+      {/* Confirm send password reset modal */}
+      {confirmResetUserId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-lg border border-border bg-card p-4 shadow-lg">
+            <h3 className="font-semibold text-foreground">Send password reset email</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Are you sure you want to send a password reset link to{' '}
+              <strong>{userById[confirmResetUserId]?.email ?? confirmResetUserId}</strong>?
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const id = confirmResetUserId;
+                  if (id) sendResetLink(id).finally(() => setConfirmResetUserId(null));
+                }}
+                disabled={loadingResetLink}
+                className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {loadingResetLink ? 'Sending…' : 'Confirm'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmResetUserId(null)}
+                disabled={loadingResetLink}
+                className="rounded border border-input px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Set password modal */}
       {setPasswordUserId && (
