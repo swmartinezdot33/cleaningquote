@@ -36,7 +36,7 @@ export async function getToolConfigByToolId(toolId: string): Promise<ToolConfig 
       widget: {
         title: toolWidget?.title ?? '',
         subtitle: toolWidget?.subtitle ?? '',
-        primaryColor: toolWidget?.primaryColor ?? 'transparent',
+        primaryColor: toolWidget?.primaryColor ?? DEFAULT_PRIMARY_COLOR,
       },
       formSettings: formSettings ?? {},
       questions: Array.isArray(questions) ? questions : [],
@@ -76,7 +76,7 @@ export async function getQuotePagePrimaryColor(slug?: string): Promise<string> {
   try {
     if (slug) {
       const config = await getToolConfigForPage(slug);
-      return config?.widget?.primaryColor ?? 'transparent';
+      return config?.widget?.primaryColor ?? DEFAULT_PRIMARY_COLOR;
     }
     return 'transparent';
   } catch {

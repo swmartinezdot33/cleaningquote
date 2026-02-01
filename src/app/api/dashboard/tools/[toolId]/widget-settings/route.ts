@@ -16,7 +16,7 @@ export async function GET(
   try {
     const settings = await getWidgetSettings(toolId);
     return NextResponse.json(
-      settings ?? { title: '', subtitle: '', primaryColor: 'transparent' }
+      settings ?? { title: '', subtitle: '', primaryColor: DEFAULT_PRIMARY_COLOR }
     );
   } catch (err) {
     console.error('GET dashboard widget-settings:', err);
@@ -42,7 +42,7 @@ export async function POST(
 
     const titleStr = typeof title === 'string' ? title : '';
     const subtitleStr = typeof subtitle === 'string' ? subtitle : '';
-    const color = primaryColor && /^#[0-9A-Fa-f]{6}$/.test(primaryColor) ? primaryColor : 'transparent';
+    const color = primaryColor && /^#[0-9A-Fa-f]{6}$/.test(primaryColor) ? primaryColor : DEFAULT_PRIMARY_COLOR;
     const toSave = { title: titleStr, subtitle: subtitleStr, primaryColor: color };
 
     await setWidgetSettings(toSave, toolId);

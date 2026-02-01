@@ -147,7 +147,7 @@ export default function QuotePageClient({
         if (widgetResponse.ok) {
           const widgetData = await widgetResponse.json();
           setWidgetTitle(widgetData.title || 'Get Your Quote');
-          setPrimaryColor(widgetData.primaryColor ?? 'transparent');
+          setPrimaryColor(widgetData.primaryColor ?? DEFAULT_PRIMARY);
         }
       } catch (error) {
         console.error('Failed to load settings:', error);

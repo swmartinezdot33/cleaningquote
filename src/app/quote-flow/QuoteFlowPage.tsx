@@ -270,7 +270,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   const [appointmentRedirectUrl, setAppointmentRedirectUrl] = useState<string>(initialConfig?.redirect?.appointmentRedirectUrl ?? '');
   const [widgetTitle, setWidgetTitle] = useState(initialConfig?.widget?.title ?? '');
   const [widgetSubtitle, setWidgetSubtitle] = useState(initialConfig?.widget?.subtitle ?? '');
-  const [primaryColor, setPrimaryColor] = useState(initialConfig?.widget?.primaryColor ?? 'transparent');
+  const [primaryColor, setPrimaryColor] = useState(initialConfig?.widget?.primaryColor ?? DEFAULT_PRIMARY_COLOR);
   const initialQuestions = (initialConfig?.questions ?? []) as SurveyQuestion[];
   const [questions, setQuestions] = useState<SurveyQuestion[]>(initialQuestions);
   const [quoteSchema, setQuoteSchema] = useState<z.ZodObject<any>>(generateSchemaFromQuestions(initialQuestions));
@@ -478,7 +478,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         const data = await response.json();
         setWidgetTitle(data.title ?? '');
         setWidgetSubtitle(data.subtitle ?? '');
-        setPrimaryColor(data.primaryColor ?? 'transparent');
+        setPrimaryColor(data.primaryColor ?? DEFAULT_PRIMARY_COLOR);
       }
     } catch (error) {
       console.error('Failed to load widget settings:', error);

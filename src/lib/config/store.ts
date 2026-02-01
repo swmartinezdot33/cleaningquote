@@ -8,6 +8,9 @@ import type { Json, ToolConfigRow, ToolConfigUpdate } from '@/lib/supabase/types
 
 export type WidgetSettings = { title: string; subtitle: string; primaryColor: string };
 
+/** Brand purple – default when no color set or transparent */
+const BRAND_PRIMARY_COLOR = '#7c3aed';
+
 /** Resolve config row: tool_id = toolId when provided, else tool_id is null (global). */
 async function getConfigRow(toolId?: string): Promise<ToolConfigRow | null> {
   if (!isSupabaseConfigured()) return null;
@@ -82,10 +85,34 @@ export async function createToolConfigPreset(
 }
 
 // ---- Widget ----
+/** Normalize widget_settings from DB (camelCase or snake_case). Always return WidgetSettings shape so widget always loads from DB. */
+function normalizeWidgetSettings(raw: unknown): WidgetSettings | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  const title = typeof o.title === 'string' ? o.title : '';
+  const subtitle = typeof o.subtitle === 'string' ? o.subtitle : '';
+  const primaryColor =
+    typeof o.primaryColor === 'string'
+      ? o.primaryColor
+      : typeof o.primary_color === 'string'
+        ? o.primary_color
+        : '';
+  return { title, subtitle, primaryColor: primaryColor && /^#[0-9A-Fa-f]{6}$/.test(primaryColor) ? primaryColor : BRAND_PRIMARY_COLOR };
+}
+
 export async function getWidgetSettings(toolId?: string): Promise<WidgetSettings | null> {
   const row = await getConfigRow(toolId);
-  const s = row?.widget_settings as WidgetSettings | null | undefined;
-  return s && typeof s === 'object' ? s : null;
+  const raw = row?.widget_settings;
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      return normalizeWidgetSettings(parsed);
+    } catch {
+      return null;
+    }
+  }
+  return normalizeWidgetSettings(raw);
 }
 
 export async function setWidgetSettings(
