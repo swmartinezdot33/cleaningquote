@@ -213,9 +213,7 @@ export default function SurveyBuilderPage() {
     setIsLoading(true);
     try {
       const response = await fetch('/api/surveys/questions', {
-        cache: 'no-store',
         headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
           'x-admin-password': password,
         },
       });

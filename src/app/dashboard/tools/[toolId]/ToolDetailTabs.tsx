@@ -433,7 +433,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
           <div className="rounded-xl border border-border bg-card p-4">
             <h2 className="text-sm font-medium text-foreground">Public link base URLs</h2>
             <p className="mt-0.5 text-sm text-muted-foreground mb-3">
-              Add custom domains for your public links. Each URL is added to Vercel; add the DNS records, then Verify. First URL is used for survey and embed links.
+              Add custom domains for your public links. Each URL is added to Vercel; add the DNS records, then Verify. First URL is used for survey and embed links. DNS propagation can take anywhere from a few minutes to 72 hours depending on your host.
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <input
@@ -497,7 +497,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
                       <p><span className="text-muted-foreground">A:</span> {dnsInstructions.a.host} → {dnsInstructions.a.value}</p>
                     </div>
                     <p className="mt-2 text-xs text-muted-foreground">
-                      Add these records at your registrar, then click Verify below.
+                      Add these records at your registrar, then click Verify below. Propagation can take a few minutes up to 72 hours depending on your host.
                     </p>
                     <button
                       type="button"
@@ -523,7 +523,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
                   <div className="mt-4 rounded-md border border-border bg-muted/30 p-3 text-sm">
                     <p className="font-medium text-foreground mb-2">Pending: {pendingBaseUrl}</p>
                     <p className="text-xs text-muted-foreground mb-2">
-                      Add the DNS records at your registrar (from Vercel Dashboard or add the URL again to see them), then click Verify.
+                      Add the DNS records at your registrar (from Vercel Dashboard or add the URL again to see them), then click Verify. Propagation can take a few minutes up to 72 hours depending on your host.
                     </p>
                     <button
                       type="button"

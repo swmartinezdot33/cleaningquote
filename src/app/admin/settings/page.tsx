@@ -240,16 +240,26 @@ export default function SettingsPage() {
     setIsLoading(true);
     try {
       const response = await fetch('/api/admin/ghl-settings', {
-        headers: {
-          'x-admin-password': password,
-        },
+        headers: { 'x-admin-password': password },
       });
 
       if (response.ok) {
         const data = await response.json();
         setGhlTokenDisplay(data.maskedToken || '••••••••••••••••');
         setGhlLocationId(data.locationId || '');
-        setConnectionStatus(data.connected ? 'connected' : 'disconnected');
+        setConnectionStatus(data.connected ? 'connected' : data.status === 'Unknown' ? 'unknown' : 'disconnected');
+        if (data.configured) {
+          fetch(`/api/admin/ghl-settings?test=1`, {
+            headers: { 'x-admin-password': password },
+          })
+            .then((r) => r.ok && r.json())
+            .then((testData) => {
+              if (testData?.configured) {
+                setConnectionStatus(testData.connected ? 'connected' : 'disconnected');
+              }
+            })
+            .catch(() => {});
+        }
       }
     } catch (error) {
       console.error('Failed to load settings:', error);

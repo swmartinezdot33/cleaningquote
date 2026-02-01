@@ -104,27 +104,31 @@ export default function AdminPage() {
 
   const checkAuth = async (pass: string) => {
     try {
-      const response = await fetch('/api/admin/pricing', {
-        headers: {
-          'x-admin-password': pass,
-        },
-      });
-      if (response.ok || response.status === 404) {
+      const headers = { 'x-admin-password': pass };
+      const [pricingRes, initialCleaningRes] = await Promise.all([
+        fetch('/api/admin/pricing', { headers }),
+        fetch('/api/admin/initial-cleaning-config', { headers }),
+      ]);
+      if (pricingRes.ok || pricingRes.status === 404) {
         // 200 or 404 means authenticated (404 = no data, but auth worked)
-        const data = await response.json();
+        const data = await pricingRes.json();
         setIsAuthenticated(true);
         if (data.exists && data.data) {
           setCurrentPricing(data.data);
           reset(data.data);
-          // Load in view mode by default
           setUploadMode('view');
         } else {
-          // No data exists, default to view mode anyway
           setUploadMode('view');
         }
-        // Load Initial Cleaning config
-        loadInitialCleaningConfig();
-      } else if (response.status === 401) {
+        if (initialCleaningRes.ok) {
+          const icData = await initialCleaningRes.json();
+          setInitialCleaningMultiplier(icData.multiplier);
+          setRequiredConditions(icData.requiredConditions);
+          setRecommendedConditions(icData.recommendedConditions);
+          setSheddingPetsMultiplier(icData.sheddingPetsMultiplier ?? 1.1);
+          setPeopleMultiplier(icData.peopleMultiplier ?? 1.05);
+        }
+      } else if (pricingRes.status === 401) {
         setIsAuthenticated(false);
         sessionStorage.removeItem('admin_password');
         setSaveMessage({ 
@@ -133,7 +137,7 @@ export default function AdminPage() {
         });
       } else {
         // Other errors (like 500) - might be KV not configured
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await pricingRes.json().catch(() => ({}));
         if (errorData.message && errorData.message.includes('KV storage not configured')) {
           // KV not configured - allow login but show message
           setIsAuthenticated(true);

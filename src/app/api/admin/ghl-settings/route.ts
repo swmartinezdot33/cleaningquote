@@ -24,11 +24,15 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Test connection
-    const testResult = await testGHLConnection().catch(() => ({ success: false }));
-    const isConnected = testResult.success;
+    const url = new URL(request.url);
+    const runConnectionTest = url.searchParams.get('test') === '1';
 
-    // Return masked token (last 4 chars) and locationId
+    let isConnected = false;
+    if (runConnectionTest) {
+      const testResult = await testGHLConnection().catch(() => ({ success: false }));
+      isConnected = testResult.success;
+    }
+
     try {
       const token = await getGHLToken();
       const maskedToken = token ? `****${token.slice(-4)}` : 'Unknown';
@@ -39,7 +43,7 @@ export async function GET(request: NextRequest) {
         connected: isConnected,
         maskedToken,
         locationId,
-        status: isConnected ? 'Connected' : 'Not Connected',
+        status: isConnected ? 'Connected' : (runConnectionTest ? 'Not Connected' : 'Unknown'),
       });
     } catch {
       return NextResponse.json({

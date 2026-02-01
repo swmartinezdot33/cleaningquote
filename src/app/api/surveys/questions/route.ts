@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_cache, revalidateTag } from 'next/cache';
 import {
   getSurveyQuestions,
   saveSurveyQuestions,
@@ -11,14 +12,25 @@ import {
 } from '@/lib/survey/manager';
 import { SurveyQuestion } from '@/lib/survey/schema';
 
+const SURVEY_QUESTIONS_CACHE_TAG = 'survey-questions';
+
+/** Cached survey questions (15s revalidate) for faster repeat loads. */
+async function getSurveyQuestionsCached(): Promise<SurveyQuestion[]> {
+  return unstable_cache(
+    async () => getSurveyQuestions(),
+    [SURVEY_QUESTIONS_CACHE_TAG],
+    { revalidate: 15, tags: [SURVEY_QUESTIONS_CACHE_TAG] }
+  )();
+}
+
 /**
  * GET /api/surveys/questions
- * Get all survey questions (no-cache to always serve fresh data)
+ * Get all survey questions (server-cached 15s for faster loads)
  */
 export async function GET(request: NextRequest) {
   try {
-    const questions = await getSurveyQuestions();
-    
+    const questions = await getSurveyQuestionsCached();
+
     return NextResponse.json(
       {
         success: true,
@@ -27,8 +39,7 @@ export async function GET(request: NextRequest) {
       },
       {
         headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-          'Pragma': 'no-cache',
+          'Cache-Control': 'private, max-age=10, stale-while-revalidate=30',
         },
       }
     );
@@ -53,9 +64,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { questions, action } = body;
 
+    const invalidateSurveyCache = () => revalidateTag(SURVEY_QUESTIONS_CACHE_TAG);
+
     // Handle specific actions
     if (action === 'reset') {
       const reset = await resetToDefaults();
+      invalidateSurveyCache();
       return NextResponse.json({
         success: true,
         message: 'Survey reset to defaults',
@@ -66,6 +80,7 @@ export async function POST(request: NextRequest) {
     if (action === 'add') {
       const question = body.question as SurveyQuestion;
       const updated = await addQuestion(question);
+      invalidateSurveyCache();
       return NextResponse.json({
         success: true,
         message: 'Question added',
@@ -76,6 +91,7 @@ export async function POST(request: NextRequest) {
     if (action === 'update') {
       const { id, updates } = body;
       const updated = await updateQuestion(id, updates);
+      invalidateSurveyCache();
       return NextResponse.json({
         success: true,
         message: 'Question updated',
@@ -86,6 +102,7 @@ export async function POST(request: NextRequest) {
     if (action === 'delete') {
       const { id } = body;
       const updated = await deleteQuestion(id);
+      invalidateSurveyCache();
       return NextResponse.json({
         success: true,
         message: 'Question deleted',
@@ -96,6 +113,7 @@ export async function POST(request: NextRequest) {
     if (action === 'reorder') {
       const orders = body.orders as Array<{ id: string; order: number }>;
       const updated = await reorderQuestions(orders);
+      invalidateSurveyCache();
       return NextResponse.json({
         success: true,
         message: 'Questions reordered',
@@ -115,6 +133,7 @@ export async function POST(request: NextRequest) {
     }
 
     const saved = await saveSurveyQuestions(questions);
+    invalidateSurveyCache();
     return NextResponse.json({
       success: true,
       message: 'Survey questions saved',
