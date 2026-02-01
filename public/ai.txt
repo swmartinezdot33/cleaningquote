@@ -1,0 +1,7 @@
+# CleanQuote.io — AI/LLM information
+
+CleanQuote.io is cleaning quote software for cleaning companies: custom quote forms, instant pricing, HighLevel integration, and embeddable widgets.
+
+For full structured information for LLMs (overview, main pages, help docs), see:
+
+https://www.cleanquote.io/llms.txt

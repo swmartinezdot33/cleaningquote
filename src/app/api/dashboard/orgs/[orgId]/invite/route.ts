@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { randomBytes } from 'crypto';
+import { getSiteUrl } from '@/lib/canonical-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,9 +13,7 @@ function getBaseUrl(request: NextRequest): string {
     const u = new URL(request.url);
     if (u.origin && u.origin !== 'http://localhost:3000') return u.origin;
   } catch {}
-  const vercel = process.env.VERCEL_URL?.trim();
-  if (vercel && !vercel.startsWith('http')) return `https://${vercel}`;
-  return (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+  return getSiteUrl();
 }
 
 /** Find Supabase auth user id by email (admin listUsers, paginated). */

@@ -68,7 +68,7 @@ function Header({ onSignupClick }: { onSignupClick: () => void }) {
           <BrandLogo />
         </Link>
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-3 sm:gap-6">
+        <nav className="hidden md:flex items-center gap-3 sm:gap-6" aria-label="Main navigation">
           {navLinks}
           <Link href="/login">
             <Button variant="ghost" size="sm" className="rounded-none font-medium">
@@ -168,14 +168,14 @@ function Hero({ onSignupClick }: { onSignupClick: () => void }) {
       <div className="mx-auto max-w-4xl px-4 text-center sm:px-6">
         <div className="mb-6 inline-flex items-center gap-2 rounded-none border-2 border-primary/30 bg-white/60 px-4 py-1.5 text-sm font-medium text-primary shadow-lg shadow-primary/20 backdrop-blur-md">
           <Sparkles className="h-4 w-4" />
-          CleanQuote.io — Smart quoting for cleaning companies
+          Cleaning quote software for cleaning companies
         </div>
         <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl">
-          Turn leads into quotes{' '}
+          Cleaning quote software that turns leads into quotes{' '}
           <span className="bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">in seconds</span>
         </h1>
         <p className="mt-6 text-lg text-muted-foreground sm:text-xl max-w-2xl mx-auto">
-          Stop losing leads to slow back-and-forth. CleanQuote.io gives you custom quote forms, instant pricing, and one-click booking—so you close more jobs while your competitors are still typing emails.
+          Stop losing leads to slow back-and-forth. CleanQuote.io is cleaning quote software that gives you custom quote forms, instant pricing, and one-click booking—so you close more jobs while your competitors are still typing emails.
         </p>
         <p className="mt-4 text-sm text-muted-foreground/90 max-w-xl mx-auto">
           Connect to HighLevel, use your own pricing, and embed your quote widget anywhere. No coding. No guesswork. Just more booked jobs.
@@ -208,7 +208,7 @@ function WhySection() {
           Tired of losing leads while you run numbers?
         </h2>
         <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-          Most cleaning companies quote the old way: back-and-forth emails, manual spreadsheets, and “we’ll get back to you.” By the time you send a price, the lead has already moved on. CleanQuote.io flips that. Your leads get an instant, accurate quote—and you get a hot lead who’s ready to book.
+          Most cleaning companies quote the old way: back-and-forth emails, manual spreadsheets, and “we’ll get back to you.” By the time you send a price, the lead has already moved on. CleanQuote.io is cleaning quote software that flips that. Your leads get an instant, accurate quote—and you get a hot lead who’s ready to book.
         </p>
         <p className="mt-4 text-base font-medium text-foreground">
           Same pricing you use today. One simple form. Way more closed jobs.
@@ -282,10 +282,10 @@ function Features() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="text-center">
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl drop-shadow-sm">
-            Everything you need to quote smarter—and close more
+            Everything you need in cleaning quote software—quote smarter, close more
           </h2>
           <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-            One tool to capture leads, calculate quotes, and book follow-ups. No spreadsheets, no manual math, no lost leads.
+            One cleaning quote software tool to capture leads, calculate quotes, and book follow-ups. No spreadsheets, no manual math, no lost leads.
           </p>
         </div>
         <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
@@ -342,10 +342,10 @@ function Capabilities() {
       <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/5 via-background to-muted/30" />
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl text-center">
-          Built for cleaning pros—every capability you need
+          Cleaning quote software built for pros—every capability you need
         </h2>
         <p className="mt-4 text-lg text-muted-foreground text-center max-w-2xl mx-auto">
-          From pricing to booking to CRM sync, CleanQuote.io gives you the tools to close more jobs—without the spreadsheets.
+          From pricing to booking to CRM sync, CleanQuote.io gives you the cleaning quote software tools to close more jobs—without the spreadsheets.
         </p>
         <ul className="mt-10 space-y-4 max-w-2xl mx-auto">
           {capabilities.map((item, i) => (
@@ -434,10 +434,10 @@ function Footer({ onSignupClick }: { onSignupClick: () => void }) {
               <BrandLogo />
             </Link>
             <p className="text-sm text-muted-foreground max-w-xs text-center sm:text-left">
-              Instant quoting for cleaning companies. Close more leads, book more jobs.
+              Cleaning quote software for cleaning companies. Instant quoting—close more leads, book more jobs.
             </p>
           </div>
-          <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground sm:gap-6">
+          <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground sm:gap-6" aria-label="Footer navigation">
             <a href="#features" className="hover:text-foreground transition-colors">
               Features
             </a>
@@ -447,6 +447,9 @@ function Footer({ onSignupClick }: { onSignupClick: () => void }) {
             <a href="#pricing" className="hover:text-foreground transition-colors">
               Pricing
             </a>
+            <Link href="/help" className="hover:text-foreground transition-colors">
+              Help
+            </Link>
             <Link href="/privacy" className="hover:text-foreground transition-colors">
               Privacy
             </Link>

@@ -1,4 +1,10 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Help',
+  description: 'CleanQuote help and setup guides: Google Maps API, HighLevel integration, service area, survey builder, pricing, and custom domain.',
+};
 
 export default function HelpLayout({
   children,

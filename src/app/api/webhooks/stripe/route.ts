@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { Resend } from 'resend';
 import { createSupabaseServer } from '@/lib/supabase/server';
+import { getSiteUrl } from '@/lib/canonical-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,11 +22,7 @@ const resendApiKey = process.env.RESEND_API_KEY;
 const resendFrom = process.env.RESEND_FROM ?? 'CleanQuote.io <team@clean.io>';
 
 function getBaseUrl(): string {
-  const env = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (env && env.startsWith('http')) return env.replace(/\/$/, '');
-  const vercel = process.env.VERCEL_URL?.trim();
-  if (vercel && !vercel.startsWith('http')) return `https://${vercel}`;
-  return process.env.NEXT_PUBLIC_APP_URL || 'https://www.cleanquote.io';
+  return getSiteUrl();
 }
 
 function slugFromEmail(email: string): string {

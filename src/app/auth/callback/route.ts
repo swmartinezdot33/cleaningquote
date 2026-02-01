@@ -1,16 +1,17 @@
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { NextResponse } from 'next/server';
+import { getSiteUrl } from '@/lib/canonical-url';
 
 /**
  * Auth callback for OAuth, magic link, and email confirmation redirects.
  * Exchanges code for session and redirects to ?next= or /dashboard.
- * Uses NEXT_PUBLIC_APP_URL when set (e.g. https://www.cleanquote.io) for canonical redirects.
+ * Redirects to canonical domain (https://www.cleanquote.io) so users land on the main site.
  */
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const next = searchParams.get('next') ?? '/dashboard';
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || origin;
+  const baseUrl = getSiteUrl();
 
   if (code) {
     const supabase = await createSupabaseServerSSR();

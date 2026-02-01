@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { isSuperAdminEmail } from '@/lib/org-auth';
+import { getSiteUrl } from '@/lib/canonical-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +33,7 @@ export async function POST(
     return NextResponse.json({ error: 'User has no email' }, { status: 400 });
   }
 
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '') || 'https://www.cleanquote.io';
+  const baseUrl = getSiteUrl();
   const redirectTo = `${baseUrl}/auth/set-password`;
 
   const res = await fetch(`${supabaseUrl}/auth/v1/recover`, {

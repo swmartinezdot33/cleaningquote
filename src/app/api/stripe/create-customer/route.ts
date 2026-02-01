@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { getSiteUrl } from '@/lib/canonical-url';
 
 export const dynamic = 'force-dynamic';
 
 const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim();
 const priceId = process.env.STRIPE_PRICE_ID?.trim();
-
-function getBaseUrl(): string {
-  const env = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (env && env.startsWith('http')) return env.replace(/\/$/, '');
-  return 'https://www.cleanquote.io';
-}
 
 /**
  * Create Stripe customer and redirect to checkout or payment link.
@@ -76,7 +71,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create a Checkout Session tied to this customer
-    const baseUrl = getBaseUrl();
+    const baseUrl = getSiteUrl();
     
     // Use price ID if configured, otherwise use payment link redirect
     if (priceId) {
