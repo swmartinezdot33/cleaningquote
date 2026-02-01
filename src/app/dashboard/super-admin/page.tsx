@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Pencil, Trash2, KeyRound, Link2, Copy, UserPlus } from 'lucide-react';
+import { Plus, Pencil, Trash2, KeyRound, Link2, UserPlus } from 'lucide-react';
 
 interface User {
   id: string;
@@ -45,7 +45,6 @@ export default function SuperAdminPage() {
   const [setPasswordValue, setSetPasswordValue] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
   const [resetLinkUserId, setResetLinkUserId] = useState<string | null>(null);
-  const [resetLinkResult, setResetLinkResult] = useState<{ link: string; email: string } | null>(null);
   const [loadingResetLink, setLoadingResetLink] = useState(false);
   const [assignModalUserId, setAssignModalUserId] = useState<string | null>(null);
 
@@ -288,28 +287,21 @@ export default function SuperAdminPage() {
 
   const sendResetLink = async (userId: string) => {
     setResetLinkUserId(userId);
-    setResetLinkResult(null);
+    setMessage(null);
     setLoadingResetLink(true);
     try {
       const res = await fetch(`/api/dashboard/super-admin/users/${encodeURIComponent(userId)}/send-reset-link`, {
         method: 'POST',
       });
       const data = await res.json();
-      if (res.ok && data.link) {
-        setResetLinkResult({ link: data.link, email: data.email ?? '' });
+      if (res.ok && data.email) {
+        setMessage({ type: 'success', text: `Password reset email sent to ${data.email}.` });
       } else {
-        setMessage({ type: 'error', text: data.error ?? 'Failed to generate reset link' });
+        setMessage({ type: 'error', text: data.error ?? 'Failed to send reset email' });
       }
     } finally {
       setLoadingResetLink(false);
       setResetLinkUserId(null);
-    }
-  };
-
-  const copyResetLink = () => {
-    if (resetLinkResult?.link) {
-      navigator.clipboard.writeText(resetLinkResult.link);
-      setMessage({ type: 'success', text: 'Link copied to clipboard.' });
     }
   };
 
@@ -646,41 +638,6 @@ export default function SuperAdminPage() {
                 Cancel
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Reset link modal */}
-      {resetLinkResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-lg border border-border bg-card p-4 shadow-lg">
-            <h3 className="font-semibold text-foreground">Password reset link</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Copy this link and send it to {resetLinkResult.email || 'the user'}.
-            </p>
-            <div className="mt-3 flex gap-2">
-              <input
-                type="text"
-                readOnly
-                value={resetLinkResult.link}
-                className="flex-1 rounded border border-input bg-muted/50 px-3 py-2 text-xs"
-              />
-              <button
-                type="button"
-                onClick={copyResetLink}
-                className="inline-flex items-center gap-1 rounded bg-primary px-3 py-2 text-sm text-primary-foreground hover:opacity-90"
-              >
-                <Copy className="h-4 w-4" />
-                Copy
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={() => setResetLinkResult(null)}
-              className="mt-4 rounded border border-input px-3 py-1.5 text-sm"
-            >
-              Close
-            </button>
           </div>
         </div>
       )}

@@ -5,7 +5,10 @@ import { isSuperAdminEmail } from '@/lib/org-auth';
 
 export const dynamic = 'force-dynamic';
 
-/** POST - Generate password reset link for user (super admin only). Returns link to copy/send. */
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+
+/** POST - Send Supabase password reset email to user (super admin only). */
 export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
@@ -29,23 +32,25 @@ export async function POST(
     return NextResponse.json({ error: 'User has no email' }, { status: 400 });
   }
 
-  const { data: linkData, error } = await admin.auth.admin.generateLink({
-    type: 'recovery',
-    email,
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '') || 'https://www.cleanquote.io';
+  const redirectTo = `${baseUrl}/auth/set-password`;
+
+  const res = await fetch(`${supabaseUrl}/auth/v1/recover`, {
+    method: 'POST',
+    headers: {
+      apikey: supabaseAnonKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, redirect_to: redirectTo }),
   });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
-
-  const actionLink = linkData?.properties?.action_link;
-
-  if (!actionLink || typeof actionLink !== 'string') {
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
     return NextResponse.json(
-      { error: 'Could not get reset link' },
-      { status: 500 }
+      { error: (err as { msg?: string }).msg ?? (err as { error_description?: string }).error_description ?? 'Failed to send reset email' },
+      { status: res.status >= 500 ? 500 : 400 }
     );
   }
 
-  return NextResponse.json({ link: actionLink, email });
+  return NextResponse.json({ ok: true, email });
 }
