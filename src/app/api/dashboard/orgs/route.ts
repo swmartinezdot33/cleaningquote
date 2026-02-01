@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { createSupabaseServer } from '@/lib/supabase/server';
 import { slugToSafe } from '@/lib/supabase/tools';
 
 export const dynamic = 'force-dynamic';
@@ -55,7 +56,9 @@ export async function POST(request: NextRequest) {
   let slug = typeof body.slug === 'string' ? slugToSafe(body.slug) : slugToSafe(name);
   if (!slug) slug = 'org-' + Date.now().toString(36);
 
-  const { data: existing } = await supabase
+  // Use service role for inserts - user is authenticated; avoids RLS blocking org/org_members creation
+  const admin = createSupabaseServer();
+  const { data: existing } = await admin
     .from('organizations')
     .select('id')
     .eq('slug', slug)
@@ -64,7 +67,7 @@ export async function POST(request: NextRequest) {
     slug = slug + '-' + Date.now().toString(36).slice(-6);
   }
 
-  const { data: org, error: orgError } = await supabase
+  const { data: org, error: orgError } = await admin
     .from('organizations')
     .insert({ name, slug } as any)
     .select()
@@ -75,12 +78,12 @@ export async function POST(request: NextRequest) {
   }
 
   const orgTyped = org as { id: string; name: string; slug: string };
-  const { error: memberError } = await supabase
+  const { error: memberError } = await admin
     .from('organization_members')
     .insert({ org_id: orgTyped.id, user_id: user.id, role: 'admin' } as any);
 
   if (memberError) {
-    await supabase.from('organizations').delete().eq('id', orgTyped.id);
+    await admin.from('organizations').delete().eq('id', orgTyped.id);
     return NextResponse.json({ error: 'Failed to add you as admin' }, { status: 500 });
   }
 

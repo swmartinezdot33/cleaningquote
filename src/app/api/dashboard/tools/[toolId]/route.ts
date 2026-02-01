@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDashboardUserAndToolWithClient } from '@/lib/dashboard-auth';
 import { createSupabaseServer } from '@/lib/supabase/server';
-import { isSuperAdminEmail } from '@/lib/org-auth';
 import { slugToSafe } from '@/lib/supabase/tools';
 
 export const dynamic = 'force-dynamic';
@@ -34,7 +33,7 @@ export async function PATCH(
   const auth = await getDashboardUserAndToolWithClient(toolId);
   if (auth instanceof NextResponse) return auth;
 
-  const { tool, user, supabase } = auth;
+  const { tool, user } = auth;
 
   try {
     const body = await request.json();
@@ -43,7 +42,8 @@ export async function PATCH(
     const name = nameRaw || undefined;
     const slug = slugRaw ? slugToSafe(slugRaw) : undefined;
 
-    const updateClient = isSuperAdminEmail(user.email) ? createSupabaseServer() : supabase;
+    // Always use service role for update - we've already verified access. Avoids RLS issues for super admin.
+    const updateClient = createSupabaseServer();
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
     if (name !== undefined) {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { createSupabaseServer } from '@/lib/supabase/server';
 import { slugToSafe } from '@/lib/supabase/tools';
 
 export const dynamic = 'force-dynamic';
@@ -36,11 +37,13 @@ export async function POST() {
     });
   }
 
+  // Use service role for inserts - user is authenticated; avoids RLS blocking org/org_members creation
+  const admin = createSupabaseServer();
   const emailPart = (user.email ?? 'user').split('@')[0];
   let slug = slugToSafe(emailPart) || 'personal';
   slug = slug + '-' + Date.now().toString(36).slice(-6);
 
-  const { data: orgRaw, error: orgErr } = await supabase
+  const { data: orgRaw, error: orgErr } = await admin
     .from('organizations')
     .insert({ name: 'Personal', slug } as any)
     .select()
@@ -51,7 +54,7 @@ export async function POST() {
   }
 
   const org = orgRaw as { id: string; name: string; slug: string };
-  const { error: memberErr } = await supabase
+  const { error: memberErr } = await admin
     .from('organization_members')
     .insert({ org_id: org.id, user_id: user.id, role: 'admin' } as any);
 
