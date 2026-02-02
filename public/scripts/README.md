@@ -14,7 +14,7 @@ Single script for CleanQuote integrations (e.g. **GoHighLevel**). Load it with o
 
 Where GHL lets you add custom code (e.g. **Custom Code**, **Tracking Code**, **Scripts**, or the contact detail page/funnel script section), add only:
 
-**Recommended (API URL – loads reliably from GHL):**
+**Important:** In GHL you must use the **API URL** below (the one with `/api/script/`). The static URL (`/scripts/cleanquote.js`) does not send CORS headers and will be blocked by the browser when loaded from app.gohighlevel.com.
 
 ```html
 <script src="https://www.cleanquote.io/api/script/cleanquote.js?v=2"
@@ -24,7 +24,7 @@ Where GHL lets you add custom code (e.g. **Custom Code**, **Tracking Code**, **S
 
 Replace `https://www.cleanquote.io` with your CleanQuote domain. Use `?v=2` (bump to `?v=3` when you update the script for cache-busting).
 
-**Alternative (static file):** If you host the file elsewhere, use that URL instead, e.g. `https://yourdomain.com/scripts/cleanquote.js?v=2`.
+**If the script doesn’t load:** Check that the `src` is exactly `.../api/script/cleanquote.js` (not `.../scripts/cleanquote.js`). The `/api/script/` path is required for CORS from GHL.
 
 ### Optional: point to your CleanQuote tool and button text
 
