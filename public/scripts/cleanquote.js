@@ -43,6 +43,12 @@
   var containerSelector = (scriptTag && (scriptTag.getAttribute('data-container-selector') || scriptTag.dataset.containerSelector)) || '';
 
   baseUrl = String(baseUrl).trim().replace(/\/+$/, '');
+  if (!baseUrl && scriptTag && scriptTag.src) {
+    try {
+      var scriptUrl = new URL(scriptTag.src);
+      baseUrl = scriptUrl.origin;
+    } catch (e) { /* ignore */ }
+  }
   toolSlug = String(toolSlug).trim() || 'default';
   orgSlug = String(orgSlug).trim();
   buttonText = String(buttonText).trim() || 'Get Quote';
@@ -89,7 +95,7 @@
 
   function injectButton() {
     if (!baseUrl) {
-      console.warn('CleanQuote script: data-base-url is required. Add data-base-url="https://your-cleanquote-domain.com" to the script tag.');
+      console.warn('CleanQuote script: could not determine base URL. Add data-base-url="https://your-cleanquote-domain.com" to the script tag, or load the script from your CleanQuote domain.');
       return;
     }
     var contact = getContact();

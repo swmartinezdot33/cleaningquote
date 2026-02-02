@@ -24,7 +24,10 @@ Where GHL lets you add custom code (e.g. **Custom Code**, **Tracking Code**, **S
 
 Replace `https://www.cleanquote.io` with your CleanQuote domain. Use `?v=2` (bump to `?v=3` when you update the script for cache-busting).
 
-**If the script doesn’t load:** Check that the `src` is exactly `.../api/script/cleanquote.js` (not `.../scripts/cleanquote.js`). The `/api/script/` path is required for CORS from GHL.
+**If the script doesn’t load:**
+1. Check that the `src` is exactly `.../api/script/cleanquote.js` (not `.../scripts/cleanquote.js`). The `/api/script/` path is required for CORS from GHL.
+2. If it still fails with CORS, try **removing** `crossorigin="anonymous"` from the script tag. Some setups load the script without that attribute.
+3. **data-base-url** is optional when the script is loaded from your CleanQuote domain: the script will use the same origin as the script URL (e.g. https://www.cleanquote.io) as the survey base URL.
 
 ### Optional: point to your CleanQuote tool and button text
 
@@ -40,7 +43,7 @@ Add data attributes on the script tag:
   crossorigin="anonymous"></script>
 ```
 
-- **data-base-url** (required) – Your CleanQuote base URL (e.g. your custom domain or CleanQuote app URL).
+- **data-base-url** (optional) – Your CleanQuote base URL. If omitted and the script is loaded from your CleanQuote domain (e.g. www.cleanquote.io), the script uses that origin automatically.
 - **data-tool-slug** – Tool slug for the survey. Default: `"default"`.
 - **data-org-slug** – Org slug if you use org-scoped URLs (`/t/orgSlug/toolSlug`). Omit if not using.
 - **data-button-text** – Button label. Default: `"Get Quote"`.

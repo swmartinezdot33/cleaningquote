@@ -6,6 +6,12 @@
   "regions": ["iad1"],
   "headers": [
     {
+      "source": "/api/script/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    },
+    {
       "source": "/scripts/(.*)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" }
