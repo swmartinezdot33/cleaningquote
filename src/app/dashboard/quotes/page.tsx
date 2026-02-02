@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { FileDown, ExternalLink, Loader2, ArrowRightLeft, Search, Filter, Trash2, Copy, Check } from 'lucide-react';
 
@@ -78,6 +78,14 @@ export default function DashboardQuotesPage() {
   const [filterServiceType, setFilterServiceType] = useState<string>('');
   const [filterSearch, setFilterSearch] = useState<string>('');
   const [copiedQuoteId, setCopiedQuoteId] = useState<string | null>(null);
+  // Bulk selection and actions
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkReassignOpen, setBulkReassignOpen] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkReassigning, setBulkReassigning] = useState(false);
+  const [bulkReassignMessage, setBulkReassignMessage] = useState<string | null>(null);
+  const selectAllRef = useRef<HTMLInputElement | null>(null);
 
   const loadQuotes = () => {
     Promise.all([
@@ -106,6 +114,13 @@ export default function DashboardQuotesPage() {
   useEffect(() => {
     loadQuotes();
   }, []);
+
+  useEffect(() => {
+    const el = selectAllRef.current;
+    if (el) {
+      el.indeterminate = selectedIds.size > 0 && selectedIds.size < filteredQuotes.length;
+    }
+  }, [selectedIds.size, filteredQuotes.length]);
 
   const openReassign = (q: QuoteRow) => {
     setReassignQuote(q);
@@ -165,8 +180,87 @@ export default function DashboardQuotesPage() {
     }
   };
 
-  const exportCsv = () => {
-    const toExport = filteredQuotes;
+  const confirmBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    setBulkReassignMessage(null);
+    try {
+      const res = await fetch('/api/dashboard/quotes/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBulkDeleteOpen(false);
+        setSelectedIds(new Set());
+        loadQuotes();
+      } else {
+        setBulkReassignMessage(data.error ?? 'Failed to delete');
+      }
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const submitBulkReassign = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkReassigning(true);
+    setBulkReassignMessage(null);
+    try {
+      const res = await fetch('/api/dashboard/quotes/bulk-reassign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds), tool_id: selectedToolId || null }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBulkReassignOpen(false);
+        setSelectedIds(new Set());
+        loadQuotes();
+      } else {
+        setBulkReassignMessage(data.error ?? 'Failed to reassign');
+      }
+    } finally {
+      setBulkReassigning(false);
+    }
+  };
+
+  const openBulkReassign = () => {
+    setBulkReassignOpen(true);
+    setBulkReassignMessage(null);
+    setSelectedToolId('');
+    fetch('/api/dashboard/super-admin/tools')
+      .then((r) => (r.ok ? r.json() : { tools: [] }))
+      .then((d) => setToolsForReassign(d.tools ?? []));
+  };
+
+  const selectedQuotes = useMemo(
+    () => filteredQuotes.filter((q) => selectedIds.has(q.id)),
+    [filteredQuotes, selectedIds]
+  );
+
+  const toggleSelection = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (selectedIds.size === filteredQuotes.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredQuotes.map((q) => q.id)));
+    }
+  }, [filteredQuotes, selectedIds.size]);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  const exportCsv = (onlySelected = false) => {
+    const toExport = onlySelected && selectedIds.size > 0 ? selectedQuotes : filteredQuotes;
     const headers = [
       'Quote ID',
       'Tool',
@@ -208,7 +302,9 @@ export default function DashboardQuotesPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `quotes-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = onlySelected
+      ? `quotes-selected-${toExport.length}-${new Date().toISOString().slice(0, 10)}.csv`
+      : `quotes-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -284,7 +380,7 @@ export default function DashboardQuotesPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-foreground">Quotes</h1>
         <button
-          onClick={exportCsv}
+          onClick={() => exportCsv(false)}
           disabled={filteredQuotes.length === 0}
           className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
         >
@@ -292,6 +388,49 @@ export default function DashboardQuotesPage() {
           Export CSV
         </button>
       </div>
+
+      {selectedIds.size > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
+          <span className="text-sm font-medium text-foreground">
+            {selectedIds.size} selected
+          </span>
+          <button
+            type="button"
+            onClick={() => exportCsv(true)}
+            className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted"
+          >
+            <FileDown className="h-4 w-4" />
+            Export selected
+          </button>
+          {isSuperAdmin && (
+            <button
+              type="button"
+              onClick={openBulkReassign}
+              className="inline-flex items-center gap-2 rounded-md border border-amber-600/50 bg-amber-500/10 px-3 py-1.5 text-sm font-medium text-amber-700 hover:bg-amber-500/20 dark:text-amber-400"
+            >
+              <ArrowRightLeft className="h-4 w-4" />
+              Bulk reassign
+            </button>
+          )}
+          {canDelete && (
+            <button
+              type="button"
+              onClick={() => setBulkDeleteOpen(true)}
+              className="inline-flex items-center gap-2 rounded-md border border-red-600/50 bg-red-500/10 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-500/20 dark:text-red-400"
+            >
+              <Trash2 className="h-4 w-4" />
+              Bulk delete
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="ml-auto rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            Clear selection
+          </button>
+        </div>
+      )}
 
       {quotes.length === 0 ? (
         <div className="rounded-xl border border-border bg-card p-12 text-center">
@@ -371,6 +510,17 @@ export default function DashboardQuotesPage() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
+                  <th className="w-10 px-2 py-3">
+                    <label className="flex cursor-pointer items-center justify-center">
+                      <input
+                        ref={selectAllRef}
+                        type="checkbox"
+                        checked={filteredQuotes.length > 0 && selectedIds.size === filteredQuotes.length}
+                        onChange={toggleSelectAll}
+                        className="h-4 w-4 rounded border-input"
+                      />
+                    </label>
+                  </th>
                   <th className="px-4 py-3 font-medium">Quote ID</th>
                   <th className="px-4 py-3 font-medium">Tool</th>
                   <th className="px-4 py-3 font-medium">Date</th>
@@ -383,6 +533,16 @@ export default function DashboardQuotesPage() {
               <tbody>
                 {filteredQuotes.map((q) => (
                   <tr key={q.id} className="border-b border-border/50 hover:bg-muted/30">
+                    <td className="w-10 px-2 py-3">
+                      <label className="flex cursor-pointer items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(q.id)}
+                          onChange={() => toggleSelection(q.id)}
+                          className="h-4 w-4 rounded border-input"
+                        />
+                      </label>
+                    </td>
                     <td className="px-4 py-3 font-mono text-xs">{q.quote_id}</td>
                     <td className="px-4 py-3">{q.toolName}</td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(q.created_at)}</td>
@@ -518,6 +678,84 @@ export default function DashboardQuotesPage() {
               <button
                 type="button"
                 onClick={() => { setReassignQuote(null); setReassignMessage(null); }}
+                className="rounded border border-input px-3 py-1.5 text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bulkReassignOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-lg border border-border bg-card p-4 shadow-lg">
+            <h3 className="font-semibold text-foreground">Bulk reassign {selectedIds.size} quotes</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Choose the tool (org) these quotes should belong to. They will then show in that org's quotes.
+            </p>
+            <select
+              value={selectedToolId}
+              onChange={(e) => setSelectedToolId(e.target.value)}
+              className="mt-3 w-full rounded border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">— No tool (legacy) —</option>
+              {toolsForReassign.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.org_name} → {t.name}
+                </option>
+              ))}
+            </select>
+            {bulkReassignMessage && (
+              <p className="mt-2 text-sm text-destructive">{bulkReassignMessage}</p>
+            )}
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={submitBulkReassign}
+                disabled={bulkReassigning}
+                className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
+              >
+                {bulkReassigning ? 'Saving…' : 'Reassign'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setBulkReassignOpen(false); setBulkReassignMessage(null); }}
+                className="rounded border border-input px-3 py-1.5 text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bulkDeleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-lg border border-border bg-card p-4 shadow-lg">
+            <h3 className="font-semibold text-foreground">Bulk delete quotes</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {selectedIds.size} quote{selectedIds.size !== 1 ? 's' : ''} selected.
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Are you sure you want to delete these quotes? This action cannot be undone.
+            </p>
+            {bulkReassignMessage && (
+              <p className="mt-2 text-sm text-destructive">{bulkReassignMessage}</p>
+            )}
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={confirmBulkDelete}
+                disabled={bulkDeleting}
+                className="rounded bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {bulkDeleting ? 'Deleting…' : 'Delete'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setBulkDeleteOpen(false); setBulkReassignMessage(null); }}
+                disabled={bulkDeleting}
                 className="rounded border border-input px-3 py-1.5 text-sm"
               >
                 Cancel
