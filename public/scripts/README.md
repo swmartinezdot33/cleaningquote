@@ -8,25 +8,31 @@ Single script for CleanQuote integrations (e.g. **GoHighLevel**). Load it with o
 - Upload it to your site or CDN so it’s available at a URL like:
   - `https://yourdomain.com/scripts/cleanquote.js`
 
-(If you deploy this Next.js app, the file is already served at `https://your-vercel-domain.com/scripts/cleanquote.js`.)
+(If you deploy this Next.js app, the file is served at both `/scripts/cleanquote.js` and **`/api/script/cleanquote.js`**. Use the API URL in GHL so the script loads with CORS and works from external sites.)
 
 ## 2. In GHL, add one script tag
 
 Where GHL lets you add custom code (e.g. **Custom Code**, **Tracking Code**, **Scripts**, or the contact detail page/funnel script section), add only:
 
+**Recommended (API URL – loads reliably from GHL):**
+
 ```html
-<script src="https://yourdomain.com/scripts/cleanquote.js" crossorigin="anonymous"></script>
+<script src="https://www.cleanquote.io/api/script/cleanquote.js?v=2"
+  data-base-url="https://www.cleanquote.io"
+  crossorigin="anonymous"></script>
 ```
 
-Replace `https://yourdomain.com/scripts/cleanquote.js` with your real script URL.
+Replace `https://www.cleanquote.io` with your CleanQuote domain. Use `?v=2` (bump to `?v=3` when you update the script for cache-busting).
+
+**Alternative (static file):** If you host the file elsewhere, use that URL instead, e.g. `https://yourdomain.com/scripts/cleanquote.js?v=2`.
 
 ### Optional: point to your CleanQuote tool and button text
 
 Add data attributes on the script tag:
 
 ```html
-<script src="https://yourdomain.com/scripts/cleanquote.js"
-  data-base-url="https://quote.yourcompany.com"
+<script src="https://www.cleanquote.io/api/script/cleanquote.js?v=2"
+  data-base-url="https://www.cleanquote.io"
   data-tool-slug="default"
   data-org-slug=""
   data-button-text="Get Quote"
