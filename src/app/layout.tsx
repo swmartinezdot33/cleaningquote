@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from "next/font/google"
 import "./globals.css"
 import { ToolScopedTracking } from "@/components/ToolScopedTracking"
 import { MetaPixel } from "@/components/MetaPixel"
+import { GoogleAnalytics } from "@/components/GoogleAnalytics"
 import { MapsScriptLoader } from "@/components/MapsScriptLoader"
 import { CANONICAL_SITE_URL } from "@/lib/canonical-url"
 
@@ -167,6 +168,8 @@ export default async function RootLayout({
         <MapsScriptLoader globalKey={googleMapsApiKey} />
         {/* Meta Pixel: only on allowed frontend pages (no dashboard, quote tool, or customer data) */}
         <MetaPixel />
+        {/* Google Analytics: CleanQuote.io marketing site (G-730E7ZJ7VD) */}
+        <GoogleAnalytics />
         {/* Tool-scoped tracking only (no global analytics) */}
         <ToolScopedTracking />
         {children}

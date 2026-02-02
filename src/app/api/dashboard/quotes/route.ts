@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
             .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at, payload')
             .in('tool_id', toolIdsForOrg)
             .order('created_at', { ascending: false })
-            .limit(500);
+            .limit(2000);
           quotes = result.data ?? [];
           error = result.error;
         }
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
           .from('quotes')
           .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at, payload')
           .order('created_at', { ascending: false })
-          .limit(500);
+          .limit(2000);
         quotes = result.data ?? [];
         error = result.error;
       }
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
         .from('quotes')
         .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at, payload')
         .order('created_at', { ascending: false })
-        .limit(500);
+        .limit(2000);
       quotes = result.data ?? [];
       error = result.error;
     }
