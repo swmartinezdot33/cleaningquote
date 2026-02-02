@@ -23,9 +23,14 @@ export async function createSupabaseServerSSR() {
       },
       setAll(cookiesToSet) {
         try {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          );
+          cookiesToSet.forEach(({ name, value, options }) => {
+            const opts = { ...options } as Record<string, unknown>;
+            if (name.startsWith('sb-')) {
+              opts.sameSite = 'none';
+              opts.secure = true;
+            }
+            cookieStore.set(name, value, opts);
+          });
         } catch {
           // Ignore in Server Component when middleware handles session
         }

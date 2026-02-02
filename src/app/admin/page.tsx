@@ -52,6 +52,7 @@ export default function AdminPage() {
   const router = useRouter();
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [uploadMode, setUploadMode] = useState<'upload' | 'manual' | 'view'>('view');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -103,6 +104,8 @@ export default function AdminPage() {
   }, []);
 
   const checkAuth = async (pass: string) => {
+    setIsLoggingIn(true);
+    setSaveMessage(null);
     try {
       const headers = { 'x-admin-password': pass };
       const [pricingRes, initialCleaningRes] = await Promise.all([
@@ -159,11 +162,14 @@ export default function AdminPage() {
         type: 'error', 
         text: 'Connection error. Please check your dev server is running.' 
       });
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
-  const handleLogin = () => {
-    if (password) {
+  const handleLogin = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (password && !isLoggingIn) {
       sessionStorage.setItem('admin_password', password);
       checkAuth(password);
     }
@@ -472,7 +478,12 @@ export default function AdminPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-4">
+                {saveMessage && saveMessage.type === 'error' && (
+                  <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive border border-destructive/20">
+                    {saveMessage.text}
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="password">Admin Password</Label>
                   <Input
@@ -482,17 +493,21 @@ export default function AdminPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
                     className="mt-2"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        handleLogin();
-                      }
-                    }}
+                    disabled={isLoggingIn}
+                    autoComplete="current-password"
                   />
                 </div>
-                <Button onClick={handleLogin} className="w-full" size="lg">
-                  Login
+                <Button type="submit" className="w-full" size="lg" disabled={!password || isLoggingIn}>
+                  {isLoggingIn ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Logging in…
+                    </>
+                  ) : (
+                    'Login'
+                  )}
                 </Button>
-              </div>
+              </form>
             </CardContent>
           </Card>
         </div>

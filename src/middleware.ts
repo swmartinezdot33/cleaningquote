@@ -17,13 +17,18 @@ export async function middleware(request: NextRequest) {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) =>
+        cookiesToSet.forEach(({ name, value }) =>
           request.cookies.set(name, value)
         );
         response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options)
-        );
+        cookiesToSet.forEach(({ name, value, options }) => {
+          const opts = { ...options } as Record<string, unknown>;
+          if (name.startsWith('sb-')) {
+            opts.sameSite = 'none';
+            opts.secure = true;
+          }
+          response.cookies.set(name, value, opts);
+        });
       },
     },
   });
