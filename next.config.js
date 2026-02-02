@@ -22,9 +22,11 @@ const nextConfig = {
             key: 'Strict-Transport-Security',
             value: 'max-age=63072000; includeSubDomains; preload'
           },
+          // Allow embedding in iframes (e.g. GHL custom menu). CSP frame-ancestors
+          // overrides X-Frame-Options when present; * allows GHL and any parent.
           {
-            key: 'X-Frame-Options',
-            value: 'ALLOWALL'
+            key: 'Content-Security-Policy',
+            value: "frame-ancestors *"
           },
           {
             key: 'X-Content-Type-Options',
