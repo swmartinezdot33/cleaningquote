@@ -9,14 +9,23 @@ const CORS_HEADERS = {
   'Access-Control-Max-Age': '86400',
 };
 
+const ALLOWED_SCRIPT = 'cleanquote.js';
+
 /**
  * Serves the CleanQuote script with CORS so it loads from GHL and other external sites.
+ * URL: /api/script/cleanquote.js
  * Use: <script src="https://www.cleanquote.io/api/script/cleanquote.js?v=2" data-base-url="https://www.cleanquote.io" crossorigin="anonymous"></script>
- * In GHL you must use this /api/script/ URL (not /scripts/cleanquote.js) or the script will be blocked by CORS.
  */
-export async function GET() {
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ filename: string }> }
+) {
+  const { filename } = await params;
+  if (filename !== ALLOWED_SCRIPT) {
+    return new NextResponse('Not Found', { status: 404 });
+  }
   try {
-    const filePath = path.join(process.cwd(), 'public', 'scripts', 'cleanquote.js');
+    const filePath = path.join(process.cwd(), 'public', 'scripts', filename);
     const body = await readFile(filePath, 'utf-8');
     return new NextResponse(body, {
       status: 200,
