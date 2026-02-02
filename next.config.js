@@ -6,6 +6,12 @@ const nextConfig = {
   async headers() {
     return [
       {
+        source: '/scripts/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+        ],
+      },
+      {
         source: '/:path*',
         headers: [
           {

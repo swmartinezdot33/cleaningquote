@@ -6,6 +6,12 @@
   "regions": ["iad1"],
   "headers": [
     {
+      "source": "/scripts/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    },
+    {
       "source": "/api/tools/(.*)/config",
       "headers": [
         { "key": "Cache-Control", "value": "private, no-store, no-cache, must-revalidate, max-age=0" },
