@@ -25,31 +25,28 @@ function generateReadableQuoteId(): string {
 }
 
 /**
- * Helper to get the selected quote range based on service type and frequency
+ * Helper to get the selected quote range based on service type and frequency.
+ * Normalizes serviceType/frequency so values from the form (e.g. "Initial", "biweekly") still match.
  */
 function getSelectedQuoteRange(ranges: QuoteRanges, serviceType: string, frequency: string): { low: number; high: number } | null {
+  const freq = String(frequency ?? '').toLowerCase().trim();
+  const st = String(serviceType ?? '').toLowerCase().trim();
+  const freqNorm = freq === 'biweekly' ? 'bi-weekly' : freq;
+
   // Handle frequency-based pricing first
-  if (frequency === 'weekly') {
-    return ranges.weekly;
-  } else if (frequency === 'bi-weekly') {
-    return ranges.biWeekly;
-  } else if (frequency === 'four-week' || frequency === 'monthly') {
-    return ranges.fourWeek;
-  } 
-  
-  // Handle one-time services
-  if (frequency === 'one-time' || !frequency) {
-    if (serviceType === 'initial') {
-      return ranges.initial;
-    } else if (serviceType === 'deep') {
-      return ranges.deep;
-    } else if (serviceType === 'general') {
-      return ranges.general;
-    } else if (serviceType === 'move-in' || serviceType === 'move-out') {
-      return ranges.moveInOutBasic;
-    }
+  if (freqNorm === 'weekly') return ranges.weekly;
+  if (freqNorm === 'bi-weekly') return ranges.biWeekly;
+  if (freqNorm === 'four-week' || freqNorm === 'monthly') return ranges.fourWeek;
+
+  // Handle one-time services (frequency is one-time or empty)
+  if (freqNorm === 'one-time' || !freqNorm) {
+    if (st === 'initial') return ranges.initial;
+    if (st === 'deep') return ranges.deep;
+    if (st === 'general') return ranges.general;
+    if (st === 'move-in') return ranges.moveInOutBasic;
+    if (st === 'move-out') return ranges.moveInOutFull;
   }
-  
+
   return null;
 }
 
@@ -344,6 +341,7 @@ export async function POST(request: NextRequest) {
 
         // Iterate through ALL fields in the body and map them to GHL fields
         // This ensures we capture all survey data, including fields that might not match exactly
+        const nativeFieldList = ['firstName', 'lastName', 'email', 'phone', 'address1', 'address', 'city', 'state', 'postalCode', 'country'];
         let mappedFieldsCount = 0;
         let skippedFieldsCount = 0;
         
@@ -413,8 +411,7 @@ export async function POST(request: NextRequest) {
           // Handle native fields (firstName, lastName, email, phone, address1, city, state, postalCode, country)
           // Check if mapping is a native field - strip prefix first to check
           const mappingWithoutPrefix = mapping.replace(/^(contact|opportunity)\./, '');
-          const nativeFields = ['firstName', 'lastName', 'email', 'phone', 'address1', 'address', 'city', 'state', 'postalCode', 'country'];
-          const isNativeField = nativeFields.includes(mappingWithoutPrefix);
+          const isNativeField = nativeFieldList.includes(mappingWithoutPrefix);
           
           if (isNativeField) {
             // Map address -> address1 for consistency with GHL API
@@ -426,6 +423,24 @@ export async function POST(request: NextRequest) {
             // Strip prefix if present to ensure compatibility with GHL API
             const cleanedMapping = mapping.replace(/^(contact|opportunity)\./, '');
             contactData.customFields![cleanedMapping] = String(fieldValue);
+          }
+        });
+
+        // Always send shedding pets and people to GHL when mapped (even when 0), so GHL has the value
+        const alwaysIncludeNumeric: Array<{ bodyKey: string; defaultValue: number }> = [
+          { bodyKey: 'sheddingPets', defaultValue: 0 },
+          { bodyKey: 'people', defaultValue: 0 },
+        ];
+        alwaysIncludeNumeric.forEach(({ bodyKey, defaultValue }) => {
+          const mapping = fieldIdToMapping.get(bodyKey) || fieldIdToMapping.get(bodyKey.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, ''));
+          if (!mapping) return;
+          const value = body[bodyKey];
+          const num = typeof value === 'number' && !isNaN(value) ? value : (typeof value === 'string' ? parseInt(value, 10) : defaultValue);
+          const finalValue = !isNaN(num) ? num : defaultValue;
+          const cleanedMapping = mapping.replace(/^(contact|opportunity)\./, '');
+          if (!nativeFieldList.includes(cleanedMapping)) {
+            contactData.customFields = contactData.customFields || {};
+            contactData.customFields[cleanedMapping] = String(finalValue);
           }
         });
 

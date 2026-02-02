@@ -8,18 +8,20 @@ export const dynamic = 'force-dynamic';
 
 /** Derive selected price range from stored payload when price_low/price_high are null (e.g. older quotes). */
 function getSelectedRangeFromPayload(payload: any): { low: number; high: number } | null {
-  if (!payload?.ranges || payload.serviceType == null) return null;
+  if (!payload?.ranges) return null;
   const ranges = payload.ranges as Record<string, { low: number; high: number } | undefined>;
-  const frequency = (payload.frequency ?? '') as string;
-  const serviceType = String(payload.serviceType ?? '').toLowerCase();
-  if (frequency === 'weekly' && ranges.weekly) return ranges.weekly;
-  if (frequency === 'bi-weekly' && ranges.biWeekly) return ranges.biWeekly;
-  if ((frequency === 'four-week' || frequency === 'monthly') && ranges.fourWeek) return ranges.fourWeek;
-  if (frequency === 'one-time' || !frequency) {
+  const frequency = String(payload.frequency ?? '').toLowerCase().trim();
+  const freqNorm = frequency === 'biweekly' ? 'bi-weekly' : frequency;
+  const serviceType = String(payload.serviceType ?? '').toLowerCase().trim();
+  if (freqNorm === 'weekly' && ranges.weekly) return ranges.weekly;
+  if (freqNorm === 'bi-weekly' && ranges.biWeekly) return ranges.biWeekly;
+  if ((freqNorm === 'four-week' || freqNorm === 'monthly') && ranges.fourWeek) return ranges.fourWeek;
+  if (freqNorm === 'one-time' || !freqNorm) {
     if (serviceType === 'initial' && ranges.initial) return ranges.initial;
     if (serviceType === 'deep' && ranges.deep) return ranges.deep;
     if (serviceType === 'general' && ranges.general) return ranges.general;
-    if ((serviceType === 'move-in' || serviceType === 'move-out') && ranges.moveInOutBasic) return ranges.moveInOutBasic;
+    if (serviceType === 'move-in' && ranges.moveInOutBasic) return ranges.moveInOutBasic;
+    if (serviceType === 'move-out' && ranges.moveInOutFull) return ranges.moveInOutFull;
   }
   return null;
 }
