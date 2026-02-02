@@ -34,7 +34,8 @@ export async function GET(request: NextRequest) {
     } else if (toolSlugParam?.trim()) {
       const supabase = createSupabaseServer();
       const { data } = await supabase.from('tools').select('id').eq('slug', toolSlugParam.trim()).maybeSingle();
-      if (data?.id) effectiveToolId = data.id;
+      const toolRow = data as { id: string } | null;
+      if (toolRow?.id) effectiveToolId = toolRow.id;
     }
 
     // Check if GHL is configured (global or for this tool)

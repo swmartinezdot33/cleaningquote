@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
       questions = [...DEFAULT_SURVEY_QUESTIONS];
     }
 
-    type GhlRedirectShape = { redirectAfterAppointment?: boolean; appointmentRedirectUrl?: string };
+    type GhlRedirectShape = { redirectAfterAppointment?: boolean; appointmentRedirectUrl?: string; formIsIframed?: boolean };
     const ghl: GhlRedirectShape | null =
       row?.ghl_config && typeof row.ghl_config === 'object' && !Array.isArray(row.ghl_config)
         ? (row.ghl_config as GhlRedirectShape)

@@ -251,41 +251,29 @@ export async function POST(request: NextRequest) {
         }
 
         // Combine address and address2 if address2 exists (GHL only has one address line)
-        const fullAddress = body.address2 
+        const fullAddress = body.address2
           ? `${body.address || ''} ${body.address2}`.trim()
           : body.address || '';
 
-        // Parse address if city, state, or postalCode are missing
-        // This handles cases where the full address is in a single string
+        // Always parse when we have an address string so GHL gets street, city, state, postalCode in native fields
+        // (not the full address dumped into street address)
         let parsedStreetAddress = fullAddress;
         let parsedCity = body.city || '';
         let parsedState = body.state || '';
         let parsedPostalCode = body.postalCode || '';
-
-        // If any address component is missing and we have an address, try to parse it
-        if (fullAddress && (!body.city || !body.state || !body.postalCode)) {
-          const parsed = parseAddress(fullAddress);
-          
-          // Only use parsed values if the corresponding field is missing
+        if (fullAddress && typeof fullAddress === 'string' && fullAddress.trim()) {
+          const parsed = parseAddress(fullAddress.trim());
           parsedStreetAddress = parsed.streetAddress || fullAddress;
-          parsedCity = body.city || parsed.city || '';
-          parsedState = body.state || parsed.state || '';
-          parsedPostalCode = body.postalCode || parsed.zipCode || '';
+          parsedCity = body.city?.trim() || parsed.city || '';
+          parsedState = body.state?.trim() || parsed.state || '';
+          parsedPostalCode = body.postalCode?.trim() || parsed.zipCode || '';
         }
 
-        // Add parsed address information
-        if (parsedStreetAddress) {
-          contactData.address1 = parsedStreetAddress;
-        }
-        if (parsedCity) {
-          contactData.city = parsedCity;
-        }
-        if (parsedState) {
-          contactData.state = parsedState;
-        }
-        if (parsedPostalCode) {
-          contactData.postalCode = parsedPostalCode;
-        }
+        // Set native GHL address fields from parsed components (street only in address1)
+        if (parsedStreetAddress) contactData.address1 = parsedStreetAddress;
+        if (parsedCity) contactData.city = parsedCity;
+        if (parsedState) contactData.state = parsedState;
+        if (parsedPostalCode) contactData.postalCode = parsedPostalCode;
         if (body.country) {
           contactData.country = body.country;
         }
@@ -416,7 +404,18 @@ export async function POST(request: NextRequest) {
           if (isNativeField) {
             // Map address -> address1 for consistency with GHL API
             const nativeFieldName = mappingWithoutPrefix === 'address' ? 'address1' : mappingWithoutPrefix;
-            contactData[nativeFieldName] = String(fieldValue);
+            // Use parsed components for native address fields so full address is not dumped into street line
+            if (nativeFieldName === 'address1' && (bodyKey === 'address' || bodyKey === 'address1')) {
+              contactData.address1 = parsedStreetAddress || String(fieldValue);
+            } else if (nativeFieldName === 'city' && bodyKey === 'city') {
+              contactData.city = parsedCity || String(fieldValue);
+            } else if (nativeFieldName === 'state' && bodyKey === 'state') {
+              contactData.state = parsedState || String(fieldValue);
+            } else if (nativeFieldName === 'postalCode' && bodyKey === 'postalCode') {
+              contactData.postalCode = parsedPostalCode || String(fieldValue);
+            } else {
+              contactData[nativeFieldName] = String(fieldValue);
+            }
           } else {
             // Custom field with explicit admin-set mapping
             // GHL API expects just the field key without "contact." or "opportunity." prefix

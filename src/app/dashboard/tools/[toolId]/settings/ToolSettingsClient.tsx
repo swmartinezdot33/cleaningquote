@@ -55,6 +55,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
     appointmentRedirectUrl?: string;
     appointmentBookedTags?: string[];
     quoteCompletedTags?: string[];
+    formIsIframed?: boolean;
     pipelineRoutingRules?: Array<{
       utmParam: string;
       match: string;
