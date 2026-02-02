@@ -3,14 +3,13 @@
  *
  * Adds a "Get Quote" button that opens your survey URL with the current contact
  * as query params (firstName, lastName, email, phone, address, contactId, etc.).
- * The survey/iframe reads those params and pre-fills the form.
  *
- * Usage in GHL: <script src="https://www.cleanquote.io/api/script/cleanquote.js?v=4"></script>
+ * Usage in GHL: <script src="https://www.cleanquote.io/api/script/cleanquote.js?v=5"></script>
  * Optional: data-base-url, data-tool-slug, data-org-slug, data-button-text, data-container-selector, data-open-in-iframe
- * When data-open-in-iframe="true", the form opens in an iframe on the contact page (enable "Form is iframed" in tool settings for pre-fill + land on address).
  */
 (function () {
   'use strict';
+  var DEFAULT_ORIGIN = 'https://www.cleanquote.io';
 
   var scriptTag = document.currentScript;
   if (!scriptTag || !scriptTag.src) {
@@ -33,10 +32,21 @@
   baseUrl = String(baseUrl).trim().replace(/\/+$/, '');
   if (!baseUrl && scriptTag && scriptTag.src) {
     try {
-      var scriptUrl = new URL(scriptTag.src);
-      baseUrl = scriptUrl.origin;
+      baseUrl = new URL(scriptTag.src).origin;
     } catch (e) { /* ignore */ }
   }
+  if (!baseUrl && typeof document !== 'undefined' && document.scripts) {
+    try {
+      for (var i = 0; i < document.scripts.length; i++) {
+        var s = document.scripts[i];
+        if (s.src && s.src.indexOf('cleanquote') !== -1) {
+          baseUrl = new URL(s.src).origin;
+          break;
+        }
+      }
+    } catch (e) { /* ignore */ }
+  }
+  baseUrl = baseUrl || DEFAULT_ORIGIN;
   toolSlug = String(toolSlug).trim() || 'default';
   orgSlug = String(orgSlug).trim();
   buttonText = String(buttonText).trim() || 'Get Quote';
@@ -83,10 +93,6 @@
   }
 
   function injectButton() {
-    if (!baseUrl) {
-      console.warn('CleanQuote script: set data-base-url to your survey origin (e.g. https://www.cleanquote.io) or load this script from that domain.');
-      return;
-    }
     var contact = getContact();
     var surveyUrl = buildSurveyUrl(contact, openInIframe);
 
@@ -126,12 +132,30 @@
         iframeContainer.appendChild(iframe);
         iframeContainer.style.display = 'block';
       });
-      if (container) {
-        container.appendChild(link);
-        container.appendChild(iframeContainer);
-      } else if (document.body) {
-        document.body.appendChild(link);
-        document.body.appendChild(iframeContainer);
+      function appendIframeUI() {
+        var c = container || (document.body ? (document.getElementById('cleanquote-container') || (function() {
+          var div = document.createElement('div');
+          div.id = 'cleanquote-container';
+          div.className = 'cleanquote-container';
+          div.style.cssText = 'margin:12px 0;';
+          document.body.appendChild(div);
+          return div;
+        })()) : null);
+        if (c) {
+          c.appendChild(link);
+          c.appendChild(iframeContainer);
+        }
+      }
+      if (container || document.body) {
+        appendIframeUI();
+      } else {
+        document.addEventListener('DOMContentLoaded', appendIframeUI);
+        var attempts = 0;
+        var iv = setInterval(function() {
+          attempts++;
+          if (document.body) { clearInterval(iv); appendIframeUI(); }
+          else if (attempts > 50) clearInterval(iv);
+        }, 100);
       }
       return;
     }
@@ -178,10 +202,16 @@
   }
 
   function run() {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', injectButton);
-    } else {
-      injectButton();
+    try {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', injectButton);
+      } else {
+        injectButton();
+      }
+    } catch (err) {
+      if (typeof console !== 'undefined' && console.error) {
+        console.error('CleanQuote script error:', err);
+      }
     }
   }
   run();

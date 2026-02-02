@@ -26,9 +26,13 @@ When the user clicks, they’re redirected to the survey with those params; the 
 Use the API URL and **do not** add `crossorigin="anonymous"`:
 
 ```html
-<script src="https://www.cleanquote.io/api/script/cleanquote.js?v=4"></script>
+<script src="https://www.cleanquote.io/api/script/cleanquote.js?v=5"></script>
 ```
 
 The script injects a “Get Quote” button that opens the survey with the current contact as query params. Optional: `data-base-url`, `data-tool-slug`, `data-org-slug`, `data-button-text`, `data-container-selector`, `data-open-in-iframe`. The script reads contact from `window.__CONTACT__`, `window.contact`, `window.ghlContact`, or DOM `data-contact-*`.
 
+**If the script doesn't run in GHL:** Many GHL pages or custom code areas block external script tags. Use **Option 1 (link)** instead, or add the script where GHL allows external scripts (e.g. Site Builder → Scripts).
+
 **Iframe on contact page:** Add `data-open-in-iframe="true"` to open the form in an iframe on the contact page (button click loads the form inline). Enable **Form is iframed** in the tool's HighLevel settings so the form pre-fills from GHL and lands on the address step.
+
+**Test locally:** Open `/scripts/test-cleanquote.html` on your dev server to confirm the script injects. In GHL, open DevTools (F12) → Console and look for "CleanQuote script error" or script load failures.

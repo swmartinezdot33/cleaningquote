@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CleanQuote script test</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 20px; max-width: 600px; }
+    h1 { font-size: 1.25rem; }
+    #contact-debug { background: #f0f0f0; padding: 10px; margin: 10px 0; font-size: 12px; }
+    #inject-status { margin-top: 16px; padding: 10px; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <h1>CleanQuote script injection test</h1>
+  <p>If the script loads, you should see a "Get Quote" button below.</p>
+  <div id="contact-debug">Contact (window.contact): <span id="contact-info">—</span></div>
+  <div id="inject-status">Waiting for script…</div>
+
+  <!-- Simulate GHL: set contact before script runs -->
+  <script>
+    window.contact = {
+      id: 'test-contact-123',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      email: 'jane@example.com',
+      phone: '555-123-4567',
+      address1: '123 Main St',
+      city: 'Raleigh',
+      state: 'NC',
+      postalCode: '27601'
+    };
+    document.getElementById('contact-info').textContent = JSON.stringify(window.contact, null, 0);
+  </script>
+
+  <!-- Load CleanQuote script. Use same origin when testing locally, or full URL for production. -->
+  <script>
+    (function() {
+      var script = document.createElement('script');
+      var isLocal = /localhost|127\.0\.0\.1/.test(location.host);
+      script.src = isLocal
+        ? '/api/script/cleanquote.js?v=' + Date.now()
+        : 'https://www.cleanquote.io/api/script/cleanquote.js?v=' + Date.now();
+      script.setAttribute('data-base-url', isLocal ? 'http://localhost:3000' : 'https://www.cleanquote.io');
+      script.setAttribute('data-tool-slug', 'default');
+      document.head.appendChild(script);
+      script.onload = function() {
+        setTimeout(function() {
+          var btn = document.getElementById('cleanquote-get-quote-btn');
+          var container = document.getElementById('cleanquote-container');
+          var status = document.getElementById('inject-status');
+          if (btn || (container && container.children.length)) {
+            status.textContent = 'Injected: button or container found.';
+            status.style.background = '#d4edda';
+          } else {
+            status.textContent = 'Script ran but no button/container found. Check console.';
+            status.style.background = '#f8d7da';
+          }
+        }, 500);
+      };
+      script.onerror = function() {
+        document.getElementById('inject-status').textContent = 'Script failed to load.';
+        document.getElementById('inject-status').style.background = '#f8d7da';
+      };
+    })();
+  </script>
+</body>
+</html>
