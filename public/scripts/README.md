@@ -29,4 +29,6 @@ Use the API URL and **do not** add `crossorigin="anonymous"`:
 <script src="https://www.cleanquote.io/api/script/cleanquote.js?v=4"></script>
 ```
 
-The script injects a “Get Quote” button that opens the survey with the current contact as query params. Optional: `data-base-url`, `data-tool-slug`, `data-org-slug`, `data-button-text`, `data-container-selector`. The script reads contact from `window.__CONTACT__`, `window.contact`, `window.ghlContact`, or DOM `data-contact-*`.
+The script injects a “Get Quote” button that opens the survey with the current contact as query params. Optional: `data-base-url`, `data-tool-slug`, `data-org-slug`, `data-button-text`, `data-container-selector`, `data-open-in-iframe`. The script reads contact from `window.__CONTACT__`, `window.contact`, `window.ghlContact`, or DOM `data-contact-*`.
+
+**Iframe on contact page:** Add `data-open-in-iframe="true"` to open the form in an iframe on the contact page (button click loads the form inline). Enable **Form is iframed** in the tool's HighLevel settings so the form pre-fills from GHL and lands on the address step.

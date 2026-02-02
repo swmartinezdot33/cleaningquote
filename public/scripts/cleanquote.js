@@ -6,7 +6,8 @@
  * The survey/iframe reads those params and pre-fills the form.
  *
  * Usage in GHL: <script src="https://www.cleanquote.io/api/script/cleanquote.js?v=4"></script>
- * Optional: data-base-url, data-tool-slug, data-org-slug, data-button-text, data-container-selector
+ * Optional: data-base-url, data-tool-slug, data-org-slug, data-button-text, data-container-selector, data-open-in-iframe
+ * When data-open-in-iframe="true", the form opens in an iframe on the contact page (enable "Form is iframed" in tool settings for pre-fill + land on address).
  */
 (function () {
   'use strict';
@@ -27,6 +28,7 @@
   var orgSlug = (scriptTag && (scriptTag.getAttribute('data-org-slug') || (scriptTag.dataset && scriptTag.dataset.orgSlug))) || '';
   var buttonText = (scriptTag && (scriptTag.getAttribute('data-button-text') || (scriptTag.dataset && scriptTag.dataset.buttonText))) || 'Get Quote';
   var containerSelector = (scriptTag && (scriptTag.getAttribute('data-container-selector') || (scriptTag.dataset && scriptTag.dataset.containerSelector))) || '';
+  var openInIframe = (scriptTag && (scriptTag.getAttribute('data-open-in-iframe') || (scriptTag.dataset && scriptTag.dataset.openInIframe))) === 'true';
 
   baseUrl = String(baseUrl).trim().replace(/\/+$/, '');
   if (!baseUrl && scriptTag && scriptTag.src) {
@@ -59,7 +61,7 @@
     return null;
   }
 
-  function buildSurveyUrl(contact) {
+  function buildSurveyUrl(contact, forIframe) {
     var path = orgSlug ? 't/' + encodeURIComponent(orgSlug) + '/' + encodeURIComponent(toolSlug) : 't/' + encodeURIComponent(toolSlug);
     var url = baseUrl + '/' + path;
     var params = [];
@@ -75,6 +77,7 @@
       if (contact.state) params.push('state=' + encodeURIComponent(contact.state));
       if (contact.postalCode) params.push('postalCode=' + encodeURIComponent(contact.postalCode));
     }
+    if (forIframe) params.push('embedded=true');
     if (params.length) url += '?' + params.join('&');
     return url;
   }
@@ -85,17 +88,7 @@
       return;
     }
     var contact = getContact();
-    var surveyUrl = buildSurveyUrl(contact);
-
-    var link = document.createElement('a');
-    link.id = 'cleanquote-get-quote-btn';
-    link.href = surveyUrl;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.textContent = buttonText;
-    link.style.cssText = 'display:inline-block;padding:10px 18px;background:#7c3aed;color:#fff!important;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;cursor:pointer;border:none;';
-    link.addEventListener('mouseenter', function () { link.style.opacity = '0.9'; });
-    link.addEventListener('mouseleave', function () { link.style.opacity = '1'; });
+    var surveyUrl = buildSurveyUrl(contact, openInIframe);
 
     var container;
     if (containerSelector) {
@@ -108,6 +101,51 @@
       container.style.cssText = 'margin:12px 0;';
       document.body.appendChild(container);
     }
+
+    if (openInIframe) {
+      var link = document.createElement('button');
+      link.type = 'button';
+      link.id = 'cleanquote-get-quote-btn';
+      link.textContent = buttonText;
+      link.style.cssText = 'display:inline-block;padding:10px 18px;background:#7c3aed;color:#fff!important;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;cursor:pointer;border:none;';
+      link.addEventListener('mouseenter', function () { link.style.opacity = '0.9'; });
+      link.addEventListener('mouseleave', function () { link.style.opacity = '1'; });
+      var iframeContainer = document.createElement('div');
+      iframeContainer.id = 'cleanquote-iframe-container';
+      iframeContainer.style.cssText = 'margin-top:12px;display:none;';
+      link.addEventListener('click', function () {
+        if (iframeContainer.querySelector('iframe')) {
+          iframeContainer.style.display = iframeContainer.style.display === 'none' ? 'block' : 'none';
+          return;
+        }
+        var iframe = document.createElement('iframe');
+        iframe.id = 'cleanquote-survey-iframe';
+        iframe.src = surveyUrl;
+        iframe.title = 'Get Quote';
+        iframe.style.cssText = 'width:100%;min-height:600px;border:1px solid #e5e7eb;border-radius:8px;';
+        iframeContainer.appendChild(iframe);
+        iframeContainer.style.display = 'block';
+      });
+      if (container) {
+        container.appendChild(link);
+        container.appendChild(iframeContainer);
+      } else if (document.body) {
+        document.body.appendChild(link);
+        document.body.appendChild(iframeContainer);
+      }
+      return;
+    }
+
+    var link = document.createElement('a');
+    link.id = 'cleanquote-get-quote-btn';
+    link.href = surveyUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = buttonText;
+    link.style.cssText = 'display:inline-block;padding:10px 18px;background:#7c3aed;color:#fff!important;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;cursor:pointer;border:none;';
+    link.addEventListener('mouseenter', function () { link.style.opacity = '0.9'; });
+    link.addEventListener('mouseleave', function () { link.style.opacity = '1'; });
+
     if (container) {
       container.appendChild(link);
     } else {
