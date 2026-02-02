@@ -433,15 +433,6 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
                   {shareCopied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Share2 className="h-3.5 w-3.5" />}
                   {shareCopied ? 'Link copied' : 'Share'}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => copyToClipboard(embedSnippetText, 'embed-snippet')}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
-                  title="Copy embed code"
-                >
-                  {copyId === 'embed-snippet' ? <Check className="h-3.5 w-3.5 text-primary" /> : <span className="font-mono text-[10px] opacity-80" aria-hidden>{'</>'}</span>}
-                  {copyId === 'embed-snippet' ? 'Copied' : 'Code'}
-                </button>
                 <CloneToolButton toolId={tool.id} toolName={tool.name} toolOrgId={tool.org_id} className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted" />
               </div>
             </div>

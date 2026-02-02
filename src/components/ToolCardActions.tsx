@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ExternalLink, Share2, CopyPlus, Trash2, Check, CodeXml, Pencil } from 'lucide-react';
+import { ExternalLink, Share2, CopyPlus, Trash2, Check, Pencil } from 'lucide-react';
 interface Org {
   id: string;
   name: string;
@@ -58,35 +58,6 @@ export function ToolCardActions({ toolId, toolName, toolSlug, toolOrgId }: ToolC
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const surveyUrl = `${baseUrl}/t/${toolSlug}`;
-
-  const copyEmbed = async () => {
-    try {
-      const res = await fetch(`/api/dashboard/tools/${toolId}/form-settings`);
-      const data = await res.ok ? await res.json() : {};
-      const urls = data.formSettings?.publicBaseUrls;
-      const embedBaseUrl = (Array.isArray(urls) && urls[0]) || data.formSettings?.publicBaseUrl || baseUrl;
-      const snippet = `<!-- CleanQuote.io embed - public link: ${embedBaseUrl}, slug: ${toolSlug} -->
-<div id="cleaning-quote-widget"></div>
-<script src="${embedBaseUrl}/widget.js"
-  data-base-url="${embedBaseUrl}"
-  data-tool="${toolSlug}"
-  data-tool-slug="${toolSlug}"
-  data-container-id="cleaning-quote-widget"
-  data-height="1200"
-  data-first-name="{{contact.firstName}}"
-  data-last-name="{{contact.lastName}}"
-  data-phone="{{contact.phone}}"
-  data-email="{{contact.email}}"
-  data-address="{{contact.address}}"
-  data-city="{{contact.city}}"
-  data-state="{{contact.state}}"
-  data-postal-code="{{contact.postalCode}}">
-</script>`;
-      await navigator.clipboard.writeText(snippet);
-      setCopyId('embed');
-      setTimeout(() => setCopyId(null), 2000);
-    } catch {}
-  };
 
   const handleShare = async () => {
     try {

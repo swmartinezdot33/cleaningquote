@@ -210,6 +210,25 @@
     container.innerHTML = '';
     container.appendChild(iframe);
 
+    // Subtle "Powered by" attribution below the iframe
+    const poweredBy = document.createElement('a');
+    poweredBy.href = 'https://www.cleanquote.io';
+    poweredBy.target = '_blank';
+    poweredBy.rel = 'noopener noreferrer';
+    poweredBy.textContent = 'Powered by CleanQuote.io';
+    poweredBy.style.cssText = `
+      display: block;
+      margin-top: 6px;
+      font-size: 11px;
+      color: #9ca3af;
+      text-decoration: none;
+      text-align: center;
+      transition: color 0.15s ease;
+    `;
+    poweredBy.addEventListener('mouseenter', function () { this.style.color = '#6b7280'; });
+    poweredBy.addEventListener('mouseleave', function () { this.style.color = '#9ca3af'; });
+    container.appendChild(poweredBy);
+
     // Handle postMessage communication for responsive sizing, tracking events, and navigation
     window.addEventListener('message', function (event) {
       if (event.origin !== baseUrl) return;
