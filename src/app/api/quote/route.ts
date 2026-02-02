@@ -202,7 +202,7 @@ export async function POST(request: NextRequest) {
           : typeof body.squareFeet === 'string' && body.squareFeet.toLowerCase().includes('less than')
             ? body.squareFeet
             : undefined;
-    const squareFeetDisplayForNote = squareFeetRangeFromBody ?? getSquareFootageRangeDisplay(result.inputs.squareFeet);
+    const squareFeetDisplayForNote = squareFeetRangeFromBody ?? getSquareFootageRangeDisplay(result.inputs?.squareFeet ?? (typeof body.squareFeet === 'number' ? body.squareFeet : 1500));
     let summaryLabels: { serviceTypeLabels: Record<string, string>; frequencyLabels: Record<string, string> } | undefined;
     try {
       const surveyQuestions = await getSurveyQuestions(toolId);

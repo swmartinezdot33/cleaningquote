@@ -337,7 +337,7 @@ export async function GET(
     const squareFeetDisplayForNote =
       squareFootageStored && (squareFootageStored.includes('-') || squareFootageStored.toLowerCase().includes('less than'))
         ? squareFootageStored
-        : getSquareFootageRangeDisplay(quoteResult.inputs.squareFeet);
+        : getSquareFootageRangeDisplay(quoteResult.inputs?.squareFeet ?? squareFeet ?? 1500);
     const summaryText = generateSummaryText(
       { ...quoteResult, ranges: quoteResult.ranges },
       serviceType,
