@@ -1,46 +1,32 @@
 /**
- * CleanQuote.io Script
+ * CleanQuote.io Script (GHL)
  *
- * Single script for CleanQuote integrations (e.g. GoHighLevel). Load it once in GHL
- * (Custom Code / Tracking Code / Scripts, or contact detail page script section).
- * Currently adds a "Get Quote" button that opens your CleanQuote survey with the
- * current contact's data pre-filled. More features can be added to this script over time.
+ * Adds a "Get Quote" button that opens your survey URL with the current contact
+ * as query params (firstName, lastName, email, phone, address, contactId, etc.).
+ * The survey/iframe reads those params and pre-fills the form.
  *
- * HOST THE SCRIPT:
- * 1. Upload this file to your site (e.g. https://yourdomain.com/scripts/cleanquote.js).
- * 2. In GHL, add a single script tag (see README or comment below).
- *
- * SCRIPT TAG IN GHL (replace with your real script URL and options):
- * <script src="https://yourdomain.com/scripts/cleanquote.js"
- *   data-base-url="https://your-cleanquote-domain.com"
- *   data-tool-slug="default"
- *   data-org-slug=""
- *   data-button-text="Get Quote"
- *   data-container-selector="#cleanquote-container"
- *   crossorigin="anonymous"></script>
- *
- * OPTIONS (data attributes on the script tag):
- * - data-base-url (required) – Your CleanQuote base URL (e.g. https://quote.yourcompany.com).
- * - data-tool-slug (optional) – Tool slug for the survey. Default: "default".
- * - data-org-slug (optional) – Org slug for org-scoped URLs (/t/orgSlug/toolSlug). Omit if not using org scope.
- * - data-button-text (optional) – Button label. Default: "Get Quote".
- * - data-container-selector (optional) – CSS selector where the button is inserted (e.g. #cleanquote-container). If omitted, a container is appended to document.body.
- *
- * CONTACT DATA:
- * The script looks for contact data in: window.__CONTACT__, window.contact, window.ghlContact,
- * or from DOM elements with [data-contact-id], [data-contact-first-name], etc. If your GHL
- * setup exposes the contact elsewhere, set window.__CONTACT__ before this script runs, e.g.:
- *   window.__CONTACT__ = { id: "xxx", firstName: "...", lastName: "...", email: "...", phone: "...", address1: "...", city: "...", state: "...", postalCode: "..." };
+ * Usage in GHL: <script src="https://www.cleanquote.io/api/script/cleanquote.js?v=4"></script>
+ * Optional: data-base-url, data-tool-slug, data-org-slug, data-button-text, data-container-selector
  */
 (function () {
   'use strict';
 
-  var scriptTag = document.currentScript || document.querySelector('script[src*="cleanquote.js"]');
-  var baseUrl = (scriptTag && (scriptTag.getAttribute('data-base-url') || scriptTag.dataset.baseUrl)) || '';
-  var toolSlug = (scriptTag && (scriptTag.getAttribute('data-tool-slug') || scriptTag.dataset.toolSlug)) || 'default';
-  var orgSlug = (scriptTag && (scriptTag.getAttribute('data-org-slug') || scriptTag.dataset.orgSlug)) || '';
-  var buttonText = (scriptTag && (scriptTag.getAttribute('data-button-text') || scriptTag.dataset.buttonText)) || 'Get Quote';
-  var containerSelector = (scriptTag && (scriptTag.getAttribute('data-container-selector') || scriptTag.dataset.containerSelector)) || '';
+  var scriptTag = document.currentScript;
+  if (!scriptTag || !scriptTag.src) {
+    for (var s = 0; s < document.scripts.length; s++) {
+      if (document.scripts[s].src && document.scripts[s].src.indexOf('cleanquote') !== -1) {
+        scriptTag = document.scripts[s];
+        break;
+      }
+    }
+  }
+  if (!scriptTag) scriptTag = document.querySelector('script[src*="cleanquote"]');
+
+  var baseUrl = (scriptTag && (scriptTag.getAttribute('data-base-url') || (scriptTag.dataset && scriptTag.dataset.baseUrl))) || '';
+  var toolSlug = (scriptTag && (scriptTag.getAttribute('data-tool-slug') || (scriptTag.dataset && scriptTag.dataset.toolSlug))) || 'default';
+  var orgSlug = (scriptTag && (scriptTag.getAttribute('data-org-slug') || (scriptTag.dataset && scriptTag.dataset.orgSlug))) || '';
+  var buttonText = (scriptTag && (scriptTag.getAttribute('data-button-text') || (scriptTag.dataset && scriptTag.dataset.buttonText))) || 'Get Quote';
+  var containerSelector = (scriptTag && (scriptTag.getAttribute('data-container-selector') || (scriptTag.dataset && scriptTag.dataset.containerSelector))) || '';
 
   baseUrl = String(baseUrl).trim().replace(/\/+$/, '');
   if (!baseUrl && scriptTag && scriptTag.src) {
@@ -95,18 +81,19 @@
 
   function injectButton() {
     if (!baseUrl) {
-      console.warn('CleanQuote script: could not determine base URL. Add data-base-url="https://your-cleanquote-domain.com" to the script tag, or load the script from your CleanQuote domain.');
+      console.warn('CleanQuote script: set data-base-url to your survey origin (e.g. https://www.cleanquote.io) or load this script from that domain.');
       return;
     }
     var contact = getContact();
     var surveyUrl = buildSurveyUrl(contact);
 
     var link = document.createElement('a');
+    link.id = 'cleanquote-get-quote-btn';
     link.href = surveyUrl;
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
     link.textContent = buttonText;
-    link.style.cssText = 'display:inline-block;padding:10px 18px;background:#7c3aed;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;cursor:pointer;border:none;';
+    link.style.cssText = 'display:inline-block;padding:10px 18px;background:#7c3aed;color:#fff!important;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;cursor:pointer;border:none;';
     link.addEventListener('mouseenter', function () { link.style.opacity = '0.9'; });
     link.addEventListener('mouseleave', function () { link.style.opacity = '1'; });
 
@@ -114,20 +101,50 @@
     if (containerSelector) {
       container = document.querySelector(containerSelector);
     }
-    if (!container) {
+    if (!container && document.body) {
       container = document.createElement('div');
+      container.id = 'cleanquote-container';
       container.className = 'cleanquote-container';
       container.style.cssText = 'margin:12px 0;';
-      var body = document.body;
-      if (body) body.appendChild(container);
-      else document.addEventListener('DOMContentLoaded', function () { document.body.appendChild(container); });
+      document.body.appendChild(container);
     }
-    container.appendChild(link);
+    if (container) {
+      container.appendChild(link);
+    } else {
+      function tryAppend() {
+        if (link.parentNode) return;
+        var c = containerSelector ? document.querySelector(containerSelector) : document.getElementById('cleanquote-container');
+        if (!c && document.body) {
+          c = document.createElement('div');
+          c.id = 'cleanquote-container';
+          c.className = 'cleanquote-container';
+          c.style.cssText = 'margin:12px 0;';
+          document.body.appendChild(c);
+        }
+        if (c) c.appendChild(link);
+      }
+      if (document.body) {
+        tryAppend();
+      } else {
+        document.addEventListener('DOMContentLoaded', tryAppend);
+        var attempts = 0;
+        var interval = setInterval(function () {
+          attempts++;
+          if (document.body) {
+            clearInterval(interval);
+            tryAppend();
+          } else if (attempts > 50) clearInterval(interval);
+        }, 100);
+      }
+    }
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', injectButton);
-  } else {
-    injectButton();
+  function run() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', injectButton);
+    } else {
+      injectButton();
+    }
   }
+  run();
 })();
