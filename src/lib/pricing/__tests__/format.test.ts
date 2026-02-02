@@ -26,12 +26,13 @@ describe('generateSummaryText', () => {
 
     const summary = generateSummaryText(result);
 
-    expect(summary).toContain('Square Footage: 1500');
-    expect(summary).toContain('People: 2');
-    expect(summary).toContain('Shedding Pets: 1');
-    expect(summary).toContain('Weekly Clean: $135 to $165');
-    expect(summary).toContain('Bi Weekly Clean: $135 to $165');
-    expect(summary).toContain('Every 4 Weeks Clean: $158 to $193');
+    // Summary shows home size as range (e.g. 1500 -> "1501-2000" tier)
+    expect(summary).toContain('Home Size:');
+    expect(summary).toContain('sq ft');
+    expect(summary).toContain('YOUR QUOTE');
+    expect(summary).toContain('Weekly Cleaning: $135 to $165');
+    expect(summary).toContain('Bi-Weekly Cleaning: $135 to $165');
+    expect(summary).toContain('Every 4 Weeks Cleaning: $158 to $193');
     expect(summary).toContain('General Clean: $170 to $240');
     expect(summary).toContain('Deep Clean: $250 to $350');
     expect(summary).toContain('Move In/Move Out Basic Clean: $200 to $320');

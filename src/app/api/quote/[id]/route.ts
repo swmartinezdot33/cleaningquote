@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCustomObjectById, getCustomObjectByQuoteId, getContactById } from '@/lib/ghl/client';
 import { calcQuote } from '@/lib/pricing/calcQuote';
-import { generateSummaryText, generateSmsText } from '@/lib/pricing/format';
+import { generateSummaryText, generateSmsText, getSquareFootageRangeDisplay } from '@/lib/pricing/format';
 import { QuoteInputs } from '@/lib/pricing/types';
 import { getKV } from '@/lib/kv';
 import { getSurveyQuestions, getSurveyDisplayLabels } from '@/lib/survey/manager';
@@ -332,11 +332,17 @@ export async function GET(
 
     const labels = await getQuoteLabelsFromSurvey(serviceType, frequency);
     const summaryLabels = { serviceTypeLabels: labels.serviceTypeLabels, frequencyLabels: labels.frequencyLabels };
+    // Use range string for summary when GHL stored a range (e.g. "3001-3500"); otherwise derive from numeric value
+    const squareFootageStored = customFields.square_footage ? String(customFields.square_footage).trim() : '';
+    const squareFeetDisplayForNote =
+      squareFootageStored && (squareFootageStored.includes('-') || squareFootageStored.toLowerCase().includes('less than'))
+        ? squareFootageStored
+        : getSquareFootageRangeDisplay(quoteResult.inputs.squareFeet);
     const summaryText = generateSummaryText(
       { ...quoteResult, ranges: quoteResult.ranges },
       serviceType,
       frequency,
-      customFields.square_footage,
+      squareFeetDisplayForNote,
       summaryLabels
     );
     const smsText = generateSmsText({ ...quoteResult, ranges: quoteResult.ranges }, summaryLabels);

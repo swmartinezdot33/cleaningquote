@@ -151,11 +151,12 @@ export function getSheddingPetMultiplier(sheddingPets: number, perPetMultiplier:
  * Above Extremely Dusty = 20x (out of scope - special pricing)
  */
 export function getConditionMultiplier(condition?: string): number {
-  if (!condition) {
+  const trimmed = typeof condition === 'string' ? condition.trim() : '';
+  if (!trimmed) {
     return 1.0; // Default if no condition specified
   }
 
-  const conditionLower = condition.toLowerCase();
+  const conditionLower = trimmed.toLowerCase();
 
   // Perfectionist condition
   if (
@@ -166,27 +167,38 @@ export function getConditionMultiplier(condition?: string): number {
   }
 
   // Clean condition
-  if (conditionLower === 'clean' || conditionLower === 'good') {
+  if (conditionLower === 'clean' || conditionLower === 'good' || conditionLower === 'excellent') {
     return 1.0;
   }
 
-  // Dusty/Dirty condition
+  // Above Extremely Dusty - OUT OF SCOPE (check before "dusty" / "extremely dusty")
+  if (conditionLower.includes('above extremely') || conditionLower.includes('out of scope')) {
+    return 20.0;
+  }
+
+  // Very poor / extremely dusty (check before generic "dusty" and "poor")
+  if (
+    conditionLower.includes('very poor') ||
+    conditionLower === 'very-poor' ||
+    conditionLower === 'very_poor' ||
+    conditionLower.includes('extremely dusty')
+  ) {
+    return 1.4;
+  }
+
+  // Poor condition – match exact "poor" or label text like "poor - needs deep cleaning"
+  if (conditionLower === 'poor' || conditionLower.startsWith('poor')) {
+    return 1.4;
+  }
+
+  // Dusty/Dirty condition (after "extremely dusty" so it doesn't match)
   if (
     conditionLower.includes('dusty') ||
+    conditionLower.includes('dirty') ||
     conditionLower === 'average' ||
     conditionLower === 'fair'
   ) {
     return 1.1;
-  }
-
-  // Extremely Dusty/Dirty condition
-  if (conditionLower.includes('extremely dusty') || conditionLower === 'poor') {
-    return 1.4;
-  }
-
-  // Above Extremely Dusty - OUT OF SCOPE
-  if (conditionLower.includes('above extremely') || conditionLower.includes('out of scope')) {
-    return 20.0;
   }
 
   // Default

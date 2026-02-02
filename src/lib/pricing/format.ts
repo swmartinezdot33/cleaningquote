@@ -71,9 +71,10 @@ function getSelectedQuoteRange(ranges: QuoteRanges, serviceType: string, frequen
 }
 
 /**
- * Convert square footage number back to range string for display
+ * Convert square footage number back to range string for display.
+ * Exported so API can always pass an explicit range string to GHL notes.
  */
-function getSquareFootageRangeDisplay(squareFeet: number): string {
+export function getSquareFootageRangeDisplay(squareFeet: number): string {
   if (squareFeet < 1500) {
     return 'Less Than 1500';
   } else if (squareFeet < 2000) {

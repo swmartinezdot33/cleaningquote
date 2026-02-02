@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { calcQuote } from '@/lib/pricing/calcQuote';
-import { generateSummaryText, generateSmsText } from '@/lib/pricing/format';
+import { generateSummaryText, generateSmsText, getSquareFootageRangeDisplay } from '@/lib/pricing/format';
 import { QuoteInputs, QuoteRanges } from '@/lib/pricing/types';
 import { createOrUpdateContact, updateContact, createOpportunity, createNote, createCustomObject } from '@/lib/ghl/client';
 import { ghlTokenExists, getGHLConfig, getGHLToken, getGHLLocationId, getKV } from '@/lib/kv';
@@ -193,18 +193,22 @@ export async function POST(request: NextRequest) {
     }
 
     // At this point, TypeScript knows ranges is defined
-    // Pass the original square footage range string if it's a range (not a number)
-    const squareFeetRange = typeof body.squareFeet === 'string' && body.squareFeet.includes('-') 
-      ? body.squareFeet 
-      : typeof body.squareFeet === 'string' && body.squareFeet.toLowerCase().includes('less than')
-      ? body.squareFeet
-      : undefined;
+    // Use explicit range string for GHL note: from body (squareFeetDisplay or squareFeet string) or derive from numeric value
+    const squareFeetRangeFromBody =
+      (typeof body.squareFeetDisplay === 'string' && body.squareFeetDisplay.trim() !== '')
+        ? body.squareFeetDisplay.trim()
+        : typeof body.squareFeet === 'string' && body.squareFeet.includes('-')
+          ? body.squareFeet
+          : typeof body.squareFeet === 'string' && body.squareFeet.toLowerCase().includes('less than')
+            ? body.squareFeet
+            : undefined;
+    const squareFeetDisplayForNote = squareFeetRangeFromBody ?? getSquareFootageRangeDisplay(result.inputs.squareFeet);
     let summaryLabels: { serviceTypeLabels: Record<string, string>; frequencyLabels: Record<string, string> } | undefined;
     try {
       const surveyQuestions = await getSurveyQuestions(toolId);
       summaryLabels = getSurveyDisplayLabels(surveyQuestions);
     } catch (_) { /* use built-in labels */ }
-    const summaryText = generateSummaryText({ ...result, ranges: result.ranges }, body.serviceType, body.frequency, squareFeetRange, summaryLabels);
+    const summaryText = generateSummaryText({ ...result, ranges: result.ranges }, body.serviceType, body.frequency, squareFeetDisplayForNote, summaryLabels);
     const smsText = generateSmsText({ ...result, ranges: result.ranges }, summaryLabels);
 
     // Generate readable quoteId early for tracking/redirect purposes

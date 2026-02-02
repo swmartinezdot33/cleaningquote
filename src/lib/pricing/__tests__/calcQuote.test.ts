@@ -89,6 +89,11 @@ describe('getConditionMultiplier', () => {
   it('should return 1.4 for extremely dusty/dirty homes', () => {
     expect(getConditionMultiplier('extremely dusty')).toBe(1.4);
     expect(getConditionMultiplier('poor')).toBe(1.4);
+    expect(getConditionMultiplier('very-poor')).toBe(1.4);
+    expect(getConditionMultiplier('very_poor')).toBe(1.4);
+    expect(getConditionMultiplier('very poor')).toBe(1.4);
+    // Survey label-style value (e.g. "Poor - Needs deep cleaning") must get 1.4x
+    expect(getConditionMultiplier('poor - needs deep cleaning')).toBe(1.4);
   });
 
   it('should return 20.0 for out of scope homes', () => {

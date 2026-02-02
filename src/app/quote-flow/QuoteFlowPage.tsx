@@ -1339,8 +1339,10 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         country: formData.country,
         serviceType: payloadServiceType,
         frequency: payloadFrequency,
-        // Convert square footage range to numeric value
+        // Convert square footage range to numeric value (for pricing)
         squareFeet: convertSquareFootageToNumber(formData.squareFeet),
+        // Pass range string for GHL note so "Home Size: X sq ft" shows the range (e.g. "3001-3500")
+        ...(typeof formData.squareFeet === 'string' && formData.squareFeet.trim() ? { squareFeetDisplay: formData.squareFeet.trim() } : {}),
         fullBaths: Number(formData.fullBaths),
         halfBaths: convertSelectToNumber(formData.halfBaths),
         bedrooms: Number(formData.bedrooms),
