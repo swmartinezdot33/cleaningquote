@@ -68,6 +68,7 @@ export async function POST(
       appointmentRedirectUrl,
       appointmentBookedTags,
       quoteCompletedTags,
+      formIsIframed,
     } = body;
 
     let validatedRules:
@@ -138,6 +139,7 @@ export async function POST(
         appointmentRedirectUrl: appointmentRedirectUrl ?? undefined,
         appointmentBookedTags: appointmentBookedTags ?? undefined,
         quoteCompletedTags: quoteCompletedTags ?? undefined,
+        formIsIframed: Boolean(formIsIframed),
       },
       toolId
     );

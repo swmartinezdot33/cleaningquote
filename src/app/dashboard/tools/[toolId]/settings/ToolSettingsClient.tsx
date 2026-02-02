@@ -73,6 +73,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
     createQuoteObject: true,
     redirectAfterAppointment: false,
     appointmentRedirectUrl: '',
+    formIsIframed: false,
   });
   const [pipelines, setPipelines] = useState<{ id: string; name: string; stages: { id: string; name: string }[] }[]>([]);
   const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
@@ -1487,6 +1488,23 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                         />
                       </div>
                     )}
+                </div>
+                <div className="pt-2 border-t border-border">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="formIsIframed"
+                      checked={ghlConfig.formIsIframed === true}
+                      onChange={(e) => setGhlConfig((c) => ({ ...c, formIsIframed: e.target.checked }))}
+                      className="rounded border-input"
+                    />
+                    <Label htmlFor="formIsIframed" className="text-base font-semibold cursor-pointer">
+                      Form is iframed (pre-fill from GHL)
+                    </Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    When checked, the quote form loads in an iframe with a GHL contact ID in the URL. We fetch name, phone, email, and address from GHL and land the user on the address step (Google autocomplete). Use iframe URL: <code className="text-xs">?contactId=&#123;&#123;Contact.Id&#125;&#125;</code>
+                  </p>
                 </div>
                 <div className="pt-2 border-t border-border">
                   <div className="flex items-center gap-1.5 mb-1">

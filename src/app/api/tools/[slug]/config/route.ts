@@ -165,7 +165,7 @@ export async function GET(
       questions = [...DEFAULT_SURVEY_QUESTIONS];
     }
 
-    type GhlRedirectShape = { redirectAfterAppointment?: boolean; appointmentRedirectUrl?: string };
+    type GhlRedirectShape = { redirectAfterAppointment?: boolean; appointmentRedirectUrl?: string; formIsIframed?: boolean };
     const ghl: GhlRedirectShape | null =
       row?.ghl_config && typeof row.ghl_config === 'object' && !Array.isArray(row.ghl_config)
         ? (row.ghl_config as GhlRedirectShape)
@@ -174,8 +174,9 @@ export async function GET(
       ? {
           redirectAfterAppointment: ghl.redirectAfterAppointment === true,
           appointmentRedirectUrl: ghl.appointmentRedirectUrl ?? '',
+          formIsIframed: ghl.formIsIframed === true,
         }
-      : { redirectAfterAppointment: false, appointmentRedirectUrl: '' };
+      : { redirectAfterAppointment: false, appointmentRedirectUrl: '', formIsIframed: false };
 
     const googleMapsKey =
       typeof row?.google_maps_key === 'string' && row.google_maps_key.length > 0
@@ -193,6 +194,7 @@ export async function GET(
         formSettings,
         questions,
         redirect,
+        formIsIframed: ghl?.formIsIframed === true,
         googleMapsKey,
         trackingCodes,
         _meta: { toolId, slug, configUpdatedAt: row?.updated_at ?? null },

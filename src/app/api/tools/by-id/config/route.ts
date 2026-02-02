@@ -196,6 +196,7 @@ export async function GET(request: NextRequest) {
         formSettings,
         questions,
         redirect,
+        formIsIframed: ghl?.formIsIframed === true,
         googleMapsKey,
         trackingCodes,
         _meta: {

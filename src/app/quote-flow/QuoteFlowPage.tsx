@@ -281,6 +281,8 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   const [tabOpened, setTabOpened] = useState(false); // Prevent multiple tab opens
   const [formSettings, setFormSettings] = useState<any>(useServerConfig ? (initialConfig?.formSettings ?? {}) : {});
   const [openSurveyInNewTab, setOpenSurveyInNewTab] = useState(useServerConfig ? !!(initialConfig?.formSettings as any)?.openSurveyInNewTab : false);
+  const [formIsIframed, setFormIsIframed] = useState(false);
+  const [resolvedToolId, setResolvedToolId] = useState<string | null>(null);
   const serviceAreaCheckInProgress = useRef(false); // Prevent concurrent service area checks
   const autoAdvanceTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Track auto-advance timeout
   const appointmentFormRef = useRef<HTMLDivElement>(null);
@@ -335,6 +337,8 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         setRedirectAfterAppointment(data.redirect.redirectAfterAppointment === true);
         setAppointmentRedirectUrl(data.redirect.appointmentRedirectUrl || '');
       }
+      if (data.formIsIframed === true) setFormIsIframed(true);
+      if (data._meta?.toolId) setResolvedToolId(data._meta.toolId);
       setConfigLoaded(true);
     } catch (e) {
       console.error('Failed to load tool config:', e);
@@ -732,10 +736,14 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         const startAt = params.get('startAt'); // New parameter to specify starting step
 
         if (contactId) {
-          // Fetch contact data
+          // Fetch contact data (pass toolId or toolSlug so correct GHL token/location is used)
           const fetchAndPreFillContact = async () => {
             try {
-              const response = await fetch(`/api/contacts/get?contactId=${contactId}`);
+              const contactParams = new URLSearchParams({ contactId });
+              const effectiveToolId = toolId || resolvedToolId;
+              if (effectiveToolId) contactParams.set('toolId', effectiveToolId);
+              else if (slug) contactParams.set('toolSlug', slug);
+              const response = await fetch(`/api/contacts/get?${contactParams.toString()}`);
               const result = await response.json();
 
               if (result.success && result.contact) {
@@ -757,10 +765,12 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
 
                 // Find the address question index
                 const addressQuestionIndex = questions.findIndex(q => q.type === 'address');
+                const inIframe = typeof window !== 'undefined' && window.self !== window.top;
+                const startAtAddress = fromOutOfService || startAt === 'address' || (formIsIframed && inIframe);
                 
                 if (addressQuestionIndex !== -1) {
-                  if (fromOutOfService || startAt === 'address') {
-                    // Coming from out-of-service or "Get Another Quote": start AT the address question
+                  if (startAtAddress) {
+                    // Coming from out-of-service, "Get Another Quote", or iframed GHL: start AT the address question
                     setCurrentStep(addressQuestionIndex);
                     // Don't mark service area as checked - they need to check a new address
                   } else {
@@ -790,7 +800,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           }
         }
       }
-  }, [questions, formSettings, mounted, setValue, reset, setGHLContactId, setServiceAreaChecked, setCurrentStep]);
+  }, [questions, formSettings, mounted, setValue, reset, setGHLContactId, setServiceAreaChecked, setCurrentStep, formIsIframed, toolId, resolvedToolId, slug]);
 
   // Detect browser autofill and auto-advance
   useEffect(() => {

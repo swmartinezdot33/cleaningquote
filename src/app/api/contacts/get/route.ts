@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContactById } from '@/lib/ghl/client';
-import { ghlTokenExists } from '@/lib/kv';
+import { ghlTokenExists, getGHLToken, getGHLLocationId } from '@/lib/kv';
+import { createSupabaseServer } from '@/lib/supabase/server';
 
 /**
- * GET /api/contacts/get?contactId={contactId}
- * Fetch contact information from GHL by contact ID
- * Used to pre-fill survey form when opening in new tab
- * Public endpoint (no authentication required) - only reads contact data
+ * GET /api/contacts/get?contactId={contactId}[&toolId=...|&toolSlug=...]
+ * Fetch contact information from GHL by contact ID.
+ * Optional toolId or toolSlug: use that tool's GHL token/location (for multi-tool).
+ * Used to pre-fill survey form when opening in new tab or iframe.
+ * Public endpoint (no authentication required) - only reads contact data.
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const contactId = searchParams.get('contactId');
+    const toolIdParam = searchParams.get('toolId');
+    const toolSlugParam = searchParams.get('toolSlug');
 
     if (!contactId) {
       return NextResponse.json(
@@ -23,8 +27,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if GHL is configured
-    const hasGHLToken = await ghlTokenExists().catch(() => false);
+    // Resolve effective tool ID for per-tool GHL token/location
+    let effectiveToolId: string | undefined;
+    if (toolIdParam?.trim()) {
+      effectiveToolId = toolIdParam.trim();
+    } else if (toolSlugParam?.trim()) {
+      const supabase = createSupabaseServer();
+      const { data } = await supabase.from('tools').select('id').eq('slug', toolSlugParam.trim()).maybeSingle();
+      if (data?.id) effectiveToolId = data.id;
+    }
+
+    // Check if GHL is configured (global or for this tool)
+    const hasGHLToken = await ghlTokenExists(effectiveToolId ?? undefined).catch(() => false);
 
     if (!hasGHLToken) {
       // GHL not configured, return empty but don't fail
@@ -38,8 +52,10 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      // Fetch contact from GHL
-      const contact = await getContactById(contactId);
+      const token = await getGHLToken(effectiveToolId);
+      const locationId = await getGHLLocationId(effectiveToolId).catch(() => undefined);
+      // Fetch contact from GHL (use per-tool token/location when provided)
+      const contact = await getContactById(contactId, token ?? undefined, locationId ?? undefined);
 
       return NextResponse.json({
         success: true,
