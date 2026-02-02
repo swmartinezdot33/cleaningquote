@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { FileDown, ExternalLink, Loader2, ArrowRightLeft, Search, Filter, Trash2, Copy, Check } from 'lucide-react';
+import { FileDown, ExternalLink, Loader2, ArrowRightLeft, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface QuoteRow {
   id: string;
@@ -86,6 +86,9 @@ export default function DashboardQuotesPage() {
   const [bulkReassigning, setBulkReassigning] = useState(false);
   const [bulkReassignMessage, setBulkReassignMessage] = useState<string | null>(null);
   const selectAllRef = useRef<HTMLInputElement | null>(null);
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(100);
 
   const loadQuotes = () => {
     Promise.all([
@@ -114,13 +117,6 @@ export default function DashboardQuotesPage() {
   useEffect(() => {
     loadQuotes();
   }, []);
-
-  useEffect(() => {
-    const el = selectAllRef.current;
-    if (el) {
-      el.indeterminate = selectedIds.size > 0 && selectedIds.size < filteredQuotes.length;
-    }
-  }, [selectedIds.size, filteredQuotes.length]);
 
   const openReassign = (q: QuoteRow) => {
     setReassignQuote(q);
@@ -235,11 +231,6 @@ export default function DashboardQuotesPage() {
       .then((d) => setToolsForReassign(d.tools ?? []));
   };
 
-  const selectedQuotes = useMemo(
-    () => filteredQuotes.filter((q) => selectedIds.has(q.id)),
-    [filteredQuotes, selectedIds]
-  );
-
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -248,14 +239,6 @@ export default function DashboardQuotesPage() {
       return next;
     });
   }, []);
-
-  const toggleSelectAll = useCallback(() => {
-    if (selectedIds.size === filteredQuotes.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filteredQuotes.map((q) => q.id)));
-    }
-  }, [filteredQuotes, selectedIds.size]);
 
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
@@ -358,6 +341,46 @@ export default function DashboardQuotesPage() {
       return true;
     });
   }, [quotes, filterToolId, filterServiceType, filterSearch]);
+
+  const selectedQuotes = useMemo(
+    () => filteredQuotes.filter((q) => selectedIds.has(q.id)),
+    [filteredQuotes, selectedIds]
+  );
+
+  const totalPages = Math.ceil(filteredQuotes.length / perPage);
+  const paginatedQuotes = useMemo(() => {
+    const start = (currentPage - 1) * perPage;
+    return filteredQuotes.slice(start, start + perPage);
+  }, [filteredQuotes, currentPage, perPage]);
+
+  const toggleSelectAll = useCallback(() => {
+    const pageIds = paginatedQuotes.map((q) => q.id);
+    const allPageSelected = pageIds.every((id) => selectedIds.has(id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allPageSelected) {
+        pageIds.forEach((id) => next.delete(id));
+      } else {
+        pageIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }, [paginatedQuotes, selectedIds]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterToolId, filterServiceType, filterSearch]);
+
+  // Update select-all checkbox indeterminate state
+  useEffect(() => {
+    const el = selectAllRef.current;
+    if (el && paginatedQuotes.length > 0) {
+      const pageIds = paginatedQuotes.map((q) => q.id);
+      const selectedOnPage = pageIds.filter((id) => selectedIds.has(id)).length;
+      el.indeterminate = selectedOnPage > 0 && selectedOnPage < pageIds.length;
+    }
+  }, [selectedIds, paginatedQuotes]);
 
   if (loading) {
     return (
@@ -515,9 +538,10 @@ export default function DashboardQuotesPage() {
                       <input
                         ref={selectAllRef}
                         type="checkbox"
-                        checked={filteredQuotes.length > 0 && selectedIds.size === filteredQuotes.length}
+                        checked={paginatedQuotes.length > 0 && paginatedQuotes.every((q) => selectedIds.has(q.id))}
                         onChange={toggleSelectAll}
                         className="h-4 w-4 rounded border-input"
+                        title="Select all on this page"
                       />
                     </label>
                   </th>
@@ -527,11 +551,11 @@ export default function DashboardQuotesPage() {
                   <th className="px-4 py-3 font-medium">Contact</th>
                   <th className="px-4 py-3 font-medium">Service</th>
                   <th className="px-4 py-3 font-medium">Price</th>
-                  <th className="px-4 py-3 font-medium">Actions</th>
+                  <th className="w-44 px-4 py-3 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredQuotes.map((q) => (
+                {paginatedQuotes.map((q) => (
                   <tr key={q.id} className="border-b border-border/50 hover:bg-muted/30">
                     <td className="w-10 px-2 py-3">
                       <label className="flex cursor-pointer items-center justify-center">
@@ -554,8 +578,8 @@ export default function DashboardQuotesPage() {
                       {q.frequency ? ` · ${q.frequency}` : ''}
                     </td>
                     <td className="px-4 py-3">{formatPrice(q.price_low, q.price_high)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                    <td className="w-44 px-4 py-3">
+                      <div className="flex items-center gap-1.5">
                         <a
                           href={`${baseUrl}/quote/${q.quote_id}`}
                           target="_blank"
@@ -604,6 +628,53 @@ export default function DashboardQuotesPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination controls */}
+          {totalPages > 1 && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-4 px-4 pb-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>
+                  Showing {(currentPage - 1) * perPage + 1}–{Math.min(currentPage * perPage, filteredQuotes.length)} of {filteredQuotes.length}
+                </span>
+                <select
+                  value={perPage}
+                  onChange={(e) => {
+                    setPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="rounded border border-input bg-background px-2 py-1 text-sm"
+                >
+                  <option value={25}>25 per page</option>
+                  <option value={50}>50 per page</option>
+                  <option value={100}>100 per page</option>
+                  <option value={250}>250 per page</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="inline-flex items-center gap-1 rounded border border-input bg-background px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </button>
+                <span className="text-sm text-muted-foreground">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="inline-flex items-center gap-1 rounded border border-input bg-background px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
           )}
         </>

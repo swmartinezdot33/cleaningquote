@@ -139,9 +139,6 @@ export function ToolCardActions({ toolId, toolName, toolSlug, toolOrgId }: ToolC
       <IconButton onClick={handleShare} title={copyId === 'share' ? 'Link copied' : 'Copy link'}>
         {copyId === 'share' ? <Check className="h-4 w-4 text-primary" /> : <Share2 className="h-4 w-4" />}
       </IconButton>
-      <IconButton onClick={copyEmbed} title="Copy embed snippet">
-        {copyId === 'embed' ? <Check className="h-4 w-4 text-primary" /> : <CodeXml className="h-4 w-4" />}
-      </IconButton>
       <IconButton onClick={handleCloneOpen} title="Clone">
         <CopyPlus className="h-4 w-4" />
       </IconButton>
