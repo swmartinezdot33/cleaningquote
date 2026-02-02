@@ -14,9 +14,11 @@ interface CloneToolButtonProps {
   toolId: string;
   toolName?: string;
   toolOrgId?: string;
+  /** Optional class for the trigger button (e.g. to match Open/Share/Code row) */
+  className?: string;
 }
 
-export function CloneToolButton({ toolId, toolName = 'this tool', toolOrgId }: CloneToolButtonProps) {
+export function CloneToolButton({ toolId, toolName = 'this tool', toolOrgId, className }: CloneToolButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -76,7 +78,7 @@ export function CloneToolButton({ toolId, toolName = 'this tool', toolOrgId }: C
           e.stopPropagation();
           setOpen(true);
         }}
-        className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+        className={className ?? "inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"}
         title="Clone this tool"
       >
         <Copy className="h-3.5 w-3.5" />

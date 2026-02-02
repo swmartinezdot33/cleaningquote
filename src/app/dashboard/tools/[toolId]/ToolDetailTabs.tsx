@@ -87,6 +87,23 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
   // Embed snippet: prefer org-scoped so quotes never associate with the wrong org when slugs are reused
   const embedBaseUrl = baseUrl || (typeof window !== 'undefined' ? window.location.origin : '') || 'https://your-site.com';
   const embedSlug = tool.slug;
+  const embedSnippetText = `<!-- CleanQuote.io embed - public link: ${embedBaseUrl}${orgSlug ? `, org-scoped: /t/${orgSlug}/${embedSlug}` : `, slug: ${embedSlug}`} -->
+<div id="cleaning-quote-widget"></div>
+<script src="${embedBaseUrl}/widget.js"
+  data-base-url="${embedBaseUrl}"
+  data-container-id="cleaning-quote-widget"
+  data-height="1200"
+  ${orgSlug ? `data-org-slug="${orgSlug}"\n  ` : ''}data-tool="${embedSlug}"
+  data-tool-slug="${embedSlug}"
+  data-first-name="{{contact.firstName}}"
+  data-last-name="{{contact.lastName}}"
+  data-phone="{{contact.phone}}"
+  data-email="{{contact.email}}"
+  data-address="{{contact.address}}"
+  data-city="{{contact.city}}"
+  data-state="{{contact.state}}"
+  data-postal-code="{{contact.postalCode}}">
+</script>`;
 
   const saveName = async () => {
     setNameError(null);
@@ -354,7 +371,6 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
             </>
           )}
         </div>
-        <CloneToolButton toolId={tool.id} toolName={tool.name} toolOrgId={tool.org_id} />
       </div>
       {nameError && <p className="text-sm text-destructive mt-1">{nameError}</p>}
 
@@ -419,13 +435,14 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
                 </button>
                 <button
                   type="button"
-                  onClick={() => copyToClipboard(surveyFullUrl, 'preview')}
+                  onClick={() => copyToClipboard(embedSnippetText, 'embed-snippet')}
                   className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
-                  title="Copy link"
+                  title="Copy embed code"
                 >
-                  {copyId === 'preview' ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copyId === 'preview' ? 'Copied' : 'Copy'}
+                  {copyId === 'embed-snippet' ? <Check className="h-3.5 w-3.5 text-primary" /> : <span className="font-mono text-[10px] opacity-80" aria-hidden>{'</>'}</span>}
+                  {copyId === 'embed-snippet' ? 'Copied' : 'Code'}
                 </button>
+                <CloneToolButton toolId={tool.id} toolName={tool.name} toolOrgId={tool.org_id} className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted" />
               </div>
             </div>
           </div>
@@ -631,26 +648,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
             <div className="relative">
               <button
                 type="button"
-                onClick={() => copyToClipboard(
-                  `<!-- CleanQuote.io embed - public link: ${embedBaseUrl}${orgSlug ? `, org-scoped: /t/${orgSlug}/${embedSlug}` : `, slug: ${embedSlug}`} -->
-<div id="cleaning-quote-widget"></div>
-<script src="${embedBaseUrl}/widget.js"
-  data-base-url="${embedBaseUrl}"
-  data-container-id="cleaning-quote-widget"
-  data-height="1200"
-  ${orgSlug ? `data-org-slug="${orgSlug}"\n  ` : ''}data-tool="${embedSlug}"
-  data-tool-slug="${embedSlug}"
-  data-first-name="{{contact.firstName}}"
-  data-last-name="{{contact.lastName}}"
-  data-phone="{{contact.phone}}"
-  data-email="{{contact.email}}"
-  data-address="{{contact.address}}"
-  data-city="{{contact.city}}"
-  data-state="{{contact.state}}"
-  data-postal-code="{{contact.postalCode}}">
-</script>`,
-                  'embed-snippet'
-                )}
+                onClick={() => copyToClipboard(embedSnippetText, 'embed-snippet')}
                 className="absolute top-2 right-2 z-10 inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted shadow-sm"
                 title="Copy HTML snippet"
               >
