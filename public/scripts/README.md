@@ -1,8 +1,27 @@
-# CleanQuote.io Script (GHL)
+# CleanQuote.io – GHL: pass query params to the survey
 
-Adds a "Get Quote" button that opens your survey with the **current contact as query params** (`firstName`, `lastName`, `email`, `phone`, `address`, `contactId`, etc.). The survey/iframe reads those params and pre-fills the form. No base-URL fuss—just pass query params to the iframe.
+Two ways to open your survey with the current contact as query params so the form pre-fills.
 
-## In GHL: one script tag
+---
+
+## Option 1: Link (no script) – recommended
+
+Use a **link** in GHL that points to our redirect. No script, no CORS. Just pass query params to the survey.
+
+**In GHL:** Add a custom link/button and set the URL to (use your domain and GHL merge tags):
+
+```
+https://www.cleanquote.io/api/ghl?contactId={{contact.id}}&firstName={{contact.firstName}}&lastName={{contact.lastName}}&email={{contact.email}}&phone={{contact.phone}}&address={{contact.address}}
+```
+
+Optional params: `&city={{contact.city}}&state={{contact.state}}&postalCode={{contact.postalCode}}`  
+For org-scoped survey: `&orgSlug=your-org&toolSlug=default`
+
+When the user clicks, they’re redirected to the survey with those params; the form pre-fills. Replace `www.cleanquote.io` with your CleanQuote domain.
+
+---
+
+## Option 2: Script tag
 
 Use the API URL and **do not** add `crossorigin="anonymous"`:
 
@@ -10,16 +29,4 @@ Use the API URL and **do not** add `crossorigin="anonymous"`:
 <script src="https://www.cleanquote.io/api/script/cleanquote.js?v=4"></script>
 ```
 
-Replace the domain with your CleanQuote origin. Bump `?v=4` when you update the script. The script uses the same origin as its `src` for the survey URL unless you set `data-base-url`.
-
-### Optional data attributes
-
-- **data-base-url** – Survey origin (default: same as script URL origin).
-- **data-tool-slug** – Default `"default"`.
-- **data-org-slug** – For `/t/orgSlug/toolSlug` URLs.
-- **data-button-text** – Default `"Get Quote"`.
-- **data-container-selector** – Where to inject the button (e.g. `#cleanquote-container`).
-
-## Contact data → query params
-
-The script reads the current contact from `window.__CONTACT__`, `window.contact`, `window.ghlContact`, or DOM `data-contact-*` attributes, then builds the survey URL with `?firstName=...&lastName=...&email=...&phone=...&address=...&contactId=...` so the survey/iframe pre-fills. If GHL exposes the contact another way, set `window.__CONTACT__` before the script runs.
+The script injects a “Get Quote” button that opens the survey with the current contact as query params. Optional: `data-base-url`, `data-tool-slug`, `data-org-slug`, `data-button-text`, `data-container-selector`. The script reads contact from `window.__CONTACT__`, `window.contact`, `window.ghlContact`, or DOM `data-contact-*`.
