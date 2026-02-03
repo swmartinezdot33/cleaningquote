@@ -24,9 +24,14 @@ export async function GET(
     if (!exists) {
       return NextResponse.json({ configured: false, message: 'HighLevel API token not configured' });
     }
-    const token = await getGHLToken(toolId);
-    const testResult = await testGHLConnection(token ?? undefined).catch(() => ({ success: false }));
-    const locationId = await getGHLLocationId(toolId).catch(() => null);
+    const [token, locationId] = await Promise.all([
+      getGHLToken(toolId),
+      getGHLLocationId(toolId).catch(() => null),
+    ]);
+    const testResult = await testGHLConnection(token ?? undefined, {
+      toolId,
+      ...(locationId && { locationId }),
+    }).catch(() => ({ success: false }));
     return NextResponse.json({
       configured: true,
       connected: testResult.success,
@@ -54,14 +59,15 @@ export async function POST(
   try {
     const body = await request.json();
     const { token, locationId } = body;
+    const handlerHeaders = { 'X-Response-Handler': 'dashboard-ghl-settings' };
     if (!token || typeof token !== 'string') {
-      return NextResponse.json({ error: 'Invalid token format' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid token format' }, { status: 400, headers: handlerHeaders });
     }
     if (token.length < 20) {
-      return NextResponse.json({ error: 'Token appears to be invalid (too short)' }, { status: 400 });
+      return NextResponse.json({ error: 'Token appears to be invalid (too short)' }, { status: 400, headers: handlerHeaders });
     }
     if (!locationId || typeof locationId !== 'string' || !locationId.trim()) {
-      return NextResponse.json({ error: 'Location ID is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Location ID is required' }, { status: 400, headers: handlerHeaders });
     }
 
     const locationIdTrimmed = locationId.trim();
@@ -76,16 +82,21 @@ export async function POST(
         {
           error: 'Connection test failed - token was not saved',
           details: ('error' in testResult ? testResult.error : undefined) ?? 'Check your token and required scopes (e.g. contacts.readonly or contacts.write).',
+          _handler: 'dashboard-ghl-settings',
         },
-        { status: 400 }
+        { status: 400, headers: handlerHeaders }
       );
     }
     await storeGHLToken(token, toolId);
-    return NextResponse.json({
+    const json = {
       success: true,
       message: 'GHL API token saved successfully',
       configured: true,
       connected: true,
+      _handler: 'dashboard-ghl-settings' as const,
+    };
+    return NextResponse.json(json, {
+      headers: { 'X-Response-Handler': 'dashboard-ghl-settings' },
     });
   } catch (e) {
     console.error('POST dashboard ghl-settings:', e);
@@ -109,8 +120,14 @@ export async function PUT(
     if (!exists) {
       return NextResponse.json({ error: 'GHL token not configured' }, { status: 400 });
     }
-    const token = await getGHLToken(toolId);
-    const testResult = await testGHLConnection(token ?? undefined).catch(() => ({ success: false }));
+    const [token, locationId] = await Promise.all([
+      getGHLToken(toolId),
+      getGHLLocationId(toolId).catch(() => null),
+    ]);
+    const testResult = await testGHLConnection(token ?? undefined, {
+      toolId,
+      ...(locationId && { locationId }),
+    }).catch(() => ({ success: false }));
     return NextResponse.json({
       success: testResult.success,
       connected: testResult.success,

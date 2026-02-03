@@ -98,13 +98,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save locationId
-    await storeGHLLocationId(locationId.trim());
+    const locationIdTrimmed = locationId.trim();
+    await storeGHLLocationId(locationIdTrimmed);
 
-    // Test connection with the new token before saving
+    // Test connection with the new token and location we just saved (no toolId = global config)
     let testResult;
     try {
-      testResult = await testGHLConnection(token);
+      testResult = await testGHLConnection(token, { locationId: locationIdTrimmed });
     } catch (error) {
       console.error('Token test error:', error);
       testResult = { 

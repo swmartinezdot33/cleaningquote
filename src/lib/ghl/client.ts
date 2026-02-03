@@ -1599,18 +1599,23 @@ export async function testGHLConnection(
       return { success: false, error: 'Location ID is required. Please enter your HighLevel Location ID in the field above.' };
     }
 
-    // Test with contacts endpoint - works with contacts.write/readonly scope
-    // Always use locationId for sub-account (location-level) API calls
-    const testEndpoint = `${GHL_API_BASE}/contacts?locationId=${locationId}&limit=1`;
-
-    const response = await fetch(testEndpoint, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${testToken.trim()}`,
-        'Content-Type': 'application/json',
-        'Version': '2021-04-15',
-      },
-    });
+    // Test with pipelines first (read-only). Fallback to contacts if token has only contacts scope.
+    const encodedLocation = encodeURIComponent(locationId);
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${testToken.trim()}`,
+      'Content-Type': 'application/json',
+      'Version': '2021-07-28',
+    };
+    let response = await fetch(
+      `${GHL_API_BASE}/opportunities/pipelines?locationId=${encodedLocation}`,
+      { method: 'GET', headers }
+    );
+    if (response.status === 403 || response.status === 401) {
+      response = await fetch(
+        `${GHL_API_BASE}/contacts?locationId=${encodedLocation}&limit=1`,
+        { method: 'GET', headers }
+      );
+    }
 
     // Read response text once (can only read body once)
     const responseText = await response.text();

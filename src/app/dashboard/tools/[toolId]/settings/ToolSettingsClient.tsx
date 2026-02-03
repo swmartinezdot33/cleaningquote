@@ -254,8 +254,13 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
     }
     setSavingSection('ghl');
     clearMessage('ghl');
+    // Use explicit URL so this always hits the dashboard GHL settings route (not any other handler)
+    const ghlSettingsUrl =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}/api/dashboard/tools/${toolId}/ghl-settings`
+        : `/api/dashboard/tools/${toolId}/ghl-settings`;
     try {
-      const res = await fetch(`/api/dashboard/tools/${toolId}/ghl-settings`, {
+      const res = await fetch(ghlSettingsUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: ghlToken.trim(), locationId: ghlLocationId.trim() }),
