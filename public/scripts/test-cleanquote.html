@@ -33,35 +33,39 @@
     document.getElementById('contact-info').textContent = JSON.stringify(window.contact, null, 0);
   </script>
 
-  <!-- Load CleanQuote script. Use same origin when testing locally, or full URL for production. -->
+  <!-- Load CleanQuote script. Local dev: use /api/script/... ; file:// or other: use production URL. -->
   <script>
     (function() {
+      var statusEl = document.getElementById('inject-status');
+      var isLocalDev = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') && location.port;
+      if (location.protocol === 'file:') {
+        statusEl.textContent = 'Opening as file:// blocks the script. Run "npm run dev" then open http://localhost:3000/scripts/test-cleanquote.html';
+        statusEl.style.background = '#fff3cd';
+      }
       var script = document.createElement('script');
-      var isLocal = /localhost|127\.0\.0\.1/.test(location.host);
-      script.src = isLocal
-        ? '/api/script/cleanquote.js?v=' + Date.now()
+      script.src = isLocalDev
+        ? location.origin + '/api/script/cleanquote.js?v=' + Date.now()
         : 'https://www.cleanquote.io/api/script/cleanquote.js?v=' + Date.now();
-      script.setAttribute('data-base-url', isLocal ? 'http://localhost:3000' : 'https://www.cleanquote.io');
+      script.setAttribute('data-base-url', isLocalDev ? location.origin : 'https://www.cleanquote.io');
       script.setAttribute('data-tool-slug', 'default');
-      document.head.appendChild(script);
       script.onload = function() {
         setTimeout(function() {
           var btn = document.getElementById('cleanquote-get-quote-btn');
           var container = document.getElementById('cleanquote-container');
-          var status = document.getElementById('inject-status');
           if (btn || (container && container.children.length)) {
-            status.textContent = 'Injected: button or container found.';
-            status.style.background = '#d4edda';
+            statusEl.textContent = 'Injected: button or container found.';
+            statusEl.style.background = '#d4edda';
           } else {
-            status.textContent = 'Script ran but no button/container found. Check console.';
-            status.style.background = '#f8d7da';
+            statusEl.textContent = 'Script ran but no button/container found. Check console (F12).';
+            statusEl.style.background = '#f8d7da';
           }
-        }, 500);
+        }, 800);
       };
       script.onerror = function() {
-        document.getElementById('inject-status').textContent = 'Script failed to load.';
-        document.getElementById('inject-status').style.background = '#f8d7da';
+        statusEl.textContent = 'Script failed to load. Run "npm run dev" and open http://localhost:3000/scripts/test-cleanquote.html';
+        statusEl.style.background = '#f8d7da';
       };
+      document.head.appendChild(script);
     })();
   </script>
 </body>
