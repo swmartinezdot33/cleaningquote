@@ -64,13 +64,18 @@ export async function POST(
       return NextResponse.json({ error: 'Location ID is required' }, { status: 400 });
     }
 
-    await storeGHLLocationId(locationId.trim(), toolId);
-    const testResult = await testGHLConnection(token).catch(() => ({ success: false }));
+    const locationIdTrimmed = locationId.trim();
+    await storeGHLLocationId(locationIdTrimmed, toolId);
+    // Test using the location we just saved (tool-scoped) so the test runs against the correct sub-account
+    const testResult = await testGHLConnection(token, {
+      toolId,
+      locationId: locationIdTrimmed,
+    }).catch(() => ({ success: false, error: 'Connection test failed' }));
     if (!testResult.success) {
       return NextResponse.json(
         {
-          error: 'Invalid HighLevel API token - connection test failed',
-          details: ('error' in testResult ? testResult.error : undefined) ?? 'Check your token and required scopes',
+          error: 'Connection test failed - token was not saved',
+          details: ('error' in testResult ? testResult.error : undefined) ?? 'Check your token and required scopes (e.g. contacts.readonly or contacts.write).',
         },
         { status: 400 }
       );

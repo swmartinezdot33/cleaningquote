@@ -265,7 +265,8 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
         setSectionMessage({ card: 'ghl', type: 'success', text: data.message ?? 'HighLevel settings saved' });
         setGhlStatus({ configured: true, connected: true, locationId: ghlLocationId.trim() });
       } else {
-        setSectionMessage({ card: 'ghl', type: 'error', text: data.error ?? data.details ?? 'Failed to save' });
+        const detail = data.details ? `${data.error}. ${data.details}` : (data.error ?? 'Failed to save');
+        setSectionMessage({ card: 'ghl', type: 'error', text: detail });
       }
     } catch {
       setSectionMessage({ card: 'ghl', type: 'error', text: 'Failed to save HighLevel settings' });
@@ -925,7 +926,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                   <Label htmlFor="ghl-location" className="text-base font-semibold">Location ID <span className="text-red-500">*</span></Label>
                   <Input
                     id="ghl-location"
-                    placeholder="HighLevel Location ID"
+                    placeholder="HighLevel Location ID (e.g. yRlRzLxQ0y3TlR5V0xNdQ)"
                     value={ghlLocationId}
                     onChange={(e) => setGhlLocationId(e.target.value)}
                     className={inputClass}

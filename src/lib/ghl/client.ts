@@ -1557,11 +1557,24 @@ export async function testGHLConnectionComprehensive(token?: string): Promise<GH
 }
 
 /**
+ * Options for testing GHL connection (e.g. when saving from dashboard with a specific tool/location).
+ */
+export type TestGHLConnectionOptions = {
+  /** Tool ID so location is read from tool config (tool-scoped). */
+  toolId?: string;
+  /** Location ID to use for the test (overrides stored value when saving new settings). */
+  locationId?: string;
+};
+
+/**
  * Test GHL API connection with a specific token (optional)
  * Always uses stored locationId for sub-account (location-level) API calls
  * @deprecated Use testGHLConnectionComprehensive instead for full endpoint testing
  */
-export async function testGHLConnection(token?: string): Promise<{ success: boolean; error?: string }> {
+export async function testGHLConnection(
+  token?: string,
+  options?: TestGHLConnectionOptions
+): Promise<{ success: boolean; error?: string }> {
   try {
     const testToken = token || await getGHLToken();
 
@@ -1574,11 +1587,16 @@ export async function testGHLConnection(token?: string): Promise<{ success: bool
       return { success: false, error: 'Token appears to be invalid (too short)' };
     }
 
-    // Always use stored locationId for sub-account (location-level) API calls
-    const locationId = await getGHLLocationId();
-    
+    // Use provided locationId, or fetch by toolId, or global
+    let locationId: string | null = options?.locationId?.trim() ?? null;
+    if (!locationId && options?.toolId) {
+      locationId = await getGHLLocationId(options.toolId);
+    }
     if (!locationId) {
-      return { success: false, error: 'Location ID is required. Please configure it in the admin settings.' };
+      locationId = await getGHLLocationId();
+    }
+    if (!locationId) {
+      return { success: false, error: 'Location ID is required. Please enter your HighLevel Location ID in the field above.' };
     }
 
     // Test with contacts endpoint - works with contacts.write/readonly scope
