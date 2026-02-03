@@ -6,23 +6,36 @@ import { getOrgsForDashboard, isSuperAdminEmail } from '@/lib/org-auth';
 
 export const dynamic = 'force-dynamic';
 
-/** Derive selected price range from stored payload when price_low/price_high are null (e.g. older quotes). */
-function getSelectedRangeFromPayload(payload: any): { low: number; high: number } | null {
+/**
+ * Derive the selected price range (same as "YOUR SELECTED SERVICE" on the quote page).
+ * Uses payload.ranges + payload.serviceType/frequency, with fallback to row service_type/frequency.
+ */
+function getSelectedRangeFromPayload(
+  payload: any,
+  rowServiceType?: string | null,
+  rowFrequency?: string | null
+): { low: number; high: number } | null {
   if (!payload?.ranges) return null;
   const ranges = payload.ranges as Record<string, { low: number; high: number } | undefined>;
-  const frequency = String(payload.frequency ?? '').toLowerCase().trim();
+  const frequency = String(payload.frequency ?? rowFrequency ?? '').toLowerCase().trim();
   const freqNorm = frequency === 'biweekly' ? 'bi-weekly' : frequency;
-  const serviceType = String(payload.serviceType ?? '').toLowerCase().trim();
+  const serviceType = String(payload.serviceType ?? rowServiceType ?? '').toLowerCase().trim();
+
+  // Match quote page order: service type first (move-in, move-out, deep), then frequency, else general
+  if (serviceType === 'move-in' && ranges.moveInOutBasic) return ranges.moveInOutBasic;
+  if (serviceType === 'move-out' && ranges.moveInOutFull) return ranges.moveInOutFull;
+  if (serviceType === 'deep' && ranges.deep) return ranges.deep;
   if (freqNorm === 'weekly' && ranges.weekly) return ranges.weekly;
   if (freqNorm === 'bi-weekly' && ranges.biWeekly) return ranges.biWeekly;
   if ((freqNorm === 'four-week' || freqNorm === 'monthly') && ranges.fourWeek) return ranges.fourWeek;
+  // One-time / empty frequency (quote page: move-in, move-out, deep, else general; no branch for initial -> general)
   if (freqNorm === 'one-time' || !freqNorm) {
-    if (serviceType === 'initial' && ranges.initial) return ranges.initial;
-    if (serviceType === 'deep' && ranges.deep) return ranges.deep;
     if (serviceType === 'general' && ranges.general) return ranges.general;
     if (serviceType === 'move-in' && ranges.moveInOutBasic) return ranges.moveInOutBasic;
     if (serviceType === 'move-out' && ranges.moveInOutFull) return ranges.moveInOutFull;
   }
+  // Same as quote page "else -> general" (covers initial, and any other service type)
+  if (ranges.general) return ranges.general;
   return null;
 }
 
@@ -115,8 +128,13 @@ export async function GET(request: NextRequest) {
       const tool = q.tool_id ? toolMap.get(q.tool_id) : null;
       let priceLow = q.price_low;
       let priceHigh = q.price_high;
-      if ((priceLow == null && priceHigh == null) && q.payload) {
-        const range = getSelectedRangeFromPayload(q.payload);
+      // When price columns are null, derive from payload (same as "YOUR SELECTED SERVICE" on quote page)
+      if ((priceLow == null || priceHigh == null) && q.payload) {
+        const range = getSelectedRangeFromPayload(
+          q.payload,
+          q.service_type,
+          q.frequency
+        );
         if (range) {
           priceLow = range.low;
           priceHigh = range.high;
