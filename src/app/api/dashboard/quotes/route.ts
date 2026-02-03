@@ -7,8 +7,30 @@ import { getOrgsForDashboard, isSuperAdminEmail } from '@/lib/org-auth';
 export const dynamic = 'force-dynamic';
 
 /**
+ * Normalize serviceType/frequency to match quote page (QuotePageClient.tsx) so we pick the same range.
+ */
+function normalizeServiceTypeAndFrequency(
+  rawServiceType: string,
+  rawFrequency: string
+): { serviceType: string; frequency: string } {
+  const raw = String(rawServiceType ?? '').toLowerCase().trim().replace(/\s+/g, ' ');
+  let st = raw;
+  if (st.includes('move') && (st.includes('out') || st === 'move_out' || st === 'moveout')) st = 'move-out';
+  else if (st.includes('move') || st === 'move_in' || st === 'movein') st = 'move-in';
+  else if (st.includes('deep') || st === 'deep_clean') st = 'deep';
+  else if (st.includes('general') || st === 'general_cleaning') st = 'general';
+  else if (st.includes('initial') || st === 'initial_cleaning') st = 'initial';
+
+  let freq = String(rawFrequency ?? '').toLowerCase().trim();
+  if (freq === 'biweekly') freq = 'bi-weekly';
+  else if (freq === 'fourweek' || freq === 'monthly' || freq === 'one_time') freq = freq === 'one_time' ? 'one-time' : 'four-week';
+
+  return { serviceType: st, frequency: freq };
+}
+
+/**
  * Derive the selected price range (same as "YOUR SELECTED SERVICE" on the quote page).
- * Uses payload.ranges + payload.serviceType/frequency, with fallback to row service_type/frequency.
+ * Uses the same normalization and if/else order as QuotePageClient.
  */
 function getSelectedRangeFromPayload(
   payload: any,
@@ -17,24 +39,18 @@ function getSelectedRangeFromPayload(
 ): { low: number; high: number } | null {
   if (!payload?.ranges) return null;
   const ranges = payload.ranges as Record<string, { low: number; high: number } | undefined>;
-  const frequency = String(payload.frequency ?? rowFrequency ?? '').toLowerCase().trim();
-  const freqNorm = frequency === 'biweekly' ? 'bi-weekly' : frequency;
-  const serviceType = String(payload.serviceType ?? rowServiceType ?? '').toLowerCase().trim();
+  const rawServiceType = payload.serviceType ?? rowServiceType ?? '';
+  const rawFrequency = payload.frequency ?? rowFrequency ?? '';
+  const { serviceType, frequency } = normalizeServiceTypeAndFrequency(rawServiceType, rawFrequency);
 
-  // Match quote page order: service type first (move-in, move-out, deep), then frequency, else general
+  // Exact same order as quote page: move-in, move-out, deep, weekly, bi-weekly, four-week, else general
   if (serviceType === 'move-in' && ranges.moveInOutBasic) return ranges.moveInOutBasic;
   if (serviceType === 'move-out' && ranges.moveInOutFull) return ranges.moveInOutFull;
   if (serviceType === 'deep' && ranges.deep) return ranges.deep;
-  if (freqNorm === 'weekly' && ranges.weekly) return ranges.weekly;
-  if (freqNorm === 'bi-weekly' && ranges.biWeekly) return ranges.biWeekly;
-  if ((freqNorm === 'four-week' || freqNorm === 'monthly') && ranges.fourWeek) return ranges.fourWeek;
-  // One-time / empty frequency (quote page: move-in, move-out, deep, else general; no branch for initial -> general)
-  if (freqNorm === 'one-time' || !freqNorm) {
-    if (serviceType === 'general' && ranges.general) return ranges.general;
-    if (serviceType === 'move-in' && ranges.moveInOutBasic) return ranges.moveInOutBasic;
-    if (serviceType === 'move-out' && ranges.moveInOutFull) return ranges.moveInOutFull;
-  }
-  // Same as quote page "else -> general" (covers initial, and any other service type)
+  if (frequency === 'weekly' && ranges.weekly) return ranges.weekly;
+  if (frequency === 'bi-weekly' && ranges.biWeekly) return ranges.biWeekly;
+  if ((frequency === 'four-week' || frequency === 'monthly') && ranges.fourWeek) return ranges.fourWeek;
+  // Quote page "else selectedRange = quoteResult.ranges.general"
   if (ranges.general) return ranges.general;
   return null;
 }
