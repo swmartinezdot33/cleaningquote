@@ -370,7 +370,7 @@ export default function SuperAdminInboxPage() {
                 </button>
               </div>
               {email.direction !== 'sent' && (
-              <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4">
+              <div className="flex flex-wrap items-center justify-end gap-2 border-b border-border px-3 py-2 sm:px-4">
                 <button
                   type="button"
                   onClick={openReply}
@@ -418,7 +418,7 @@ export default function SuperAdminInboxPage() {
                 <p className="min-w-0"><span className="font-medium text-muted-foreground">From:</span> <span className="break-all">{email.from}</span></p>
                 <p className="min-w-0"><span className="font-medium text-muted-foreground">To:</span> <span className="break-all">{(email.to ?? []).join(', ')}</span></p>
                 <p className="min-w-0"><span className="font-medium text-muted-foreground">Subject:</span> {email.subject || '(no subject)'}</p>
-                <p className="text-muted-foreground">{formatDate(email.created_at)}</p>
+                <p className="text-muted-foreground text-right">{formatDate(email.created_at)}</p>
               </div>
               <div className="flex-1 overflow-auto p-3 sm:p-4 min-h-0">
                 {email.html ? (
