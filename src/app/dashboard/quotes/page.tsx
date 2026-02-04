@@ -114,7 +114,7 @@ export default function DashboardQuotesPage() {
   const selectAllRef = useRef<HTMLInputElement | null>(null);
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const [perPage, setPerPage] = useState(100);
+  const [perPage, setPerPage] = useState(25);
 
   const loadQuotes = () => {
     Promise.all([

@@ -241,13 +241,13 @@ export default function SuperAdminInboxPage() {
     <div className="flex h-[calc(100vh-8rem)] min-h-[300px] sm:min-h-[400px] flex-col rounded-xl border border-border bg-card shadow-sm overflow-hidden">
       {/* Toolbar: responsive wrap + scrollable filters on mobile */}
       <div className="flex flex-col gap-2 border-b border-border px-3 py-2 sm:px-4 sm:flex-row sm:flex-nowrap sm:items-center">
-        <div className="flex items-center gap-2 shrink-0">
-          <Link
-            href="/dashboard/super-admin"
-            className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm py-1"
-          >
-            ← Super Admin
-          </Link>
+        <Link
+          href="/dashboard/super-admin"
+          className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm py-1 shrink-0"
+        >
+          ← Super Admin
+        </Link>
+        <div className="flex items-center gap-2 shrink-0 ml-auto">
           <button
             type="button"
             onClick={openCompose}
@@ -256,8 +256,7 @@ export default function SuperAdminInboxPage() {
             <PenSquare className="h-4 w-4" />
             Compose
           </button>
-        </div>
-        <nav className="flex gap-1 overflow-x-auto overflow-y-hidden pb-1 -mx-1 px-1 md:overflow-visible md:pb-0 md:mx-0 md:px-0">
+          <nav className="flex gap-1 overflow-x-auto overflow-y-hidden pb-1 -mx-1 px-1 md:overflow-visible md:pb-0 md:mx-0 md:px-0">
           {(
             [
               { id: 'inbox' as Filter, label: 'Inbox', icon: Inbox },
@@ -278,7 +277,8 @@ export default function SuperAdminInboxPage() {
               {label}
             </button>
           ))}
-        </nav>
+          </nav>
+        </div>
       </div>
 
       <div className="flex flex-1 min-h-0">
