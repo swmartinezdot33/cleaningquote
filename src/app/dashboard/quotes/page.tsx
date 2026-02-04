@@ -20,6 +20,10 @@ interface QuoteRow {
   frequency: string | null;
   price_low: number | null;
   price_high: number | null;
+  price_initial_low?: number | null;
+  price_initial_high?: number | null;
+  price_recurring_low?: number | null;
+  price_recurring_high?: number | null;
   square_feet: string | null;
   bedrooms: number | null;
   created_at: string;
@@ -43,6 +47,28 @@ function formatPrice(low: number | null, high: number | null) {
   if (low != null) return `$${low}+`;
   if (high != null) return `Up to $${high}`;
   return '—';
+}
+
+function formatPriceCell(q: QuoteRow) {
+  const hasInitial = q.price_initial_low != null && q.price_initial_high != null;
+  const hasRecurring = q.price_recurring_low != null && q.price_recurring_high != null;
+  if (hasInitial && hasRecurring) {
+    return (
+      <span className="whitespace-nowrap">
+        Initial: {formatPrice(q.price_initial_low, q.price_initial_high)}; Recurring: {formatPrice(q.price_recurring_low, q.price_recurring_high)}
+      </span>
+    );
+  }
+  return formatPrice(q.price_low, q.price_high);
+}
+
+function formatPriceCellString(q: QuoteRow): string {
+  const hasInitial = q.price_initial_low != null && q.price_initial_high != null;
+  const hasRecurring = q.price_recurring_low != null && q.price_recurring_high != null;
+  if (hasInitial && hasRecurring) {
+    return `Initial: ${formatPrice(q.price_initial_low, q.price_initial_high)}; Recurring: ${formatPrice(q.price_recurring_low, q.price_recurring_high)}`;
+  }
+  return formatPrice(q.price_low, q.price_high);
 }
 
 function escapeCsv(val: string | number | null | undefined): string {
@@ -276,7 +302,7 @@ export default function DashboardQuotesPage() {
       escapeCsv(q.postal_code),
       escapeCsv(q.service_type),
       escapeCsv(q.frequency),
-      escapeCsv(formatPrice(q.price_low, q.price_high)),
+      escapeCsv(formatPriceCellString(q)),
       escapeCsv(q.square_feet),
       escapeCsv(q.bedrooms),
     ]);
@@ -577,7 +603,7 @@ export default function DashboardQuotesPage() {
                       {q.service_type || '—'}
                       {q.frequency ? ` · ${q.frequency}` : ''}
                     </td>
-                    <td className="px-4 py-3">{formatPrice(q.price_low, q.price_high)}</td>
+                    <td className="px-4 py-3">{formatPriceCell(q)}</td>
                     <td className="w-44 px-4 py-3">
                       <div className="flex items-center gap-1.5">
                         <a

@@ -75,19 +75,46 @@ const FREQUENCY_DISPLAY: Record<string, string> = {
 
 /**
  * Get display service_type and frequency for table (match quote page: one-time types show no frequency).
+ * When initial/general + recurring frequency, return summary-style labels so table matches quote summary.
  */
 function getDisplayServiceAndFrequency(
   payload: any,
   rowServiceType?: string | null,
   rowFrequency?: string | null
-): { serviceTypeDisplay: string; frequency: string; frequencyDisplay: string } {
+): {
+  serviceTypeDisplay: string;
+  frequency: string;
+  frequencyDisplay: string;
+  isInitialPlusFrequency: boolean;
+  initialRange: { low: number; high: number } | null;
+  recurringRange: { low: number; high: number } | null;
+  serviceTypeDisplayLong: string | null;
+} {
   const rawServiceType = payload?.serviceType ?? rowServiceType ?? '';
   const rawFrequency = payload?.frequency ?? rowFrequency ?? '';
   const { serviceType, frequency } = normalizeServiceTypeAndFrequency(rawServiceType, rawFrequency);
   const effectiveFrequency = ['move-in', 'move-out', 'deep'].includes(serviceType) ? '' : frequency;
-  const serviceTypeDisplay = SERVICE_TYPE_DISPLAY[serviceType] || rawServiceType || rowServiceType || '';
+  const hasRecurringFreq = ['weekly', 'bi-weekly', 'four-week'].includes(effectiveFrequency);
+  const isInitialPlusFrequency = (serviceType === 'general' || serviceType === 'initial') && hasRecurringFreq;
   const frequencyDisplay = effectiveFrequency ? (FREQUENCY_DISPLAY[effectiveFrequency] ?? effectiveFrequency) : '';
-  return { serviceTypeDisplay, frequency: effectiveFrequency, frequencyDisplay };
+  const serviceTypeDisplay = SERVICE_TYPE_DISPLAY[serviceType] || rawServiceType || rowServiceType || '';
+  const serviceTypeDisplayLong = payload?.serviceTypeLabel && isInitialPlusFrequency ? payload.serviceTypeLabel : null;
+  const ranges = payload?.ranges as Record<string, { low: number; high: number } | undefined> | undefined;
+  const initialRange = isInitialPlusFrequency && ranges
+    ? (serviceType === 'initial' ? ranges.initial : ranges.general)
+    : null;
+  const recurringRange = isInitialPlusFrequency && ranges
+    ? (effectiveFrequency === 'weekly' ? ranges.weekly : effectiveFrequency === 'bi-weekly' ? ranges.biWeekly : ranges.fourWeek)
+    : null;
+  return {
+    serviceTypeDisplay,
+    frequency: effectiveFrequency,
+    frequencyDisplay,
+    isInitialPlusFrequency: !!isInitialPlusFrequency,
+    initialRange: initialRange ?? null,
+    recurringRange: recurringRange ?? null,
+    serviceTypeDisplayLong: serviceTypeDisplayLong || null,
+  };
 }
 
 /**
@@ -181,20 +208,36 @@ export async function GET(request: NextRequest) {
       let priceHigh = q.price_high;
       let frequency = q.frequency;
       let service_type = q.service_type;
+      let price_initial_low: number | null = null;
+      let price_initial_high: number | null = null;
+      let price_recurring_low: number | null = null;
+      let price_recurring_high: number | null = null;
       // When payload exists, derive price and display labels from it (same logic as quote page) so table matches quote page
       if (q.payload) {
-        const range = getSelectedRangeFromPayload(
-          q.payload,
-          q.service_type,
-          q.frequency
-        );
-        if (range) {
-          priceLow = range.low;
-          priceHigh = range.high;
-        }
         const display = getDisplayServiceAndFrequency(q.payload, q.service_type, q.frequency);
-        frequency = display.frequencyDisplay || display.frequency;
-        if (display.serviceTypeDisplay) service_type = display.serviceTypeDisplay;
+        if (display.isInitialPlusFrequency && display.initialRange && display.recurringRange) {
+          // Match quote summary: show both initial clean and selected frequency with their prices
+          service_type = display.serviceTypeDisplayLong || (display.serviceTypeDisplay === 'Initial Deep Cleaning' ? 'Initial Deep Cleaning (Recurring)' : 'Initial General Clean (Recurring)');
+          frequency = `Your Selected Frequency: ${display.frequencyDisplay}`;
+          price_initial_low = display.initialRange.low;
+          price_initial_high = display.initialRange.high;
+          price_recurring_low = display.recurringRange.low;
+          price_recurring_high = display.recurringRange.high;
+          priceLow = display.initialRange.low;
+          priceHigh = display.initialRange.high;
+        } else {
+          const range = getSelectedRangeFromPayload(
+            q.payload,
+            q.service_type,
+            q.frequency
+          );
+          if (range) {
+            priceLow = range.low;
+            priceHigh = range.high;
+          }
+          frequency = display.frequencyDisplay || display.frequency;
+          if (display.serviceTypeDisplay) service_type = display.serviceTypeDisplay;
+        }
       } else if (frequency) {
         const { frequency: normFreq } = normalizeServiceTypeAndFrequency(q.service_type ?? '', frequency);
         frequency = FREQUENCY_DISPLAY[normFreq] ?? normFreq ?? frequency;
@@ -206,6 +249,10 @@ export async function GET(request: NextRequest) {
         frequency,
         price_low: priceLow,
         price_high: priceHigh,
+        ...(price_initial_low != null && { price_initial_low: price_initial_low as number }),
+        ...(price_initial_high != null && { price_initial_high: price_initial_high as number }),
+        ...(price_recurring_low != null && { price_recurring_low: price_recurring_low as number }),
+        ...(price_recurring_high != null && { price_recurring_high: price_recurring_high as number }),
         toolName: tool?.name ?? 'Legacy',
         toolSlug: tool?.slug ?? null,
       };

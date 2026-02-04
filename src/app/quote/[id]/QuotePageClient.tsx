@@ -630,6 +630,10 @@ export default function QuotePageClient({
                           ? (quoteResult.serviceTypeLabel || getServiceLabel(canonicalServiceType))
                           : (isRecurringService ? (quoteResult.frequencyLabel || getFreqLabel(frequency)) : (quoteResult.serviceTypeLabel || getServiceLabel(serviceType)));
                         const isOneTimeService = ['move-in', 'move-out', 'deep'].includes(canonicalServiceType);
+                        // When they picked initial/general clean + a frequency, show BOTH in the green box
+                        const isInitialPlusFrequency = (canonicalServiceType === 'general' || canonicalServiceType === 'initial') && hasRecurringFrequency;
+                        const initialCleanRange = canonicalServiceType === 'initial' ? quoteResult.ranges?.initial : quoteResult.ranges?.general;
+                        const initialCleanLabel = quoteResult.serviceTypeLabel || getServiceLabel(canonicalServiceType);
 
                         return (
                           <>
@@ -650,10 +654,21 @@ export default function QuotePageClient({
                                   </div>
                                   <p className="text-xs font-semibold text-green-800 uppercase tracking-wide">YOUR SELECTED SERVICE</p>
                                 </div>
-                                <div className="ml-8">
-                                  <p className="font-bold text-lg text-gray-900">
-                                    {selectedServiceName}: <span className="text-gray-700">${selectedRange.low} to ${selectedRange.high}</span>
-                                  </p>
+                                <div className="ml-8 space-y-2">
+                                  {isInitialPlusFrequency && initialCleanRange ? (
+                                    <>
+                                      <p className="font-bold text-lg text-gray-900">
+                                        {initialCleanLabel}: <span className="text-gray-700">${initialCleanRange.low} to ${initialCleanRange.high}</span>
+                                      </p>
+                                      <p className="font-bold text-lg text-gray-900">
+                                        Your Selected Frequency: {quoteResult.frequencyLabel || getFreqLabel(frequency)}: <span className="text-gray-700">${selectedRange.low} to ${selectedRange.high}</span>
+                                      </p>
+                                    </>
+                                  ) : (
+                                    <p className="font-bold text-lg text-gray-900">
+                                      {selectedServiceName}: <span className="text-gray-700">${selectedRange.low} to ${selectedRange.high}</span>
+                                    </p>
+                                  )}
                                 </div>
                               </motion.div>
                             )}

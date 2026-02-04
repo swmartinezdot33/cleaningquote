@@ -930,6 +930,8 @@ export async function POST(request: NextRequest) {
       ghlContactId,
       serviceType: body.serviceType,
       frequency: storedFrequency,
+      serviceTypeLabel,
+      frequencyLabel,
       serviceTypeCanonical: canonicalServiceType,
       createdAt: new Date().toISOString(),
       ghlQuoteCreated,
