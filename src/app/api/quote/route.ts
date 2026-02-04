@@ -918,6 +918,27 @@ export async function POST(request: NextRequest) {
     const canonicalServiceType = toCanonicalServiceType(body.serviceType || '');
     const storedFrequency = oneTimeTypes.includes(canonicalServiceType) ? '' : (body.frequency ?? '');
     const selectedRange = getSelectedQuoteRange(result.ranges, body.serviceType, body.frequency);
+
+    // Labels from stored survey (for payload and response) — compute before building payload
+    let serviceTypeLabel = '';
+    let frequencyLabel = '';
+    let serviceTypeOptions: Array<{ value: string; label: string }> = [];
+    let frequencyOptions: Array<{ value: string; label: string }> = [];
+    try {
+      const surveyQuestions = await getSurveyQuestions(toolId);
+      const { serviceTypeLabels, frequencyLabels } = getSurveyDisplayLabels(surveyQuestions);
+      const st = canonicalServiceType;
+      const freq = ['move-in', 'move-out', 'deep'].includes(st) ? '' : String(body.frequency ?? '').trim().toLowerCase();
+      serviceTypeLabel = serviceTypeLabels[body.serviceType || ''] || serviceTypeLabels[st] || body.serviceType || '';
+      frequencyLabel = freq ? (frequencyLabels[body.frequency || ''] || frequencyLabels[freq] || frequencyLabels[freq === 'biweekly' ? 'bi-weekly' : freq] || body.frequency || '') : '';
+      const serviceTypeQ = surveyQuestions.find(q => q.id === 'serviceType');
+      const frequencyQ = surveyQuestions.find(q => q.id === 'frequency');
+      if (serviceTypeQ?.options) serviceTypeOptions = serviceTypeQ.options.filter(o => o.value?.trim()).map(o => ({ value: o.value!.trim(), label: o.label || o.value! }));
+      if (frequencyQ?.options) frequencyOptions = frequencyQ.options.filter(o => o.value?.trim()).map(o => ({ value: o.value!.trim(), label: o.label || o.value! }));
+    } catch {
+      // Use built-in labels if survey labels fail to load
+    }
+
     const payload = {
       outOfLimits: false,
       multiplier: result.multiplier,
@@ -984,26 +1005,6 @@ export async function POST(request: NextRequest) {
       }
     } catch {
       // KV is optional cache only; ignore failures
-    }
-
-    // Labels from stored survey (single source of truth) so UI changes in Survey Builder are reflected
-    let serviceTypeLabel = '';
-    let frequencyLabel = '';
-    let serviceTypeOptions: Array<{ value: string; label: string }> = [];
-    let frequencyOptions: Array<{ value: string; label: string }> = [];
-    try {
-      const surveyQuestions = await getSurveyQuestions(toolId);
-      const { serviceTypeLabels, frequencyLabels } = getSurveyDisplayLabels(surveyQuestions);
-      const st = canonicalServiceType;
-      const freq = ['move-in', 'move-out', 'deep'].includes(st) ? '' : String(body.frequency ?? '').trim().toLowerCase();
-      serviceTypeLabel = serviceTypeLabels[body.serviceType || ''] || serviceTypeLabels[st] || body.serviceType || '';
-      frequencyLabel = freq ? (frequencyLabels[body.frequency || ''] || frequencyLabels[freq] || frequencyLabels[freq === 'biweekly' ? 'bi-weekly' : freq] || body.frequency || '') : '';
-      const serviceTypeQ = surveyQuestions.find(q => q.id === 'serviceType');
-      const frequencyQ = surveyQuestions.find(q => q.id === 'frequency');
-      if (serviceTypeQ?.options) serviceTypeOptions = serviceTypeQ.options.filter(o => o.value?.trim()).map(o => ({ value: o.value!.trim(), label: o.label || o.value! }));
-      if (frequencyQ?.options) frequencyOptions = frequencyQ.options.filter(o => o.value?.trim()).map(o => ({ value: o.value!.trim(), label: o.label || o.value! }));
-    } catch {
-      // Use built-in labels if survey labels fail to load
     }
 
     return NextResponse.json({

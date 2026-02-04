@@ -55,7 +55,7 @@ function formatPriceCell(q: QuoteRow) {
   if (hasInitial && hasRecurring) {
     return (
       <span className="whitespace-nowrap">
-        Initial: {formatPrice(q.price_initial_low, q.price_initial_high)}; Recurring: {formatPrice(q.price_recurring_low, q.price_recurring_high)}
+        Initial: {formatPrice(q.price_initial_low ?? null, q.price_initial_high ?? null)}; Recurring: {formatPrice(q.price_recurring_low ?? null, q.price_recurring_high ?? null)}
       </span>
     );
   }
@@ -66,7 +66,7 @@ function formatPriceCellString(q: QuoteRow): string {
   const hasInitial = q.price_initial_low != null && q.price_initial_high != null;
   const hasRecurring = q.price_recurring_low != null && q.price_recurring_high != null;
   if (hasInitial && hasRecurring) {
-    return `Initial: ${formatPrice(q.price_initial_low, q.price_initial_high)}; Recurring: ${formatPrice(q.price_recurring_low, q.price_recurring_high)}`;
+    return `Initial: ${formatPrice(q.price_initial_low ?? null, q.price_initial_high ?? null)}; Recurring: ${formatPrice(q.price_recurring_low ?? null, q.price_recurring_high ?? null)}`;
   }
   return formatPrice(q.price_low, q.price_high);
 }
