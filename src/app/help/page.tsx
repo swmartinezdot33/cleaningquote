@@ -10,6 +10,11 @@ export const metadata: Metadata = {
 
 const guides = [
   {
+    slug: 'getting-started',
+    title: 'Getting started',
+    description: 'Quick path from sign-up to your first embedded quote widget: sign up, set password, configure your tool, and embed on your site.',
+  },
+  {
     slug: 'google-maps-api',
     title: 'Google Maps API key',
     description: 'Create a Google Cloud API key and enable Maps, Places, and Geocoding so address autocomplete and service area checks work on your quote form.',
