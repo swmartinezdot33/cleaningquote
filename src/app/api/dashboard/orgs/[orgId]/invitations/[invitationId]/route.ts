@@ -25,7 +25,7 @@ export async function POST(
 
   const admin = createSupabaseServer();
 
-  const { data: inv, error: fetchError } = await admin
+  const { data: invRaw, error: fetchError } = await admin
     .from('invitations')
     .select('id, email, token, expires_at')
     .eq('id', invitationId)
@@ -33,6 +33,7 @@ export async function POST(
     .is('accepted_at', null)
     .maybeSingle();
 
+  const inv = invRaw as { id: string; email: string; token: string; expires_at: string } | null;
   if (fetchError || !inv?.token || !inv?.email) {
     return NextResponse.json({ error: 'Invitation not found or already accepted' }, { status: 404 });
   }
