@@ -31,7 +31,7 @@ export async function GET(
 
   const { data: invites } = await admin
     .from('invitations')
-    .select('id, email, role, expires_at, accepted_at')
+    .select('id, email, role, expires_at, accepted_at, created_at')
     .eq('org_id', orgId)
     .is('accepted_at', null);
 

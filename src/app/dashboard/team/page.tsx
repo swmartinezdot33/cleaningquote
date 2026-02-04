@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Send } from 'lucide-react';
 
 interface Member {
   user_id: string;
@@ -14,6 +14,21 @@ interface Invitation {
   email: string;
   role: string;
   expires_at: string;
+  created_at?: string;
+}
+
+function formatInviteSentAt(createdAt: string | undefined): string {
+  if (!createdAt) return '';
+  const sent = new Date(createdAt);
+  const now = new Date();
+  const diffMs = now.getTime() - sent.getTime();
+  const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+  if (diffDays === 0) return 'Sent today';
+  if (diffDays === 1) return 'Sent yesterday';
+  if (diffDays < 30) return `Invite sent ${diffDays} days ago`;
+  const months = Math.floor(diffDays / 30);
+  if (months === 1) return 'Sent a month ago';
+  return `Sent ${months} months ago`;
 }
 
 export default function TeamPage() {
@@ -28,6 +43,8 @@ export default function TeamPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
 
   const refreshMembers = () => {
     if (!orgId) return;
@@ -50,6 +67,25 @@ export default function TeamPage() {
       if (res.ok) refreshMembers();
     } finally {
       setCancellingId(null);
+    }
+  };
+
+  const resendInvite = async (invitationId: string) => {
+    if (!orgId) return;
+    setResendingId(invitationId);
+    setResendMessage(null);
+    try {
+      const res = await fetch(`/api/dashboard/orgs/${orgId}/invitations/${invitationId}`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResendMessage(data.message ?? (data.emailSent ? 'Invite email resent.' : 'Done.'));
+      } else {
+        setResendMessage(data.error ?? data.message ?? 'Failed to resend.');
+      }
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -193,21 +229,44 @@ export default function TeamPage() {
           <h2 className="text-lg font-semibold">Pending invitations</h2>
           <ul className="mt-2 space-y-2">
             {invitations.map((i) => (
-              <li key={i.id} className="flex items-center justify-between gap-2 rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
-                <span className="flex-1">{i.email}</span>
-                <span>{i.role}</span>
-                <button
-                  type="button"
-                  onClick={() => cancelInvite(i.id)}
-                  disabled={cancellingId === i.id}
-                  className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
-                  title="Cancel invite"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+              <li key={i.id} className="flex flex-col gap-1 rounded-lg border border-dashed p-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:gap-2">
+                <div className="flex-1 min-w-0">
+                  <span className="block">{i.email}</span>
+                  {i.created_at && (
+                    <span className="text-xs text-muted-foreground/80">{formatInviteSentAt(i.created_at)}</span>
+                  )}
+                </div>
+                <span className="shrink-0">{i.role}</span>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => resendInvite(i.id)}
+                    disabled={resendingId === i.id}
+                    className="rounded p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary disabled:opacity-50"
+                    title="Resend invite"
+                  >
+                    {resendingId === i.id ? (
+                      <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => cancelInvite(i.id)}
+                    disabled={cancellingId === i.id}
+                    className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                    title="Cancel invite"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
+          {resendMessage && (
+            <p className="mt-2 text-sm text-muted-foreground">{resendMessage}</p>
+          )}
         </section>
       )}
     </div>
