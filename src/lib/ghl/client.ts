@@ -622,7 +622,7 @@ export async function listObjectSchemas(locationId?: string): Promise<any[]> {
  * Get a specific object schema by key to see field definitions
  * Always uses stored locationId for sub-account (location-level) API calls
  */
-export async function getObjectSchema(schemaKey: string, locationId?: string): Promise<any> {
+export async function getObjectSchema(schemaKey: string, locationId?: string, tokenOverride?: string): Promise<any> {
   try {
     let finalLocationId = locationId || (await getGHLLocationId());
     
@@ -642,7 +642,7 @@ export async function getObjectSchema(schemaKey: string, locationId?: string): P
 
     for (const endpoint of endpointsToTry) {
       try {
-        response = await makeGHLRequest<any>(endpoint, 'GET');
+        response = await makeGHLRequest<any>(endpoint, 'GET', undefined, undefined, tokenOverride);
         break;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
@@ -669,7 +669,8 @@ export async function getObjectSchema(schemaKey: string, locationId?: string): P
 export async function createCustomObject(
   objectType: string,
   data: GHLCustomObject,
-  locationId?: string
+  locationId?: string,
+  tokenOverride?: string
 ): Promise<GHLCustomObjectResponse> {
   try {
     // Always use locationId - required for sub-account (location-level) API calls
@@ -680,16 +681,17 @@ export async function createCustomObject(
     }
 
     // Fetch schema directly. Skip GET /objects (list) — it 404s/401s for many GHL setups.
+    // Use same token as contact/opportunity so tool-scoped GHL works.
     let actualSchemaKey: string | null = null;
     let schemaFields: any = null;
     const schemaKeyToFetch = (objectType === 'quotes' || objectType === 'Quote' || objectType === 'quote')
       ? 'custom_objects.quotes'
       : `custom_objects.${objectType}`;
     try {
-      schemaFields = await getObjectSchema(schemaKeyToFetch, finalLocationId);
+      schemaFields = await getObjectSchema(schemaKeyToFetch, finalLocationId, tokenOverride);
       actualSchemaKey = schemaKeyToFetch;
-    } catch {
-      // Use fallbacks if schema fetch fails
+    } catch (schemaErr) {
+      console.warn('GHL Quote custom object: schema fetch failed (will try create with fallback keys):', schemaErr instanceof Error ? schemaErr.message : String(schemaErr));
     }
 
     // Convert customFields object to array format required by GHL API
@@ -887,17 +889,17 @@ export async function createCustomObject(
     // 1) Try schemaKey path first (per GHL spec: /objects/{schemaKey}/records)
     const schemaKeyEndpoint = `/objects/${schemaKeyForPath}/records`;
     try {
-      response = await makeGHLRequest<{ record?: { id: string } }>(schemaKeyEndpoint, 'POST', payloadShortName);
+      response = await makeGHLRequest<{ record?: { id: string } }>(schemaKeyEndpoint, 'POST', payloadShortName, undefined, tokenOverride);
     } catch (e) {
       lastError = e instanceof Error ? e : new Error(String(e));
       if (objectIdToUse) {
         const objectIdEndpoint = `/objects/${objectIdToUse}/records`;
         try {
-          response = await makeGHLRequest<{ record?: { id: string } }>(objectIdEndpoint, 'POST', payloadShortName);
+          response = await makeGHLRequest<{ record?: { id: string } }>(objectIdEndpoint, 'POST', payloadShortName, undefined, tokenOverride);
         } catch (e2) {
           lastError = e2 instanceof Error ? e2 : new Error(String(e2));
           try {
-            response = await makeGHLRequest<{ record?: { id: string } }>(objectIdEndpoint, 'POST', payloadFullPath);
+            response = await makeGHLRequest<{ record?: { id: string } }>(objectIdEndpoint, 'POST', payloadFullPath, undefined, tokenOverride);
           } catch (e3) {
             lastError = e3 instanceof Error ? e3 : new Error(String(e3));
           }
@@ -968,7 +970,8 @@ export async function createCustomObject(
             customObject.id,
             data.contactId,
             finalLocationId,
-            schemaKeyForAssociation
+            schemaKeyForAssociation,
+            tokenOverride
           );
           customObject.contactId = data.contactId;
         }
@@ -1004,7 +1007,8 @@ async function associateCustomObjectWithContact(
   recordId: string,
   contactId: string,
   locationId: string,
-  schemaKey?: string // Optional: the actual schema key used (e.g., 'custom_objects.quotes')
+  schemaKey?: string, // Optional: the actual schema key used (e.g., 'custom_objects.quotes')
+  tokenOverride?: string
 ): Promise<void> {
   if (!objectId) {
     throw new Error('Object ID is required for association');
@@ -1027,7 +1031,7 @@ async function associateCustomObjectWithContact(
     
     for (const assocEndpoint of associationEndpoints) {
       try {
-        const associationsResponse = await makeGHLRequest<any>(assocEndpoint, 'GET');
+        const associationsResponse = await makeGHLRequest<any>(assocEndpoint, 'GET', undefined, undefined, tokenOverride);
         if (assocEndpoint.includes('key/contact_quote') && associationsResponse && typeof associationsResponse === 'object' && (associationsResponse.id || associationsResponse.associationId)) {
           associationId = associationsResponse.id || associationsResponse.associationId;
           break;
@@ -1088,7 +1092,7 @@ async function associateCustomObjectWithContact(
   for (const endpoint of endpointsToTry) {
     for (const payload of payloadsToTry) {
       try {
-        await makeGHLRequest<any>(endpoint, 'POST', { ...payload });
+        await makeGHLRequest<any>(endpoint, 'POST', { ...payload }, undefined, tokenOverride);
         return;
       } catch (error) {
         errors.push(error instanceof Error ? error.message : String(error));

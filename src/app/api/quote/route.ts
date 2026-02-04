@@ -801,16 +801,18 @@ export async function POST(request: NextRequest) {
             // Prepare custom object creation (will parallelize with opportunity and note)
             // Only call GHL when createQuoteObject is not explicitly disabled
             if (ghlConfig?.createQuoteObject !== false) {
-              // The schemaKey should be just "quotes" (not "custom_objects.quotes")
-              // The customFields keys should be just the field names (not "custom_objects.quotes.field_name")
+              // Use same token as contact so tool-scoped GHL (multi-tenant) works
               quoteObjectPromise = createCustomObject(
                 'quotes',
                 {
                   contactId: ghlContactId,
                   customFields: quoteCustomFields,
                 },
-                ghlLocationId ?? undefined
+                ghlLocationId ?? undefined,
+                ghlToken ?? undefined
               );
+            } else {
+              console.warn('GHL Quote custom object skipped: createQuoteObject is disabled for this tool.');
             }
           } catch (quoteError) {
             // Custom object creation failed - log detailed error
@@ -866,19 +868,21 @@ export async function POST(request: NextRequest) {
             quoteId = ghlObjectId; // For GHL-based retrieval
             ghlQuoteCreated = true;
           } else if (quoteObjectPromise) {
-            // Custom object creation failed - log detailed error
+            // Custom object creation failed - log detailed error for debugging
             const error = quoteResult?.status === 'rejected' ? quoteResult.reason : null;
             const errorMessage = error instanceof Error ? error.message : String(error || 'Unknown error');
             console.error('⚠️ Failed to create Quote custom object in GHL:', errorMessage);
             console.error('📋 Quote object creation error details:', {
               error: errorMessage,
               contactId: ghlContactId,
+              locationId: ghlLocationId ?? '(not set)',
               customFieldsCount: Object.keys(quoteCustomFields).length,
               customFieldsKeys: Object.keys(quoteCustomFields),
               troubleshooting: 'If you want to use custom objects, please ensure:\n' +
                 '1. A "Quote" custom object exists in your GHL account (Settings > Custom Objects)\n' +
                 '2. The object has fields matching these keys: ' + Object.keys(quoteCustomFields).join(', ') + '\n' +
-                '3. Your API token has objects/record.write scope enabled',
+                '3. Your API token has objects/record.write scope enabled\n' +
+                '4. Contact–Quote association exists in GHL (Settings > Custom Objects > Quote > Associations)',
             });
           }
           
