@@ -65,6 +65,14 @@ const SERVICE_TYPE_DISPLAY: Record<string, string> = {
   general: 'General Clean',
 };
 
+/** Human-readable frequency for table (so "Bi Weekly" and "Four-weeks" appear, not raw keys). */
+const FREQUENCY_DISPLAY: Record<string, string> = {
+  weekly: 'Weekly',
+  'bi-weekly': 'Bi Weekly',
+  'four-week': 'Four-weeks',
+  monthly: 'Four-weeks',
+};
+
 /**
  * Get display service_type and frequency for table (match quote page: one-time types show no frequency).
  */
@@ -72,13 +80,14 @@ function getDisplayServiceAndFrequency(
   payload: any,
   rowServiceType?: string | null,
   rowFrequency?: string | null
-): { serviceTypeDisplay: string; frequency: string } {
+): { serviceTypeDisplay: string; frequency: string; frequencyDisplay: string } {
   const rawServiceType = payload?.serviceType ?? rowServiceType ?? '';
   const rawFrequency = payload?.frequency ?? rowFrequency ?? '';
   const { serviceType, frequency } = normalizeServiceTypeAndFrequency(rawServiceType, rawFrequency);
   const effectiveFrequency = ['move-in', 'move-out', 'deep'].includes(serviceType) ? '' : frequency;
   const serviceTypeDisplay = SERVICE_TYPE_DISPLAY[serviceType] || rawServiceType || rowServiceType || '';
-  return { serviceTypeDisplay, frequency: effectiveFrequency };
+  const frequencyDisplay = effectiveFrequency ? (FREQUENCY_DISPLAY[effectiveFrequency] ?? effectiveFrequency) : '';
+  return { serviceTypeDisplay, frequency: effectiveFrequency, frequencyDisplay };
 }
 
 /**
@@ -184,8 +193,11 @@ export async function GET(request: NextRequest) {
           priceHigh = range.high;
         }
         const display = getDisplayServiceAndFrequency(q.payload, q.service_type, q.frequency);
-        frequency = display.frequency;
+        frequency = display.frequencyDisplay || display.frequency;
         if (display.serviceTypeDisplay) service_type = display.serviceTypeDisplay;
+      } else if (frequency) {
+        const { frequency: normFreq } = normalizeServiceTypeAndFrequency(q.service_type ?? '', frequency);
+        frequency = FREQUENCY_DISPLAY[normFreq] ?? normFreq ?? frequency;
       }
       const { payload: _payload, ...rest } = q;
       return {
