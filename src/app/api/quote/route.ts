@@ -25,21 +25,38 @@ function generateReadableQuoteId(): string {
 }
 
 /**
+ * Normalize form service type (e.g. "Move In Clean", "move in") to canonical key
+ * so one-time detection and range lookup work regardless of spelling.
+ */
+function toCanonicalServiceType(serviceType: string): string {
+  const t = String(serviceType ?? '').toLowerCase().trim().replace(/\s+/g, ' ');
+  if (t === 'move-out' || t.includes('move out') || t.includes('moveout')) return 'move-out';
+  if (t === 'move-in' || t.includes('move in') || t.includes('movein')) return 'move-in';
+  if (t === 'deep' || t.includes('deep')) return 'deep';
+  if (t === 'initial' || t.includes('initial')) return 'initial';
+  if (t === 'general' || t.includes('general')) return 'general';
+  return t;
+}
+
+/**
  * Helper to get the selected quote range based on service type and frequency.
  * Normalizes serviceType/frequency so values from the form (e.g. "Initial", "biweekly") still match.
  */
 function getSelectedQuoteRange(ranges: QuoteRanges, serviceType: string, frequency: string): { low: number; high: number } | null {
+  const canonical = toCanonicalServiceType(serviceType);
   const freq = String(frequency ?? '').toLowerCase().trim();
-  const st = String(serviceType ?? '').toLowerCase().trim();
   const freqNorm = freq === 'biweekly' ? 'bi-weekly' : freq;
+  // For one-time types, ignore recurring frequency so we pick the correct range
+  const effectiveFreq = ['move-in', 'move-out', 'deep'].includes(canonical) ? '' : freqNorm;
+  const st = canonical;
 
   // Handle frequency-based pricing first
-  if (freqNorm === 'weekly') return ranges.weekly;
-  if (freqNorm === 'bi-weekly') return ranges.biWeekly;
-  if (freqNorm === 'four-week' || freqNorm === 'monthly') return ranges.fourWeek;
+  if (effectiveFreq === 'weekly') return ranges.weekly;
+  if (effectiveFreq === 'bi-weekly') return ranges.biWeekly;
+  if (effectiveFreq === 'four-week' || effectiveFreq === 'monthly') return ranges.fourWeek;
 
-  // Handle one-time services (frequency is one-time or empty)
-  if (freqNorm === 'one-time' || !freqNorm) {
+  // Handle one-time services (frequency is one-time or empty, or canonical is one-time)
+  if (effectiveFreq === 'one-time' || !effectiveFreq) {
     if (st === 'initial') return ranges.initial;
     if (st === 'deep') return ranges.deep;
     if (st === 'general') return ranges.general;
@@ -898,7 +915,8 @@ export async function POST(request: NextRequest) {
 
     // Primary storage: Supabase. KV is used only for cache.
     const oneTimeTypes = ['move-in', 'move-out', 'deep'];
-    const storedFrequency = oneTimeTypes.includes(String(body.serviceType || '').toLowerCase()) ? '' : (body.frequency ?? '');
+    const canonicalServiceType = toCanonicalServiceType(body.serviceType || '');
+    const storedFrequency = oneTimeTypes.includes(canonicalServiceType) ? '' : (body.frequency ?? '');
     const selectedRange = getSelectedQuoteRange(result.ranges, body.serviceType, body.frequency);
     const payload = {
       outOfLimits: false,
@@ -912,6 +930,7 @@ export async function POST(request: NextRequest) {
       ghlContactId,
       serviceType: body.serviceType,
       frequency: storedFrequency,
+      serviceTypeCanonical: canonicalServiceType,
       createdAt: new Date().toISOString(),
       ghlQuoteCreated,
       generatedQuoteId,
@@ -973,7 +992,7 @@ export async function POST(request: NextRequest) {
     try {
       const surveyQuestions = await getSurveyQuestions(toolId);
       const { serviceTypeLabels, frequencyLabels } = getSurveyDisplayLabels(surveyQuestions);
-      const st = String(body.serviceType || '').trim().toLowerCase();
+      const st = canonicalServiceType;
       const freq = ['move-in', 'move-out', 'deep'].includes(st) ? '' : String(body.frequency ?? '').trim().toLowerCase();
       serviceTypeLabel = serviceTypeLabels[body.serviceType || ''] || serviceTypeLabels[st] || body.serviceType || '';
       frequencyLabel = freq ? (frequencyLabels[body.frequency || ''] || frequencyLabels[freq] || frequencyLabels[freq === 'biweekly' ? 'bi-weekly' : freq] || body.frequency || '') : '';
@@ -996,7 +1015,7 @@ export async function POST(request: NextRequest) {
       smsText,
       ghlContactId,
       serviceType: body.serviceType,
-      frequency: ['move-in', 'move-out', 'deep'].includes(String(body.serviceType || '').toLowerCase()) ? '' : (body.frequency ?? ''),
+      frequency: storedFrequency,
       serviceTypeLabel,
       frequencyLabel,
       serviceTypeOptions,

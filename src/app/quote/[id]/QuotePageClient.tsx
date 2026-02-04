@@ -549,10 +549,14 @@ export default function QuotePageClient({
                         } else if (serviceType.includes('initial') || serviceType === 'initial_cleaning') {
                           serviceType = 'initial';
                         }
+                        // Canonical key for selected-range logic (so "Move In Clean" -> move-in and we show correct selected service)
+                        const canonicalServiceType = serviceType;
+                        // For one-time types, ignore stored frequency so we don't show Bi-Weekly as selected
+                        const effectiveFrequency = ['move-in', 'move-out', 'deep'].includes(canonicalServiceType) ? '' : frequency;
                         
                         if (frequency === 'biweekly') frequency = 'bi-weekly';
                         else if (frequency === 'fourweek' || frequency === 'monthly') frequency = 'four-week';
-                        const hasRecurringFrequency = ['weekly', 'bi-weekly', 'four-week'].includes(frequency);
+                        const hasRecurringFrequency = ['weekly', 'bi-weekly', 'four-week'].includes(effectiveFrequency);
                         const isRecurringService = hasRecurringFrequency;
                         
                         // Human-friendly fallbacks when Survey Builder label isn't found (never show raw keys like "four-week" or "general")
@@ -611,21 +615,21 @@ export default function QuotePageClient({
                           if (key === 'move-out') return quoteResult.ranges.moveInOutFull;
                           return null;
                         };
-                        const selectedServiceKey = getCanonicalServiceKey(serviceType, quoteResult.serviceTypeLabel || serviceType || '') ?? (['move-in', 'move-out', 'deep', 'initial', 'general'].includes(serviceType) ? serviceType : null);
+                        const selectedServiceKey = getCanonicalServiceKey(serviceType, quoteResult.serviceTypeLabel || serviceType || '') ?? (['move-in', 'move-out', 'deep', 'initial', 'general'].includes(canonicalServiceType) ? canonicalServiceType : null);
                         
                         let selectedRange: { low: number; high: number } | null = null;
-                        if (serviceType === 'move-in') selectedRange = quoteResult.ranges.moveInOutBasic;
-                        else if (serviceType === 'move-out') selectedRange = quoteResult.ranges.moveInOutFull;
-                        else if (serviceType === 'deep') selectedRange = quoteResult.ranges.deep;
-                        else if (frequency === 'weekly') selectedRange = quoteResult.ranges.weekly;
-                        else if (frequency === 'bi-weekly') selectedRange = quoteResult.ranges.biWeekly;
-                        else if (frequency === 'four-week') selectedRange = quoteResult.ranges.fourWeek;
+                        if (canonicalServiceType === 'move-in') selectedRange = quoteResult.ranges.moveInOutBasic;
+                        else if (canonicalServiceType === 'move-out') selectedRange = quoteResult.ranges.moveInOutFull;
+                        else if (canonicalServiceType === 'deep') selectedRange = quoteResult.ranges.deep;
+                        else if (effectiveFrequency === 'weekly') selectedRange = quoteResult.ranges.weekly;
+                        else if (effectiveFrequency === 'bi-weekly') selectedRange = quoteResult.ranges.biWeekly;
+                        else if (effectiveFrequency === 'four-week') selectedRange = quoteResult.ranges.fourWeek;
                         else selectedRange = quoteResult.ranges.general;
                         
-                        const selectedServiceName = isRecurringService
-                          ? (quoteResult.frequencyLabel || getFreqLabel(frequency))
-                          : (quoteResult.serviceTypeLabel || getServiceLabel(serviceType));
-                        const isOneTimeService = ['move-in', 'move-out', 'deep'].includes(serviceType);
+                        const selectedServiceName = ['move-in', 'move-out', 'deep'].includes(canonicalServiceType)
+                          ? (quoteResult.serviceTypeLabel || getServiceLabel(canonicalServiceType))
+                          : (isRecurringService ? (quoteResult.frequencyLabel || getFreqLabel(frequency)) : (quoteResult.serviceTypeLabel || getServiceLabel(serviceType)));
+                        const isOneTimeService = ['move-in', 'move-out', 'deep'].includes(canonicalServiceType);
 
                         return (
                           <>
