@@ -172,7 +172,7 @@ export default function TeamPage() {
           ← Back to dashboard
         </Link>
         <h1 className="mt-2 text-2xl font-bold">Team: {orgName}</h1>
-        <p className="text-sm text-muted-foreground">Invite users to join this subaccount</p>
+        <p className="text-sm text-muted-foreground">Invite users to join this organization</p>
       </div>
 
       <section>
