@@ -43,16 +43,42 @@ function getSelectedRangeFromPayload(
   const rawFrequency = payload.frequency ?? rowFrequency ?? '';
   const { serviceType, frequency } = normalizeServiceTypeAndFrequency(rawServiceType, rawFrequency);
 
+  // For one-time types, ignore stored frequency (same as quote page) so we pick the correct range
+  const effectiveFreq = ['move-in', 'move-out', 'deep'].includes(serviceType) ? '' : frequency;
   // Exact same order as quote page: move-in, move-out, deep, weekly, bi-weekly, four-week, else general
   if (serviceType === 'move-in' && ranges.moveInOutBasic) return ranges.moveInOutBasic;
   if (serviceType === 'move-out' && ranges.moveInOutFull) return ranges.moveInOutFull;
   if (serviceType === 'deep' && ranges.deep) return ranges.deep;
-  if (frequency === 'weekly' && ranges.weekly) return ranges.weekly;
-  if (frequency === 'bi-weekly' && ranges.biWeekly) return ranges.biWeekly;
-  if ((frequency === 'four-week' || frequency === 'monthly') && ranges.fourWeek) return ranges.fourWeek;
+  if (effectiveFreq === 'weekly' && ranges.weekly) return ranges.weekly;
+  if (effectiveFreq === 'bi-weekly' && ranges.biWeekly) return ranges.biWeekly;
+  if ((effectiveFreq === 'four-week' || effectiveFreq === 'monthly') && ranges.fourWeek) return ranges.fourWeek;
   // Quote page "else selectedRange = quoteResult.ranges.general"
   if (ranges.general) return ranges.general;
   return null;
+}
+
+const SERVICE_TYPE_DISPLAY: Record<string, string> = {
+  'move-in': 'Move-In/Move-Out Basic Clean',
+  'move-out': 'Move-In/Move-Out Deep Clean',
+  deep: 'One Time Deep Clean',
+  initial: 'Initial Deep Cleaning',
+  general: 'General Clean',
+};
+
+/**
+ * Get display service_type and frequency for table (match quote page: one-time types show no frequency).
+ */
+function getDisplayServiceAndFrequency(
+  payload: any,
+  rowServiceType?: string | null,
+  rowFrequency?: string | null
+): { serviceTypeDisplay: string; frequency: string } {
+  const rawServiceType = payload?.serviceType ?? rowServiceType ?? '';
+  const rawFrequency = payload?.frequency ?? rowFrequency ?? '';
+  const { serviceType, frequency } = normalizeServiceTypeAndFrequency(rawServiceType, rawFrequency);
+  const effectiveFrequency = ['move-in', 'move-out', 'deep'].includes(serviceType) ? '' : frequency;
+  const serviceTypeDisplay = SERVICE_TYPE_DISPLAY[serviceType] || rawServiceType || rowServiceType || '';
+  return { serviceTypeDisplay, frequency: effectiveFrequency };
 }
 
 /**
@@ -144,8 +170,10 @@ export async function GET(request: NextRequest) {
       const tool = q.tool_id ? toolMap.get(q.tool_id) : null;
       let priceLow = q.price_low;
       let priceHigh = q.price_high;
-      // When price columns are null, derive from payload (same as "YOUR SELECTED SERVICE" on quote page)
-      if ((priceLow == null || priceHigh == null) && q.payload) {
+      let frequency = q.frequency;
+      let service_type = q.service_type;
+      // When payload exists, derive price and display labels from it (same logic as quote page) so table matches quote page
+      if (q.payload) {
         const range = getSelectedRangeFromPayload(
           q.payload,
           q.service_type,
@@ -155,10 +183,15 @@ export async function GET(request: NextRequest) {
           priceLow = range.low;
           priceHigh = range.high;
         }
+        const display = getDisplayServiceAndFrequency(q.payload, q.service_type, q.frequency);
+        frequency = display.frequency;
+        if (display.serviceTypeDisplay) service_type = display.serviceTypeDisplay;
       }
       const { payload: _payload, ...rest } = q;
       return {
         ...rest,
+        service_type,
+        frequency,
         price_low: priceLow,
         price_high: priceHigh,
         toolName: tool?.name ?? 'Legacy',
