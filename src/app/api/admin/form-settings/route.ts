@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFormSettings, setFormSettings } from '@/lib/kv';
+import { requireAdminAuth } from '@/lib/security/auth';
 
 export interface FormSettings {
   firstNameParam?: string;
@@ -16,13 +17,8 @@ export interface FormSettings {
  */
 export async function GET(request: NextRequest) {
   try {
-    const password = request.headers.get('x-admin-password');
-    if (!password || password !== process.env.ADMIN_PASSWORD) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const authResponse = await requireAdminAuth(request);
+    if (authResponse) return authResponse;
 
     const formSettings = await getFormSettings();
 
@@ -44,13 +40,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const password = request.headers.get('x-admin-password');
-    if (!password || password !== process.env.ADMIN_PASSWORD) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const authResponse = await requireAdminAuth(request);
+    if (authResponse) return authResponse;
 
     const body = await request.json();
     const {

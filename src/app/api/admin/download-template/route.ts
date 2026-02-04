@@ -1,24 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generatePricingTemplateBuffer } from '@/lib/pricing/generatePricingTemplate';
+import { requireAdminAuth } from '@/lib/security/auth';
 
 /**
  * GET /api/admin/download-template
  *
  * Returns a generated pricing Excel template (no file on disk required).
- *
- * Authentication: Send password in header 'x-admin-password'
  */
 export async function GET(request: NextRequest) {
   try {
-    const password = request.headers.get('x-admin-password');
-    const requiredPassword = process.env.ADMIN_PASSWORD;
-
-    if (requiredPassword && password !== requiredPassword) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Invalid or missing password.' },
-        { status: 401 }
-      );
-    }
+    const authResponse = await requireAdminAuth(request);
+    if (authResponse) return authResponse;
 
     const buffer = generatePricingTemplateBuffer();
 

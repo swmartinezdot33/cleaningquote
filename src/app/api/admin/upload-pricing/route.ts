@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storePricingFile, setPricingTable } from '@/lib/kv';
 import { invalidatePricingCache, loadPricingTable } from '@/lib/pricing/loadPricingTable';
+import { requireAdminAuth } from '@/lib/security/auth';
 import * as XLSX from 'xlsx';
 
 /**
@@ -10,21 +11,11 @@ import * as XLSX from 'xlsx';
  * Also parses and saves the structured pricing data
  * 
  * Body: FormData with a file field named 'file'
- * 
- * Authentication: Send password in header 'x-admin-password'
  */
 export async function POST(request: NextRequest) {
   try {
-    // Check for password authentication
-    const password = request.headers.get('x-admin-password');
-    const requiredPassword = process.env.ADMIN_PASSWORD;
-    
-    if (requiredPassword && password !== requiredPassword) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Invalid or missing password.' },
-        { status: 401 }
-      );
-    }
+    const authResponse = await requireAdminAuth(request);
+    if (authResponse) return authResponse;
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -145,16 +136,8 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    // Check for password authentication
-    const password = request.headers.get('x-admin-password');
-    const requiredPassword = process.env.ADMIN_PASSWORD;
-    
-    if (requiredPassword && password !== requiredPassword) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Invalid or missing password.' },
-        { status: 401 }
-      );
-    }
+    const authResponse = await requireAdminAuth(request);
+    if (authResponse) return authResponse;
 
     const { getPricingFileMetadata, pricingFileExists } = await import('@/lib/kv');
     

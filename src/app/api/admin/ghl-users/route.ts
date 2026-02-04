@@ -1,24 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGHLToken, getGHLLocationId } from '@/lib/kv';
+import { requireAdminAuth } from '@/lib/security/auth';
 
 // Force dynamic rendering - this route uses request headers
 export const dynamic = 'force-dynamic';
-
-function authenticate(request: NextRequest) {
-  const password = request.headers.get('x-admin-password');
-  
-  if (!password || password !== process.env.ADMIN_PASSWORD) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  
-  return null;
-}
 
 /**
  * GET - Fetch users/team members from GHL
  */
 export async function GET(request: NextRequest) {
-  const authResponse = authenticate(request);
+  const authResponse = await requireAdminAuth(request);
   if (authResponse) return authResponse;
 
   try {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGoogleMapsKey, setGoogleMapsKey } from '@/lib/kv';
+import { requireAdminAuth } from '@/lib/security/auth';
 
 /**
  * GET /api/admin/google-maps-key
@@ -7,13 +8,8 @@ import { getGoogleMapsKey, setGoogleMapsKey } from '@/lib/kv';
  */
 export async function GET(request: NextRequest) {
   try {
-    const password = request.headers.get('x-admin-password');
-    if (!password || password !== process.env.ADMIN_PASSWORD) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const authResponse = await requireAdminAuth(request);
+    if (authResponse) return authResponse;
 
     const apiKey = await getGoogleMapsKey();
 
@@ -38,13 +34,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const password = request.headers.get('x-admin-password');
-    if (!password || password !== process.env.ADMIN_PASSWORD) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const authResponse = await requireAdminAuth(request);
+    if (authResponse) return authResponse;
 
     const body = await request.json();
     const { apiKey } = body;
@@ -84,13 +75,8 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const password = request.headers.get('x-admin-password');
-    if (!password || password !== process.env.ADMIN_PASSWORD) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const authResponse = await requireAdminAuth(request);
+    if (authResponse) return authResponse;
 
     await setGoogleMapsKey(null);
 

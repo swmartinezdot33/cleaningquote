@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGHLToken, getGHLLocationId } from '@/lib/kv';
+import { requireAdminAuth } from '@/lib/security/auth';
 
 interface GHLTag {
   id: string;
@@ -12,17 +13,8 @@ interface GHLTag {
  */
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication
-    const authHeader = request.headers.get('authorization');
-    const passwordHeader = request.headers.get('x-admin-password');
-    
-    if (!authHeader && !passwordHeader) {
-      console.error('No authentication header provided');
-      return NextResponse.json(
-        { error: 'Unauthorized - missing authentication' },
-        { status: 401 }
-      );
-    }
+    const authResponse = await requireAdminAuth(request);
+    if (authResponse) return authResponse;
 
     const token = await getGHLToken();
     const locationId = await getGHLLocationId();

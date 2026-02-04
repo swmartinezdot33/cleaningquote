@@ -1,17 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getWidgetSettings, setWidgetSettings } from '@/lib/kv';
-
-function authenticate(request: NextRequest): NextResponse | null {
-  const password = request.headers.get('x-admin-password');
-  const requiredPassword = process.env.ADMIN_PASSWORD;
-  if (requiredPassword && password !== requiredPassword) {
-    return NextResponse.json(
-      { error: 'Unauthorized. Invalid or missing password.' },
-      { status: 401 }
-    );
-  }
-  return null;
-}
+import { requireAdminAuth } from '@/lib/security/auth';
 
 const DEFAULT_WIDGET = {
   title: 'Get Your Quote',
@@ -48,7 +37,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const authResponse = authenticate(request);
+    const authResponse = await requireAdminAuth(request);
     if (authResponse) return authResponse;
 
     const body = await request.json();

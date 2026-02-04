@@ -1,24 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createTag } from '@/lib/ghl/client';
-
-function authenticate(request: NextRequest): NextResponse | null {
-  const password = request.headers.get('x-admin-password');
-  const requiredPassword = process.env.ADMIN_PASSWORD;
-
-  if (requiredPassword && password !== requiredPassword) {
-    return NextResponse.json(
-      { error: 'Unauthorized. Invalid or missing password.' },
-      { status: 401 }
-    );
-  }
-  return null;
-}
+import { requireAdminAuth } from '@/lib/security/auth';
 
 /**
  * POST - Create a new tag in GHL
  */
 export async function POST(request: NextRequest) {
-  const authResponse = authenticate(request);
+  const authResponse = await requireAdminAuth(request);
   if (authResponse) return authResponse;
 
   try {

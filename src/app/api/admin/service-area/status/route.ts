@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceAreaPolygon, getServiceAreaNetworkLink } from '@/lib/kv';
+import { requireAdminAuth } from '@/lib/security/auth';
 
 // Force dynamic rendering - this route uses request headers
 export const dynamic = 'force-dynamic';
@@ -17,16 +18,8 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: NextRequest) {
   try {
-    // Check admin password
-    const password = request.headers.get('x-admin-password');
-    const adminPassword = process.env.ADMIN_PASSWORD;
-
-    if (!adminPassword || password !== adminPassword) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const authResponse = await requireAdminAuth(request);
+    if (authResponse) return authResponse;
 
     // Get network link first
     const networkLink = await getServiceAreaNetworkLink();

@@ -46,6 +46,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: message }, { status: 400 });
     }
   } else {
+    // In production, require webhook secret so we don't accept unverified payloads
+    const isProduction = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
+    if (isProduction) {
+      return NextResponse.json(
+        { error: 'Webhook verification not configured. Set RESEND_WEBHOOK_SECRET.' },
+        { status: 503 }
+      );
+    }
     try {
       payload = JSON.parse(rawBody) as { type: string; created_at?: string; data?: unknown };
     } catch {

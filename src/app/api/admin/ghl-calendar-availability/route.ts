@@ -1,15 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGHLToken, getGHLLocationId } from '@/lib/kv';
-
-function authenticate(request: NextRequest) {
-  const password = request.headers.get('x-admin-password');
-  
-  if (!password || password !== process.env.ADMIN_PASSWORD) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  
-  return null;
-}
+import { requireAdminAuth } from '@/lib/security/auth';
 
 /**
  * GET - Check calendar availability using GHL's free-slots API
@@ -17,7 +8,7 @@ function authenticate(request: NextRequest) {
  * Uses GHL calendar configuration and real-time availability
  */
 export async function GET(request: NextRequest) {
-  const authResponse = authenticate(request);
+  const authResponse = await requireAdminAuth(request);
   if (authResponse) return authResponse;
 
   try {

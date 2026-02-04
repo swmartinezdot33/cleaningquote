@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { parseKML } from '@/lib/service-area/parseKML';
 import { storeServiceAreaPolygon, storeServiceAreaNetworkLink, deleteServiceAreaNetworkLink } from '@/lib/kv';
 import { fetchAndParseNetworkKML, clearKMLCacheForURL } from '@/lib/service-area/fetchNetworkKML';
+import { requireAdminAuth } from '@/lib/security/auth';
 
 /**
  * POST /api/admin/service-area/upload
@@ -24,16 +25,8 @@ import { fetchAndParseNetworkKML, clearKMLCacheForURL } from '@/lib/service-area
  */
 export async function POST(request: NextRequest) {
   try {
-    // Check admin password
-    const password = request.headers.get('x-admin-password');
-    const adminPassword = process.env.ADMIN_PASSWORD;
-
-    if (!adminPassword || password !== adminPassword) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const authResponse = await requireAdminAuth(request);
+    if (authResponse) return authResponse;
 
     const body = await request.json();
     const { kmlContent } = body;

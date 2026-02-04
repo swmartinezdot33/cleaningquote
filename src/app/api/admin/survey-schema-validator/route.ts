@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateSurveySchema, checkFieldChangeImpact, validateQuestion } from '@/lib/survey/schema-validator';
 import { SurveyQuestion } from '@/lib/survey/schema';
 import { getSurveyQuestions } from '@/lib/survey/manager';
-
-// Middleware: Check admin password
-function checkAdminPassword(request: NextRequest): boolean {
-  const password = request.headers.get('x-admin-password');
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  return password === adminPassword;
-}
+import { requireAdminAuth } from '@/lib/security/auth';
 
 /**
  * GET: Validate current survey schema
@@ -18,12 +12,8 @@ function checkAdminPassword(request: NextRequest): boolean {
  * - `/api/admin/survey-schema-validator?fieldId=serviceType` - Check specific field
  */
 export async function GET(request: NextRequest) {
-  if (!checkAdminPassword(request)) {
-    return NextResponse.json(
-      { error: 'Unauthorized. Invalid or missing password.' },
-      { status: 401 }
-    );
-  }
+  const authResponse = await requireAdminAuth(request);
+  if (authResponse) return authResponse;
 
   try {
     const { searchParams } = new URL(request.url);
@@ -84,12 +74,8 @@ export async function GET(request: NextRequest) {
  * - questions: (for 'validate-batch') Array of questions to validate
  */
 export async function POST(request: NextRequest) {
-  if (!checkAdminPassword(request)) {
-    return NextResponse.json(
-      { error: 'Unauthorized. Invalid or missing password.' },
-      { status: 401 }
-    );
-  }
+  const authResponse = await requireAdminAuth(request);
+  if (authResponse) return authResponse;
 
   try {
     const body = await request.json();

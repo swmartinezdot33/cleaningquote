@@ -3,29 +3,17 @@ import { getGHLToken, getGHLLocationId } from '@/lib/kv';
 import { makeGHLRequest } from '@/lib/ghl/client';
 import { getSurveyQuestions } from '@/lib/survey/manager';
 import { SurveyQuestion } from '@/lib/survey/schema';
+import { requireAdminAuth } from '@/lib/security/auth';
 
 // Force dynamic rendering since we use request headers
 export const dynamic = 'force-dynamic';
-
-function authenticate(request: NextRequest): NextResponse | null {
-  const password = request.headers.get('x-admin-password');
-  const requiredPassword = process.env.ADMIN_PASSWORD;
-
-  if (requiredPassword && password !== requiredPassword) {
-    return NextResponse.json(
-      { error: 'Unauthorized. Invalid or missing password.' },
-      { status: 401 }
-    );
-  }
-  return null;
-}
 
 /**
  * GET - Test custom fields mapping with detailed logging
  * Returns all logs in the response so you don't need to check server logs
  */
 export async function GET(request: NextRequest) {
-  const authResponse = authenticate(request);
+  const authResponse = await requireAdminAuth(request);
   if (authResponse) return authResponse;
 
   const logs: string[] = [];
@@ -419,7 +407,7 @@ export async function GET(request: NextRequest) {
  * This actually creates a test contact in GHL
  */
 export async function POST(request: NextRequest) {
-  const authResponse = authenticate(request);
+  const authResponse = await requireAdminAuth(request);
   if (authResponse) return authResponse;
 
   const logs: string[] = [];
