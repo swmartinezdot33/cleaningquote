@@ -20,6 +20,7 @@ import { squareFootageRangeToNumber, getSquareFootageRangeDisplay } from '@/lib/
 import type { PricingTierOption } from '@/lib/pricing/loadPricingTable';
 import { GooglePlacesAutocomplete, PlaceDetails } from '@/components/GooglePlacesAutocomplete';
 import { CalendarBooking } from '@/components/CalendarBooking';
+import { PreauthCardForm } from '@/components/PreauthCardForm';
 
 /**
  * Convert a select value (including "5+") to a number
@@ -226,6 +227,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
   const [appointmentNotes, setAppointmentNotes] = useState('');
+  const [appointmentReview, setAppointmentReview] = useState<{ date: string; time: string; notes: string; timestamp?: number } | null>(null);
   const [callDate, setCallDate] = useState('');
   const [callTime, setCallTime] = useState('');
   const [callNotes, setCallNotes] = useState('');
@@ -1529,7 +1531,13 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
     }
   };
 
-  const handleBookAppointment = async (date?: string, time?: string, notes?: string, timestamp?: number) => {
+  const handleBookAppointment = async (
+    date?: string,
+    time?: string,
+    notes?: string,
+    timestamp?: number,
+    preauthCardInfo?: { cardNumber: string; nameOnCard: string; expMonth: string; expYear: string; cvv: string; cardType: string }
+  ) => {
     const finalDate = date || appointmentDate;
     const finalTime = time || appointmentTime;
     const finalNotes = notes || appointmentNotes;
@@ -1569,6 +1577,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           frequency: selectedFrequency,
           ...(slug && { toolSlug: slug }),
           ...(toolId && { toolId }),
+          ...(preauthCardInfo && { preauthCardInfo }),
         }),
       });
 
@@ -1586,6 +1595,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         setBookingMessage({ type: 'success', text: 'Appointment booked successfully!' });
         setAppointmentConfirmed(true);
         setShowAppointmentForm(false);
+        setAppointmentReview(null);
         setTimeout(() => {
           setAppointmentDate(finalDate);
           setAppointmentTime(finalTime);
@@ -2255,6 +2265,79 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                 </div>
                               </div>
                             ) : showAppointmentForm ? (
+                              appointmentReview ? (
+                                <div ref={calendarRef} className="rounded-xl border-2 border-gray-200 bg-white overflow-hidden">
+                                  <div className="p-4 border-b bg-gray-50">
+                                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                      <Calendar className="h-5 w-5" style={{ color: primaryColor }} />
+                                      Review & confirm
+                                    </h3>
+                                    <p className="text-gray-600 text-sm mt-1">Confirm your appointment and add payment information for your service (no charge now)</p>
+                                  </div>
+                                  <div className="p-4 space-y-4">
+                                    {bookingMessage && (
+                                      <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className={`p-3 rounded-lg text-sm ${
+                                          bookingMessage.type === 'success'
+                                            ? 'bg-green-50 text-green-800 border border-green-200'
+                                            : 'bg-red-50 text-red-800 border border-red-200'
+                                        }`}
+                                      >
+                                        {bookingMessage.text}
+                                      </motion.div>
+                                    )}
+                                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                                      <p className="text-sm font-semibold text-gray-800">Appointment</p>
+                                      <p className="text-gray-700 mt-1">
+                                        {new Date(appointmentReview.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                                        {' at '}
+                                        {(() => {
+                                          const [h, m] = appointmentReview.time.split(':');
+                                          const d = new Date();
+                                          d.setHours(parseInt(h, 10), parseInt(m, 10));
+                                          return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                                        })()}
+                                      </p>
+                                      {appointmentReview.notes?.trim() && (
+                                        <p className="text-sm text-gray-600 mt-1">Notes: {appointmentReview.notes}</p>
+                                      )}
+                                    </div>
+                                    <PreauthCardForm
+                                      primaryColor={primaryColor}
+                                      isSubmitting={isBookingAppointment}
+                                      onSubmit={(preauthCardInfo) => {
+                                        handleBookAppointment(
+                                          appointmentReview.date,
+                                          appointmentReview.time,
+                                          appointmentReview.notes,
+                                          appointmentReview.timestamp,
+                                          preauthCardInfo
+                                        );
+                                      }}
+                                      onSkip={() => {
+                                        handleBookAppointment(
+                                          appointmentReview.date,
+                                          appointmentReview.time,
+                                          appointmentReview.notes,
+                                          appointmentReview.timestamp
+                                        );
+                                      }}
+                                    />
+                                    <div className="flex justify-end pt-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setAppointmentReview(null)}
+                                        disabled={isBookingAppointment}
+                                      >
+                                        Change date or time
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
                               <div ref={calendarRef} className="rounded-xl border-2 border-gray-200 bg-white overflow-hidden">
                                 <div className="p-4 border-b bg-gray-50">
                                   <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -2283,7 +2366,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                       setAppointmentDate(date);
                                       setAppointmentTime(time);
                                       setAppointmentNotes(notes);
-                                      handleBookAppointment(date, time, notes, timestamp);
+                                      setAppointmentReview({ date, time, notes, timestamp: timestamp ?? undefined });
                                     }}
                                     onCancel={() => {
                                       setShowAppointmentForm(false);
@@ -2291,12 +2374,14 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                       setAppointmentDate('');
                                       setAppointmentTime('');
                                       setAppointmentNotes('');
+                                      setAppointmentReview(null);
                                     }}
                                     isBooking={isBookingAppointment}
                                     primaryColor={primaryColor}
                                   />
                                 </div>
                               </div>
+                              )
                             ) : showCallForm ? (
                               <div ref={calendarRef} className="rounded-xl border-2 border-gray-200 bg-white overflow-hidden">
                                 <div className="p-4 border-b bg-gray-50">
