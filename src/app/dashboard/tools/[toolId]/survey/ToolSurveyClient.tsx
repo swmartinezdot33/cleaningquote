@@ -34,6 +34,7 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingQuestion, setEditingQuestion] = useState<Partial<SurveyQuestion> | null>(null);
   const [uploadingOptionIndex, setUploadingOptionIndex] = useState<number | null>(null);
+  const [uploadMessage, setUploadMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [ghlFields, setGhlFields] = useState<Array<{ key: string; name: string; type: string; fieldType?: string }>>([]);
   const [isLoadingFields, setIsLoadingFields] = useState(false);
   const [ghlFieldSearchTerm, setGhlFieldSearchTerm] = useState('');
@@ -412,6 +413,7 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
               setFieldTypeValidation(null);
               setSchemaValidation(null);
               setFieldChangeImpact(null);
+              setUploadMessage(null);
             }}
           >
             <Card className="w-full max-w-2xl my-8" onClick={(e) => e.stopPropagation()}>
@@ -426,6 +428,7 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                     setFieldTypeValidation(null);
                     setSchemaValidation(null);
                     setFieldChangeImpact(null);
+                    setUploadMessage(null);
                   }}
                 >
                   <X className="w-4 h-4" />
@@ -433,6 +436,16 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
               </CardHeader>
               <div className="overflow-y-auto max-h-[calc(100vh-220px)]">
                 <CardContent className="space-y-6 pt-6">
+                  {uploadMessage && (
+                    <div
+                      className={`rounded-lg p-3 flex items-center gap-2 text-sm ${
+                        uploadMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+                      }`}
+                    >
+                      {uploadMessage.type === 'success' ? <CheckCircle className="h-4 w-4 flex-shrink-0" /> : <AlertCircle className="h-4 w-4 flex-shrink-0" />}
+                      <span>{uploadMessage.text}</span>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Question ID</Label>
@@ -623,16 +636,16 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                                                 );
                                                 return { ...prev, options };
                                               });
-                                              setMessage({ type: 'success', text: 'Image added. Click "Save Question" below to keep your changes.' });
-                                              setTimeout(() => setMessage(null), 5000);
+                                              setUploadMessage({ type: 'success', text: 'Image added. Click "Save Question" below to keep your changes.' });
+                                              setTimeout(() => setUploadMessage(null), 5000);
                                             } else {
-                                              setMessage({
+                                              setUploadMessage({
                                                 type: 'error',
                                                 text: typeof data?.error === 'string' ? data.error : !res.ok ? `Upload failed (${res.status})` : 'Upload succeeded but no image URL was returned.',
                                               });
                                             }
                                           } catch {
-                                            setMessage({ type: 'error', text: 'Upload failed. Check your connection and try again.' });
+                                            setUploadMessage({ type: 'error', text: 'Upload failed. Check your connection and try again.' });
                                           } finally {
                                             setUploadingOptionIndex(null);
                                           }
@@ -644,28 +657,31 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                                     )}
                                   </div>
                                   {(option as SurveyQuestionOption).imageUrl?.trim() && (
-                                    <div className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2">
-                                      <img
-                                        src={(option as SurveyQuestionOption).imageUrl}
-                                        alt=""
-                                        className="h-12 w-12 rounded object-cover"
-                                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                      />
-                                      <span className="flex-1 truncate text-xs text-gray-600">Image set</span>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 text-xs"
-                                        onClick={() => {
-                                          const newOptions = [...(editingQuestion.options || [])];
-                                          const o = newOptions[idx] as SurveyQuestionOption;
-                                          newOptions[idx] = { ...o, imageUrl: undefined };
-                                          setEditingQuestion({ ...editingQuestion, options: newOptions });
-                                        }}
-                                      >
-                                        Remove
-                                      </Button>
+                                    <div className="flex items-center gap-2">
+                                      <div className="relative inline-block shrink-0">
+                                        <img
+                                          src={(option as SurveyQuestionOption).imageUrl}
+                                          alt=""
+                                          className="h-14 w-14 rounded-lg border border-gray-200 object-cover bg-gray-100"
+                                          onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56"><rect fill="#f3f4f6" width="56" height="56"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#9ca3af" font-size="10">?</text></svg>'); }}
+                                        />
+                                        <Button
+                                          type="button"
+                                          variant="secondary"
+                                          size="icon"
+                                          className="absolute -top-1.5 -right-1.5 h-6 w-6 rounded-full shadow border border-gray-200 bg-white hover:bg-red-50 hover:text-red-600 p-0"
+                                          onClick={() => {
+                                            const newOptions = [...(editingQuestion.options || [])];
+                                            const o = newOptions[idx] as SurveyQuestionOption;
+                                            newOptions[idx] = { ...o, imageUrl: undefined };
+                                            setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                          }}
+                                          aria-label="Clear image"
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                      <span className="text-xs text-muted-foreground">Thumbnail · click X to clear</span>
                                     </div>
                                   )}
                                   <details className="text-xs">
