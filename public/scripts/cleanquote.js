@@ -1,11 +1,16 @@
 /**
- * CleanQuote.io Script (GHL)
+ * CleanQuote.io GHL Quoter Button Script
  *
  * Adds a "Get Quote" button that opens your survey URL with the current contact
  * as query params (firstName, lastName, email, phone, address, contactId, etc.).
  *
- * Usage in GHL: <script src="https://www.cleanquote.io/api/script/cleanquote.js?v=5"></script>
- * Optional: data-base-url, data-tool-slug, data-org-slug, data-button-text, data-container-selector, data-open-in-iframe
+ * AGENCY INSTALL: Add script in agency Custom JS (no data attrs). It runs on all sub-accounts
+ * but only injects the button on sub-accounts that have CleanQuote connected. Auto-detects
+ * current location from GHL URL.
+ *
+ * SINGLE LOCATION: data-location-id="YOUR_GHL_LOCATION_ID" for explicit location.
+ *
+ * MANUAL: data-base-url, data-org-slug, data-tool-slug, data-button-text, data-container-selector, data-open-in-iframe
  */
 (function () {
   'use strict';
@@ -22,34 +27,55 @@
   }
   if (!scriptTag) scriptTag = document.querySelector('script[src*="cleanquote"]');
 
-  var baseUrl = (scriptTag && (scriptTag.getAttribute('data-base-url') || (scriptTag.dataset && scriptTag.dataset.baseUrl))) || '';
-  var toolSlug = (scriptTag && (scriptTag.getAttribute('data-tool-slug') || (scriptTag.dataset && scriptTag.dataset.toolSlug))) || 'default';
-  var orgSlug = (scriptTag && (scriptTag.getAttribute('data-org-slug') || (scriptTag.dataset && scriptTag.dataset.orgSlug))) || '';
-  var buttonText = (scriptTag && (scriptTag.getAttribute('data-button-text') || (scriptTag.dataset && scriptTag.dataset.buttonText))) || 'Get Quote';
-  var containerSelector = (scriptTag && (scriptTag.getAttribute('data-container-selector') || (scriptTag.dataset && scriptTag.dataset.containerSelector))) || '';
-  var openInIframe = (scriptTag && (scriptTag.getAttribute('data-open-in-iframe') || (scriptTag.dataset && scriptTag.dataset.openInIframe))) === 'true';
+  function getAttr(name, ds) {
+    return (scriptTag && (scriptTag.getAttribute(name) || (scriptTag.dataset && scriptTag.dataset[ds]))) || '';
+  }
 
-  baseUrl = String(baseUrl).trim().replace(/\/+$/, '');
-  if (!baseUrl && scriptTag && scriptTag.src) {
-    try {
-      baseUrl = new URL(scriptTag.src).origin;
-    } catch (e) { /* ignore */ }
-  }
-  if (!baseUrl && typeof document !== 'undefined' && document.scripts) {
-    try {
-      for (var i = 0; i < document.scripts.length; i++) {
-        var s = document.scripts[i];
-        if (s.src && s.src.indexOf('cleanquote') !== -1) {
-          baseUrl = new URL(s.src).origin;
-          break;
-        }
+  var locationId = getAttr('data-location-id', 'locationId') || '';
+  var baseUrl = getAttr('data-base-url', 'baseUrl') || '';
+  var toolSlug = getAttr('data-tool-slug', 'toolSlug') || 'default';
+  var orgSlug = getAttr('data-org-slug', 'orgSlug') || '';
+  var buttonText = (getAttr('data-button-text', 'buttonText') || 'Get Quote').trim();
+  var containerSelector = getAttr('data-container-selector', 'containerSelector') || '';
+  var openInIframe = (getAttr('data-open-in-iframe', 'openInIframe') || '') === 'true';
+
+  function getScriptOrigin() {
+    if (scriptTag && scriptTag.src) {
+      try { return new URL(scriptTag.src).origin; } catch (e) {}
+    }
+    for (var i = 0; i < document.scripts.length; i++) {
+      var s = document.scripts[i];
+      if (s.src && s.src.indexOf('cleanquote') !== -1) {
+        try { return new URL(s.src).origin; } catch (e) {}
+        break;
       }
-    } catch (e) { /* ignore */ }
+    }
+    return DEFAULT_ORIGIN;
   }
-  baseUrl = baseUrl || DEFAULT_ORIGIN;
+
+  var scriptOrigin = getScriptOrigin();
+  baseUrl = String(baseUrl).trim().replace(/\/+$/, '') || scriptOrigin;
   toolSlug = String(toolSlug).trim() || 'default';
   orgSlug = String(orgSlug).trim();
-  buttonText = String(buttonText).trim() || 'Get Quote';
+  buttonText = buttonText || 'Get Quote';
+
+  function getLocationIdFromUrl() {
+    try {
+      var href = typeof window !== 'undefined' && window.location ? window.location.href : '';
+      if (!href) return '';
+      var m = href.match(/\/(?:v2\/)?(?:location|oauth)\/([a-zA-Z0-9]{16,30})(?:\/|$|\?)/);
+      if (m && m[1]) return m[1];
+      var qs = typeof window !== 'undefined' && window.location && window.location.search ? window.location.search : '';
+      m = qs.match(/[?&]locationId=([a-zA-Z0-9]{16,30})(?:&|$)/);
+      if (m && m[1]) return m[1];
+      m = qs.match(/[?&]location_id=([a-zA-Z0-9]{16,30})(?:&|$)/);
+      if (m && m[1]) return m[1];
+      if (typeof window !== 'undefined' && (window.__GHL_LOCATION_ID__ || window.ghlLocationId)) {
+        return String(window.__GHL_LOCATION_ID__ || window.ghlLocationId || '').trim();
+      }
+    } catch (e) {}
+    return '';
+  }
 
   function getContact() {
     var c = window.__CONTACT__ || window.contact || window.ghlContact;
@@ -201,7 +227,7 @@
     }
   }
 
-  function run() {
+  function doInject() {
     try {
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', injectButton);
@@ -213,6 +239,35 @@
         console.error('CleanQuote script error:', err);
       }
     }
+  }
+
+  function run() {
+    var hasManualConfig = getAttr('data-org-slug', 'orgSlug') || getAttr('data-tool-slug', 'toolSlug');
+    var effectiveLocationId = locationId || getLocationIdFromUrl();
+
+    if (hasManualConfig) {
+      doInject();
+      return;
+    }
+
+    if (!effectiveLocationId) {
+      return;
+    }
+
+    var configUrl = scriptOrigin + '/api/script/config?locationId=' + encodeURIComponent(effectiveLocationId);
+    fetch(configUrl)
+      .then(function (r) {
+        if (!r.ok) return null;
+        return r.json();
+      })
+      .then(function (cfg) {
+        if (!cfg || !cfg.baseUrl) return;
+        baseUrl = String(cfg.baseUrl).replace(/\/+$/, '');
+        orgSlug = (cfg.orgSlug && String(cfg.orgSlug).trim()) || '';
+        toolSlug = (cfg.toolSlug && String(cfg.toolSlug).trim()) || 'default';
+        doInject();
+      })
+      .catch(function () {});
   }
   run();
 })();

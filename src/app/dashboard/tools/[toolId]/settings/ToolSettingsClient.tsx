@@ -914,7 +914,17 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                   </div>
                 )}
                 {ghlStatus?.configured && (
-                  <p className="text-sm text-muted-foreground">Location ID: {ghlStatus.locationId ?? '—'}. Enter new token/location below to update.</p>
+                  <>
+                    <p className="text-sm text-muted-foreground">Location ID: {ghlStatus.locationId ?? '—'}. Enter new token/location below to update.</p>
+                    {ghlStatus.locationId && (
+                      <div className="rounded-lg border border-border bg-muted/30 p-3">
+                        <p className="text-xs font-medium text-muted-foreground mb-2">GHL Quoter Button – paste in GHL → Settings → Company → Custom JS:</p>
+                        <code className="text-xs block break-all bg-background p-2 rounded border">
+                          {`<script src="${typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || 'https://www.cleanquote.io')}/api/script/cleanquote.js" data-location-id="${ghlStatus.locationId}"></script>`}
+                        </code>
+                      </div>
+                    )}
+                  </>
                 )}
                 <div>
                   <Label htmlFor="ghl-token" className="text-base font-semibold">HighLevel API Token</Label>

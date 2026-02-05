@@ -1,38 +1,57 @@
-# CleanQuote.io – GHL: pass query params to the survey
+# CleanQuote.io – GHL Quoter Button Script
 
 Two ways to open your survey with the current contact as query params so the form pre-fills.
 
 ---
 
-## Option 1: Link (no script) – recommended
+## Option 1: Script – agency install (runs on all, button only on connected sub-accounts)
 
-Use a **link** in GHL that points to our redirect. No script, no CORS. Just pass query params to the survey.
+**GHL Agency → Settings → Company → Custom JS.** Add:
 
-**In GHL:** Add a custom link/button and set the URL to (use your domain and GHL merge tags):
-
-```
-https://www.cleanquote.io/api/ghl?contactId={{contact.id}}&firstName={{contact.firstName}}&lastName={{contact.lastName}}&email={{contact.email}}&phone={{contact.phone}}&address={{contact.address}}
+```html
+<script src="https://www.cleanquote.io/api/script/cleanquote.js"></script>
 ```
 
-Optional params: `&city={{contact.city}}&state={{contact.state}}&postalCode={{contact.postalCode}}`  
-For org-scoped survey: `&orgSlug=your-org&toolSlug=default`
+No config needed. The script runs on every sub-account but **only injects the button on sub-accounts that have CleanQuote connected**. It auto-detects the current GHL location from the URL and fetches config; if that location isn't connected, no button appears.
 
-When the user clicks, they’re redirected to the survey with those params; the form pre-fills. Replace `www.cleanquote.io` with your CleanQuote domain.
+Replace `www.cleanquote.io` with your CleanQuote domain. Connect GHL (token + Location ID) in the CleanQuote dashboard per tool first.
 
 ---
 
-## Option 2: Script tag
+## Option 2: Link (no script)
 
-Use the API URL and **do not** add `crossorigin="anonymous"`:
+Use a **link** in GHL that points to the redirect. No script, no CORS.
 
-```html
-<script src="https://www.cleanquote.io/api/script/cleanquote.js?v=5"></script>
+```
+https://www.cleanquote.io/api/ghl?contactId={{contact.id}}&firstName={{contact.first_name}}&lastName={{contact.last_name}}&email={{contact.email}}&phone={{contact.phone}}&address={{contact.address1}}
 ```
 
-The script injects a “Get Quote” button that opens the survey with the current contact as query params. Optional: `data-base-url`, `data-tool-slug`, `data-org-slug`, `data-button-text`, `data-container-selector`, `data-open-in-iframe`. The script reads contact from `window.__CONTACT__`, `window.contact`, `window.ghlContact`, or DOM `data-contact-*`.
+Optional: `&city={{contact.city}}&state={{contact.state}}&postalCode={{contact.postal_code}}`  
+For org-scoped survey: `&orgSlug=your-org&toolSlug=default`
 
-**If the script doesn't run in GHL:** Many GHL pages or custom code areas block external script tags. Use **Option 1 (link)** instead, or add the script where GHL allows external scripts (e.g. Site Builder → Scripts).
+---
 
-**Iframe on contact page:** Add `data-open-in-iframe="true"` to open the form in an iframe on the contact page (button click loads the form inline). Enable **Form is iframed** in the tool's HighLevel settings so the form pre-fills from GHL and lands on the address step.
+## Option 3: Script (manual or single-location config)
 
-**Test locally:** Open `/scripts/test-cleanquote.html` on your dev server to confirm the script injects. In GHL, open DevTools (F12) → Console and look for "CleanQuote script error" or script load failures.
+**Single sub-account only:** Use `data-location-id` when the script is in one sub-account's Custom JS:
+```html
+<script src="https://www.cleanquote.io/api/script/cleanquote.js" data-location-id="YOUR_GHL_LOCATION_ID"></script>
+```
+
+**Explicit org/tool (no lookup):**
+
+```html
+<script src="https://www.cleanquote.io/api/script/cleanquote.js"
+  data-base-url="https://www.cleanquote.io"
+  data-org-slug="your-org"
+  data-tool-slug="default"
+  data-button-text="Get Quote"></script>
+```
+
+Optional: `data-container-selector`, `data-open-in-iframe="true"`. The script reads contact from `window.__CONTACT__`, `window.contact`, `window.ghlContact`, or DOM `data-contact-*`.
+
+---
+
+**If the script doesn't run in GHL:** Use Option 2 (link) or add the script where GHL allows external scripts (e.g. Site Builder → Scripts).
+
+**Test:** Open `/scripts/test-cleanquote.html` on your dev server. In GHL, DevTools (F12) → Console for "CleanQuote script error" or load failures.
