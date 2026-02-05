@@ -20,7 +20,10 @@ export async function POST(
   const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
   if (!token) {
     return NextResponse.json(
-      { error: 'Image upload is not configured. Set BLOB_READ_WRITE_TOKEN in Vercel (or use image URL instead).' },
+      {
+        error: 'Image upload is not configured.',
+        hint: 'Use Vercel Blob: in the Vercel dashboard go to your project → Storage → create a Blob store (or link existing), then in Settings → Environment Variables add BLOB_READ_WRITE_TOKEN. You can also paste an image URL in the field below instead of uploading.',
+      },
       { status: 503 }
     );
   }

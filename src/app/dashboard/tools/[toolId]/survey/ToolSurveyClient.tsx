@@ -240,7 +240,13 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
     }
 
     const squareFeetSynced = editingQuestion.id === 'squareFeet' && !!editingQuestion.syncOptionsWithPricingTable;
-    if (editingQuestion.type === 'select' && !squareFeetSynced && (!editingQuestion.options || editingQuestion.options.length === 0)) {
+    const hiddenQuestion = editingQuestion.visible === false;
+    if (
+      editingQuestion.type === 'select' &&
+      !squareFeetSynced &&
+      !hiddenQuestion &&
+      (!editingQuestion.options || editingQuestion.options.length === 0)
+    ) {
       setMessage({ type: 'error', text: 'Select questions must have at least one option' });
       return;
     }
@@ -368,6 +374,11 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                     <p className="font-medium text-foreground">{question.label}</p>
                     <p className="text-sm text-muted-foreground">
                       ID: {question.id} • Type: {question.type}
+                      {question.visible === false && (
+                        <span className="ml-2 inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
+                          Hidden (static value)
+                        </span>
+                      )}
                     </p>
                     {question.isCoreField && (
                       <p className="text-xs text-blue-600 mt-1">🔒 Core field (protected)</p>
@@ -515,6 +526,33 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                     />
                   </div>
 
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingQuestion.visible !== false}
+                        onChange={(e) => setEditingQuestion({ ...editingQuestion, visible: e.target.checked })}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <span className="font-medium">Show this question in the survey</span>
+                    </label>
+                    {editingQuestion.visible === false && (
+                      <div className="space-y-3 pl-6 border-l-2 border-amber-200">
+                        <p className="text-sm text-muted-foreground">
+                          Hidden questions are not shown to the user. Set a static value and map it to a GHL field to submit extra data with every quote.
+                        </p>
+                        <div>
+                          <Label>Static value to submit</Label>
+                          <Input
+                            value={editingQuestion.staticValue ?? ''}
+                            onChange={(e) => setEditingQuestion({ ...editingQuestion, staticValue: e.target.value })}
+                            placeholder="e.g. Widget, Campaign-2024"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <div>
                     <Label>Placeholder (optional)</Label>
                     <Input
@@ -621,7 +659,7 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                             <>
                               <div className="mt-2">
                                 <Label className="text-xs">Option image (optional)</Label>
-                                <p className="text-xs text-muted-foreground mb-1">Show a picture for this option so users can select by image (e.g. condition of home). Upload or paste URL.</p>
+                                <p className="text-xs text-muted-foreground mb-1">Show a picture for this option so users can select by image (e.g. condition of home). Upload requires BLOB_READ_WRITE_TOKEN in Vercel (Storage → Blob). Or paste an image URL below.</p>
                                 <div className="mt-1.5 flex flex-col gap-2">
                                   <div className="flex items-center gap-2">
                                     <label className="flex cursor-pointer items-center gap-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-100">
@@ -656,9 +694,11 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                                               setUploadMessage({ type: 'success', text: 'Image added. Click "Save Question" below to keep your changes.' });
                                               setTimeout(() => setUploadMessage(null), 5000);
                                             } else {
+                                              const errText = typeof data?.error === 'string' ? data.error : !res.ok ? `Upload failed (${res.status})` : 'Upload succeeded but no image URL was returned.';
+                                              const hint = typeof data?.hint === 'string' ? data.hint : '';
                                               setUploadMessage({
                                                 type: 'error',
-                                                text: typeof data?.error === 'string' ? data.error : !res.ok ? `Upload failed (${res.status})` : 'Upload succeeded but no image URL was returned.',
+                                                text: hint ? `${errText} ${hint}` : errText,
                                               });
                                             }
                                           } catch {

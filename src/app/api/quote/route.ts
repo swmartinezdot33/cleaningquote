@@ -435,6 +435,25 @@ export async function POST(request: NextRequest) {
           }
         });
 
+        // Hidden questions: submit static value to mapped GHL field (user never sees the question)
+        const nativeFieldListForHidden = ['firstName', 'lastName', 'email', 'phone', 'address1', 'address', 'city', 'state', 'postalCode', 'country'];
+        surveyQuestions.forEach((question: SurveyQuestion) => {
+          if (question.visible === false && question.ghlFieldMapping?.trim() && (question.staticValue != null && String(question.staticValue).trim() !== '')) {
+            const mapping = question.ghlFieldMapping.trim();
+            const value = String(question.staticValue).trim();
+            const mappingWithoutPrefix = mapping.replace(/^(contact|opportunity)\./, '');
+            const isNative = nativeFieldListForHidden.includes(mappingWithoutPrefix);
+            if (isNative) {
+              const nativeFieldName = mappingWithoutPrefix === 'address' ? 'address1' : mappingWithoutPrefix;
+              (contactData as Record<string, string>)[nativeFieldName] = value;
+            } else {
+              contactData.customFields = contactData.customFields || {};
+              contactData.customFields[mappingWithoutPrefix] = value;
+            }
+            mappedFieldsCount++;
+          }
+        });
+
         // Always send shedding pets and people to GHL when mapped (even when 0), so GHL has the value
         const alwaysIncludeNumeric: Array<{ bodyKey: string; defaultValue: number }> = [
           { bodyKey: 'sheddingPets', defaultValue: 0 },

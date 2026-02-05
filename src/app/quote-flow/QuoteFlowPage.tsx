@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -247,7 +247,13 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   const [primaryColor, setPrimaryColor] = useState(useServerConfig ? (initialConfig?.widget?.primaryColor ?? DEFAULT_PRIMARY_COLOR) : DEFAULT_PRIMARY_COLOR);
   const initialQuestions = (useServerConfig ? (initialConfig?.questions ?? []) : []) as SurveyQuestion[];
   const [questions, setQuestions] = useState<SurveyQuestion[]>(initialQuestions);
-  const [quoteSchema, setQuoteSchema] = useState<z.ZodObject<any>>(generateSchemaFromQuestions(initialQuestions));
+  const visibleQuestions = useMemo(
+    () => questions.filter((q) => q.visible !== false),
+    [questions]
+  );
+  const [quoteSchema, setQuoteSchema] = useState<z.ZodObject<any>>(() =>
+    generateSchemaFromQuestions(initialQuestions.filter((q) => q.visible !== false))
+  );
   const [addressCoordinates, setAddressCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [serviceAreaChecked, setServiceAreaChecked] = useState(false);
   const [tabOpened, setTabOpened] = useState(false); // Prevent multiple tab opens
@@ -301,7 +307,8 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
       if (Array.isArray(questionsList)) {
         const sorted = [...questionsList].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
         setQuestions(sorted);
-        setQuoteSchema(generateSchemaFromQuestions(sorted));
+        const visible = sorted.filter((q: SurveyQuestion) => q.visible !== false);
+        setQuoteSchema(generateSchemaFromQuestions(visible));
       } else {
         setQuestions([]);
         setQuoteSchema(generateSchemaFromQuestions([]));
@@ -422,7 +429,8 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
       const sortedQuestions = [...data.questions].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
       
       setQuestions(sortedQuestions);
-      setQuoteSchema(generateSchemaFromQuestions(sortedQuestions));
+      const visible = sortedQuestions.filter((q) => q.visible !== false);
+      setQuoteSchema(generateSchemaFromQuestions(visible));
     } catch (error) {
       console.error('Failed to load survey questions:', error);
       alert('Error loading form. Please refresh the page.');
@@ -574,13 +582,13 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
     return `${h} ${s}% ${l}%`;
   };
 
-  // Helper function to determine the next question index based on skip rules
+  // Helper function to determine the next question index based on skip rules (uses visible questions only)
   const getNextQuestionIndex = (currentIndex: number, fieldName: string): number => {
-    if (currentIndex >= questions.length - 1) {
-      return questions.length; // Return length to trigger form submission
+    if (currentIndex >= visibleQuestions.length - 1) {
+      return visibleQuestions.length; // Return length to trigger form submission
     }
 
-    const currentQuestion = questions[currentIndex];
+    const currentQuestion = visibleQuestions[currentIndex];
     
     // Only select-type questions can have skip rules
     if (currentQuestion.type !== 'select') {
@@ -596,14 +604,14 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
     // Find the option that matches the current value
     const selectedOption = currentQuestion.options?.find(opt => opt.value === currentValue);
     
-    // If option has a skipToQuestionId, find that question's index
+    // If option has a skipToQuestionId, find that question's index in the visible list
     if (selectedOption?.skipToQuestionId) {
       // Special case: "__END__" means skip to the end (trigger form submission)
       if (selectedOption.skipToQuestionId === '__END__') {
-        return questions.length; // Return length to trigger form submission
+        return visibleQuestions.length; // Return length to trigger form submission
       }
       
-      const skipToIndex = questions.findIndex(q => q.id === selectedOption.skipToQuestionId);
+      const skipToIndex = visibleQuestions.findIndex(q => q.id === selectedOption.skipToQuestionId);
       if (skipToIndex !== -1) {
         return skipToIndex;
       }
@@ -640,11 +648,11 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
     return currentIndex === questionIndex;
   };
 
-  // Generate default values from questions
+  // Generate default values from visible questions
   // Never preselect values - all fields start empty/undefined so users must make a choice
   const getDefaultValues = () => {
     const defaults: Record<string, any> = {};
-    questions.forEach((q) => {
+    visibleQuestions.forEach((q) => {
       const fieldName = getFormFieldName(q.id);
       // Always start with undefined/empty - never preselect
       if (q.type === 'number') {
@@ -721,7 +729,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
     reset(getDefaultValues());
     
       // Handle contact pre-fill when opening with contactId or ghlContactId parameter
-      if (mounted && questions.length > 0) {
+      if (mounted && visibleQuestions.length > 0) {
         const params = new URLSearchParams(window.location.search);
         const contactId = params.get('contactId') || params.get('ghlContactId');
         const fromOutOfService = params.get('fromOutOfService');
@@ -747,8 +755,8 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                 setValue('email', contact.email || '', { shouldValidate: false });
                 setValue('phone', contact.phone || '', { shouldValidate: false });
 
-                // Find the address question index and whether we're starting at address (new quote)
-                const addressQuestionIndex = questions.findIndex(q => q.type === 'address');
+                // Find the address question index (in visible list) and whether we're starting at address (new quote)
+                const addressQuestionIndex = visibleQuestions.findIndex(q => q.type === 'address');
                 const inIframe = typeof window !== 'undefined' && window.self !== window.top;
                 const startAtAddress = fromOutOfService || startAt === 'address' || (formIsIframed && inIframe);
 
@@ -779,7 +787,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                     // Coming from new tab feature: skip address question and go to next question
                     setServiceAreaChecked(true);
                     const nextIndex = addressQuestionIndex + 1;
-                    if (nextIndex < questions.length) {
+                    if (nextIndex < visibleQuestions.length) {
                       setCurrentStep(nextIndex);
                     }
                   }
@@ -796,17 +804,17 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           fetchAndPreFillContact();
         } else if (startAt === 'address') {
           // Handle startAt=address even without contactId (just skip to address step)
-          const addressQuestionIndex = questions.findIndex(q => q.type === 'address');
+          const addressQuestionIndex = visibleQuestions.findIndex(q => q.type === 'address');
           if (addressQuestionIndex !== -1) {
             setCurrentStep(addressQuestionIndex);
           }
         }
       }
-  }, [questions, formSettings, mounted, setValue, reset, setGHLContactId, setServiceAreaChecked, setCurrentStep, formIsIframed, toolId, resolvedToolId, slug]);
+  }, [questions, visibleQuestions, formSettings, mounted, setValue, reset, setGHLContactId, setServiceAreaChecked, setCurrentStep, formIsIframed, toolId, resolvedToolId, slug]);
 
   // Detect browser autofill and auto-advance
   useEffect(() => {
-    const currentQuestion = questions[currentStep];
+    const currentQuestion = visibleQuestions[currentStep];
     if (!mounted || !currentQuestion) return;
     
     // Only detect autofill for text, email, and tel input types (not address since it has autocomplete)
@@ -838,7 +846,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
             // Validate and move to next step or submit if last question
             trigger(currentQuestion.id as any).then((isValid) => {
               if (isValid) {
-                if (currentStep < questions.length - 1) {
+                if (currentStep < visibleQuestions.length - 1) {
                   setDirection(1);
                   setCurrentStep(currentStep + 1);
                 } else {
@@ -869,7 +877,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
             if (inputElement.value && inputElement.value.trim() !== '') {
               trigger(currentQuestion.id as any).then((isValid) => {
                 if (isValid) {
-                  if (currentStep < questions.length - 1) {
+                  if (currentStep < visibleQuestions.length - 1) {
                     setDirection(1);
                     setCurrentStep(currentStep + 1);
                   } else {
@@ -900,9 +908,9 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
       }
       clearInterval(checkInterval);
     };
-  }, [currentStep, mounted, trigger, questions, setDirection, setCurrentStep]);
+  }, [currentStep, mounted, trigger, visibleQuestions, setDirection, setCurrentStep]);
 
-  const progress = ((currentStep + 1) / questions.length) * 100;
+  const progress = visibleQuestions.length > 0 ? ((currentStep + 1) / visibleQuestions.length) * 100 : 0;
 
   if (!mounted) {
     return (
@@ -930,7 +938,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   }
 
   const nextStep = async () => {
-    const currentQuestion = questions[currentStep];
+    const currentQuestion = visibleQuestions[currentStep];
     if (!currentQuestion) {
       console.error('Current question not found at step', currentStep);
       return;
@@ -1040,7 +1048,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           // Calculate next step based on skip rules
           const nextIndex = getNextQuestionIndex(currentStep, fieldName);
           
-          if (nextIndex >= questions.length) {
+          if (nextIndex >= visibleQuestions.length) {
             handleFormSubmit();
           } else {
             setCurrentStep(nextIndex);
@@ -1245,7 +1253,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
             }
             setDirection(1);
             const nextIndex = getNextQuestionIndex(currentStep, fieldName);
-            if (nextIndex >= questions.length) {
+            if (nextIndex >= visibleQuestions.length) {
               handleFormSubmit();
             } else {
               setCurrentStep(nextIndex);
@@ -1266,7 +1274,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
       // Calculate next step based on skip rules
       const nextIndex = getNextQuestionIndex(currentStep, fieldName);
       
-      if (nextIndex >= questions.length) {
+            if (nextIndex >= visibleQuestions.length) {
         // Reached end, submit form
         handleFormSubmit();
       } else {
@@ -1798,7 +1806,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
     }
   };
 
-  const currentQuestion = questions[currentStep];
+  const currentQuestion = visibleQuestions[currentStep];
   
   // Loading: waiting for config (slug path only). Empty questions after load = user chose no questions.
   if (questions.length === 0 && mounted && (slug ? !configLoaded : true)) {
@@ -1811,7 +1819,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
       </div>
     );
   }
-  if (questions.length === 0 && mounted && slug && configLoaded) {
+  if (visibleQuestions.length === 0 && mounted && slug && configLoaded) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
         <div className="text-center text-gray-600">
@@ -2653,7 +2661,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                       setValue('postalCode', '', { shouldValidate: false });
                       setAddressCoordinates(null);
                       setServiceAreaChecked(false);
-                      const addressQuestionIndex = questions.findIndex(q => q.id === 'address');
+                      const addressQuestionIndex = visibleQuestions.findIndex(q => q.id === 'address');
                       setCurrentStep(addressQuestionIndex >= 0 ? addressQuestionIndex : 0);
                       setAppointmentConfirmed(false);
                       setCallConfirmed(false);
@@ -3332,7 +3340,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
                 Calculating...
               </>
-            ) : currentStep === questions.length - 1 ? (
+            ) : currentStep === visibleQuestions.length - 1 ? (
               <>
                 Get Quote
                 <Sparkles className="h-5 w-5" />
@@ -3348,7 +3356,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
 
         {/* Dots Indicator */}
         <div className="flex justify-center gap-2 mt-8">
-          {questions.map((_, index) => (
+          {visibleQuestions.map((_, index) => (
             <motion.button
               key={index}
               onClick={() => {

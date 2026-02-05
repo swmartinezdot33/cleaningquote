@@ -29,6 +29,10 @@ export interface SurveyQuestion {
   syncOptionsWithPricingTable?: boolean;
   // Skip logic: if no option has skipToQuestionId, go to next question by default
   // Only applies to select type questions
+  /** When false, question is hidden from the survey; use staticValue + ghlFieldMapping to submit a fixed value to GHL. Default true. */
+  visible?: boolean;
+  /** When visible is false, this value is submitted to the mapped GHL field without showing the question to the user. */
+  staticValue?: string;
 }
 
 /**
@@ -226,7 +230,7 @@ export function validateSurveyQuestion(question: Partial<SurveyQuestion>): { val
   if (question.required === undefined) errors.push('Required flag is required');
   if (question.order === undefined) errors.push('Order is required');
 
-  if (question.type === 'select' && (!question.options || question.options.length === 0)) {
+  if (question.type === 'select' && question.visible !== false && (!question.options || question.options.length === 0)) {
     errors.push('Select questions must have at least one option');
   }
 
