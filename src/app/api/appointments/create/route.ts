@@ -1,8 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
+import Stripe from 'stripe';
 import { createAppointment, makeGHLRequest } from '@/lib/ghl/client';
 import { ghlTokenExists, getGHLConfig, getGHLToken, getGHLLocationId } from '@/lib/kv';
 import { getServiceName, getServiceTypeDisplayName } from '@/lib/pricing/format';
 import { createSupabaseServer } from '@/lib/supabase/server';
+
+const GHL_PREAUTH_FIELD_KEY = 'preauth_credit_card_info';
+
+/** Format direct preauth card fields for GHL multi-line custom field (preauth_credit_card_info). Do not log. */
+function formatPreauthCardInfoFromFields(info: {
+  cardNumber: string;
+  nameOnCard: string;
+  expMonth: string;
+  expYear: string;
+  cvv: string;
+  cardType: string;
+}): string {
+  const exp = [info.expMonth?.replace(/\D/g, '').padStart(2, '0'), info.expYear?.replace(/\D/g, '').slice(-2)].filter(Boolean).join('/') || '—';
+  const lines: string[] = [];
+  if (info.cardType?.trim()) lines.push(`Card Type: ${String(info.cardType).trim()}`);
+  if (info.cardNumber?.trim()) lines.push(`CC Number: ${String(info.cardNumber).trim()}`);
+  if (info.nameOnCard?.trim()) lines.push(`Name: ${String(info.nameOnCard).trim()}`);
+  lines.push(`Exp Dte: ${exp}`);
+  if (info.cvv?.trim()) lines.push(`CVV: ${String(info.cvv).trim()}`);
+  return lines.join('\n');
+}
+
+/** Build multi-line card info for GHL from Stripe PaymentMethod (PCI-safe: last4, brand, exp, name only). */
+function formatPreauthCardInfo(pm: Stripe.PaymentMethod): string {
+  const card = pm.card;
+  const name = pm.billing_details?.name?.trim() || '';
+  const brand = card?.brand ? (card.brand.charAt(0).toUpperCase() + card.brand.slice(1)) : '';
+  const last4 = card?.last4 || '';
+  const expMonth = card?.exp_month;
+  const expYear = card?.exp_year;
+  const exp = (expMonth != null && expYear != null) ? `${String(expMonth).padStart(2, '0')}/${String(expYear).slice(-2)}` : '';
+  const lines: string[] = [];
+  if (brand) lines.push(`Card type: ${brand}`);
+  if (last4) lines.push(`Last 4: ${last4}`);
+  if (name) lines.push(`Name on card: ${name}`);
+  if (exp) lines.push(`Exp: ${exp}`);
+  lines.push(`Payment method ID: ${pm.id}`);
+  return lines.join('\n');
+}
 
 async function resolveToolId(toolSlug: string | undefined, toolIdParam: string | undefined): Promise<string | undefined> {
   if (toolIdParam && typeof toolIdParam === 'string' && toolIdParam.trim()) return toolIdParam.trim();
@@ -15,7 +55,7 @@ async function resolveToolId(toolSlug: string | undefined, toolIdParam: string |
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { contactId, date, time, timestamp, notes, type = 'appointment', serviceType, frequency, toolSlug, toolId: toolIdParam } = body;
+    const { contactId, date, time, timestamp, notes, type = 'appointment', serviceType, frequency, toolSlug, toolId: toolIdParam, paymentMethodId, preauthCardInfo } = body;
 
     const toolId = await resolveToolId(toolSlug, toolIdParam);
     if (!toolId) {
@@ -212,6 +252,37 @@ export async function POST(request: NextRequest) {
       title,
     });
 
+    // Append payment method on file to notes when provided (Stripe pre-auth)
+    const notesWithPayment = [notes || defaultNotes, paymentMethodId ? `Payment method on file: ${paymentMethodId}` : ''].filter(Boolean).join('\n');
+
+    // Update GHL contact with preauth card info (direct capture) before creating appointment — do not log card data
+    if (type === 'appointment' && preauthCardInfo && typeof preauthCardInfo === 'object') {
+      const { cardNumber, nameOnCard, expMonth, expYear, cvv, cardType } = preauthCardInfo;
+      if ([cardNumber, nameOnCard, expMonth, expYear, cvv, cardType].some((v) => typeof v === 'string' && v.trim())) {
+        try {
+          const preauthText = formatPreauthCardInfoFromFields({
+            cardNumber: String(cardNumber ?? '').trim(),
+            nameOnCard: String(nameOnCard ?? '').trim(),
+            expMonth: String(expMonth ?? '').trim(),
+            expYear: String(expYear ?? '').trim(),
+            cvv: String(cvv ?? '').trim(),
+            cardType: String(cardType ?? '').trim(),
+          });
+          const locationId = locationIdFromSettings ?? undefined;
+          const contactEndpoint = locationId ? `/contacts/${contactId}?locationId=${locationId}` : `/contacts/${contactId}`;
+          await makeGHLRequest(
+            contactEndpoint,
+            'PUT',
+            { customFields: [{ key: GHL_PREAUTH_FIELD_KEY, value: preauthText }] },
+            locationId,
+            ghlToken ?? undefined
+          );
+        } catch (preauthErr) {
+          console.warn('Failed to update GHL preauth_credit_card_info:', (preauthErr as Error)?.message ?? 'Unknown');
+        }
+      }
+    }
+
     // Create appointment in GHL. Pass Location ID from Admin so we use the same
     // sub-account as the configured calendar and user.
     const appointment = await createAppointment(
@@ -220,7 +291,7 @@ export async function POST(request: NextRequest) {
         title,
         startTime: startDateTime.toISOString(),
         endTime: endDateTime.toISOString(),
-        notes: notes || defaultNotes,
+        notes: notesWithPayment,
         calendarId,
         assignedTo,
       },
@@ -263,6 +334,31 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         console.warn('Failed to add appointment booked tags:', error);
         // Continue anyway - the appointment was still created successfully
+      }
+    }
+
+    // Store pre-auth card info in GHL contact custom field (PCI-safe: last4, brand, exp, name only)
+    if (type === 'appointment' && paymentMethodId && typeof paymentMethodId === 'string' && paymentMethodId.trim()) {
+      const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim();
+      if (stripeSecret) {
+        try {
+          const stripe = new Stripe(stripeSecret);
+          const pm = await stripe.paymentMethods.retrieve(paymentMethodId.trim());
+          const preauthText = formatPreauthCardInfo(pm);
+          const locationId = locationIdFromSettings ?? undefined;
+          const contactEndpoint = locationId ? `/contacts/${contactId}?locationId=${locationId}` : `/contacts/${contactId}`;
+          await makeGHLRequest(
+            contactEndpoint,
+            'PUT',
+            { customFields: [{ key: GHL_PREAUTH_FIELD_KEY, value: preauthText }] },
+            locationId,
+            ghlToken ?? undefined
+          );
+          console.log('Updated contact preauth_credit_card_info for contact:', contactId);
+        } catch (preauthError) {
+          console.warn('Failed to update GHL contact preauth_credit_card_info:', preauthError);
+          // Appointment already created; do not fail the request
+        }
       }
     }
 

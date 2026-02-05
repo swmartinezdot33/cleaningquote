@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Sparkles, Loader2, AlertCircle, Calendar, Clock, ChevronLeft } from 'lucide-react';
 import { CalendarBooking } from '@/components/CalendarBooking';
+import { PreauthCardForm } from '@/components/PreauthCardForm';
 import { getSquareFootageRangeDisplay } from '@/lib/pricing/format';
 
 interface QuoteResponse {
@@ -136,6 +137,7 @@ export default function QuotePageClient({
   const [callMessage, setCallMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
   const [callConfirmed, setCallConfirmed] = useState(false);
+  const [appointmentReview, setAppointmentReview] = useState<{ date: string; time: string; notes: string; timestamp?: number } | null>(null);
   const calendarRef = React.useRef<HTMLDivElement>(null);
 
   // Load widget settings (title, primary color). When under /t/[slug]/quote/[id], use slug-scoped API.
@@ -204,7 +206,13 @@ export default function QuotePageClient({
     }
   }, [showAppointmentForm, showCallForm]);
 
-  const handleBookAppointment = async (date?: string, time?: string, notes?: string, timestamp?: number) => {
+  const handleBookAppointment = async (
+    date?: string,
+    time?: string,
+    notes?: string,
+    timestamp?: number,
+    preauthCardInfo?: { cardNumber: string; nameOnCard: string; expMonth: string; expYear: string; cvv: string; cardType: string }
+  ) => {
     const finalDate = date || appointmentDate;
     const finalTime = time || appointmentTime;
     const finalNotes = notes || appointmentNotes;
@@ -241,12 +249,14 @@ export default function QuotePageClient({
           serviceType: quoteResult.serviceType,
           frequency: quoteResult.frequency,
           ...(apiToolSlug && { toolSlug: apiToolSlug }),
+          ...(preauthCardInfo && { preauthCardInfo }),
         }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
+        setAppointmentReview(null);
         // Redirect to confirmation with all query params preserved (UTM, start, etc.)
         const qs = getPassthroughParams();
         const confirmationUrl = `${quoteBasePath}/appointment-confirmed${qs ? `?${qs}` : ''}`;
@@ -830,49 +840,125 @@ export default function QuotePageClient({
                           className="mt-6"
                         >
                           {showAppointmentForm ? (
-                            <div ref={calendarRef} className="rounded-xl border-2 border-gray-200 bg-white overflow-hidden">
-                              <div className="p-4 border-b bg-gray-50">
-                                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                                  <Calendar className="h-5 w-5" style={{ color: primaryColor }} />
-                                  Schedule Your Appointment
-                                </h3>
-                                <p className="text-gray-600 text-sm mt-1">Choose a date and time that works for you</p>
+                            appointmentReview ? (
+                              <div ref={calendarRef} className="rounded-xl border-2 border-gray-200 bg-white overflow-hidden">
+                                <div className="p-4 border-b bg-gray-50">
+                                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                    <Calendar className="h-5 w-5" style={{ color: primaryColor }} />
+                                    Review & confirm
+                                  </h3>
+                                  <p className="text-gray-600 text-sm mt-1">Confirm your appointment and add payment information for your service (no charge now)</p>
+                                </div>
+                                <div className="p-4 space-y-4">
+                                  {bookingMessage && (
+                                    <motion.div
+                                      initial={{ opacity: 0, y: -10 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      className={`p-3 rounded-lg text-sm ${
+                                        bookingMessage.type === 'success'
+                                          ? 'bg-green-50 text-green-800 border border-green-200'
+                                          : 'bg-red-50 text-red-800 border border-red-200'
+                                      }`}
+                                    >
+                                      {bookingMessage.text}
+                                    </motion.div>
+                                  )}
+                                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                                    <p className="text-sm font-semibold text-gray-800">Appointment</p>
+                                    <p className="text-gray-700 mt-1">
+                                      {new Date(appointmentReview.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                                      {' at '}
+                                      {(() => {
+                                        const [h, m] = appointmentReview.time.split(':');
+                                        const d = new Date();
+                                        d.setHours(parseInt(h, 10), parseInt(m, 10));
+                                        return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                                      })()}
+                                    </p>
+                                    {appointmentReview.notes?.trim() && (
+                                      <p className="text-sm text-gray-600 mt-1">Notes: {appointmentReview.notes}</p>
+                                    )}
+                                  </div>
+                                  <PreauthCardForm
+                                    primaryColor={primaryColor}
+                                    isSubmitting={isBookingAppointment}
+                                    onSubmit={(preauthCardInfo) => {
+                                      handleBookAppointment(
+                                        appointmentReview.date,
+                                        appointmentReview.time,
+                                        appointmentReview.notes,
+                                        appointmentReview.timestamp,
+                                        preauthCardInfo
+                                      );
+                                    }}
+                                    onSkip={() => {
+                                      handleBookAppointment(
+                                        appointmentReview.date,
+                                        appointmentReview.time,
+                                        appointmentReview.notes,
+                                        appointmentReview.timestamp
+                                      );
+                                    }}
+                                  />
+                                  <div className="flex justify-end pt-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setAppointmentReview(null);
+                                      }}
+                                      disabled={isBookingAppointment}
+                                    >
+                                      Change date or time
+                                    </Button>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="p-4">
-                                {bookingMessage && (
-                                  <motion.div
-                                    initial={{ opacity: 0, y: -10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className={`mb-4 p-3 rounded-lg text-sm ${
-                                      bookingMessage.type === 'success'
-                                        ? 'bg-green-50 text-green-800 border border-green-200'
-                                        : 'bg-red-50 text-red-800 border border-red-200'
-                                    }`}
-                                  >
-                                    {bookingMessage.text}
+                            ) : (
+                              <div ref={calendarRef} className="rounded-xl border-2 border-gray-200 bg-white overflow-hidden">
+                                <div className="p-4 border-b bg-gray-50">
+                                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                    <Calendar className="h-5 w-5" style={{ color: primaryColor }} />
+                                    Schedule Your Appointment
+                                  </h3>
+                                  <p className="text-gray-600 text-sm mt-1">Choose a date and time that works for you</p>
+                                </div>
+                                <div className="p-4">
+                                  {bookingMessage && (
+                                    <motion.div
+                                      initial={{ opacity: 0, y: -10 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      className={`mb-4 p-3 rounded-lg text-sm ${
+                                        bookingMessage.type === 'success'
+                                          ? 'bg-green-50 text-green-800 border border-green-200'
+                                          : 'bg-red-50 text-red-800 border border-red-200'
+                                      }`}
+                                    >
+                                      {bookingMessage.text}
                                   </motion.div>
                                 )}
-                                <CalendarBooking
-                                  type="appointment"
-                                  toolSlug={(slug && toolSlug) ? toolSlug : slug}
-                                  onConfirm={(date, time, notes, timestamp) => {
-                                    setAppointmentDate(date);
-                                    setAppointmentTime(time);
-                                    setAppointmentNotes(notes);
-                                    handleBookAppointment(date, time, notes, timestamp);
-                                  }}
-                                  onCancel={() => {
-                                    setShowAppointmentForm(false);
-                                    setBookingMessage(null);
-                                    setAppointmentDate('');
-                                    setAppointmentTime('');
-                                    setAppointmentNotes('');
-                                  }}
-                                  isBooking={isBookingAppointment}
-                                  primaryColor={primaryColor}
-                                />
+                                  <CalendarBooking
+                                    type="appointment"
+                                    toolSlug={(slug && toolSlug) ? toolSlug : slug}
+                                    onConfirm={(date, time, notes, timestamp) => {
+                                      setAppointmentDate(date);
+                                      setAppointmentTime(time);
+                                      setAppointmentNotes(notes);
+                                      setAppointmentReview({ date, time, notes, timestamp: timestamp ?? undefined });
+                                    }}
+                                    onCancel={() => {
+                                      setShowAppointmentForm(false);
+                                      setBookingMessage(null);
+                                      setAppointmentDate('');
+                                      setAppointmentTime('');
+                                      setAppointmentReview(null);
+                                    }}
+                                    isBooking={isBookingAppointment}
+                                    primaryColor={primaryColor}
+                                  />
+                                </div>
                               </div>
-                            </div>
+                            )
                           ) : showCallForm ? (
                             <div ref={calendarRef} className="rounded-xl border-2 border-gray-200 bg-white overflow-hidden">
                               <div className="p-4 border-b bg-gray-50">

@@ -22,6 +22,7 @@ import {
   CheckCircle,
   AlertCircle,
   BookOpen,
+  Upload,
 } from 'lucide-react';
 import type { SurveyQuestion, SurveyQuestionOption } from '@/lib/survey/schema';
 
@@ -32,6 +33,7 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingQuestion, setEditingQuestion] = useState<Partial<SurveyQuestion> | null>(null);
+  const [uploadingOptionIndex, setUploadingOptionIndex] = useState<number | null>(null);
   const [ghlFields, setGhlFields] = useState<Array<{ key: string; name: string; type: string; fieldType?: string }>>([]);
   const [isLoadingFields, setIsLoadingFields] = useState(false);
   const [ghlFieldSearchTerm, setGhlFieldSearchTerm] = useState('');
@@ -588,19 +590,90 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                             {!isSynced && (
                             <>
                               <div className="mt-2">
-                                <Label className="text-xs">Option image URL (optional)</Label>
-                                <p className="text-xs text-muted-foreground mb-1">Show a picture for this option so users can select by image (e.g. condition of home).</p>
-                                <Input
-                                  value={(option as SurveyQuestionOption).imageUrl ?? ''}
-                                  onChange={(e) => {
-                                    const newOptions = [...(editingQuestion.options || [])];
-                                    const o = newOptions[idx] as SurveyQuestionOption;
-                                    newOptions[idx] = { ...o, imageUrl: e.target.value.trim() || undefined };
-                                    setEditingQuestion({ ...editingQuestion, options: newOptions });
-                                  }}
-                                  placeholder="https://..."
-                                  className="mt-1"
-                                />
+                                <Label className="text-xs">Option image (optional)</Label>
+                                <p className="text-xs text-muted-foreground mb-1">Show a picture for this option so users can select by image (e.g. condition of home). Upload or paste URL.</p>
+                                <div className="mt-1.5 flex flex-col gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-100">
+                                      <Upload className="h-4 w-4" />
+                                      Upload image
+                                      <input
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/webp,image/gif"
+                                        className="sr-only"
+                                        onChange={async (e) => {
+                                          const f = e.target.files?.[0];
+                                          if (!f) return;
+                                          const newOptions = [...(editingQuestion.options || [])];
+                                          const o = newOptions[idx] as SurveyQuestionOption;
+                                          setUploadingOptionIndex(idx);
+                                          try {
+                                            const form = new FormData();
+                                            form.append('file', f);
+                                            const res = await fetch(`/api/dashboard/tools/${toolId}/survey/upload-option-image`, {
+                                              method: 'POST',
+                                              body: form,
+                                            });
+                                            const data = await res.json();
+                                            if (res.ok && data.url) {
+                                              newOptions[idx] = { ...o, imageUrl: data.url };
+                                              setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                            } else {
+                                              setMessage({ type: 'error', text: data.error || 'Upload failed' });
+                                            }
+                                          } catch {
+                                            setMessage({ type: 'error', text: 'Upload failed' });
+                                          } finally {
+                                            setUploadingOptionIndex(null);
+                                            e.target.value = '';
+                                          }
+                                        }}
+                                      />
+                                    </label>
+                                    {uploadingOptionIndex === idx && (
+                                      <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+                                    )}
+                                  </div>
+                                  {(option as SurveyQuestionOption).imageUrl?.trim() && (
+                                    <div className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2">
+                                      <img
+                                        src={(option as SurveyQuestionOption).imageUrl}
+                                        alt=""
+                                        className="h-12 w-12 rounded object-cover"
+                                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                      />
+                                      <span className="flex-1 truncate text-xs text-gray-600">Image set</span>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 text-xs"
+                                        onClick={() => {
+                                          const newOptions = [...(editingQuestion.options || [])];
+                                          const o = newOptions[idx] as SurveyQuestionOption;
+                                          newOptions[idx] = { ...o, imageUrl: undefined };
+                                          setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                        }}
+                                      >
+                                        Remove
+                                      </Button>
+                                    </div>
+                                  )}
+                                  <details className="text-xs">
+                                    <summary className="cursor-pointer text-gray-500 hover:text-gray-700">Or paste image URL</summary>
+                                    <Input
+                                      value={(option as SurveyQuestionOption).imageUrl ?? ''}
+                                      onChange={(e) => {
+                                        const newOptions = [...(editingQuestion.options || [])];
+                                        const o = newOptions[idx] as SurveyQuestionOption;
+                                        newOptions[idx] = { ...o, imageUrl: e.target.value.trim() || undefined };
+                                        setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                      }}
+                                      placeholder="https://..."
+                                      className="mt-1.5"
+                                    />
+                                  </details>
+                                </div>
                               </div>
                               {((option as SurveyQuestionOption).imageUrl?.trim()) && (
                                 <label className="mt-2 flex items-center gap-2 cursor-pointer">
