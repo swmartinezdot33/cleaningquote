@@ -273,13 +273,30 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
     const isNew = editingIndex === questions.length;
     let newList: SurveyQuestion[];
 
+    // Normalize the question so options (including imageUrl, showLabel) are plain serializable objects and never dropped
+    const normalizeQuestion = (q: Partial<SurveyQuestion> & { order: number }): SurveyQuestion => {
+      const base = { ...q, order: q.order } as SurveyQuestion;
+      if (q.type === 'select' && Array.isArray(q.options)) {
+        base.options = q.options.map((opt) => {
+          const o = opt as SurveyQuestionOption;
+          const row: SurveyQuestionOption = { value: o?.value ?? '', label: o?.label ?? '' };
+          if (o?.imageUrl != null && String(o.imageUrl).trim()) row.imageUrl = String(o.imageUrl).trim();
+          if (o?.showLabel !== undefined) row.showLabel = o.showLabel;
+          if (o?.skipToQuestionId != null) row.skipToQuestionId = o.skipToQuestionId;
+          return row;
+        });
+      }
+      return base;
+    };
+
     if (isNew) {
-      const q = { ...questionToSave, order: questions.length } as SurveyQuestion;
+      const q = normalizeQuestion({ ...questionToSave, order: questions.length });
       newList = questions.map((qu, i) => ({ ...qu, order: i })).concat([q]);
     } else {
       const idx = editingIndex!;
+      const savedQuestion = normalizeQuestion({ ...questionToSave, order: idx });
       newList = questions.map((qu, i) =>
-        i === idx ? ({ ...questionToSave, order: i } as SurveyQuestion) : { ...qu, order: i } as SurveyQuestion
+        i === idx ? savedQuestion : ({ ...qu, order: i } as SurveyQuestion)
       );
     }
 
@@ -343,7 +360,7 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
       ) : (
         <div className="space-y-4">
           {questions.map((question, index) => (
-            <Card key={question.id} className="relative">
+            <Card key={question?.id ? `${question.id}-${index}` : `q-${index}`} className="relative">
               <CardContent className="pt-6">
                 <div className="flex items-start gap-4">
                   <GripVertical className="w-5 h-5 text-muted-foreground mt-1 flex-shrink-0" />
