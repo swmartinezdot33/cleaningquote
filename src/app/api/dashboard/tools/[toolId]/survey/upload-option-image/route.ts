@@ -5,7 +5,7 @@ import { validateFileUpload } from '@/lib/security/validation';
 
 export const dynamic = 'force-dynamic';
 
-const BUCKET = 'survey-option-images';
+const BUCKET = 'cleaningquote-images';
 const MAX_SIZE = 2 * 1024 * 1024; // 2MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
@@ -22,7 +22,7 @@ export async function POST(
     return NextResponse.json(
       {
         error: 'Image upload is not configured.',
-        hint: 'Supabase is required. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. Create a public Storage bucket named "survey-option-images" in your Supabase project. See SUPABASE_SETUP.md.',
+        hint: 'Supabase is required. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. Create a public Storage bucket named "cleaningquote-images" in your Supabase project. See docs/SUPABASE_STORAGE_SURVEY_IMAGES.md.',
       },
       { status: 503 }
     );

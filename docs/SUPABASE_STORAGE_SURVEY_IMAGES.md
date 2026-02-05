@@ -6,7 +6,7 @@ Survey Builder can attach images to dropdown options (e.g. condition of home). U
 
 1. **Create a public bucket**
    - Supabase Dashboard → **Storage** → **New bucket**
-   - Name: **`survey-option-images`** (must match exactly)
+   - Name: **`cleaningquote-images`** (must match exactly)
    - Enable **Public bucket** so option images can be shown in the quote form
    - Create
 
