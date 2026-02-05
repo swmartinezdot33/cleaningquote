@@ -48,7 +48,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!data?.tool_id) {
+    const toolId = data && typeof data === 'object' && 'tool_id' in data ? (data as { tool_id: string }).tool_id : null;
+    if (!toolId) {
       return NextResponse.json(
         { error: 'No tool connected to this GHL location' },
         { status: 404, headers: CORS_HEADERS }
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
     const { data: tool, error: toolErr } = await supabase
       .from('tools')
       .select('slug, org_id')
-      .eq('id', data.tool_id)
+      .eq('id', toolId)
       .single();
 
     if (toolErr || !tool) {
@@ -68,10 +69,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const toolRow = tool as { slug?: string; org_id?: string };
+    const orgId = toolRow.org_id;
+    if (!orgId) {
+      return NextResponse.json(
+        { error: 'Tool has no organization' },
+        { status: 404, headers: CORS_HEADERS }
+      );
+    }
+
     const { data: org, error: orgErr } = await supabase
       .from('organizations')
       .select('slug')
-      .eq('id', tool.org_id)
+      .eq('id', orgId)
       .single();
 
     if (orgErr || !org) {
@@ -83,7 +93,7 @@ export async function GET(request: NextRequest) {
 
     const baseUrl = getSiteUrl();
     const orgSlug = (org as { slug?: string }).slug ?? '';
-    const toolSlug = (tool as { slug?: string }).slug ?? 'default';
+    const toolSlug = toolRow.slug ?? 'default';
 
     return NextResponse.json(
       { baseUrl, orgSlug, toolSlug },
