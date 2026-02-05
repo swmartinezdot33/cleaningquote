@@ -461,6 +461,38 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                   {editingQuestion.type === 'select' && (
                     <div>
                       <Label>Options</Label>
+                      {editingQuestion.id === 'squareFeet' && (
+                        <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                          <p className="font-medium">Pricing mapping</p>
+                          <p className="mt-1">
+                            Option values (e.g. <code className="rounded bg-amber-100 px-1">1501-2000</code> or <code className="rounded bg-amber-100 px-1">0-1500</code>) are used to look up the pricing tier. The quote form uses this tool&apos;s pricing table when available; these options are the fallback. Keep values in sync with your pricing table ranges (Pricing tab).
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 border-amber-300 text-amber-800 hover:bg-amber-100"
+                            onClick={async () => {
+                              try {
+                                const res = await fetch(`/api/tools/by-id/pricing-tiers?toolId=${encodeURIComponent(toolId)}`);
+                                const data = await res.json();
+                                if (res.ok && data.tiers?.length) {
+                                  setEditingQuestion({
+                                    ...editingQuestion,
+                                    options: data.tiers.map((t: { value: string; label: string }) => ({ value: t.value, label: t.label })),
+                                  });
+                                } else {
+                                  setMessage({ type: 'error', text: data.error || 'No pricing tiers found. Add tiers in the Pricing tab first.' });
+                                }
+                              } catch {
+                                setMessage({ type: 'error', text: 'Failed to load pricing tiers' });
+                              }
+                            }}
+                          >
+                            Load options from this tool&apos;s pricing table
+                          </Button>
+                        </div>
+                      )}
                       <div className="space-y-2">
                         {(editingQuestion.options ?? []).map((option, idx) => (
                           <div key={idx} className="flex flex-col gap-2 p-3 border border-border rounded-lg bg-muted/50">

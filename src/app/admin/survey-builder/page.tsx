@@ -691,6 +691,14 @@ export default function SurveyBuilderPage() {
                   {editingQuestion.type === 'select' && (
                     <div>
                       <Label>Options</Label>
+                      {editingQuestion.id === 'squareFeet' && (
+                        <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                          <p className="font-medium">Pricing mapping</p>
+                          <p className="mt-1">
+                            Option values (e.g. <code className="rounded bg-amber-100 px-1">1501-2000</code> or <code className="rounded bg-amber-100 px-1">0-1500</code>) are used to look up the pricing tier. The quote form uses each tool&apos;s pricing table when available; these survey options are the fallback. Keep values in sync with your pricing table ranges.
+                          </p>
+                        </div>
+                      )}
                       <div className="space-y-2">
                         {(editingQuestion.options || []).map((option, idx) => (
                           <div key={idx} className="flex flex-col gap-2 p-3 border border-gray-200 rounded-lg bg-gray-50">
