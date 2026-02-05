@@ -21,6 +21,8 @@ export interface SurveyQuestion {
   ghlFieldMapping?: string;
   // Track if this is a core field that shouldn't be deleted
   isCoreField?: boolean;
+  /** When true (square footage only), options are always derived from the tool's pricing table; edits to pricing add/update options here. */
+  syncOptionsWithPricingTable?: boolean;
   // Skip logic: if no option has skipToQuestionId, go to next question by default
   // Only applies to select type questions
 }

@@ -1337,6 +1337,14 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
       const urlContactId = params.get('contactId') || params.get('ghlContactId');
       // Resolve contact ID: from state (set after email step) or URL param. CRITICAL for correct quote-contact association.
       const resolvedContactId = ghlContactId || urlContactId || undefined;
+      // Resolve condition from the survey's condition question (any field name) so condition multiplier is always sent
+      const conditionQuestion = questions.find((q) => q.id === 'condition');
+      const conditionFieldName = conditionQuestion ? getFormFieldName(conditionQuestion.id) : 'condition';
+      const conditionValue =
+        (formData[conditionFieldName] ?? formData.condition ?? formData.current_condition ?? formData.homeCondition) != null
+          ? String(formData[conditionFieldName] ?? formData.condition ?? formData.current_condition ?? formData.homeCondition).trim()
+          : undefined;
+      const conditionToSend = conditionValue || undefined;
       // For one-time services (move-in, move-out, deep), send empty frequency so quote summary shows correct selection
       const oneTimeServiceTypes = ['move-in', 'move-out', 'deep'];
       const payloadServiceType = formData.serviceType || '';
@@ -1365,7 +1373,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         people: Number(formData.people),
         pets: Number(formData.sheddingPets),
         sheddingPets: convertSelectToNumber(formData.sheddingPets),
-        condition: formData.condition,
+        condition: conditionToSend,
         // IMPORTANT: Pass the actual string values, not booleans!
         // These will be mapped to GHL select fields which expect the exact value
         hasPreviousService: formData.hasPreviousService || 'false', // Pass 'true', 'false', or 'switching'

@@ -23,7 +23,7 @@ import {
   AlertCircle,
   BookOpen,
 } from 'lucide-react';
-import type { SurveyQuestion } from '@/lib/survey/schema';
+import type { SurveyQuestion, SurveyQuestionOption } from '@/lib/survey/schema';
 
 export default function ToolSurveyClient({ toolId }: { toolId: string }) {
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
@@ -45,11 +45,29 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
   } | null>(null);
   const [schemaValidation, setSchemaValidation] = useState<{ valid: boolean; errors?: Array<{ message: string; suggestion: string }>; warnings?: Array<{ message: string; suggestion: string }> } | null>(null);
   const [fieldChangeImpact, setFieldChangeImpact] = useState<{ breaking: boolean; impact: string[]; affectedSystems?: string[]; recommendation: string } | null>(null);
+  const [squareFeetSyncedTiers, setSquareFeetSyncedTiers] = useState<Array<{ value: string; label: string }> | null>(null);
 
   useEffect(() => {
     loadQuestions();
     loadGHLFields();
   }, [toolId]);
+
+  // When editing square footage with sync on, fetch current pricing tiers for display
+  useEffect(() => {
+    if (editingQuestion?.id === 'squareFeet' && editingQuestion?.syncOptionsWithPricingTable) {
+      let cancelled = false;
+      fetch(`/api/tools/by-id/pricing-tiers?toolId=${encodeURIComponent(toolId)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (!cancelled && data.tiers?.length) setSquareFeetSyncedTiers(data.tiers.map((t: { value: string; label: string }) => ({ value: t.value, label: t.label })));
+          else if (!cancelled) setSquareFeetSyncedTiers([]);
+        })
+        .catch(() => { if (!cancelled) setSquareFeetSyncedTiers([]); });
+      return () => { cancelled = true; };
+    } else {
+      setSquareFeetSyncedTiers(null);
+    }
+  }, [editingQuestion?.id, editingQuestion?.syncOptionsWithPricingTable, toolId]);
 
   const loadQuestions = async () => {
     setIsLoading(true);
@@ -218,7 +236,8 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
       return;
     }
 
-    if (editingQuestion.type === 'select' && (!editingQuestion.options || editingQuestion.options.length === 0)) {
+    const squareFeetSynced = editingQuestion.id === 'squareFeet' && !!editingQuestion.syncOptionsWithPricingTable;
+    if (editingQuestion.type === 'select' && !squareFeetSynced && (!editingQuestion.options || editingQuestion.options.length === 0)) {
       setMessage({ type: 'error', text: 'Select questions must have at least one option' });
       return;
     }
@@ -233,16 +252,31 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
       return;
     }
 
+    // When saving square footage with sync on, fetch current pricing tiers so saved options stay in sync
+    let questionToSave = editingQuestion;
+    if (editingQuestion.id === 'squareFeet' && editingQuestion.syncOptionsWithPricingTable) {
+      try {
+        const res = await fetch(`/api/tools/by-id/pricing-tiers?toolId=${encodeURIComponent(toolId)}`);
+        const data = await res.json();
+        if (res.ok && data.tiers?.length) {
+          questionToSave = { ...editingQuestion, options: data.tiers.map((t: { value: string; label: string }) => ({ value: t.value, label: t.label })) };
+        }
+      } catch (_) {
+        setMessage({ type: 'error', text: 'Failed to load pricing tiers for save' });
+        return;
+      }
+    }
+
     const isNew = editingIndex === questions.length;
     let newList: SurveyQuestion[];
 
     if (isNew) {
-      const q = { ...editingQuestion, order: questions.length } as SurveyQuestion;
+      const q = { ...questionToSave, order: questions.length } as SurveyQuestion;
       newList = questions.map((qu, i) => ({ ...qu, order: i })).concat([q]);
     } else {
       const idx = editingIndex!;
       newList = questions.map((qu, i) =>
-        i === idx ? ({ ...editingQuestion, order: i } as SurveyQuestion) : { ...qu, order: i } as SurveyQuestion
+        i === idx ? ({ ...questionToSave, order: i } as SurveyQuestion) : { ...qu, order: i } as SurveyQuestion
       );
     }
 
@@ -465,36 +499,55 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                         <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
                           <p className="font-medium">Pricing mapping</p>
                           <p className="mt-1">
-                            Option values (e.g. <code className="rounded bg-amber-100 px-1">1501-2000</code> or <code className="rounded bg-amber-100 px-1">0-1500</code>) are used to look up the pricing tier. The quote form uses this tool&apos;s pricing table when available; these options are the fallback. Keep values in sync with your pricing table ranges (Pricing tab).
+                            Option values (e.g. <code className="rounded bg-amber-100 px-1">1501-2000</code> or <code className="rounded bg-amber-100 px-1">0-1500</code>) are used to look up the pricing tier.
                           </p>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="mt-2 border-amber-300 text-amber-800 hover:bg-amber-100"
-                            onClick={async () => {
-                              try {
-                                const res = await fetch(`/api/tools/by-id/pricing-tiers?toolId=${encodeURIComponent(toolId)}`);
-                                const data = await res.json();
-                                if (res.ok && data.tiers?.length) {
+                          <label className="mt-3 flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={!!editingQuestion.syncOptionsWithPricingTable}
+                              onChange={(e) => {
+                                const on = e.target.checked;
+                                if (on) {
+                                  fetch(`/api/tools/by-id/pricing-tiers?toolId=${encodeURIComponent(toolId)}`)
+                                    .then((res) => res.json())
+                                    .then((data) => {
+                                      if (data.tiers?.length) {
+                                        setEditingQuestion({
+                                          ...editingQuestion,
+                                          syncOptionsWithPricingTable: true,
+                                          options: data.tiers.map((t: { value: string; label: string }) => ({ value: t.value, label: t.label })),
+                                        });
+                                      } else {
+                                        setMessage({ type: 'error', text: data.error || 'No pricing tiers found. Add tiers in the Pricing tab first.' });
+                                      }
+                                    })
+                                    .catch(() => setMessage({ type: 'error', text: 'Failed to load pricing tiers' }));
+                                } else {
                                   setEditingQuestion({
                                     ...editingQuestion,
-                                    options: data.tiers.map((t: { value: string; label: string }) => ({ value: t.value, label: t.label })),
+                                    syncOptionsWithPricingTable: false,
+                                    options: editingQuestion.options?.length ? [...editingQuestion.options] : [{ value: '0-1500', label: 'Less than 1,500 sq ft' }, { value: '1501-2000', label: '1,501 - 2,000 sq ft' }],
                                   });
-                                } else {
-                                  setMessage({ type: 'error', text: data.error || 'No pricing tiers found. Add tiers in the Pricing tab first.' });
                                 }
-                              } catch {
-                                setMessage({ type: 'error', text: 'Failed to load pricing tiers' });
-                              }
-                            }}
-                          >
-                            Load options from this tool&apos;s pricing table
-                          </Button>
+                              }}
+                              className="h-4 w-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                            />
+                            <span>Keep options in sync with pricing table (edits in the Pricing tab will add or update options here)</span>
+                          </label>
+                          {editingQuestion.syncOptionsWithPricingTable && (
+                            <p className="mt-2 text-xs text-amber-800">
+                              Options below are read-only and match the Pricing tab. Turn off sync to edit options manually.
+                            </p>
+                          )}
                         </div>
                       )}
                       <div className="space-y-2">
-                        {(editingQuestion.options ?? []).map((option, idx) => (
+                        {(editingQuestion.id === 'squareFeet' && editingQuestion.syncOptionsWithPricingTable
+                          ? (squareFeetSyncedTiers ?? editingQuestion.options ?? [])
+                          : (editingQuestion.options ?? [])
+                        ).map((option, idx) => {
+                          const isSynced = editingQuestion.id === 'squareFeet' && !!editingQuestion.syncOptionsWithPricingTable;
+                          return (
                           <div key={idx} className="flex flex-col gap-2 p-3 border border-border rounded-lg bg-muted/50">
                             <div className="flex gap-2 flex-wrap">
                               <Input
@@ -505,6 +558,8 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                                   setEditingQuestion({ ...editingQuestion, options: newOptions });
                                 }}
                                 placeholder="Value"
+                                disabled={isSynced}
+                                className={isSynced ? 'bg-muted cursor-not-allowed' : ''}
                               />
                               <Input
                                 value={option.label}
@@ -514,22 +569,27 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                                   setEditingQuestion({ ...editingQuestion, options: newOptions });
                                 }}
                                 placeholder="Label"
+                                disabled={isSynced}
+                                className={isSynced ? 'bg-muted cursor-not-allowed' : ''}
                               />
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  const newOptions = (editingQuestion.options || []).filter((_, i) => i !== idx);
-                                  setEditingQuestion({ ...editingQuestion, options: newOptions });
-                                }}
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
+                              {!isSynced && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    const newOptions = (editingQuestion.options || []).filter((_, i) => i !== idx);
+                                    setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                  }}
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              )}
                             </div>
+                            {!isSynced && (
                             <div>
                               <Label className="text-xs">Skip to question (optional)</Label>
                               <Select
-                                value={option.skipToQuestionId || 'next'}
+                                value={(option as SurveyQuestionOption).skipToQuestionId || 'next'}
                                 onValueChange={(value) => {
                                   const newOptions = [...(editingQuestion.options || [])];
                                   newOptions[idx] = {
@@ -556,8 +616,11 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                                 </SelectContent>
                               </Select>
                             </div>
+                            )}
                           </div>
-                        ))}
+                          );
+                        })}
+                        {!(editingQuestion.id === 'squareFeet' && editingQuestion.syncOptionsWithPricingTable) && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -569,6 +632,7 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                           <Plus className="w-4 h-4 mr-2" />
                           Add Option
                         </Button>
+                        )}
                       </div>
                     </div>
                   )}
