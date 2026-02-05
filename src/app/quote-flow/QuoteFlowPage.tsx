@@ -744,19 +744,29 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                 setValue('lastName', contact.lastName || '', { shouldValidate: false });
                 setValue('email', contact.email || '', { shouldValidate: false });
                 setValue('phone', contact.phone || '', { shouldValidate: false });
-                setValue('address', contact.address1 || '', { shouldValidate: false });
-                setValue('city', contact.city || '', { shouldValidate: false });
-                setValue('state', contact.state || '', { shouldValidate: false });
-                setValue('postalCode', contact.postalCode || '', { shouldValidate: false });
-                setValue('country', contact.country || 'US', { shouldValidate: false });
 
-                // Set the contact ID
-                setGHLContactId(contactId);
-
-                // Find the address question index
+                // Find the address question index and whether we're starting at address (new quote)
                 const addressQuestionIndex = questions.findIndex(q => q.type === 'address');
                 const inIframe = typeof window !== 'undefined' && window.self !== window.top;
                 const startAtAddress = fromOutOfService || startAt === 'address' || (formIsIframed && inIframe);
+
+                if (startAtAddress) {
+                  // New quote: do not pre-populate address so user must enter a new one
+                  setValue('address', '', { shouldValidate: false });
+                  setValue('city', '', { shouldValidate: false });
+                  setValue('state', '', { shouldValidate: false });
+                  setValue('postalCode', '', { shouldValidate: false });
+                  setValue('country', 'US', { shouldValidate: false });
+                } else {
+                  setValue('address', contact.address1 || '', { shouldValidate: false });
+                  setValue('city', contact.city || '', { shouldValidate: false });
+                  setValue('state', contact.state || '', { shouldValidate: false });
+                  setValue('postalCode', contact.postalCode || '', { shouldValidate: false });
+                  setValue('country', contact.country || 'US', { shouldValidate: false });
+                }
+
+                // Set the contact ID
+                setGHLContactId(contactId);
                 
                 if (addressQuestionIndex !== -1) {
                   if (startAtAddress) {
@@ -2519,7 +2529,13 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                     onClick={() => {
                       setQuoteResult(null);
                       setHouseDetails(null);
-                      // Go back to address step (index 4) instead of starting from beginning
+                      // Go back to address step; clear address so user must enter a new one
+                      setValue('address', '', { shouldValidate: false });
+                      setValue('city', '', { shouldValidate: false });
+                      setValue('state', '', { shouldValidate: false });
+                      setValue('postalCode', '', { shouldValidate: false });
+                      setAddressCoordinates(null);
+                      setServiceAreaChecked(false);
                       const addressQuestionIndex = questions.findIndex(q => q.id === 'address');
                       setCurrentStep(addressQuestionIndex >= 0 ? addressQuestionIndex : 0);
                       setAppointmentConfirmed(false);
