@@ -3119,25 +3119,20 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                         // Other select questions: use custom options from survey (include imageUrl/showLabel for option images)
                         return (currentQuestion.options || [])
                           .filter(option => option.value && option.value.trim() !== '')
-                          .map(option => ({
-                            value: option.value,
-                            label: option.label || option.value,
-                            imageUrl: (option as { imageUrl?: string }).imageUrl?.trim() || undefined,
-                            showLabel: (option as { showLabel?: boolean }).showLabel !== false,
-                          }));
+                          .map(option => {
+                            const o = option as { imageUrl?: string; image_url?: string; showLabel?: boolean };
+                            const imageUrl = (o.imageUrl?.trim() || o.image_url?.trim() || '').trim() || undefined;
+                            return {
+                              value: option.value,
+                              label: option.label || option.value,
+                              imageUrl,
+                              showLabel: o.showLabel !== false,
+                            };
+                          });
                       };
 
                       const selectOptions = getSelectOptions();
                       const currentValue = watch(getFormFieldName(currentQuestion.id) as any);
-
-                      // #region agent log
-                      if (currentQuestion.id === 'condition' && selectOptions.some((o) => (o as { imageUrl?: string }).imageUrl)) {
-                        selectOptions.forEach((opt, i) => {
-                          const u = (opt as { imageUrl?: string }).imageUrl;
-                          fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'QuoteFlowPage.tsx:selectOptions', message: 'condition option imageUrl', data: { optionIndex: i, value: opt.value, imageUrlPresent: !!u, imageUrlPrefix: u ? u.slice(0, 80) : null, isAbsolute: !!(u && (u.startsWith('http://') || u.startsWith('https://'))) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1-H3' }) }).catch(() => {});
-                        });
-                      }
-                      // #endregion
 
                       // Determine grid columns based on number of options
                       const getGridCols = (count: number) => {
@@ -3210,9 +3205,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                           src={optionImageUrl}
                                           alt=""
                                           className="w-full h-full object-cover rounded-xl"
-                                          onError={() => {
-                                            fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'QuoteFlowPage.tsx:img.onError', message: 'option image failed to load', data: { optionValue: option.value, srcPrefix: (optionImageUrl || '').slice(0, 80) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H4' }) }).catch(() => {});
-                                          }}
                                         />
                                       </span>
                                       {showLabelWithImage && (

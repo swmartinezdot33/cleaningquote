@@ -167,6 +167,17 @@ export async function GET(request: NextRequest) {
       questions = [...DEFAULT_SURVEY_QUESTIONS];
     }
 
+    // Normalize select options so imageUrl/showLabel are always present for the quote flow (preserves condition images).
+    questions = (questions as Array<Record<string, unknown>>).map((q) => {
+      if (q.type !== 'select' || !Array.isArray(q.options)) return q;
+      const opts = (q.options as Array<Record<string, unknown>>).map((opt) => {
+        const imageUrl = typeof opt.imageUrl === 'string' ? opt.imageUrl.trim() : typeof (opt as { image_url?: string }).image_url === 'string' ? String((opt as { image_url: string }).image_url).trim() : undefined;
+        const showLabel = opt.showLabel !== false;
+        return { ...opt, value: opt.value, label: opt.label ?? opt.value, imageUrl: imageUrl || undefined, showLabel };
+      });
+      return { ...q, options: opts };
+    });
+
     type GhlRedirectShape = { redirectAfterAppointment?: boolean; appointmentRedirectUrl?: string; formIsIframed?: boolean };
     const ghl: GhlRedirectShape | null =
       row?.ghl_config && typeof row.ghl_config === 'object' && !Array.isArray(row.ghl_config)

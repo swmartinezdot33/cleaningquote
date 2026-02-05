@@ -59,11 +59,21 @@ export function PreauthCardForm({
 }) {
   const [cardType, setCardType] = useState('');
   const [cardNumber, setCardNumber] = useState('');
+  const [cardNumberFocused, setCardNumberFocused] = useState(false);
   const [nameOnCard, setNameOnCard] = useState('');
   const [expMonth, setExpMonth] = useState('');
   const [expYear, setExpYear] = useState('');
   const [cvv, setCvv] = useState('');
+  const [cvvFocused, setCvvFocused] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const rawDigits = cardNumber.replace(/\s/g, '');
+  const cardNumberMasked = rawDigits.length >= 4
+    ? `**** **** **** ${rawDigits.slice(-4)}`
+    : rawDigits.length > 0
+      ? '*'.repeat(Math.min(rawDigits.length, 4))
+      : '';
+  const cvvMasked = cvv.length > 0 ? '***' : '';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,8 +149,10 @@ export function PreauthCardForm({
                 type="tel"
                 inputMode="numeric"
                 placeholder="1234 5678 9012 3456"
-                value={cardNumber}
+                value={cardNumberFocused ? cardNumber : cardNumberMasked}
                 onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                onFocus={() => setCardNumberFocused(true)}
+                onBlur={() => setCardNumberFocused(false)}
                 className="pl-10 font-mono tracking-wider"
                 autoComplete="off"
                 maxLength={19}
@@ -201,8 +213,10 @@ export function PreauthCardForm({
                 type="tel"
                 inputMode="numeric"
                 placeholder="123"
-                value={cvv}
+                value={cvvFocused ? cvv : cvvMasked}
                 onChange={(e) => setCvv(formatCvv(e.target.value))}
+                onFocus={() => setCvvFocused(true)}
+                onBlur={() => setCvvFocused(false)}
                 className="mt-1.5 w-full font-mono"
                 autoComplete="off"
                 maxLength={4}

@@ -604,8 +604,6 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                                         onChange={async (e) => {
                                           const f = e.target.files?.[0];
                                           if (!f) return;
-                                          const newOptions = [...(editingQuestion.options || [])];
-                                          const o = newOptions[idx] as SurveyQuestionOption;
                                           setUploadingOptionIndex(idx);
                                           try {
                                             const form = new FormData();
@@ -616,8 +614,15 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                                             });
                                             const data = await res.json();
                                             if (res.ok && data.url) {
-                                              newOptions[idx] = { ...o, imageUrl: data.url };
-                                              setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                              setEditingQuestion((prev) => {
+                                                if (!prev) return prev;
+                                                const opts = [...(prev.options || [])];
+                                                const o = opts[idx] as SurveyQuestionOption;
+                                                opts[idx] = { ...o, imageUrl: data.url };
+                                                return { ...prev, options: opts };
+                                              });
+                                              setMessage({ type: 'success', text: 'Image added. Click "Save Question" below to keep your changes.' });
+                                              setTimeout(() => setMessage(null), 4000);
                                             } else {
                                               setMessage({ type: 'error', text: data.error || 'Upload failed' });
                                             }
