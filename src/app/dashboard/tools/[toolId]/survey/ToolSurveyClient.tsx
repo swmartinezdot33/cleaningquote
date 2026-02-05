@@ -659,7 +659,7 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                             <>
                               <div className="mt-2">
                                 <Label className="text-xs">Option image (optional)</Label>
-                                <p className="text-xs text-muted-foreground mb-1">Show a picture for this option so users can select by image (e.g. condition of home). Upload requires BLOB_READ_WRITE_TOKEN in Vercel (Storage → Blob). Or paste an image URL below.</p>
+                                <p className="text-xs text-muted-foreground mb-1">Show a picture for this option so users can select by image (e.g. condition of home). Uploads go to Supabase Storage (bucket survey-option-images). Or paste an image URL below.</p>
                                 <div className="mt-1.5 flex flex-col gap-2">
                                   <div className="flex items-center gap-2">
                                     <label className="flex cursor-pointer items-center gap-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-100">

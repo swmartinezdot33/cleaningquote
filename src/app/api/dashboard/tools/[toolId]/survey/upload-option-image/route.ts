@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { put } from '@vercel/blob';
+import { createSupabaseServer, isSupabaseConfigured } from '@/lib/supabase/server';
 import { getDashboardUserAndTool } from '@/lib/dashboard-auth';
 import { validateFileUpload } from '@/lib/security/validation';
 
 export const dynamic = 'force-dynamic';
 
+const BUCKET = 'survey-option-images';
 const MAX_SIZE = 2 * 1024 * 1024; // 2MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
-/** POST - Upload an image for a survey option (e.g. condition of home). Returns public URL. */
+/** POST - Upload an image for a survey option (e.g. condition of home). Stored in Supabase Storage, keyed by tool. Returns public URL. */
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ toolId: string }> }
@@ -17,12 +18,11 @@ export async function POST(
   const auth = await getDashboardUserAndTool(toolId);
   if (auth instanceof NextResponse) return auth;
 
-  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
-  if (!token) {
+  if (!isSupabaseConfigured()) {
     return NextResponse.json(
       {
         error: 'Image upload is not configured.',
-        hint: 'Use Vercel Blob: in the Vercel dashboard go to your project → Storage → create a Blob store (or link existing), then in Settings → Environment Variables add BLOB_READ_WRITE_TOKEN. You can also paste an image URL in the field below instead of uploading.',
+        hint: 'Supabase is required. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. Create a public Storage bucket named "survey-option-images" in your Supabase project. See SUPABASE_SETUP.md.',
       },
       { status: 503 }
     );
@@ -52,18 +52,40 @@ export async function POST(
 
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const safeExt = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext) ? ext : 'jpg';
-    const filename = `survey-options/${toolId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${safeExt}`;
+    const path = `${toolId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${safeExt}`;
 
-    const blob = await put(filename, file, {
-      access: 'public',
-      token,
-    });
+    const supabase = createSupabaseServer();
+    const arrayBuffer = await file.arrayBuffer();
 
-    const url = blob?.url?.trim?.();
-    if (!url) {
-      console.error('Vercel Blob put succeeded but returned no url:', blob);
+    const { error: uploadError } = await supabase.storage
+      .from(BUCKET)
+      .upload(path, arrayBuffer, {
+        contentType: file.type || `image/${safeExt}`,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error('Survey option image upload (Supabase):', uploadError);
+      if (uploadError.message?.includes('Bucket not found') || uploadError.message?.toLowerCase().includes('bucket')) {
+        return NextResponse.json(
+          {
+            error: 'Storage bucket not found.',
+            hint: `Create a public bucket named "${BUCKET}" in Supabase: Dashboard → Storage → New bucket → name "${BUCKET}", set Public.`,
+          },
+          { status: 503 }
+        );
+      }
       return NextResponse.json(
-        { error: 'Upload succeeded but no URL was returned. Try again.' },
+        { error: uploadError.message || 'Upload failed' },
+        { status: 500 }
+      );
+    }
+
+    const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    const url = urlData?.publicUrl?.trim?.();
+    if (!url) {
+      return NextResponse.json(
+        { error: 'Upload succeeded but could not get public URL. Try again.' },
         { status: 500 }
       );
     }
