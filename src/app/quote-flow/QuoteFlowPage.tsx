@@ -1345,9 +1345,12 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           ? String(formData[conditionFieldName] ?? formData.condition ?? formData.current_condition ?? formData.homeCondition).trim()
           : undefined;
       const conditionToSend = conditionValue || undefined;
+      // Poor or Very Poor condition: only option is Initial Deep Clean — force service type to initial
+      const conditionRequiresDeep = conditionToSend && (String(conditionToSend).toLowerCase() === 'poor' || String(conditionToSend).toLowerCase() === 'very-poor' || String(conditionToSend).toLowerCase().includes('very poor'));
+      const effectiveServiceType = conditionRequiresDeep ? 'initial' : (formData.serviceType || '');
       // For one-time services (move-in, move-out, deep), send empty frequency so quote summary shows correct selection
       const oneTimeServiceTypes = ['move-in', 'move-out', 'deep'];
-      const payloadServiceType = formData.serviceType || '';
+      const payloadServiceType = effectiveServiceType;
       const payloadFrequency = oneTimeServiceTypes.includes(payloadServiceType) ? '' : (formData.frequency || '');
       const apiPayload: any = {
         ghlContactId: resolvedContactId,
@@ -1460,9 +1463,8 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         });
       }
       
-      // Store the selected service type and frequency for display
-      // Always set serviceType - it's required in the form
-      setSelectedServiceType(formData.serviceType || '');
+      // Store the selected service type and frequency for display (use effective type so Poor/Very Poor shows Initial Deep Clean)
+      setSelectedServiceType(effectiveServiceType || formData.serviceType || '');
       
       // Set frequency - handle new service type values
       const serviceType = formData.serviceType || '';
@@ -3068,10 +3070,13 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                     const fieldName = getFormFieldName(currentQuestion.id);
                                     // Set the value
                                     setValue(fieldName as any, option.value, { shouldValidate: true, shouldDirty: true });
-                                    
+                                    // Poor or Very Poor condition: require Initial Deep Clean (only option)
+                                    if (currentQuestion.id === 'condition' && (option.value === 'poor' || option.value === 'very-poor')) {
+                                      const serviceTypeField = getFormFieldName('serviceType');
+                                      setValue(serviceTypeField as any, 'initial', { shouldValidate: false, shouldDirty: true });
+                                    }
                                     // Trigger validation
                                     const isValid = await trigger(fieldName as any);
-                                    
                                     // Auto-advance after a brief delay if valid
                                     if (isValid) {
                                       setTimeout(() => {
@@ -3140,6 +3145,11 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                           <p className="text-sm text-gray-500 text-center mt-2">
                             Click an option to select
                           </p>
+                          {currentQuestion.id === 'condition' && (currentValue === 'poor' || currentValue === 'very-poor') && (
+                            <p className="text-sm font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3 text-center">
+                              Initial Deep Clean is required for this condition and has been selected.
+                            </p>
+                          )}
                         </div>
                       );
                     })()}

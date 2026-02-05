@@ -276,6 +276,10 @@ export async function calcQuote(inputs: QuoteInputs, toolId?: string): Promise<Q
   const sheddingPetMultiplier = getSheddingPetMultiplier(inputs.sheddingPets, config.sheddingPetsMultiplier, sheddingPetsBase);
   const conditionMultiplier = getConditionMultiplier(inputs.condition);
   // #region agent log
+  console.log('[calcQuote] condition multiplier', {
+    inputsCondition: inputs.condition,
+    conditionMultiplier,
+  });
   if (typeof globalThis !== 'undefined' && (globalThis as any).fetch) {
     (globalThis as any).fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calcQuote.ts:conditionMultiplier',message:'condition multiplier',data:{inputsCondition:inputs.condition,conditionMultiplier},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
   }
