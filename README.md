@@ -92,10 +92,9 @@ The pricing calculation follows these steps:
 
 1. **Base Price Selection**: The square footage is matched to the appropriate pricing bucket from the Excel file.
 
-2. **People Multiplier**:
-   - 0-5 people: 1.0 (no multiplier)
-   - 6-7 people: 1.1
-   - 8+ people: 1.15
+2. **People Multiplier** (from settings, e.g. 1.05 = 5% per person above base):
+   - 0–4 people: 1.0 (no multiplier; base of 4)
+   - 5+ people: 1.0 + (people − 4) × (per-person setting − 1.0), e.g. 5 → 1.05, 6 → 1.10, 8 → 1.20
 
 3. **Shedding Pet Multiplier** (only shedding pets are counted):
    - 0 pets: 1.0

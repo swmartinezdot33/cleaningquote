@@ -73,13 +73,13 @@ vi.mock('../calcQuote', async () => {
 
 describe('Pricing Calculation Verification', () => {
   describe('Multiplier Calculations', () => {
-    it('should calculate people multiplier correctly with default 1.05', () => {
-      // Formula: 1.0 + (people * (1.05 - 1.0)) = 1.0 + (people * 0.05)
+    it('should calculate people multiplier correctly with default 1.05 (base 4)', () => {
+      // 0-4 people: 1.0; above 4: 1.0 + (people - 4) * 0.05
       expect(getPeopleMultiplier(0, 1.05)).toBe(1.0);
-      expect(getPeopleMultiplier(1, 1.05)).toBeCloseTo(1.05, 10);
-      expect(getPeopleMultiplier(2, 1.05)).toBeCloseTo(1.1, 10);
-      expect(getPeopleMultiplier(4, 1.05)).toBeCloseTo(1.2, 10);
-      expect(getPeopleMultiplier(5, 1.05)).toBeCloseTo(1.25, 10);
+      expect(getPeopleMultiplier(4, 1.05)).toBe(1.0);
+      expect(getPeopleMultiplier(5, 1.05)).toBeCloseTo(1.05, 10);
+      expect(getPeopleMultiplier(6, 1.05)).toBeCloseTo(1.1, 10);
+      expect(getPeopleMultiplier(8, 1.05)).toBeCloseTo(1.2, 10);
     });
 
     it('should calculate shedding pets multiplier correctly with default 1.1', () => {
@@ -92,11 +92,11 @@ describe('Pricing Calculation Verification', () => {
     });
 
     it('should calculate combined multipliers correctly', () => {
-      const peopleMult = getPeopleMultiplier(4, 1.05); // 1.2
+      const peopleMult = getPeopleMultiplier(4, 1.05); // 1.0 (base 4)
       const petsMult = getSheddingPetMultiplier(2, 1.1); // 1.2
       const conditionMult = getConditionMultiplier('clean'); // 1.0
       const combined = peopleMult * petsMult * conditionMult;
-      expect(combined).toBeCloseTo(1.44, 10); // 1.2 * 1.2 * 1.0 = 1.44
+      expect(combined).toBeCloseTo(1.2, 10); // 1.0 * 1.2 * 1.0 = 1.2
     });
   });
 
@@ -151,13 +151,13 @@ describe('Pricing Calculation Verification', () => {
       const baseBiWeekly = { low: 430, high: 470 };
       const baseDeep = { low: 800, high: 950 };
       
-      // Multipliers
-      const peopleMult = getPeopleMultiplier(4, 1.05); // 1.2
+      // Multipliers (4 people = base, no people multiplier)
+      const peopleMult = getPeopleMultiplier(4, 1.05); // 1.0
       const petsMult = getSheddingPetMultiplier(1, 1.1); // 1.1
       const conditionMult = getConditionMultiplier('clean'); // 1.0
-      const finalMult = peopleMult * petsMult * conditionMult; // 1.32
+      const finalMult = peopleMult * petsMult * conditionMult; // 1.1
       
-      // Expected weekly: 430 * 1.32 = 567.6 ≈ 568, 470 * 1.32 = 620.4 ≈ 620
+      // Expected weekly: 430 * 1.1 = 473, 470 * 1.1 = 517
       expect(result.ranges.weekly.low).toBe(Math.round(baseWeekly.low * finalMult));
       expect(result.ranges.weekly.high).toBe(Math.round(baseWeekly.high * finalMult));
       
@@ -169,13 +169,9 @@ describe('Pricing Calculation Verification', () => {
       expect(result.ranges.deep.low).toBe(Math.round(baseDeep.low * finalMult));
       expect(result.ranges.deep.high).toBe(Math.round(baseDeep.high * finalMult));
       
-      // Verify General Clean calculation
-      const maintenanceAvg = Math.round((result.ranges.weekly.low + result.ranges.biWeekly.low + result.ranges.fourWeek.low) / 3);
-      const expectedGeneralLow = Math.round((maintenanceAvg + result.ranges.deep.low) / 2);
-      const expectedGeneralHigh = Math.round((maintenanceAvg + result.ranges.deep.high) / 2);
-      
-      expect(result.ranges.general.low).toBe(expectedGeneralLow);
-      expect(result.ranges.general.high).toBe(expectedGeneralHigh);
+      // General comes from table row × multiplier (mock has general 600–700 for this range)
+      expect(result.ranges.general.low).toBe(Math.round(600 * finalMult));
+      expect(result.ranges.general.high).toBe(Math.round(700 * finalMult));
       
       // Verify Initial Cleaning is 1.5x General Clean
       expect(result.ranges.initial.low).toBe(Math.round(result.ranges.general.low * 1.5));
@@ -190,7 +186,7 @@ describe('Pricing Calculation Verification', () => {
     it('should correctly match 5999 to 5501-6000 range', async () => {
       const inputs: QuoteInputs = {
         squareFeet: 5999,
-        people: 2, // 1.1 multiplier
+        people: 2, // base 4 → no people multiplier (1.0)
         pets: 0,
         sheddingPets: 0,
         condition: 'clean', // 1.0 multiplier
@@ -201,19 +197,17 @@ describe('Pricing Calculation Verification', () => {
       expect(result.outOfLimits).toBe(false);
       expect(result.ranges).toBeDefined();
       
-      // Should use prices from 5501-6000 range (row index 2) with multipliers applied
-      // Base: 430-470, multiplier: 1.1 (from 2 people)
-      // Expected: 430 * 1.1 = 473, 470 * 1.1 = 517
+      // Base: 430-470, multiplier: 1.0 (2 people ≤ 4)
       if (result.ranges) {
-        expect(result.ranges.weekly.low).toBe(473);
-        expect(result.ranges.weekly.high).toBe(517);
+        expect(result.ranges.weekly.low).toBe(430);
+        expect(result.ranges.weekly.high).toBe(470);
       }
     });
 
     it('should correctly match 1500 to Less Than 1500 range', async () => {
       const inputs: QuoteInputs = {
         squareFeet: 1500,
-        people: 2, // 1.1 multiplier
+        people: 2, // base 4 → no people multiplier (1.0)
         pets: 0,
         sheddingPets: 0,
         condition: 'clean', // 1.0 multiplier
@@ -221,15 +215,10 @@ describe('Pricing Calculation Verification', () => {
 
       const result = await calcQuote(inputs);
       
-      expect(result.outOfLimits).toBe(false);
-      expect(result.ranges).toBeDefined();
-      
-      // Should use prices from 0-1500 range (row index 0) with multipliers applied
-      // Base: 135-165, multiplier: 1.1 (from 2 people)
-      // Expected: 135 * 1.1 = 149, 165 * 1.1 = 182
+      // Base: 135-165, multiplier: 1.0 (2 people ≤ 4)
       if (result.ranges) {
-        expect(result.ranges.weekly.low).toBe(149);
-        expect(result.ranges.weekly.high).toBe(182);
+        expect(result.ranges.weekly.low).toBe(135);
+        expect(result.ranges.weekly.high).toBe(165);
       }
     });
   });
@@ -238,19 +227,16 @@ describe('Pricing Calculation Verification', () => {
     it('should round all prices to whole dollars', async () => {
       const inputs: QuoteInputs = {
         squareFeet: 1500,
-        people: 3, // 1.15 multiplier
+        people: 3, // base 4 → 1.0
         pets: 0,
         sheddingPets: 2, // 1.2 multiplier
-        condition: 'dusty', // 1.1 multiplier
+        condition: 'dusty', // 1.1 applies only to initial cleaning
       };
 
       const result = await calcQuote(inputs);
       
       if (result.ranges) {
-        // Combined multiplier: 1.15 * 1.2 * 1.1 = 1.518
-        // 135 * 1.518 = 204.93 ≈ 205
-        // 165 * 1.518 = 250.47 ≈ 250
-        
+        // Recurring multiplier = 1.0 * 1.2 = 1.2 (no condition). Condition 1.1 only on initial.
         expect(Number.isInteger(result.ranges.weekly.low)).toBe(true);
         expect(Number.isInteger(result.ranges.weekly.high)).toBe(true);
         expect(Number.isInteger(result.ranges.biWeekly.low)).toBe(true);

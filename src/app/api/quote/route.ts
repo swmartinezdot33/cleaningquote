@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { calcQuote } from '@/lib/pricing/calcQuote';
-import { generateSummaryText, generateSmsText, getSquareFootageRangeDisplay } from '@/lib/pricing/format';
+import { generateSummaryText, generateSmsText, getSquareFootageRangeDisplay, squareFootageRangeToNumber } from '@/lib/pricing/format';
 import { QuoteInputs, QuoteRanges } from '@/lib/pricing/types';
 import { createOrUpdateContact, updateContact, createOpportunity, createNote, createCustomObject } from '@/lib/ghl/client';
 import { ghlTokenExists, getGHLConfig, getGHLToken, getGHLLocationId, getKV } from '@/lib/kv';
@@ -97,38 +97,6 @@ function getSelectedQuotePrice(ranges: any, serviceType: string, frequency: stri
   return ranges.general.high;
 }
 
-/**
- * Convert square footage range to upper bound minus 1 (for accurate pricing tier matching)
- */
-function convertSquareFootageRange(range: string): number {
-  if (!range) return 1500; // Default fallback
-  
-  const cleaned = range.trim();
-  
-  // Handle "Less Than 1500" or "Less Than1500" format
-  if (cleaned.toLowerCase().includes('less than')) {
-    const match = cleaned.match(/\d+/);
-    if (match) {
-      const max = parseInt(match[0], 10);
-      return max - 1; // Use upper bound - 1 for matching
-    }
-    return 1499; // Default for "Less Than 1500"
-  }
-  
-  // Handle ranges like '1501-2000', '2001-2500', etc.
-  if (cleaned.includes('-')) {
-    const parts = cleaned.split('-');
-    const min = parseInt(parts[0], 10) || 0;
-    const max = parseInt(parts[1], 10) || min;
-    // Use upper bound - 1 to ensure we stay within this range tier
-    return max - 1;
-  }
-  
-  // Try to parse as direct number
-  const num = parseInt(cleaned, 10);
-  return !isNaN(num) ? num : 1500;
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -178,10 +146,10 @@ export async function POST(request: NextRequest) {
       ? utmParams.utm_source.trim()
       : null;
     
-    // Convert square footage range to midpoint if it's a range string
+    // Convert square footage range to midpoint so pricing tier matches the chart
     let squareFootage = Number(body.squareFeet);
     if (isNaN(squareFootage)) {
-      squareFootage = convertSquareFootageRange(body.squareFeet);
+      squareFootage = squareFootageRangeToNumber(String(body.squareFeet));
     }
     
     const inputs: QuoteInputs = {

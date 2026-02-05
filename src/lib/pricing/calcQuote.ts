@@ -110,20 +110,22 @@ export function calculateGeneralCleanPrice(
   };
 }
 
+const PEOPLE_MULTIPLIER_BASE = 4; // No multiplier for 4 or fewer people
+
 /**
- * Get people multiplier based on count and per-person multiplier
- * Formula: 1.0 + (peopleCount * (perPersonMultiplier - 1.0))
- * Example: If perPersonMultiplier is 1.05 and there are 4 people:
- *   1.0 + (4 * (1.05 - 1.0)) = 1.0 + (4 * 0.05) = 1.2 (20% increase)
+ * Get people multiplier based on count and per-person multiplier.
+ * Base of 4 people: 0–4 people use regular pricing (1.0). From 5 people onward,
+ * each extra person adds (perPersonMultiplier - 1.0) to the multiplier.
+ * Formula: people <= 4 ? 1.0 : 1.0 + ((people - 4) * (perPersonMultiplier - 1.0))
+ * Example: perPersonMultiplier 1.05 → 4 people: 1.0, 5: 1.05, 6: 1.10, 7: 1.15
  */
 export function getPeopleMultiplier(people: number, perPersonMultiplier: number = 1.05): number {
-  if (people <= 0) {
+  if (people <= PEOPLE_MULTIPLIER_BASE) {
     return 1.0;
   }
-  // Each person adds (perPersonMultiplier - 1.0) to the base multiplier
-  const base = 1.0;
+  const extraPeople = people - PEOPLE_MULTIPLIER_BASE;
   const perPersonIncrease = perPersonMultiplier - 1.0;
-  return base + (people * perPersonIncrease);
+  return 1.0 + extraPeople * perPersonIncrease;
 }
 
 /**
@@ -268,19 +270,21 @@ export async function calcQuote(inputs: QuoteInputs, toolId?: string): Promise<Q
     };
   }
 
-  const finalMultiplier = peopleMultiplier * sheddingPetMultiplier * conditionMultiplier;
+  // Recurring/ongoing rates: people + pets only (no condition). Condition applies only to first/initial cleaning.
+  const recurringMultiplier = peopleMultiplier * sheddingPetMultiplier;
 
-  // Apply multipliers to all price ranges
-  const weeklyRange = applyMultiplier(baseRow.weekly, finalMultiplier);
-  const biWeeklyRange = applyMultiplier(baseRow.biWeekly, finalMultiplier);
-  const fourWeekRange = applyMultiplier(baseRow.fourWeek, finalMultiplier);
-  const deepRange = applyMultiplier(baseRow.deep, finalMultiplier);
-  
-  // Use General Clean price directly from pricing table (already has correct pricing structure)
-  const generalRange = applyMultiplier(baseRow.general, finalMultiplier);
-  
-  // Calculate Initial Cleaning as multiplier of General Clean using config multiplier
-  const initialRange = calculateInitialCleaningPrice(generalRange, config.multiplier);
+  // Apply recurring multiplier to all service types except initial
+  const weeklyRange = applyMultiplier(baseRow.weekly, recurringMultiplier);
+  const biWeeklyRange = applyMultiplier(baseRow.biWeekly, recurringMultiplier);
+  const fourWeekRange = applyMultiplier(baseRow.fourWeek, recurringMultiplier);
+  const deepRange = applyMultiplier(baseRow.deep, recurringMultiplier);
+  const generalRange = applyMultiplier(baseRow.general, recurringMultiplier);
+  const moveInOutBasicRange = applyMultiplier(baseRow.moveInOutBasic, recurringMultiplier);
+  const moveInOutFullRange = applyMultiplier(baseRow.moveInOutFull, recurringMultiplier);
+
+  // Initial cleaning: base (general × config multiplier) then apply condition multiplier (first-time only)
+  const initialBaseRange = calculateInitialCleaningPrice(generalRange, config.multiplier);
+  const initialRange = applyMultiplier(initialBaseRange, conditionMultiplier);
 
   // Determine if Initial Cleaning is required (consider both condition and cleaning history)
   const initialCleaningRequired = isInitialCleaningRequired(inputs.condition, inputs.cleanedWithin3Months, config);
@@ -295,13 +299,13 @@ export async function calcQuote(inputs: QuoteInputs, toolId?: string): Promise<Q
     fourWeek: fourWeekRange,
     general: generalRange,
     deep: deepRange,
-    moveInOutBasic: applyMultiplier(baseRow.moveInOutBasic, finalMultiplier),
-    moveInOutFull: applyMultiplier(baseRow.moveInOutFull, finalMultiplier),
+    moveInOutBasic: moveInOutBasicRange,
+    moveInOutFull: moveInOutFullRange,
   };
 
   return {
     outOfLimits: false,
-    multiplier: finalMultiplier,
+    multiplier: recurringMultiplier,
     inputs,
     ranges,
     initialCleaningRequired,

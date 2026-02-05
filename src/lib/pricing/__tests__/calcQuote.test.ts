@@ -32,20 +32,18 @@ vi.mock('../loadPricingTable', () => ({
 }));
 
 describe('getPeopleMultiplier', () => {
-  it('should return 1.0 for 0-5 people', () => {
+  it('should return 1.0 for 0-4 people (base of 4)', () => {
     expect(getPeopleMultiplier(0)).toBe(1.0);
     expect(getPeopleMultiplier(3)).toBe(1.0);
-    expect(getPeopleMultiplier(5)).toBe(1.0);
+    expect(getPeopleMultiplier(4)).toBe(1.0);
   });
 
-  it('should return 1.1 for 6-7 people', () => {
-    expect(getPeopleMultiplier(6)).toBe(1.1);
-    expect(getPeopleMultiplier(7)).toBe(1.1);
-  });
-
-  it('should return 1.15 for 8+ people', () => {
-    expect(getPeopleMultiplier(8)).toBe(1.15);
-    expect(getPeopleMultiplier(10)).toBe(1.15);
+  it('should apply multiplier only for people above 4 (default 1.05 per person)', () => {
+    expect(getPeopleMultiplier(5)).toBeCloseTo(1.05, 10);  // 1 extra
+    expect(getPeopleMultiplier(6)).toBeCloseTo(1.1, 10);   // 2 extra
+    expect(getPeopleMultiplier(7)).toBeCloseTo(1.15, 10);  // 3 extra
+    expect(getPeopleMultiplier(8)).toBeCloseTo(1.2, 10);  // 4 extra
+    expect(getPeopleMultiplier(10)).toBeCloseTo(1.3, 10); // 6 extra
   });
 });
 
@@ -54,17 +52,17 @@ describe('getSheddingPetMultiplier', () => {
     expect(getSheddingPetMultiplier(0)).toBe(1.0);
   });
 
-  it('should return correct multipliers for 1-5 shedding pets', () => {
+  it('should return correct multipliers for 1-5 shedding pets (linear 1.1 per pet)', () => {
     expect(getSheddingPetMultiplier(1)).toBe(1.1);
-    expect(getSheddingPetMultiplier(2)).toBe(1.15);
-    expect(getSheddingPetMultiplier(3)).toBe(1.2);
-    expect(getSheddingPetMultiplier(4)).toBe(1.35);
-    expect(getSheddingPetMultiplier(5)).toBe(1.5);
+    expect(getSheddingPetMultiplier(2)).toBeCloseTo(1.2, 10);
+    expect(getSheddingPetMultiplier(3)).toBeCloseTo(1.3, 10);
+    expect(getSheddingPetMultiplier(4)).toBeCloseTo(1.4, 10);
+    expect(getSheddingPetMultiplier(5)).toBeCloseTo(1.5, 10);
   });
 
-  it('should return 1.75 for 6+ shedding pets', () => {
-    expect(getSheddingPetMultiplier(6)).toBe(1.75);
-    expect(getSheddingPetMultiplier(10)).toBe(1.75);
+  it('should scale linearly for 6+ shedding pets', () => {
+    expect(getSheddingPetMultiplier(6)).toBeCloseTo(1.6, 10);
+    expect(getSheddingPetMultiplier(10)).toBeCloseTo(2.0, 10);
   });
 });
 
@@ -193,25 +191,25 @@ describe('calcQuote', () => {
         squareFeet: 1500,
         people: 2,
         pets: 4,
-        sheddingPets: 4, // 1.35 multiplier
+        sheddingPets: 4, // 1.1 per pet → 1.4
       };
       const result = await calcQuote(inputs);
       
-      expect(result.multiplier).toBe(1.35);
-      expect(result.ranges?.weekly.low).toBe(Math.round(135 * 1.35)); // 182
-      expect(result.ranges?.weekly.high).toBe(Math.round(165 * 1.35)); // 223
+      expect(result.multiplier).toBeCloseTo(1.4, 10);
+      expect(result.ranges?.weekly.low).toBe(Math.round(135 * 1.4)); // 189
+      expect(result.ranges?.weekly.high).toBe(Math.round(165 * 1.4)); // 231
     });
 
     it('should apply combined multipliers correctly', async () => {
       const inputs: QuoteInputs = {
         squareFeet: 1500,
-        people: 8, // 1.15 multiplier
+        people: 8, // 4 base + 4 extra → 1.2 people multiplier
         pets: 2,
-        sheddingPets: 2, // 1.15 multiplier
+        sheddingPets: 2, // 1.1 per pet → 1.2
       };
       const result = await calcQuote(inputs);
       
-      const expectedMultiplier = 1.15 * 1.15; // 1.3225
+      const expectedMultiplier = 1.2 * 1.2; // 1.44
       expect(result.multiplier).toBeCloseTo(expectedMultiplier, 4);
       expect(result.ranges?.weekly.low).toBe(Math.round(135 * expectedMultiplier));
       expect(result.ranges?.weekly.high).toBe(Math.round(165 * expectedMultiplier));

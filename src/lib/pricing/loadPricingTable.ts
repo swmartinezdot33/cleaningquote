@@ -377,3 +377,28 @@ export function invalidatePricingCache(toolId?: string) {
     cacheByTool.clear();
   }
 }
+
+/** Tier option for square footage dropdown; derived from pricing table so options match the chart. */
+export interface PricingTierOption {
+  min: number;
+  max: number;
+  value: string;
+  label: string;
+}
+
+/**
+ * Build square footage tier options from a pricing table.
+ * Use these options in the survey/quote flow so selection always matches a pricing row.
+ */
+export function getPricingTiers(table: PricingTable): { tiers: PricingTierOption[]; maxSqFt: number } {
+  const tiers: PricingTierOption[] = table.rows.map((row) => {
+    const { min, max } = row.sqFtRange;
+    const value = min === 0 ? `0-${max}` : `${min}-${max}`;
+    const label =
+      min === 0
+        ? `Less than ${max.toLocaleString()} sq ft`
+        : `${min.toLocaleString()} - ${max.toLocaleString()} sq ft`;
+    return { min, max, value, label };
+  });
+  return { tiers, maxSqFt: table.maxSqFt };
+}

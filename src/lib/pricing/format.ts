@@ -71,6 +71,56 @@ function getSelectedQuoteRange(ranges: QuoteRanges, serviceType: string, frequen
 }
 
 /**
+ * Convert a square footage range string to a numeric value using the midpoint of the range.
+ * This ensures the value falls inside the correct pricing tier when the options match the pricing chart.
+ * - "Less Than 1500" / "0-1500" → 750
+ * - "1501-2000" → 1750
+ * - "8000+" / "Over 8000" → 8000 (caller can pass maxSqFt for last tier when available)
+ */
+export function squareFootageRangeToNumber(
+  range: string,
+  options?: { defaultFallback?: number; maxSqFt?: number }
+): number {
+  const defaultFallback = options?.defaultFallback ?? 1500;
+  const maxSqFt = options?.maxSqFt;
+
+  if (!range || typeof range !== 'string') return defaultFallback;
+  const cleaned = range.trim();
+
+  // "Less Than 1500" or "Less Than1500"
+  if (cleaned.toLowerCase().includes('less than')) {
+    const match = cleaned.match(/\d+/);
+    if (match) {
+      const max = parseInt(match[0], 10);
+      if (!isNaN(max)) return Math.round(max / 2); // midpoint of 0–max
+    }
+    return 750;
+  }
+
+  // "8000+" or "Over 8000" or "Over 8,000 sq ft"
+  const noCommas = cleaned.replace(/,/g, '');
+  const overMatch = noCommas.match(/^(\d+)\s*\+\s*$/i) || noCommas.match(/^over\s*(\d+)/i);
+  if (overMatch) {
+    const num = parseInt(overMatch[1], 10);
+    if (!isNaN(num)) return typeof maxSqFt === 'number' && maxSqFt > num ? maxSqFt : num;
+  }
+
+  // "min-max" range → midpoint
+  if (cleaned.includes('-')) {
+    const parts = cleaned.split('-').map((p) => parseInt(p.trim(), 10));
+    const min = parts[0];
+    const max = parts[1];
+    if (!isNaN(min) && !isNaN(max) && min <= max) {
+      return Math.round((min + max) / 2);
+    }
+  }
+
+  // Plain number
+  const num = parseInt(cleaned, 10);
+  return !isNaN(num) ? num : defaultFallback;
+}
+
+/**
  * Convert square footage number back to range string for display.
  * Exported so API can always pass an explicit range string to GHL notes.
  */

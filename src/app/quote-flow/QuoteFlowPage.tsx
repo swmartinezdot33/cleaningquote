@@ -16,6 +16,8 @@ import { Progress } from '@/components/ui/progress';
 import { Copy, ChevronLeft, ChevronRight, Sparkles, Calendar, Clock, Loader2, Check, AlertCircle } from 'lucide-react';
 import { SurveyQuestion } from '@/lib/survey/schema';
 import { type ToolConfig, DEFAULT_PRIMARY_COLOR } from '@/lib/tools/config';
+import { squareFootageRangeToNumber } from '@/lib/pricing/format';
+import type { PricingTierOption } from '@/lib/pricing/loadPricingTable';
 import { GooglePlacesAutocomplete, PlaceDetails } from '@/components/GooglePlacesAutocomplete';
 import { CalendarBooking } from '@/components/CalendarBooking';
 
@@ -27,38 +29,6 @@ function convertSelectToNumber(value: string): number {
   if (value === '5+') return 5; // Use 5 as the minimum for "5+"
   const num = parseInt(value, 10);
   return !isNaN(num) ? num : 0;
-}
-
-/**
- * Convert square footage range string to numeric value (use upper bound - 1 for better matching)
- */
-function convertSquareFootageToNumber(rangeString: string): number {
-  if (!rangeString) return 1500; // default
-  
-  const cleaned = rangeString.trim();
-  
-  // Handle "Less Than 1500" or "Less Than1500" format
-  if (cleaned.toLowerCase().includes('less than')) {
-    const match = cleaned.match(/\d+/);
-    if (match) {
-      const max = parseInt(match[0], 10);
-      return max - 1; // Use upper bound - 1 for matching
-    }
-    return 1499; // Default for "Less Than 1500"
-  }
-  
-  // Handle ranges like '1501-2000', '2001-2500', etc.
-  if (cleaned.includes('-')) {
-    const parts = cleaned.split('-');
-    const min = parseInt(parts[0], 10) || 0;
-    const max = parseInt(parts[1], 10) || min;
-    // Use upper bound - 1 to ensure we stay within this range tier
-    return max - 1;
-  }
-  
-  // Try to parse as direct number
-  const num = parseInt(cleaned, 10);
-  return !isNaN(num) ? num : 1500;
 }
 
 /**
@@ -283,6 +253,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   const [openSurveyInNewTab, setOpenSurveyInNewTab] = useState(useServerConfig ? !!(initialConfig?.formSettings as any)?.openSurveyInNewTab : false);
   const [formIsIframed, setFormIsIframed] = useState(false);
   const [resolvedToolId, setResolvedToolId] = useState<string | null>(null);
+  const [pricingTiers, setPricingTiers] = useState<{ tiers: PricingTierOption[]; maxSqFt: number } | null>(null);
   const serviceAreaCheckInProgress = useRef(false); // Prevent concurrent service area checks
   const autoAdvanceTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Track auto-advance timeout
   const appointmentFormRef = useRef<HTMLDivElement>(null);
@@ -366,6 +337,25 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
       setConfigLoaded(true);
     }
   }, [slug, hasInitialData]);
+
+  // Fetch square footage tiers from pricing table so options match the pricing chart (e.g. 7250 vs 7750 map to correct tiers).
+  useEffect(() => {
+    const effectiveToolId = toolId || resolvedToolId;
+    if (!effectiveToolId && !slug) return;
+    const url = effectiveToolId
+      ? `/api/tools/by-id/pricing-tiers?toolId=${encodeURIComponent(effectiveToolId)}`
+      : `/api/tools/${encodeURIComponent(slug!)}/pricing-tiers`;
+    fetch(url, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.tiers && Array.isArray(data.tiers) && data.tiers.length > 0) {
+          setPricingTiers({ tiers: data.tiers, maxSqFt: data.maxSqFt ?? 0 });
+        } else {
+          setPricingTiers(null);
+        }
+      })
+      .catch(() => setPricingTiers(null));
+  }, [toolId, resolvedToolId, slug]);
 
   // Auto-scroll when appointment form opens
   useEffect(() => {
@@ -1350,7 +1340,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         serviceType: payloadServiceType,
         frequency: payloadFrequency,
         // Convert square footage range to numeric value (for pricing)
-        squareFeet: convertSquareFootageToNumber(formData.squareFeet),
+        squareFeet: squareFootageRangeToNumber(String(formData.squareFeet ?? ''), { maxSqFt: pricingTiers?.maxSqFt }),
         // Pass range string for GHL note so "Home Size: X sq ft" shows the range (e.g. "3001-3500")
         ...(typeof formData.squareFeet === 'string' && formData.squareFeet.trim() ? { squareFeetDisplay: formData.squareFeet.trim() } : {}),
         fullBaths: Number(formData.fullBaths),
@@ -2952,30 +2942,39 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                     })()}
 
                     {(currentQuestion.type === 'select' || currentQuestion.id === 'squareFeet') && (() => {
-                      // Get options for select/square footage questions
+                      // Get options for select/square footage questions. Prefer pricing-table tiers so selection matches the chart.
                       const getSelectOptions = () => {
-                        // Square footage options if no custom options
-                        if (currentQuestion.id === 'squareFeet' && (!currentQuestion.options || currentQuestion.options.length === 0)) {
+                        if (currentQuestion.id === 'squareFeet') {
+                          // Use tiers from pricing table when available so 7250 vs 7750 map to correct pricing rows
+                          if (pricingTiers?.tiers?.length) {
+                            return pricingTiers.tiers.map((t) => ({ value: t.value, label: t.label }));
+                          }
+                          // Survey builder custom options
+                          if (currentQuestion.options?.length) {
+                            return (currentQuestion.options as { value: string; label?: string }[])
+                              .filter((o) => o.value && String(o.value).trim() !== '')
+                              .map((o) => ({ value: o.value, label: o.label || o.value }));
+                          }
+                          // Fallback when no pricing table
                           return [
-                            { value: 'Less Than 1500', label: 'Less Than 1500' },
-                            { value: '1501-2000', label: '1501-2000' },
-                            { value: '2001-2500', label: '2001-2500' },
-                            { value: '2501-3000', label: '2501-3000' },
-                            { value: '3001-3500', label: '3001-3500' },
-                            { value: '3501-4000', label: '3501-4000' },
-                            { value: '4001-4500', label: '4001-4500' },
-                            { value: '4501-5000', label: '4501-5000' },
-                            { value: '5001-5500', label: '5001-5500' },
-                            { value: '5501-6000', label: '5501-6000' },
-                            { value: '6001-6500', label: '6001-6500' },
-                            { value: '6501-7000', label: '6501-7000' },
-                            { value: '7001-7500', label: '7001-7500' },
-                            { value: '7501-8000', label: '7501-8000' },
-                            { value: '8001-8500', label: '8001-8500' },
+                            { value: '0-1500', label: 'Less than 1,500 sq ft' },
+                            { value: '1501-2000', label: '1,501 - 2,000 sq ft' },
+                            { value: '2001-2500', label: '2,001 - 2,500 sq ft' },
+                            { value: '2501-3000', label: '2,501 - 3,000 sq ft' },
+                            { value: '3001-3500', label: '3,001 - 3,500 sq ft' },
+                            { value: '3501-4000', label: '3,501 - 4,000 sq ft' },
+                            { value: '4001-4500', label: '4,001 - 4,500 sq ft' },
+                            { value: '4501-5000', label: '4,501 - 5,000 sq ft' },
+                            { value: '5001-5500', label: '5,001 - 5,500 sq ft' },
+                            { value: '5501-6000', label: '5,501 - 6,000 sq ft' },
+                            { value: '6001-6500', label: '6,001 - 6,500 sq ft' },
+                            { value: '6501-7000', label: '6,501 - 7,000 sq ft' },
+                            { value: '7001-7500', label: '7,001 - 7,500 sq ft' },
+                            { value: '7501-8000', label: '7,501 - 8,000 sq ft' },
+                            { value: '8001-8500', label: '8,001 - 8,500 sq ft' },
                           ];
                         }
-                        
-                        // Use custom options from question — labels always from stored survey (Survey Builder); no hardcoding
+                        // Other select questions: use custom options from survey
                         return (currentQuestion.options || [])
                           .filter(option => option.value && option.value.trim() !== '')
                           .map(option => ({

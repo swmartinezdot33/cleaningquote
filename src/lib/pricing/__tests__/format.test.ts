@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateSummaryText, generateSmsText } from '../format';
+import { generateSummaryText, generateSmsText, squareFootageRangeToNumber } from '../format';
 import { QuoteResult, QuoteRanges } from '../types';
 
 describe('generateSummaryText', () => {
@@ -83,5 +83,29 @@ describe('generateSmsText', () => {
     expect(sms).toContain('After your first two cleanings');
     expect(sms).toContain('Would bi weekly or weekly service');
     expect(sms).toContain('https://my.raleighcleaningcompany.com/widget/form/UVSF5Lh25ENVpDJBtniu?notrack=true');
+  });
+});
+
+describe('squareFootageRangeToNumber', () => {
+  it('uses midpoint so selection matches correct pricing tier', () => {
+    expect(squareFootageRangeToNumber('0-1500')).toBe(750);
+    expect(squareFootageRangeToNumber('1501-2000')).toBe(1751); // (1501+2000)/2 rounded
+    expect(squareFootageRangeToNumber('7251-7500')).toBe(7376);
+    expect(squareFootageRangeToNumber('7501-8000')).toBe(7751);
+  });
+  it('handles Less Than format', () => {
+    expect(squareFootageRangeToNumber('Less Than 1500')).toBe(750);
+    expect(squareFootageRangeToNumber('Less Than1500')).toBe(750);
+  });
+  it('handles numeric input', () => {
+    expect(squareFootageRangeToNumber('6500')).toBe(6500);
+  });
+  it('handles 8000+ and uses maxSqFt when provided', () => {
+    expect(squareFootageRangeToNumber('8000+')).toBe(8000);
+    expect(squareFootageRangeToNumber('8000+', { maxSqFt: 8500 })).toBe(8500);
+  });
+  it('returns default fallback for empty/invalid', () => {
+    expect(squareFootageRangeToNumber('')).toBe(1500);
+    expect(squareFootageRangeToNumber('  ', { defaultFallback: 2000 })).toBe(2000);
   });
 });
