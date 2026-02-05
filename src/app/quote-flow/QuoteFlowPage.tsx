@@ -3031,12 +3031,14 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                             { value: '8001-8500', label: '8,001 - 8,500 sq ft' },
                           ];
                         }
-                        // Other select questions: use custom options from survey
+                        // Other select questions: use custom options from survey (include imageUrl/showLabel for option images)
                         return (currentQuestion.options || [])
                           .filter(option => option.value && option.value.trim() !== '')
                           .map(option => ({
                             value: option.value,
                             label: option.label || option.value,
+                            imageUrl: (option as { imageUrl?: string }).imageUrl?.trim() || undefined,
+                            showLabel: (option as { showLabel?: boolean }).showLabel !== false,
                           }));
                       };
 
@@ -3060,6 +3062,9 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                             {selectOptions.map((option) => {
                               const isSelected = currentValue === option.value;
                               const { mainText, detailsText } = parseOptionLabel(option.label);
+                              const optionImageUrl = (option as { imageUrl?: string }).imageUrl;
+                              const showLabelWithImage = (option as { showLabel?: boolean }).showLabel !== false;
+                              const hasImage = !!optionImageUrl;
                               return (
                                 <motion.button
                                   key={option.value}
@@ -3091,7 +3096,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                     flex flex-col items-center justify-center px-3 py-5 sm:px-6 sm:py-8
                                     text-center leading-snug
                                     break-words whitespace-normal
-                                    w-full
+                                    w-full overflow-hidden
                                     ${isSelected 
                                       ? 'shadow-2xl' 
                                       : 'hover:shadow-xl bg-gradient-to-br from-gray-50 to-white'
@@ -3104,31 +3109,51 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                     boxShadow: isSelected ? `0 20px 25px -5px ${hexToRgba(primaryColor, 0.3)}, 0 10px 10px -5px ${hexToRgba(primaryColor, 0.15)}, 0 0 0 4px ${hexToRgba(primaryColor, 0.2)}` : undefined,
                                   }}
                                 >
-                                  {isSelected ? (
-                                    <motion.div
-                                      initial={{ scale: 0.8, opacity: 0 }}
-                                      animate={{ scale: 1, opacity: 1 }}
-                                      transition={{ type: 'spring', bounce: 0.3, duration: 0.4 }}
-                                      className="relative z-10 flex flex-col items-center justify-center gap-1 w-full px-1 sm:px-2"
-                                    >
-                                      <span className="text-xs sm:text-base md:text-base font-semibold leading-tight break-words whitespace-normal w-full">{mainText}</span>
-                                      {detailsText && (
-                                        <span className="text-xs sm:text-sm md:text-sm opacity-90 font-normal leading-tight text-center px-1 break-words whitespace-normal w-full">
-                                          {detailsText}
+                                  {hasImage ? (
+                                    <>
+                                      <span className="absolute inset-0 z-0 flex items-center justify-center p-1">
+                                        <img
+                                          src={optionImageUrl}
+                                          alt=""
+                                          className="w-full h-full object-cover rounded-xl"
+                                        />
+                                      </span>
+                                      {showLabelWithImage && (
+                                        <span className={`relative z-10 flex flex-col items-center justify-center gap-0.5 w-full px-1 sm:px-2 py-1 rounded-lg ${isSelected ? 'bg-black/40' : 'bg-white/80'}`}>
+                                          <span className="text-xs sm:text-sm font-semibold leading-tight break-words whitespace-normal w-full">{mainText}</span>
+                                          {detailsText && (
+                                            <span className="text-xs opacity-90 font-normal leading-tight text-center px-1 break-words whitespace-normal w-full">
+                                              {detailsText}
+                                            </span>
+                                          )}
                                         </span>
                                       )}
-                                    </motion.div>
+                                    </>
                                   ) : (
-                                    <span className="relative z-10 flex flex-col items-center justify-center gap-1 w-full px-1 sm:px-2">
-                                      <span className="text-xs sm:text-base md:text-base font-semibold leading-tight break-words whitespace-normal w-full">{mainText}</span>
-                                      {detailsText && (
-                                        <span className="text-xs sm:text-sm md:text-sm opacity-75 font-normal leading-tight text-center px-1 break-words whitespace-normal w-full">
-                                          {detailsText}
+                                    <>
+                                      {isSelected ? (
+                                        <motion.div
+                                          initial={{ scale: 0.8, opacity: 0 }}
+                                          animate={{ scale: 1, opacity: 1 }}
+                                          transition={{ type: 'spring', bounce: 0.3, duration: 0.4 }}
+                                          className="relative z-10 flex flex-col items-center justify-center gap-1 w-full px-1 sm:px-2"
+                                        >
+                                          <span className="text-xs sm:text-base md:text-base font-semibold leading-tight break-words whitespace-normal w-full">{mainText}</span>
+                                          {detailsText && (
+                                            <span className="text-xs sm:text-sm md:text-sm opacity-90 font-normal leading-tight text-center px-1 break-words whitespace-normal w-full">{detailsText}</span>
+                                          )}
+                                        </motion.div>
+                                      ) : (
+                                        <span className="relative z-10 flex flex-col items-center justify-center gap-1 w-full px-1 sm:px-2">
+                                          <span className="text-xs sm:text-base md:text-base font-semibold leading-tight break-words whitespace-normal w-full">{mainText}</span>
+                                          {detailsText && (
+                                            <span className="text-xs sm:text-sm md:text-sm opacity-75 font-normal leading-tight text-center px-1 break-words whitespace-normal w-full">{detailsText}</span>
+                                          )}
                                         </span>
                                       )}
-                                    </span>
+                                    </>
                                   )}
-                                  {isSelected && (
+                                  {isSelected && !hasImage && (
                                     <motion.div
                                       initial={{ opacity: 0 }}
                                       animate={{ opacity: 1 }}
@@ -3136,6 +3161,14 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                       style={{
                                         background: `linear-gradient(135deg, ${primaryColor}, ${hexToRgba(primaryColor, 0.85)})`,
                                       }}
+                                    />
+                                  )}
+                                  {isSelected && hasImage && (
+                                    <motion.div
+                                      initial={{ opacity: 0 }}
+                                      animate={{ opacity: 1 }}
+                                      className="absolute inset-0 rounded-2xl sm:rounded-3xl border-4"
+                                      style={{ borderColor: primaryColor, backgroundColor: hexToRgba(primaryColor, 0.25) }}
                                     />
                                   )}
                                 </motion.button>

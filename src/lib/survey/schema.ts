@@ -8,6 +8,10 @@ export interface SurveyQuestionOption {
   value: string;
   label: string;
   skipToQuestionId?: string; // If this option selected, skip to this question ID
+  /** Optional image URL for this option (e.g. condition photos). When set, the quote flow shows the image; label can be shown or hidden via showLabel. */
+  imageUrl?: string;
+  /** When imageUrl is set: if true or undefined, show the option label with the image; if false, show only the image. */
+  showLabel?: boolean;
 }
 
 export interface SurveyQuestion {

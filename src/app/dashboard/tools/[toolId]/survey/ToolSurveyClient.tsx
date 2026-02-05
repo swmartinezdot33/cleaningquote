@@ -586,36 +586,69 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                               )}
                             </div>
                             {!isSynced && (
-                            <div>
-                              <Label className="text-xs">Skip to question (optional)</Label>
-                              <Select
-                                value={(option as SurveyQuestionOption).skipToQuestionId || 'next'}
-                                onValueChange={(value) => {
-                                  const newOptions = [...(editingQuestion.options || [])];
-                                  newOptions[idx] = {
-                                    ...newOptions[idx],
-                                    skipToQuestionId: value === 'next' ? undefined : value,
-                                  };
-                                  setEditingQuestion({ ...editingQuestion, options: newOptions });
-                                }}
-                              >
-                                <SelectTrigger className="mt-1">
-                                  <SelectValue placeholder="Next question" />
-                                </SelectTrigger>
-                                <SelectContent className="max-h-[200px]">
-                                  <SelectItem value="next">→ Next Question</SelectItem>
-                                  <SelectItem value="__END__">🏁 Skip to Quote Summary</SelectItem>
-                                  {questions
-                                    .filter((q) => q.order > (editingQuestion.order ?? 0))
-                                    .sort((a, b) => a.order - b.order)
-                                    .map((q) => (
-                                      <SelectItem key={q.id} value={q.id}>
-                                        Q{q.order + 1}: {q.label.substring(0, 40)}
-                                      </SelectItem>
-                                    ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
+                            <>
+                              <div className="mt-2">
+                                <Label className="text-xs">Option image URL (optional)</Label>
+                                <p className="text-xs text-muted-foreground mb-1">Show a picture for this option so users can select by image (e.g. condition of home).</p>
+                                <Input
+                                  value={(option as SurveyQuestionOption).imageUrl ?? ''}
+                                  onChange={(e) => {
+                                    const newOptions = [...(editingQuestion.options || [])];
+                                    const o = newOptions[idx] as SurveyQuestionOption;
+                                    newOptions[idx] = { ...o, imageUrl: e.target.value.trim() || undefined };
+                                    setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                  }}
+                                  placeholder="https://..."
+                                  className="mt-1"
+                                />
+                              </div>
+                              {((option as SurveyQuestionOption).imageUrl?.trim()) && (
+                                <label className="mt-2 flex items-center gap-2 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={(option as SurveyQuestionOption).showLabel !== false}
+                                    onChange={(e) => {
+                                      const newOptions = [...(editingQuestion.options || [])];
+                                      const o = newOptions[idx] as SurveyQuestionOption;
+                                      newOptions[idx] = { ...o, showLabel: e.target.checked };
+                                      setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                    }}
+                                    className="h-4 w-4 rounded border-gray-300"
+                                  />
+                                  <span className="text-xs">Show label with image</span>
+                                </label>
+                              )}
+                              <div className="mt-2">
+                                <Label className="text-xs">Skip to question (optional)</Label>
+                                <Select
+                                  value={(option as SurveyQuestionOption).skipToQuestionId || 'next'}
+                                  onValueChange={(value) => {
+                                    const newOptions = [...(editingQuestion.options || [])];
+                                    newOptions[idx] = {
+                                      ...newOptions[idx],
+                                      skipToQuestionId: value === 'next' ? undefined : value,
+                                    };
+                                    setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                  }}
+                                >
+                                  <SelectTrigger className="mt-1">
+                                    <SelectValue placeholder="Next question" />
+                                  </SelectTrigger>
+                                  <SelectContent className="max-h-[200px]">
+                                    <SelectItem value="next">→ Next Question</SelectItem>
+                                    <SelectItem value="__END__">🏁 Skip to Quote Summary</SelectItem>
+                                    {questions
+                                      .filter((q) => q.order > (editingQuestion.order ?? 0))
+                                      .sort((a, b) => a.order - b.order)
+                                      .map((q) => (
+                                        <SelectItem key={q.id} value={q.id}>
+                                          Q{q.order + 1}: {q.label.substring(0, 40)}
+                                        </SelectItem>
+                                      ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </>
                             )}
                           </div>
                           );
