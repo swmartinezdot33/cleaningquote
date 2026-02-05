@@ -148,7 +148,7 @@ export const DEFAULT_SURVEY_QUESTIONS: SurveyQuestion[] = [
     id: 'bedrooms',
     label: 'How many bedrooms in the home?',
     type: 'number',
-    placeholder: '3',
+    placeholder: '0',
     required: true,
     order: 10,
   },

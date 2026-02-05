@@ -16,7 +16,7 @@ import { Progress } from '@/components/ui/progress';
 import { Copy, ChevronLeft, ChevronRight, Sparkles, Calendar, Clock, Loader2, Check, AlertCircle } from 'lucide-react';
 import { SurveyQuestion } from '@/lib/survey/schema';
 import { type ToolConfig, DEFAULT_PRIMARY_COLOR } from '@/lib/tools/config';
-import { squareFootageRangeToNumber } from '@/lib/pricing/format';
+import { squareFootageRangeToNumber, getSquareFootageRangeDisplay } from '@/lib/pricing/format';
 import type { PricingTierOption } from '@/lib/pricing/loadPricingTable';
 import { GooglePlacesAutocomplete, PlaceDetails } from '@/components/GooglePlacesAutocomplete';
 import { CalendarBooking } from '@/components/CalendarBooking';
@@ -101,7 +101,7 @@ function generateSchemaFromQuestions(questions: SurveyQuestion[]): z.ZodObject<a
         // For required number fields, reject undefined/null/empty
         // Also reject 0 if it's not a valid option for this question (e.g., people question starts at 1)
         const questionId = question.id.toLowerCase();
-        const allowsZero = questionId.includes('bath') || questionId.includes('pets') || questionId.includes('shedding');
+        const allowsZero = questionId.includes('bath') || questionId.includes('pets') || questionId.includes('shedding') || questionId.includes('bedroom');
         
         schemaShape[fieldId] = z.union([
           z.number()
@@ -1469,9 +1469,31 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         setSelectedFrequency('bi-weekly');
       }
       
-      // Store house details for display
+      // Store house details for display — use selected range label for sq ft, not the numeric value
+      const sqFtValue = formData.squareFeet ?? '';
+      let squareFeetDisplay = sqFtValue;
+      if (pricingTiers?.tiers?.length && typeof sqFtValue === 'string' && sqFtValue.trim()) {
+        const tier = pricingTiers.tiers.find((t) => t.value === sqFtValue.trim());
+        if (tier?.label) squareFeetDisplay = tier.label;
+      } else if (typeof sqFtValue === 'number' || (typeof sqFtValue === 'string' && sqFtValue.trim() && !sqFtValue.includes('-'))){
+        const num = typeof sqFtValue === 'number' ? sqFtValue : squareFootageRangeToNumber(String(sqFtValue), { maxSqFt: pricingTiers?.maxSqFt });
+        squareFeetDisplay = getSquareFootageRangeDisplay(num) + ' sq ft';
+      } else if (typeof sqFtValue === 'string' && sqFtValue.includes('-')) {
+        // Format "6501-7000" -> "6,501 - 7,000 sq ft"; "0-1500" -> "Less than 1,500 sq ft"
+        const lower = sqFtValue.toLowerCase();
+        if (lower.includes('less than') || (sqFtValue.startsWith('0') && sqFtValue.includes('-'))) {
+          const maxMatch = sqFtValue.match(/\d+/g);
+          squareFeetDisplay = maxMatch?.length ? `Less than ${Number(maxMatch[maxMatch.length - 1]).toLocaleString()} sq ft` : sqFtValue + ' sq ft';
+        } else {
+          const [min, max] = sqFtValue.split('-').map((n) => n.trim().replace(/,/g, ''));
+          const minN = parseInt(min, 10);
+          const maxN = parseInt(max, 10);
+          if (!isNaN(minN) && !isNaN(maxN)) squareFeetDisplay = `${minN.toLocaleString()} - ${maxN.toLocaleString()} sq ft`;
+          else squareFeetDisplay = sqFtValue + ' sq ft';
+        }
+      }
       setHouseDetails({
-        squareFeet: formData.squareFeet || '',
+        squareFeet: squareFeetDisplay,
         bedrooms: Number(formData.bedrooms) || 0,
         fullBaths: Number(formData.fullBaths) || 0,
         halfBaths: convertSelectToNumber(formData.halfBaths) || 0,

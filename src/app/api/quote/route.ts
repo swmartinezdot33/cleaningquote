@@ -152,6 +152,8 @@ export async function POST(request: NextRequest) {
       squareFootage = squareFootageRangeToNumber(String(body.squareFeet));
     }
     
+    // #region agent log
+    const conditionFromBody = body.condition ?? body.current_condition ?? body.currentCondition;
     const inputs: QuoteInputs = {
       squareFeet: squareFootage,
       bedrooms: Number(body.bedrooms) || 0,
@@ -160,10 +162,12 @@ export async function POST(request: NextRequest) {
       people: Number(body.people) || 0,
       pets: Number(body.pets) || 0,
       sheddingPets: Number(body.sheddingPets) || 0,
-      condition: body.condition,
+      condition: typeof conditionFromBody === 'string' ? conditionFromBody.trim() || undefined : undefined,
       hasPreviousService: body.hasPreviousService,
       cleanedWithin3Months: body.cleanedWithin3Months,
     };
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/quote/route.ts:inputs',message:'condition for calcQuote',data:{bodyCondition:body.condition,conditionFromBody,inputsCondition:inputs.condition,bodyKeys:Object.keys(body).filter(k=>k.toLowerCase().includes('condition'))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
 
     const result = await calcQuote(inputs, toolId);
 

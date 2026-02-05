@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Sparkles, Loader2, AlertCircle, Calendar, Clock, ChevronLeft } from 'lucide-react';
 import { CalendarBooking } from '@/components/CalendarBooking';
+import { getSquareFootageRangeDisplay } from '@/lib/pricing/format';
 
 interface QuoteResponse {
   outOfLimits: boolean;
@@ -499,9 +500,11 @@ export default function QuotePageClient({
                             <div>
                               <span className="font-medium">SqFt:</span>{' '}
                               <span className="text-gray-900">
-                                {typeof quoteResult.inputs.squareFeet === 'number' 
-                                  ? quoteResult.inputs.squareFeet 
-                                  : quoteResult.inputs.squareFeet || '0-1500'}
+                                {typeof quoteResult.inputs.squareFeet === 'number'
+                                  ? getSquareFootageRangeDisplay(quoteResult.inputs.squareFeet) + ' sq ft'
+                                  : (quoteResult.inputs.squareFeet && String(quoteResult.inputs.squareFeet).includes('-')
+                                    ? String(quoteResult.inputs.squareFeet) + ' sq ft'
+                                    : quoteResult.inputs.squareFeet || '0-1500 sq ft')}
                               </span>
                             </div>
                             <div>
