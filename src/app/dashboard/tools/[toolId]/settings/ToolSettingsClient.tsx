@@ -28,6 +28,8 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
   const [ghlLocationId, setGhlLocationId] = useState('');
   const [ghlStatus, setGhlStatus] = useState<{ configured: boolean; connected?: boolean; locationId?: string } | null>(null);
   const [customHeadCode, setCustomHeadCode] = useState('');
+  const [trackingQuoteSummary, setTrackingQuoteSummary] = useState('');
+  const [trackingAppointmentBooking, setTrackingAppointmentBooking] = useState('');
   const [googleMapsKey, setGoogleMapsKey] = useState('');
   const [googleMapsExists, setGoogleMapsExists] = useState(false);
   const [serviceAreaStatus, setServiceAreaStatus] = useState<{ type: string; polygonCount?: number; networkLink?: string } | null>(null);
@@ -131,6 +133,8 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
         if (trackRes.ok) {
           const t = await trackRes.json();
           setCustomHeadCode(t.trackingCodes?.customHeadCode ?? '');
+          setTrackingQuoteSummary(t.trackingCodes?.trackingQuoteSummary ?? '');
+          setTrackingAppointmentBooking(t.trackingCodes?.trackingAppointmentBooking ?? '');
         }
         if (mapsRes.ok) {
           const m = await mapsRes.json();
@@ -287,7 +291,11 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
       const res = await fetch(`/api/dashboard/tools/${toolId}/tracking-codes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customHeadCode: customHeadCode.trim() }),
+        body: JSON.stringify({
+          customHeadCode: customHeadCode.trim(),
+          trackingQuoteSummary: trackingQuoteSummary.trim(),
+          trackingAppointmentBooking: trackingAppointmentBooking.trim(),
+        }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -595,7 +603,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                   Tracking & Analytics
                 </CardTitle>
                 <CardDescription className="text-muted-foreground mt-1">
-                  Custom tracking code that loads only on the quote summary page
+                  Three code boxes: every page (e.g. Meta PageView), quote summary (conversions), appointment booking (e.g. Appointment Booked)
                 </CardDescription>
               </div>
               <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('tracking') ? 'rotate-180' : ''}`} />
@@ -615,15 +623,43 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                   </div>
                 )}
                 <div>
-                  <Label htmlFor="custom-head-code" className="text-base font-semibold">Custom Head Code</Label>
-                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-1">
-                    This code only loads on the quote summary page — not on the landing or confirmation pages.
+                  <Label htmlFor="custom-head-code" className="text-base font-semibold">1. Every page (e.g. Meta PageView)</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Loads on every tool page (form, quote summary, confirmation). Use for page views and general tracking.
                   </p>
                   <textarea
                     id="custom-head-code"
                     value={customHeadCode}
                     onChange={(e) => setCustomHeadCode(e.target.value)}
-                    rows={6}
+                    rows={4}
+                    className="mt-2 w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
+                    placeholder="<script>...</script>"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="tracking-quote-summary" className="text-base font-semibold">2. Quote Summary only (e.g. Meta Conversion)</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Loads only when the user sees the quote result/summary. Use for conversion events (e.g. fbq(&apos;track&apos;, &apos;Lead&apos;)).
+                  </p>
+                  <textarea
+                    id="tracking-quote-summary"
+                    value={trackingQuoteSummary}
+                    onChange={(e) => setTrackingQuoteSummary(e.target.value)}
+                    rows={4}
+                    className="mt-2 w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
+                    placeholder="<script>...</script>"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="tracking-appointment-booking" className="text-base font-semibold">3. Appointment booking only (e.g. Appointment Booked event)</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Loads on the appointment-confirmed and callback-confirmed pages. Use for &quot;appointment booked&quot; or similar events.
+                  </p>
+                  <textarea
+                    id="tracking-appointment-booking"
+                    value={trackingAppointmentBooking}
+                    onChange={(e) => setTrackingAppointmentBooking(e.target.value)}
+                    rows={4}
                     className="mt-2 w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
                     placeholder="<script>...</script>"
                   />

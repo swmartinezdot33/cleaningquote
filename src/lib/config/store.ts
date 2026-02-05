@@ -136,13 +136,19 @@ export async function setFormSettings(settings: Record<string, unknown>, toolId?
 }
 
 // ---- Tracking ----
-export async function getTrackingCodes(toolId?: string): Promise<{ customHeadCode?: string } | null> {
+export type TrackingCodesSettings = {
+  customHeadCode?: string;
+  trackingQuoteSummary?: string;
+  trackingAppointmentBooking?: string;
+};
+
+export async function getTrackingCodes(toolId?: string): Promise<TrackingCodesSettings | null> {
   const row = await getConfigRow(toolId);
-  const s = row?.tracking_codes as { customHeadCode?: string } | null | undefined;
+  const s = row?.tracking_codes as TrackingCodesSettings | null | undefined;
   return s && typeof s === 'object' ? s : null;
 }
 
-export async function setTrackingCodes(settings: { customHeadCode?: string }, toolId?: string): Promise<void> {
+export async function setTrackingCodes(settings: TrackingCodesSettings, toolId?: string): Promise<void> {
   await upsertConfig(toolId, { tracking_codes: settings as Json });
 }
 

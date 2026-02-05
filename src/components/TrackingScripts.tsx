@@ -3,77 +3,106 @@
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 
-interface TrackingScriptsProps {
-  trackingCodes: {
-    customHeadCode?: string;
-  };
+export interface TrackingCodesProps {
+  customHeadCode?: string;
+  trackingQuoteSummary?: string;
+  trackingAppointmentBooking?: string;
 }
 
-/** True when on a quote results page (/quote/[id] or /t/.../quote/[id]). */
-function isQuotePage(pathname: string | null): boolean {
+/** True when on a quote result page (summary), excluding appointment/callback confirmed. */
+function isQuoteSummaryPage(pathname: string | null): boolean {
   if (!pathname) return false;
+  if (pathname.includes('/appointment-confirmed') || pathname.includes('/callback-confirmed')) return false;
   if (pathname.match(/^\/quote\/[^/]+$/)) return true;
   if (pathname.match(/^\/t\/[^/]+\/quote\/[^/]+$/)) return true;
   if (pathname.match(/^\/t\/[^/]+\/[^/]+\/quote\/[^/]+$/)) return true;
   return false;
 }
 
-/** True when on any tool page (/t/[slug] or /t/[org]/[tool]) so we inject that tool's tracking. */
+/** True when on appointment-confirmed or callback-confirmed. */
+function isAppointmentBookingPage(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return pathname.includes('/appointment-confirmed') || pathname.includes('/callback-confirmed');
+}
+
+/** True when on any tool page (/t/[slug] or /t/[org]/[tool]). */
 function isToolPage(pathname: string | null): boolean {
   if (!pathname) return false;
   return pathname.startsWith('/t/') && pathname.length > 3 && pathname.charAt(3) !== '/';
 }
 
-export function TrackingScripts({ trackingCodes }: TrackingScriptsProps) {
-  const pathname = usePathname();
-  const isAdminPage = pathname?.startsWith('/admin') || false;
+const ID_PREFIX = 'tool-tracking-';
 
-  useEffect(() => {
-    if (isAdminPage) return;
-    if (!trackingCodes.customHeadCode?.trim()) return;
-    const onToolPage = isToolPage(pathname ?? null);
-    const onQuotePage = isQuotePage(pathname ?? null);
-    if (!onToolPage && !onQuotePage) return;
+function injectCodeIntoHead(html: string, idPrefix: string): () => void {
+  const removePrevious = () => {
+    document.querySelectorAll(`[id^="${idPrefix}"]`).forEach((el) => el.remove());
+  };
+  removePrevious();
 
-    const idPrefix = 'tool-tracking-';
-    const removePrevious = () => {
-      document.querySelectorAll(`[id^="${idPrefix}"]`).forEach((el) => el.remove());
-    };
-    removePrevious();
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html;
 
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = trackingCodes.customHeadCode;
-
-    const scripts = tempDiv.querySelectorAll('script');
-    scripts.forEach((script, index) => {
-      const newScript = document.createElement('script');
-      if (script.src) {
-        newScript.src = script.src;
-        newScript.async = script.async;
-        newScript.defer = script.defer;
-      } else {
-        newScript.innerHTML = script.innerHTML;
-      }
-      newScript.id = `${idPrefix}script-${index}`;
-      document.head.appendChild(newScript);
-    });
-
-    const otherElements = Array.from(tempDiv.children).filter(el => el.tagName !== 'SCRIPT');
-    otherElements.forEach((el, index) => {
-      const cloned = el.cloneNode(true) as HTMLElement;
-      cloned.id = cloned.id || `${idPrefix}element-${index}`;
-      document.head.appendChild(cloned);
-    });
-
-    if (scripts.length === 0 && otherElements.length === 0) {
-      const script = document.createElement('script');
-      script.id = `${idPrefix}code`;
-      script.innerHTML = trackingCodes.customHeadCode;
-      document.head.appendChild(script);
+  const scripts = tempDiv.querySelectorAll('script');
+  scripts.forEach((script, index) => {
+    const newScript = document.createElement('script');
+    if (script.src) {
+      newScript.src = script.src;
+      newScript.async = script.async;
+      newScript.defer = script.defer;
+    } else {
+      newScript.innerHTML = script.innerHTML;
     }
+    newScript.id = `${idPrefix}script-${index}`;
+    document.head.appendChild(newScript);
+  });
 
-    return removePrevious;
-  }, [isAdminPage, pathname, trackingCodes.customHeadCode]);
+  const otherElements = Array.from(tempDiv.children).filter((el) => el.tagName !== 'SCRIPT');
+  otherElements.forEach((el, index) => {
+    const cloned = el.cloneNode(true) as HTMLElement;
+    cloned.id = cloned.id || `${idPrefix}element-${index}`;
+    document.head.appendChild(cloned);
+  });
+
+  if (scripts.length === 0 && otherElements.length === 0) {
+    const script = document.createElement('script');
+    script.id = `${idPrefix}code`;
+    script.innerHTML = html;
+    document.head.appendChild(script);
+  }
+
+  return removePrevious;
+}
+
+export function TrackingScripts({ trackingCodes }: { trackingCodes: TrackingCodesProps }) {
+  const pathname = usePathname();
+  const isAdminPage = pathname?.startsWith('/admin') ?? false;
+  const onToolPage = isToolPage(pathname ?? null);
+  const onQuoteSummary = isQuoteSummaryPage(pathname ?? null);
+  const onAppointmentBooking = isAppointmentBookingPage(pathname ?? null);
+
+  // 1. Every page: inject on any tool page (form, quote summary, appointment confirmed)
+  useEffect(() => {
+    if (isAdminPage || !onToolPage) return;
+    const code = trackingCodes.customHeadCode?.trim();
+    if (!code) return;
+    return injectCodeIntoHead(code, `${ID_PREFIX}every-`);
+  }, [isAdminPage, onToolPage, pathname, trackingCodes.customHeadCode]);
+
+  // 2. Quote Summary only: inject only on quote result page (not appointment-confirmed)
+  useEffect(() => {
+    if (isAdminPage || !onQuoteSummary) return;
+    const code = trackingCodes.trackingQuoteSummary?.trim();
+    if (!code) return;
+    return injectCodeIntoHead(code, `${ID_PREFIX}quote-summary-`);
+  }, [isAdminPage, onQuoteSummary, pathname, trackingCodes.trackingQuoteSummary]);
+
+  // 3. Appointment booking only: inject on appointment-confirmed / callback-confirmed
+  useEffect(() => {
+    if (isAdminPage || !onAppointmentBooking) return;
+    const code = trackingCodes.trackingAppointmentBooking?.trim();
+    if (!code) return;
+    return injectCodeIntoHead(code, `${ID_PREFIX}appointment-`);
+  }, [isAdminPage, onAppointmentBooking, pathname, trackingCodes.trackingAppointmentBooking]);
 
   return null;
 }

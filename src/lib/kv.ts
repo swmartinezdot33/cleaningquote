@@ -411,13 +411,13 @@ export async function setFormSettings(settings: Record<string, unknown>, toolId?
 }
 
 /** Get tracking codes (Supabase only). */
-export async function getTrackingCodes(toolId?: string): Promise<{ customHeadCode?: string } | null> {
+export async function getTrackingCodes(toolId?: string): Promise<configStore.TrackingCodesSettings | null> {
   requireSupabaseForConfig();
   return configStore.getTrackingCodes(toolId);
 }
 
 /** Set tracking codes (Supabase only). */
-export async function setTrackingCodes(settings: { customHeadCode?: string }, toolId?: string): Promise<void> {
+export async function setTrackingCodes(settings: configStore.TrackingCodesSettings, toolId?: string): Promise<void> {
   requireSupabaseForConfig();
   await configStore.setTrackingCodes(settings, toolId);
 }

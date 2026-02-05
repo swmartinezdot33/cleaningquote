@@ -32,9 +32,10 @@ export async function POST(
 
   try {
     const body = await request.json();
-    const customHeadCode = body.customHeadCode;
-    const trackingCodes: { customHeadCode?: string } = {};
-    if (customHeadCode?.trim()) trackingCodes.customHeadCode = customHeadCode.trim();
+    const trackingCodes: { customHeadCode?: string; trackingQuoteSummary?: string; trackingAppointmentBooking?: string } = {};
+    if (typeof body.customHeadCode === 'string' && body.customHeadCode.trim()) trackingCodes.customHeadCode = body.customHeadCode.trim();
+    if (typeof body.trackingQuoteSummary === 'string' && body.trackingQuoteSummary.trim()) trackingCodes.trackingQuoteSummary = body.trackingQuoteSummary.trim();
+    if (typeof body.trackingAppointmentBooking === 'string' && body.trackingAppointmentBooking.trim()) trackingCodes.trackingAppointmentBooking = body.trackingAppointmentBooking.trim();
 
     await setTrackingCodes(trackingCodes, auth.tool.id);
     return NextResponse.json({ success: true, message: 'Tracking codes saved' });
