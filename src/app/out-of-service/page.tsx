@@ -20,20 +20,23 @@ export default function OutOfService() {
   const [primaryColor, setPrimaryColor] = useState('transparent');
   const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [contactId, setContactId] = useState<string | null>(null);
+  const [returnPath, setReturnPath] = useState<string>('');
 
   useEffect(() => {
     setMounted(true);
     loadWidgetSettings();
 
-    // Try to get location data and contact ID from URL params
+    // Try to get location data, contact ID, and return path from URL params
     const params = new URLSearchParams(window.location.search);
     const dataStr = params.get('data');
     const cId = params.get('contactId');
-    
+    const path = params.get('returnPath');
+    if (path && path.startsWith('/')) {
+      setReturnPath(path.replace(/\/+$/, '') || '/');
+    }
     if (cId) {
       setContactId(cId);
     }
-    
     if (dataStr) {
       try {
         const data = JSON.parse(decodeURIComponent(dataStr));
@@ -46,15 +49,35 @@ export default function OutOfService() {
 
   const loadWidgetSettings = async () => {
     try {
-      const response = await fetch('/api/admin/widget-settings');
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+      const toolIdParam = params.get('toolId');
+      const slugParam = params.get('slug');
+      const url =
+        toolIdParam
+          ? `/api/tools/by-id/config?toolId=${encodeURIComponent(toolIdParam)}`
+          : slugParam
+            ? `/api/tools/${encodeURIComponent(slugParam)}/config`
+            : '/api/admin/widget-settings';
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
-        setPrimaryColor(data.primaryColor || '#7c3aed');
+        const widget = data.widget ?? data;
+        const color = widget?.primaryColor || data.primaryColor || '#7c3aed';
+        setPrimaryColor(color);
+      } else {
+        setPrimaryColor('#7c3aed');
       }
     } catch (error) {
       console.error('Failed to load widget settings:', error);
+      setPrimaryColor('#7c3aed');
     }
   };
+
+  useEffect(() => {
+    if (typeof document !== 'undefined' && primaryColor && primaryColor !== 'transparent' && /^#[0-9A-Fa-f]{6}$/.test(primaryColor)) {
+      document.documentElement.style.setProperty('--primary-color', primaryColor);
+    }
+  }, [primaryColor]);
 
   const hexToRgba = (hex: string, alpha: number = 1) => {
     if (!hex || hex === 'transparent' || !/^#[0-9A-Fa-f]{6}$/.test(hex)) return 'rgba(0,0,0,0)';
@@ -71,7 +94,8 @@ export default function OutOfService() {
       params.set('contactId', contactId);
       params.set('fromOutOfService', 'true');
     }
-    return `/?${params.toString()}`;
+    const basePath = returnPath || '/';
+    return `${basePath}?${params.toString()}`;
   };
 
   if (!mounted) {

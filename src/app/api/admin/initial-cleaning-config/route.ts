@@ -17,6 +17,8 @@ export async function GET() {
         recommendedConditions: ['fair'],
         sheddingPetsMultiplier: 1.1,
         peopleMultiplier: 1.05,
+        peopleMultiplierBase: 4,
+        sheddingPetsMultiplierBase: 0,
       });
     }
 
@@ -24,6 +26,8 @@ export async function GET() {
       ...config,
       sheddingPetsMultiplier: config.sheddingPetsMultiplier ?? 1.1,
       peopleMultiplier: config.peopleMultiplier ?? 1.05,
+      peopleMultiplierBase: config.peopleMultiplierBase ?? 4,
+      sheddingPetsMultiplierBase: config.sheddingPetsMultiplierBase ?? 0,
     };
     return NextResponse.json(configWithDefaults);
   } catch (error) {
@@ -45,7 +49,15 @@ export async function POST(request: NextRequest) {
     if (authResponse) return authResponse;
 
     const body = await request.json();
-    const { multiplier, requiredConditions, recommendedConditions, sheddingPetsMultiplier, peopleMultiplier } = body;
+    const {
+      multiplier,
+      requiredConditions,
+      recommendedConditions,
+      sheddingPetsMultiplier,
+      peopleMultiplier,
+      peopleMultiplierBase,
+      sheddingPetsMultiplierBase,
+    } = body;
 
     // Validate multiplier
     if (typeof multiplier !== 'number' || multiplier < 1.0 || multiplier > 3.0) {
@@ -71,6 +83,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (peopleMultiplierBase !== undefined && (typeof peopleMultiplierBase !== 'number' || peopleMultiplierBase < 0 || peopleMultiplierBase > 20)) {
+      return NextResponse.json({ error: 'People multiplier base must be between 0 and 20' }, { status: 400 });
+    }
+    if (sheddingPetsMultiplierBase !== undefined && (typeof sheddingPetsMultiplierBase !== 'number' || sheddingPetsMultiplierBase < 0 || sheddingPetsMultiplierBase > 10)) {
+      return NextResponse.json({ error: 'Shedding pets multiplier base must be between 0 and 10' }, { status: 400 });
+    }
+
     // Validate conditions
     if (!Array.isArray(requiredConditions) || !Array.isArray(recommendedConditions)) {
       return NextResponse.json(
@@ -85,6 +104,8 @@ export async function POST(request: NextRequest) {
       recommendedConditions: recommendedConditions.map((c: string) => c.toLowerCase()),
       sheddingPetsMultiplier: sheddingPetsMultiplier ?? 1.1,
       peopleMultiplier: peopleMultiplier ?? 1.05,
+      peopleMultiplierBase: peopleMultiplierBase ?? 4,
+      sheddingPetsMultiplierBase: sheddingPetsMultiplierBase ?? 0,
     };
 
     await setInitialCleaningConfig(config);

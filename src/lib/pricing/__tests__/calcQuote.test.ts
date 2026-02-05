@@ -45,6 +45,13 @@ describe('getPeopleMultiplier', () => {
     expect(getPeopleMultiplier(8)).toBeCloseTo(1.2, 10);  // 4 extra
     expect(getPeopleMultiplier(10)).toBeCloseTo(1.3, 10); // 6 extra
   });
+
+  it('should respect custom people base (e.g. base 5: no extra until 6 people)', () => {
+    expect(getPeopleMultiplier(4, 1.05, 5)).toBe(1.0);
+    expect(getPeopleMultiplier(5, 1.05, 5)).toBe(1.0);
+    expect(getPeopleMultiplier(6, 1.05, 5)).toBeCloseTo(1.05, 10);
+    expect(getPeopleMultiplier(7, 1.05, 5)).toBeCloseTo(1.1, 10);
+  });
 });
 
 describe('getSheddingPetMultiplier', () => {
@@ -63,6 +70,13 @@ describe('getSheddingPetMultiplier', () => {
   it('should scale linearly for 6+ shedding pets', () => {
     expect(getSheddingPetMultiplier(6)).toBeCloseTo(1.6, 10);
     expect(getSheddingPetMultiplier(10)).toBeCloseTo(2.0, 10);
+  });
+
+  it('should respect custom shedding pets base (e.g. base 2: 0–2 at 1.0, then per-pet)', () => {
+    expect(getSheddingPetMultiplier(0, 1.1, 2)).toBe(1.0);
+    expect(getSheddingPetMultiplier(2, 1.1, 2)).toBe(1.0);
+    expect(getSheddingPetMultiplier(3, 1.1, 2)).toBeCloseTo(1.1, 10);
+    expect(getSheddingPetMultiplier(4, 1.1, 2)).toBeCloseTo(1.2, 10);
   });
 });
 

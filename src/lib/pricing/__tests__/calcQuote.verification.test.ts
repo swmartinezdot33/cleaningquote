@@ -67,6 +67,8 @@ vi.mock('../calcQuote', async () => {
       recommendedConditions: ['fair'],
       sheddingPetsMultiplier: 1.1,
       peopleMultiplier: 1.05,
+      peopleMultiplierBase: 4,
+      sheddingPetsMultiplierBase: 0,
     })),
   };
 });
@@ -97,6 +99,20 @@ describe('Pricing Calculation Verification', () => {
       const conditionMult = getConditionMultiplier('clean'); // 1.0
       const combined = peopleMult * petsMult * conditionMult;
       expect(combined).toBeCloseTo(1.2, 10); // 1.0 * 1.2 * 1.0 = 1.2
+    });
+
+    it('should apply people multiplier with custom base (e.g. base 5)', () => {
+      expect(getPeopleMultiplier(4, 1.05, 5)).toBe(1.0);
+      expect(getPeopleMultiplier(5, 1.05, 5)).toBe(1.0);
+      expect(getPeopleMultiplier(6, 1.05, 5)).toBeCloseTo(1.05, 10);
+      expect(getPeopleMultiplier(7, 1.05, 5)).toBeCloseTo(1.1, 10);
+    });
+
+    it('should apply shedding pets multiplier with custom base (e.g. base 2)', () => {
+      expect(getSheddingPetMultiplier(0, 1.1, 2)).toBe(1.0);
+      expect(getSheddingPetMultiplier(2, 1.1, 2)).toBe(1.0);
+      expect(getSheddingPetMultiplier(3, 1.1, 2)).toBeCloseTo(1.1, 10);
+      expect(getSheddingPetMultiplier(4, 1.1, 2)).toBeCloseTo(1.2, 10);
     });
   });
 

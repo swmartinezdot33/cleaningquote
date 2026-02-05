@@ -15,6 +15,10 @@ export interface InitialCleaningConfig {
   recommendedConditions: string[];
   sheddingPetsMultiplier?: number;
   peopleMultiplier?: number;
+  /** Number of people included at base rate; multiplier applies only for people above this. Default 4. */
+  peopleMultiplierBase?: number;
+  /** Number of shedding pets included at base rate; multiplier applies only for pets above this. Default 0. */
+  sheddingPetsMultiplierBase?: number;
 }
 
 const DEFAULT_INITIAL_CLEANING_CONFIG: InitialCleaningConfig = {
@@ -23,6 +27,8 @@ const DEFAULT_INITIAL_CLEANING_CONFIG: InitialCleaningConfig = {
   recommendedConditions: ['fair'], // Conditions that RECOMMEND Initial Cleaning
   sheddingPetsMultiplier: 1.1, // Per shedding pet multiplier (10% per pet)
   peopleMultiplier: 1.05, // Per person multiplier (5% per person)
+  peopleMultiplierBase: 4, // No multiplier for 4 or fewer people
+  sheddingPetsMultiplierBase: 0, // Multiplier applies from first shedding pet
 };
 
 /**
@@ -37,6 +43,8 @@ export async function getInitialCleaningConfig(toolId?: string): Promise<Initial
       ...(config || {}),
       sheddingPetsMultiplier: config?.sheddingPetsMultiplier ?? DEFAULT_INITIAL_CLEANING_CONFIG.sheddingPetsMultiplier,
       peopleMultiplier: config?.peopleMultiplier ?? DEFAULT_INITIAL_CLEANING_CONFIG.peopleMultiplier,
+      peopleMultiplierBase: config?.peopleMultiplierBase ?? DEFAULT_INITIAL_CLEANING_CONFIG.peopleMultiplierBase,
+      sheddingPetsMultiplierBase: config?.sheddingPetsMultiplierBase ?? DEFAULT_INITIAL_CLEANING_CONFIG.sheddingPetsMultiplierBase,
     };
   } catch (error) {
     console.warn('Failed to load Initial Cleaning config, using defaults:', error);
@@ -110,38 +118,42 @@ export function calculateGeneralCleanPrice(
   };
 }
 
-const PEOPLE_MULTIPLIER_BASE = 4; // No multiplier for 4 or fewer people
-
 /**
- * Get people multiplier based on count and per-person multiplier.
- * Base of 4 people: 0–4 people use regular pricing (1.0). From 5 people onward,
- * each extra person adds (perPersonMultiplier - 1.0) to the multiplier.
- * Formula: people <= 4 ? 1.0 : 1.0 + ((people - 4) * (perPersonMultiplier - 1.0))
- * Example: perPersonMultiplier 1.05 → 4 people: 1.0, 5: 1.05, 6: 1.10, 7: 1.15
+ * Get people multiplier based on count, per-person multiplier, and configurable base.
+ * 0 to base people use regular pricing (1.0). Above base, each extra person adds (perPersonMultiplier - 1.0).
+ * Formula: people <= base ? 1.0 : 1.0 + ((people - base) * (perPersonMultiplier - 1.0))
+ * Example: base 4, perPerson 1.05 → 4 people: 1.0, 5: 1.05, 6: 1.10. Base 5 → 5 people: 1.0, 6: 1.05.
  */
-export function getPeopleMultiplier(people: number, perPersonMultiplier: number = 1.05): number {
-  if (people <= PEOPLE_MULTIPLIER_BASE) {
+export function getPeopleMultiplier(
+  people: number,
+  perPersonMultiplier: number = 1.05,
+  base: number = 4
+): number {
+  if (people <= base) {
     return 1.0;
   }
-  const extraPeople = people - PEOPLE_MULTIPLIER_BASE;
+  const extraPeople = people - base;
   const perPersonIncrease = perPersonMultiplier - 1.0;
   return 1.0 + extraPeople * perPersonIncrease;
 }
 
 /**
- * Get shedding pet multiplier based on count and per-pet multiplier
- * Formula: 1.0 + (sheddingPetsCount * (perPetMultiplier - 1.0))
- * Example: If perPetMultiplier is 1.1 and there are 3 shedding pets:
- *   1.0 + (3 * (1.1 - 1.0)) = 1.0 + (3 * 0.1) = 1.3 (30% increase)
+ * Get shedding pet multiplier based on count, per-pet multiplier, and configurable base.
+ * 0 to base shedding pets use 1.0. Above base, each extra pet adds (perPetMultiplier - 1.0).
+ * Formula: sheddingPets <= base ? 1.0 : 1.0 + ((sheddingPets - base) * (perPetMultiplier - 1.0))
+ * Example: base 0, perPet 1.1, 3 pets → 1.3. Base 2 → 0–2 pets: 1.0, 3 pets: 1.1, 4: 1.2.
  */
-export function getSheddingPetMultiplier(sheddingPets: number, perPetMultiplier: number = 1.1): number {
-  if (sheddingPets <= 0) {
+export function getSheddingPetMultiplier(
+  sheddingPets: number,
+  perPetMultiplier: number = 1.1,
+  base: number = 0
+): number {
+  if (sheddingPets <= base) {
     return 1.0;
   }
-  // Each shedding pet adds (perPetMultiplier - 1.0) to the base multiplier
-  const base = 1.0;
+  const extraPets = sheddingPets - base;
   const perPetIncrease = perPetMultiplier - 1.0;
-  return base + (sheddingPets * perPetIncrease);
+  return 1.0 + extraPets * perPetIncrease;
 }
 
 /**
@@ -258,8 +270,10 @@ export async function calcQuote(inputs: QuoteInputs, toolId?: string): Promise<Q
   const baseRow = table.rows[rowIdx];
 
   // Calculate multipliers using configurable values
-  const peopleMultiplier = getPeopleMultiplier(inputs.people, config.peopleMultiplier);
-  const sheddingPetMultiplier = getSheddingPetMultiplier(inputs.sheddingPets, config.sheddingPetsMultiplier);
+  const peopleBase = config.peopleMultiplierBase ?? DEFAULT_INITIAL_CLEANING_CONFIG.peopleMultiplierBase ?? 4;
+  const sheddingPetsBase = config.sheddingPetsMultiplierBase ?? DEFAULT_INITIAL_CLEANING_CONFIG.sheddingPetsMultiplierBase ?? 0;
+  const peopleMultiplier = getPeopleMultiplier(inputs.people, config.peopleMultiplier, peopleBase);
+  const sheddingPetMultiplier = getSheddingPetMultiplier(inputs.sheddingPets, config.sheddingPetsMultiplier, sheddingPetsBase);
   const conditionMultiplier = getConditionMultiplier(inputs.condition);
 
   // Check if condition is out of scope (multiplier >= 20)

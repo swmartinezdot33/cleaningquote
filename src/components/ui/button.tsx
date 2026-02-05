@@ -50,7 +50,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       const primaryColor = getComputedStyle(document.documentElement)
         .getPropertyValue('--primary-color')
         .trim() || '#7c3aed';
-      
+      // #region agent log
+      if (variant === 'outline' && typeof window !== 'undefined') fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'button.tsx:getButtonStyle',message:'outline color source',data:{variant,primaryColorUsed:primaryColor,passedStyleColor:(style as React.CSSProperties)?.color},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion
       const baseStyle = style || {};
       
       if (variant === 'default') {

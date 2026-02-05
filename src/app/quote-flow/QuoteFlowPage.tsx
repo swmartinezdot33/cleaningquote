@@ -1107,6 +1107,9 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
             const params = new URLSearchParams({
               address: addressValue,
               ...(createdContactId && { contactId: createdContactId }),
+              ...(typeof window !== 'undefined' && { returnPath: window.location.pathname }),
+              ...(typeof window !== 'undefined' && (toolId || resolvedToolId) && { toolId: String(toolId || resolvedToolId) }),
+              ...(typeof window !== 'undefined' && slug && { slug }),
             });
             window.location.href = `/out-of-service?${params.toString()}`;
             return;
@@ -1213,6 +1216,9 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
               const params = new URLSearchParams({
                 address: addressValue,
                 ...(createdContactId && { contactId: createdContactId }),
+                ...(typeof window !== 'undefined' && { returnPath: window.location.pathname }),
+                ...(typeof window !== 'undefined' && (toolId || resolvedToolId) && { toolId: String(toolId || resolvedToolId) }),
+                ...(typeof window !== 'undefined' && slug && { slug }),
               });
               window.location.href = `/out-of-service?${params.toString()}`;
               return;
@@ -2785,10 +2791,13 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                         }
                                       }
 
-                                      // Redirect to out-of-service page with contactId if available
+                                      // Redirect to out-of-service page with contactId, return path, and tool context
                                       const params = new URLSearchParams({
                                         address: addressValue,
                                         ...(createdContactId && { contactId: createdContactId }),
+                                        ...(typeof window !== 'undefined' && { returnPath: window.location.pathname }),
+                                        ...(typeof window !== 'undefined' && (toolId || resolvedToolId) && { toolId: String(toolId || resolvedToolId) }),
+                                        ...(typeof window !== 'undefined' && slug && { slug }),
                                       });
                                       window.location.href = `/out-of-service?${params.toString()}`;
                                     }

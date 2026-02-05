@@ -67,6 +67,8 @@ export default function AdminPage() {
   const [recommendedConditions, setRecommendedConditions] = useState<string[]>(['fair']);
   const [sheddingPetsMultiplier, setSheddingPetsMultiplier] = useState(1.1);
   const [peopleMultiplier, setPeopleMultiplier] = useState(1.05);
+  const [peopleMultiplierBase, setPeopleMultiplierBase] = useState(4);
+  const [sheddingPetsMultiplierBase, setSheddingPetsMultiplierBase] = useState(0);
   const [isLoadingInitialCleaning, setIsLoadingInitialCleaning] = useState(false);
   const [isSavingInitialCleaning, setIsSavingInitialCleaning] = useState(false);
   const [initialCleaningMessage, setInitialCleaningMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -328,6 +330,8 @@ export default function AdminPage() {
         setRecommendedConditions(data.recommendedConditions);
         setSheddingPetsMultiplier(data.sheddingPetsMultiplier ?? 1.1);
         setPeopleMultiplier(data.peopleMultiplier ?? 1.05);
+        setPeopleMultiplierBase(data.peopleMultiplierBase ?? 4);
+        setSheddingPetsMultiplierBase(data.sheddingPetsMultiplierBase ?? 0);
       }
     } catch (error) {
       console.error('Error loading Initial Cleaning config:', error);
@@ -353,6 +357,8 @@ export default function AdminPage() {
           recommendedConditions,
           sheddingPetsMultiplier,
           peopleMultiplier,
+          peopleMultiplierBase,
+          sheddingPetsMultiplierBase,
         }),
       });
 
@@ -1420,20 +1426,31 @@ export default function AdminPage() {
                         Shedding Pets Multiplier
                       </Label>
                       <p className="text-sm text-gray-600 mt-1 mb-3">
-                        Price multiplier per shedding pet (1.0 = no extra charge, 1.1 = 10% more per pet)
+                        Base number of shedding pets at regular rate; multiplier applies per pet above that.
                       </p>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2 gap-y-1">
+                        <span className="text-sm text-gray-600">Base:</span>
+                        <Input
+                          id="shedding-pets-base"
+                          type="number"
+                          min={0}
+                          max={10}
+                          value={sheddingPetsMultiplierBase}
+                          onChange={(e) => setSheddingPetsMultiplierBase(Math.max(0, Math.min(10, parseInt(e.target.value, 10) || 0)))}
+                          className="h-10 w-20"
+                        />
+                        <span className="text-sm text-gray-600">pets, then</span>
                         <Input
                           id="shedding-pets-multiplier"
                           type="number"
-                          min="1.0"
-                          max="2.0"
-                          step="0.05"
+                          min={1.0}
+                          max={2.0}
+                          step={0.05}
                           value={sheddingPetsMultiplier}
                           onChange={(e) => setSheddingPetsMultiplier(parseFloat(e.target.value) || 1.1)}
-                          className="flex-1 h-10"
+                          className="flex-1 h-10 max-w-[8rem]"
                         />
-                        <span className="text-sm font-semibold text-gray-700">×</span>
+                        <span className="text-sm font-semibold text-gray-700">× per extra pet</span>
                       </div>
                     </div>
 
@@ -1442,20 +1459,31 @@ export default function AdminPage() {
                         People Multiplier
                       </Label>
                       <p className="text-sm text-gray-600 mt-1 mb-3">
-                        Price multiplier per person (1.0 = no extra charge, 1.05 = 5% more per person)
+                        Base number of people at regular rate; multiplier applies per person above that (e.g. base 5 = no extra until 6 people).
                       </p>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2 gap-y-1">
+                        <span className="text-sm text-gray-600">Base:</span>
+                        <Input
+                          id="people-base"
+                          type="number"
+                          min={0}
+                          max={20}
+                          value={peopleMultiplierBase}
+                          onChange={(e) => setPeopleMultiplierBase(Math.max(0, Math.min(20, parseInt(e.target.value, 10) || 0)))}
+                          className="h-10 w-20"
+                        />
+                        <span className="text-sm text-gray-600">people, then</span>
                         <Input
                           id="people-multiplier"
                           type="number"
-                          min="1.0"
-                          max="2.0"
-                          step="0.05"
+                          min={1.0}
+                          max={2.0}
+                          step={0.05}
                           value={peopleMultiplier}
                           onChange={(e) => setPeopleMultiplier(parseFloat(e.target.value) || 1.05)}
-                          className="flex-1 h-10"
+                          className="flex-1 h-10 max-w-[8rem]"
                         />
-                        <span className="text-sm font-semibold text-gray-700">×</span>
+                        <span className="text-sm font-semibold text-gray-700">× per extra person</span>
                       </div>
                     </div>
                   </div>

@@ -153,6 +153,10 @@ export interface InitialCleaningConfig {
   recommendedConditions: string[];
   sheddingPetsMultiplier?: number;
   peopleMultiplier?: number;
+  /** People at or below this count get no multiplier; above this, per-person multiplier applies. Default 4. */
+  peopleMultiplierBase?: number;
+  /** Shedding pets at or below this count get no multiplier; above this, per-pet multiplier applies. Default 0. */
+  sheddingPetsMultiplierBase?: number;
 }
 
 export async function getInitialCleaningConfig(toolId?: string): Promise<InitialCleaningConfig | null> {

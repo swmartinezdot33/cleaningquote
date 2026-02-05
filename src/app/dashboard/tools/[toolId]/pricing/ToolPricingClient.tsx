@@ -80,6 +80,8 @@ export default function ToolPricingClient({ toolId }: { toolId: string }) {
     recommendedConditions: ['fair'] as string[],
     sheddingPetsMultiplier: 1.1,
     peopleMultiplier: 1.05,
+    peopleMultiplierBase: 4,
+    sheddingPetsMultiplierBase: 0,
   });
   const [savingInitial, setSavingInitial] = useState(false);
   const [initialMessage, setInitialMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -125,6 +127,8 @@ export default function ToolPricingClient({ toolId }: { toolId: string }) {
           recommendedConditions: Array.isArray(ic.recommendedConditions) ? ic.recommendedConditions : ['fair'],
           sheddingPetsMultiplier: ic.sheddingPetsMultiplier ?? 1.1,
           peopleMultiplier: ic.peopleMultiplier ?? 1.05,
+          peopleMultiplierBase: ic.peopleMultiplierBase ?? 4,
+          sheddingPetsMultiplierBase: ic.sheddingPetsMultiplierBase ?? 0,
         });
       }
     } catch {
@@ -625,9 +629,21 @@ export default function ToolPricingClient({ toolId }: { toolId: string }) {
                       Shedding Pets Multiplier
                     </Label>
                     <p className="text-sm text-muted-foreground mt-1 mb-3">
-                      Price multiplier per shedding pet (1.0 = no extra charge, 1.1 = 10% more per pet)
+                      Price multiplier per shedding pet above base (1.0 = no extra charge, 1.1 = 10% more per pet)
                     </p>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 gap-y-1">
+                      <span className="text-sm text-muted-foreground">Base:</span>
+                      <Input
+                        id="shedding-pets-base"
+                        type="number"
+                        min={0}
+                        max={10}
+                        step={1}
+                        value={initialCleaning.sheddingPetsMultiplierBase}
+                        onChange={(e) => setInitialCleaning((prev) => ({ ...prev, sheddingPetsMultiplierBase: Math.max(0, Math.min(10, parseInt(e.target.value, 10) || 0)) }))}
+                        className="h-10 w-20"
+                      />
+                      <span className="text-sm text-muted-foreground">pets at regular rate, then</span>
                       <Input
                         id="shedding-pets-multiplier"
                         type="number"
@@ -638,7 +654,7 @@ export default function ToolPricingClient({ toolId }: { toolId: string }) {
                         onChange={(e) => setInitialCleaning((prev) => ({ ...prev, sheddingPetsMultiplier: parseFloat(e.target.value) || 1.1 }))}
                         className="flex-1 h-10 max-w-[8rem]"
                       />
-                      <span className="text-sm font-semibold text-muted-foreground">×</span>
+                      <span className="text-sm font-semibold text-muted-foreground">× per extra pet</span>
                     </div>
                   </div>
                   <div>
@@ -646,9 +662,21 @@ export default function ToolPricingClient({ toolId }: { toolId: string }) {
                       People Multiplier
                     </Label>
                     <p className="text-sm text-muted-foreground mt-1 mb-3">
-                      Price multiplier per person (1.0 = no extra charge, 1.05 = 5% more per person)
+                      Price multiplier per person above base (1.0 = no extra charge, 1.05 = 5% more per person)
                     </p>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 gap-y-1">
+                      <span className="text-sm text-muted-foreground">Base:</span>
+                      <Input
+                        id="people-base"
+                        type="number"
+                        min={0}
+                        max={20}
+                        step={1}
+                        value={initialCleaning.peopleMultiplierBase}
+                        onChange={(e) => setInitialCleaning((prev) => ({ ...prev, peopleMultiplierBase: Math.max(0, Math.min(20, parseInt(e.target.value, 10) || 0)) }))}
+                        className="h-10 w-20"
+                      />
+                      <span className="text-sm text-muted-foreground">people at regular rate, then</span>
                       <Input
                         id="people-multiplier"
                         type="number"
@@ -659,7 +687,7 @@ export default function ToolPricingClient({ toolId }: { toolId: string }) {
                         onChange={(e) => setInitialCleaning((prev) => ({ ...prev, peopleMultiplier: parseFloat(e.target.value) || 1.05 }))}
                         className="flex-1 h-10 max-w-[8rem]"
                       />
-                      <span className="text-sm font-semibold text-muted-foreground">×</span>
+                      <span className="text-sm font-semibold text-muted-foreground">× per extra person</span>
                     </div>
                   </div>
                 </div>
