@@ -102,7 +102,7 @@ function generateSchemaFromQuestions(questions: SurveyQuestion[]): z.ZodObject<a
         // For required number fields, reject undefined/null/empty
         // Also reject 0 if it's not a valid option for this question (e.g., people question starts at 1)
         const questionId = question.id.toLowerCase();
-        const allowsZero = questionId.includes('bath') || questionId.includes('pets') || questionId.includes('shedding') || questionId.includes('bedroom');
+        const allowsZero = questionId.includes('bath') || questionId.includes('pets') || questionId.includes('shedding') || questionId.includes('bedroom') || questionId.includes('people') || questionId.includes('person') || questionId.includes('resident');
         
         schemaShape[fieldId] = z.union([
           z.number()
@@ -2996,8 +2996,8 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                           // Baths and pets: 0-5
                           return [0, 1, 2, 3, 4, 5];
                         } else if (id.includes('people') || id.includes('person') || id.includes('resident')) {
-                          // People: 1-10
-                          return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+                          // People: 0-10 (0 for move-in/move-out)
+                          return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
                         } else {
                           // Default: 0-10
                           return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];

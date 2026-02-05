@@ -605,6 +605,7 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                                           const f = e.target.files?.[0];
                                           if (!f) return;
                                           setUploadingOptionIndex(idx);
+                                          e.target.value = '';
                                           try {
                                             const form = new FormData();
                                             form.append('file', f);
@@ -612,25 +613,28 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                                               method: 'POST',
                                               body: form,
                                             });
-                                            const data = await res.json();
-                                            if (res.ok && data.url) {
+                                            const data = await res.json().catch(() => ({}));
+                                            const url = typeof data?.url === 'string' ? data.url.trim() : '';
+                                            if (res.ok && url) {
                                               setEditingQuestion((prev) => {
-                                                if (!prev) return prev;
-                                                const opts = [...(prev.options || [])];
-                                                const o = opts[idx] as SurveyQuestionOption;
-                                                opts[idx] = { ...o, imageUrl: data.url };
-                                                return { ...prev, options: opts };
+                                                if (!prev || !Array.isArray(prev.options)) return prev;
+                                                const options = prev.options.map((opt, i) =>
+                                                  i === idx ? { ...opt, imageUrl: url } : opt
+                                                );
+                                                return { ...prev, options };
                                               });
                                               setMessage({ type: 'success', text: 'Image added. Click "Save Question" below to keep your changes.' });
-                                              setTimeout(() => setMessage(null), 4000);
+                                              setTimeout(() => setMessage(null), 5000);
                                             } else {
-                                              setMessage({ type: 'error', text: data.error || 'Upload failed' });
+                                              setMessage({
+                                                type: 'error',
+                                                text: typeof data?.error === 'string' ? data.error : !res.ok ? `Upload failed (${res.status})` : 'Upload succeeded but no image URL was returned.',
+                                              });
                                             }
                                           } catch {
-                                            setMessage({ type: 'error', text: 'Upload failed' });
+                                            setMessage({ type: 'error', text: 'Upload failed. Check your connection and try again.' });
                                           } finally {
                                             setUploadingOptionIndex(null);
-                                            e.target.value = '';
                                           }
                                         }}
                                       />

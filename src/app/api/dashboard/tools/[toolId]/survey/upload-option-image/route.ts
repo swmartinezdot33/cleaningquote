@@ -56,7 +56,15 @@ export async function POST(
       token,
     });
 
-    return NextResponse.json({ url: blob.url });
+    const url = blob?.url?.trim?.();
+    if (!url) {
+      console.error('Vercel Blob put succeeded but returned no url:', blob);
+      return NextResponse.json(
+        { error: 'Upload succeeded but no URL was returned. Try again.' },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({ url });
   } catch (err) {
     console.error('Survey option image upload error:', err);
     return NextResponse.json(

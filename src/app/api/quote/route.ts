@@ -230,6 +230,9 @@ export async function POST(request: NextRequest) {
     let ghlContactId: string | undefined = providedContactId || bodyContactId;
     const hasGHLToken = await ghlTokenExists(toolId).catch(() => false);
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quote/route.ts:ghl-block', message: 'GHL block entry', data: { hasGHLToken, toolId: toolId ?? null }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H4-H5' }) }).catch(() => {});
+    // #endregion
     if (hasGHLToken) {
       try {
         const [ghlConfig, surveyQuestions, ghlToken, ghlLocationId] = await Promise.all([
@@ -506,6 +509,10 @@ export async function POST(request: NextRequest) {
         }
 
         ghlContactId = contact.id;
+
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quote/route.ts:after-contact', message: 'contact created', data: { ghlContactId }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' }) }).catch(() => {});
+        // #endregion
 
         // Prepare promises for parallel execution (opportunity, custom object, note)
         let opportunityPromise: Promise<any> | null = null;
@@ -826,6 +833,10 @@ export async function POST(request: NextRequest) {
         }
 
         // Prepare note creation (will parallelize with opportunity and custom object)
+        // #region agent log
+        const noteCondition = ghlConfig?.createNote !== false && !!ghlContactId;
+        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quote/route.ts:note-condition', message: 'note create decision', data: { createNoteConfig: ghlConfig?.createNote, ghlContactId: ghlContactId ?? null, noteCondition, willCreateNote: noteCondition }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1-H2' }) }).catch(() => {});
+        // #endregion
         if (ghlConfig?.createNote !== false && ghlContactId) {
           let noteBody = `Quote Generated from Website Form\n\n${summaryText}`;
           const notePassthrough = ['start', 'tashiane'].filter(k => body[k] && String(body[k]).trim());
@@ -844,6 +855,10 @@ export async function POST(request: NextRequest) {
           quoteObjectPromise,
           notePromise,
         ].filter(Boolean) as Promise<any>[];
+
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quote/route.ts:ghl-ops', message: 'GHL ops queued', data: { noteIncluded: !!notePromise, opsCount: ghlOperations.length }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1-H2' }) }).catch(() => {});
+        // #endregion
 
         if (ghlOperations.length > 0) {
           const results = await Promise.allSettled(ghlOperations);
@@ -886,6 +901,11 @@ export async function POST(request: NextRequest) {
           
           if (notePromise) {
             const noteResult = results.find((_, idx) => ghlOperations[idx] === notePromise);
+            const noteFulfilled = noteResult?.status === 'fulfilled';
+            const noteRejected = noteResult?.status === 'rejected';
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quote/route.ts:note-result', message: 'note promise result', data: { noteFulfilled, noteRejected, reason: noteRejected ? (noteResult?.reason instanceof Error ? noteResult.reason.message : String(noteResult?.reason)) : null, ghlContactId }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' }) }).catch(() => {});
+            // #endregion
             if (noteResult?.status === 'rejected') {
               console.error('⚠️ Failed to create note:', noteResult.reason);
               console.error('Note creation error details:', {
