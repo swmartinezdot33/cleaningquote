@@ -25,7 +25,7 @@ export async function GET(
 
   const { data, error } = await supabase
     .from('pricing_structures')
-    .select('id, name, pricing_table, created_at, updated_at')
+    .select('id, name, pricing_table, initial_cleaning_config, created_at, updated_at')
     .eq('id', structureId)
     .eq('org_id', orgId)
     .single();
@@ -34,12 +34,13 @@ export async function GET(
     return NextResponse.json({ error: 'Pricing structure not found' }, { status: 404 });
   }
 
-  const row = data as { id: string; name: string; pricing_table: unknown; created_at: string; updated_at: string };
+  const row = data as { id: string; name: string; pricing_table: unknown; initial_cleaning_config: unknown; created_at: string; updated_at: string };
   return NextResponse.json({
     pricingStructure: {
       id: row.id,
       name: row.name,
       pricingTable: row.pricing_table ?? null,
+      initialCleaningConfig: row.initial_cleaning_config ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     },
@@ -64,7 +65,7 @@ export async function PATCH(
   }
 
   const body = await request.json().catch(() => ({}));
-  const updates: { name?: string; pricing_table?: unknown; updated_at: string } = {
+  const updates: { name?: string; pricing_table?: unknown; initial_cleaning_config?: unknown; updated_at: string } = {
     updated_at: new Date().toISOString(),
   };
   if (typeof body.name === 'string' && body.name.trim()) {
@@ -72,6 +73,9 @@ export async function PATCH(
   }
   if (body.pricingTable !== undefined) {
     updates.pricing_table = body.pricingTable;
+  }
+  if (body.initialCleaningConfig !== undefined) {
+    updates.initial_cleaning_config = body.initialCleaningConfig;
   }
 
   const { data, error } = await supabase

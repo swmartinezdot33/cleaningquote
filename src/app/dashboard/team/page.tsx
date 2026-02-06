@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Trash2, Send } from 'lucide-react';
+import { Trash2, Send, Loader2, Save, BookOpen, Sparkles } from 'lucide-react';
 
 interface Member {
   user_id: string;
@@ -49,6 +49,11 @@ export default function TeamPage() {
   const [orgContactPhone, setOrgContactPhone] = useState('');
   const [orgSaving, setOrgSaving] = useState(false);
   const [orgMessage, setOrgMessage] = useState<string | null>(null);
+  const [ghlStatus, setGhlStatus] = useState<{ configured: boolean; connected?: boolean; locationId?: string } | null>(null);
+  const [ghlToken, setGhlToken] = useState('');
+  const [ghlLocationId, setGhlLocationId] = useState('');
+  const [ghlSaving, setGhlSaving] = useState(false);
+  const [ghlMessage, setGhlMessage] = useState<string | null>(null);
 
   const refreshMembers = () => {
     if (!orgId) return;
@@ -115,6 +120,21 @@ export default function TeamPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (!orgId) return;
+    fetch(`/api/dashboard/orgs/${orgId}/ghl-settings`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.configured) {
+          setGhlStatus({ configured: true, connected: d.connected, locationId: d.locationId });
+          if (d.locationId) setGhlLocationId(d.locationId);
+        } else {
+          setGhlStatus({ configured: false });
+        }
+      })
+      .catch(() => setGhlStatus({ configured: false }));
+  }, [orgId]);
+
   const saveOrgDetails = async () => {
     if (!orgId) return;
     setOrgSaving(true);
@@ -137,6 +157,29 @@ export default function TeamPage() {
       }
     } finally {
       setOrgSaving(false);
+    }
+  };
+
+  const saveGhl = async () => {
+    if (!orgId) return;
+    setGhlSaving(true);
+    setGhlMessage(null);
+    try {
+      const res = await fetch(`/api/dashboard/orgs/${orgId}/ghl-settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: ghlToken.trim(), locationId: ghlLocationId.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setGhlStatus({ configured: true, connected: data.connected, locationId: data.locationId });
+        if (data.locationId) setGhlLocationId(data.locationId);
+        setGhlMessage('HighLevel connection saved.');
+      } else {
+        setGhlMessage(data.error ?? 'Failed to save.');
+      }
+    } finally {
+      setGhlSaving(false);
     }
   };
 
@@ -251,6 +294,74 @@ export default function TeamPage() {
             {orgSaving ? 'Saving…' : 'Save organization details'}
           </button>
           {orgMessage && <p className="mt-2 text-sm text-muted-foreground">{orgMessage}</p>}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-primary" />
+          HighLevel Integration
+        </h2>
+        <p className="text-sm text-muted-foreground mb-2">
+          One connection per organization. All tools in this org use this HighLevel location. Configure pipelines, calendars, and CRM behavior per tool in each tool&apos;s Settings.
+        </p>
+        <div className="space-y-3 rounded-lg border p-4">
+          {ghlStatus?.configured && (
+            <>
+              <p className="text-sm text-muted-foreground">
+                {ghlStatus.connected ? (
+                  <span className="text-green-600 dark:text-green-400">Connected</span>
+                ) : (
+                  <span className="text-amber-600 dark:text-amber-400">Configured; connection could not be verified</span>
+                )}
+                {ghlStatus.locationId && ` · Location ID: ${ghlStatus.locationId}`}
+              </p>
+              {ghlStatus.locationId && (
+                <div className="rounded-lg border border-border bg-muted/30 p-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">GHL Quoter Button – paste in GHL → Settings → Company → Custom JS:</p>
+                  <code className="text-xs block break-all bg-background p-2 rounded border">
+                    {`<script src="${typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || 'https://www.cleanquote.io')}/api/script/cleanquote.js" data-location-id="${ghlStatus.locationId}"></script>`}
+                  </code>
+                </div>
+              )}
+            </>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground">API token</label>
+            <input
+              type="password"
+              value={ghlToken}
+              onChange={(e) => setGhlToken(e.target.value)}
+              className="mt-1 w-full rounded border px-3 py-2 text-sm"
+              placeholder="HighLevel API token"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground">Location ID</label>
+            <input
+              type="text"
+              value={ghlLocationId}
+              onChange={(e) => setGhlLocationId(e.target.value)}
+              className="mt-1 w-full rounded border px-3 py-2 text-sm"
+              placeholder="HighLevel Location ID"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={saveGhl}
+              disabled={ghlSaving || !ghlToken.trim() || !ghlLocationId.trim()}
+              className="inline-flex items-center gap-2 rounded bg-primary px-4 py-2 text-sm text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              {ghlSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {ghlSaving ? 'Saving…' : 'Save HighLevel connection'}
+            </button>
+            <Link href="/help/ghl-integration" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+              <BookOpen className="h-3.5 w-3.5" />
+              Help
+            </Link>
+          </div>
+          {ghlMessage && <p className="text-sm text-muted-foreground">{ghlMessage}</p>}
         </div>
       </section>
 

@@ -65,6 +65,18 @@ const SERVICE_FIELDS = [
   { key: 'moveInOutFull', label: 'Move In/Move Out Deep' },
 ] as const;
 
+const CONDITIONS = ['excellent', 'good', 'average', 'fair', 'poor', 'very-poor'] as const;
+
+const DEFAULT_INITIAL_CLEANING = {
+  multiplier: 1.5,
+  requiredConditions: ['poor'] as string[],
+  recommendedConditions: ['fair'] as string[],
+  sheddingPetsMultiplier: 1.1,
+  peopleMultiplier: 1.05,
+  peopleMultiplierBase: 4,
+  sheddingPetsMultiplierBase: 0,
+};
+
 export function PricingStructureEditClient({ structureId }: { structureId: string }) {
   const [orgId, setOrgId] = useState<string | null>(null);
   const [structureName, setStructureName] = useState<string>('');
@@ -74,6 +86,9 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [initialCleaning, setInitialCleaning] = useState(DEFAULT_INITIAL_CLEANING);
+  const [savingInitialCleaning, setSavingInitialCleaning] = useState(false);
+  const [initialCleaningMessage, setInitialCleaningMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const { register, control, handleSubmit, formState: { errors }, reset, watch } = useForm<PricingTableFormData>({
     resolver: zodResolver(pricingTableSchema),
@@ -102,6 +117,20 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
           setCurrentPricing(null);
           reset({ rows: [], maxSqFt: 0 });
           if (preserveMode) setUploadMode(preserveMode);
+        }
+        const ic = ps.initialCleaningConfig;
+        if (ic && typeof ic === 'object') {
+          setInitialCleaning({
+            multiplier: typeof ic.multiplier === 'number' ? ic.multiplier : DEFAULT_INITIAL_CLEANING.multiplier,
+            requiredConditions: Array.isArray(ic.requiredConditions) ? ic.requiredConditions : DEFAULT_INITIAL_CLEANING.requiredConditions,
+            recommendedConditions: Array.isArray(ic.recommendedConditions) ? ic.recommendedConditions : DEFAULT_INITIAL_CLEANING.recommendedConditions,
+            sheddingPetsMultiplier: typeof ic.sheddingPetsMultiplier === 'number' ? ic.sheddingPetsMultiplier : DEFAULT_INITIAL_CLEANING.sheddingPetsMultiplier,
+            peopleMultiplier: typeof ic.peopleMultiplier === 'number' ? ic.peopleMultiplier : DEFAULT_INITIAL_CLEANING.peopleMultiplier,
+            peopleMultiplierBase: typeof ic.peopleMultiplierBase === 'number' ? ic.peopleMultiplierBase : DEFAULT_INITIAL_CLEANING.peopleMultiplierBase,
+            sheddingPetsMultiplierBase: typeof ic.sheddingPetsMultiplierBase === 'number' ? ic.sheddingPetsMultiplierBase : DEFAULT_INITIAL_CLEANING.sheddingPetsMultiplierBase,
+          });
+        } else {
+          setInitialCleaning(DEFAULT_INITIAL_CLEANING);
         }
       } else {
         setCurrentPricing(null);
@@ -219,6 +248,35 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
     }
   };
 
+  const toggleCondition = (list: 'requiredConditions' | 'recommendedConditions', condition: string) => {
+    const current = initialCleaning[list];
+    const next = current.includes(condition) ? current.filter((c) => c !== condition) : [...current, condition];
+    setInitialCleaning((prev) => ({ ...prev, [list]: next }));
+  };
+
+  const saveInitialCleaningConfig = async () => {
+    if (!orgId) return;
+    setSavingInitialCleaning(true);
+    setInitialCleaningMessage(null);
+    try {
+      const res = await fetch(`/api/dashboard/orgs/${orgId}/pricing-structures/${structureId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initialCleaningConfig: initialCleaning }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setInitialCleaningMessage({ type: 'success', text: 'Initial cleaning & multipliers saved' });
+      } else {
+        setInitialCleaningMessage({ type: 'error', text: data.error ?? 'Failed to save' });
+      }
+    } catch {
+      setInitialCleaningMessage({ type: 'error', text: 'Failed to save' });
+    } finally {
+      setSavingInitialCleaning(false);
+    }
+  };
+
   if (loading && !currentPricing && !structureName) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -279,6 +337,126 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
           Download Template
         </Button>
       </div>
+
+      <Card className="shadow-lg border border-border">
+        <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent border-b border-border">
+          <CardTitle className="text-xl">Initial cleaning & multipliers</CardTitle>
+          <CardDescription>
+            People and pet multipliers and initial cleaning rules for this pricing structure. Used when a tool uses this structure for quotes.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6 pb-6 space-y-6">
+          {initialCleaningMessage && (
+            <div className={`p-4 rounded-lg ${initialCleaningMessage.type === 'success' ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-400'}`}>
+              {initialCleaningMessage.text}
+            </div>
+          )}
+          <div>
+            <Label htmlFor="ic-multiplier" className="text-base font-semibold">Initial Cleaning Multiplier</Label>
+            <p className="text-sm text-muted-foreground mt-1 mb-2">Price multiplier applied to General Clean (1.5 = 50% more)</p>
+            <Input
+              id="ic-multiplier"
+              type="number"
+              min={1.0}
+              max={3.0}
+              step={0.1}
+              value={initialCleaning.multiplier}
+              onChange={(e) => setInitialCleaning((prev) => ({ ...prev, multiplier: parseFloat(e.target.value) || 1.5 }))}
+              className="h-10 max-w-[8rem]"
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-base font-semibold">Shedding pets</Label>
+              <p className="text-sm text-muted-foreground mt-1 mb-2">Base count at regular rate, then multiplier per extra pet</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  max={10}
+                  value={initialCleaning.sheddingPetsMultiplierBase}
+                  onChange={(e) => setInitialCleaning((prev) => ({ ...prev, sheddingPetsMultiplierBase: Math.max(0, Math.min(10, parseInt(e.target.value, 10) || 0)) }))}
+                  className="h-10 w-20"
+                />
+                <span className="text-sm text-muted-foreground">pets at regular rate, then</span>
+                <Input
+                  type="number"
+                  min={1.0}
+                  max={2.0}
+                  step={0.05}
+                  value={initialCleaning.sheddingPetsMultiplier}
+                  onChange={(e) => setInitialCleaning((prev) => ({ ...prev, sheddingPetsMultiplier: parseFloat(e.target.value) || 1.1 }))}
+                  className="h-10 max-w-[8rem]"
+                />
+                <span className="text-sm text-muted-foreground">× per extra pet</span>
+              </div>
+            </div>
+            <div>
+              <Label className="text-base font-semibold">People</Label>
+              <p className="text-sm text-muted-foreground mt-1 mb-2">Base count at regular rate, then multiplier per extra person</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  max={20}
+                  value={initialCleaning.peopleMultiplierBase}
+                  onChange={(e) => setInitialCleaning((prev) => ({ ...prev, peopleMultiplierBase: Math.max(0, Math.min(20, parseInt(e.target.value, 10) || 0)) }))}
+                  className="h-10 w-20"
+                />
+                <span className="text-sm text-muted-foreground">people at regular rate, then</span>
+                <Input
+                  type="number"
+                  min={1.0}
+                  max={2.0}
+                  step={0.05}
+                  value={initialCleaning.peopleMultiplier}
+                  onChange={(e) => setInitialCleaning((prev) => ({ ...prev, peopleMultiplier: parseFloat(e.target.value) || 1.05 }))}
+                  className="h-10 max-w-[8rem]"
+                />
+                <span className="text-sm text-muted-foreground">× per extra person</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <Label className="text-base font-semibold">Home conditions requiring Initial Cleaning</Label>
+            <p className="text-sm text-muted-foreground mt-1 mb-2">Select which conditions REQUIRE Initial Cleaning</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {CONDITIONS.map((c) => (
+                <label key={c} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={initialCleaning.requiredConditions.includes(c)}
+                    onChange={() => toggleCondition('requiredConditions', c)}
+                    className="w-4 h-4 rounded border-input"
+                  />
+                  <span className="text-sm capitalize">{c.replace('-', ' ')}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div>
+            <Label className="text-base font-semibold">Home conditions recommending Initial Cleaning</Label>
+            <p className="text-sm text-muted-foreground mt-1 mb-2">Conditions that suggest (but do not require) Initial Cleaning</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {CONDITIONS.map((c) => (
+                <label key={c} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={initialCleaning.recommendedConditions.includes(c)}
+                    onChange={() => toggleCondition('recommendedConditions', c)}
+                    className="w-4 h-4 rounded border-input"
+                  />
+                  <span className="text-sm capitalize">{c.replace('-', ' ')}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <Button onClick={saveInitialCleaningConfig} disabled={savingInitialCleaning} className="gap-2">
+            {savingInitialCleaning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {savingInitialCleaning ? 'Saving…' : 'Save initial cleaning & multipliers'}
+          </Button>
+        </CardContent>
+      </Card>
 
       <AnimatePresence mode="wait">
         {uploadMode === 'view' && (

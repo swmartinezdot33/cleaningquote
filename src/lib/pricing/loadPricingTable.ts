@@ -91,7 +91,7 @@ export async function loadPricingTable(toolId?: string, pricingStructureId?: str
       cacheByTool.set(cacheKey, { table, invalidated: false });
       return table;
     }
-    throw new Error(`Pricing structure not found or has no data. Please assign a pricing structure in Service area settings.`);
+    throw new Error(`Pricing structure not found or has no data. Please assign a pricing structure in Tool Settings → Pricing Structure.`);
   }
 
   const cacheKey = toolId ?? LEGACY_CACHE_KEY;

@@ -1,6 +1,7 @@
 import { PricingTable, QuoteInputs, QuoteRanges, QuoteResult } from './types';
 import { loadPricingTable } from './loadPricingTable';
 import { getInitialCleaningConfig as getInitialCleaningConfigFromStore } from '@/lib/kv';
+import { getInitialCleaningConfigForStructure as getStructureConfig } from '@/lib/config/store';
 
 // Re-export for backward compatibility
 export { loadPricingTable } from './loadPricingTable';
@@ -243,13 +244,37 @@ function applyMultiplier(range: { low: number; high: number }, multiplier: numbe
 }
 
 /**
+ * Resolve initial cleaning config for a quote: when using a pricing structure, use structure's config if set, else tool config.
+ */
+async function getInitialCleaningConfigForQuote(toolId?: string, pricingStructureId?: string): Promise<InitialCleaningConfig> {
+  if (pricingStructureId) {
+    try {
+      const structureConfig = await getStructureConfig(pricingStructureId);
+      if (structureConfig && typeof structureConfig === 'object') {
+        return {
+          ...DEFAULT_INITIAL_CLEANING_CONFIG,
+          ...structureConfig,
+          sheddingPetsMultiplier: structureConfig.sheddingPetsMultiplier ?? DEFAULT_INITIAL_CLEANING_CONFIG.sheddingPetsMultiplier,
+          peopleMultiplier: structureConfig.peopleMultiplier ?? DEFAULT_INITIAL_CLEANING_CONFIG.peopleMultiplier,
+          peopleMultiplierBase: structureConfig.peopleMultiplierBase ?? DEFAULT_INITIAL_CLEANING_CONFIG.peopleMultiplierBase,
+          sheddingPetsMultiplierBase: structureConfig.sheddingPetsMultiplierBase ?? DEFAULT_INITIAL_CLEANING_CONFIG.sheddingPetsMultiplierBase,
+        };
+      }
+    } catch {
+      // fall through to tool config
+    }
+  }
+  return getInitialCleaningConfig(toolId);
+}
+
+/**
  * Calculate quote based on inputs
  * @param toolId - When provided, uses this quoting tool's pricing and config (multi-tenant).
  * @param pricingStructureId - When provided (e.g. from service area match), uses this pricing structure instead of tool default.
  */
 export async function calcQuote(inputs: QuoteInputs, toolId?: string, pricingStructureId?: string): Promise<QuoteResult> {
   const table = await loadPricingTable(toolId, pricingStructureId);
-  const config = await getInitialCleaningConfig(toolId);
+  const config = await getInitialCleaningConfigForQuote(toolId, pricingStructureId);
 
   // Check if square footage exceeds limits
   if (inputs.squareFeet > table.maxSqFt) {

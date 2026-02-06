@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
-import { ChevronDown, Sparkles, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings, HelpCircle, Pencil, User, Briefcase, Calendar, Tag, LayoutTemplate, MapPin } from 'lucide-react';
+import { ChevronDown, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings, HelpCircle, Pencil, User, Briefcase, Calendar, Tag, LayoutTemplate, MapPin, DollarSign } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { TagPicker } from '@/components/ui/TagPicker';
 import {
@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-type CardId = 'widget' | 'form' | 'ghl' | 'tracking' | 'ghl-config' | 'service-area';
+type CardId = 'widget' | 'form' | 'tracking' | 'ghl-config' | 'service-area' | 'pricing-structure';
 
 const GHL_CONFIG_HELP = '/help/ghl-config';
 function GhlHelpIcon({ anchor }: { anchor: string }) {
@@ -31,8 +31,6 @@ function GhlHelpIcon({ anchor }: { anchor: string }) {
 export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: string; toolSlug?: string }) {
   const [widget, setWidget] = useState({ title: '', subtitle: '', primaryColor: '#7c3aed' });
   const [form, setForm] = useState<Record<string, string>>({});
-  const [ghlToken, setGhlToken] = useState('');
-  const [ghlLocationId, setGhlLocationId] = useState('');
   const [ghlStatus, setGhlStatus] = useState<{ configured: boolean; connected?: boolean; locationId?: string } | null>(null);
   const [customHeadCode, setCustomHeadCode] = useState('');
   const [trackingQuoteSummary, setTrackingQuoteSummary] = useState('');
@@ -98,6 +96,8 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
   const [orgServiceAreas, setOrgServiceAreas] = useState<{ id: string; name: string }[]>([]);
   const [assignedServiceAreaIds, setAssignedServiceAreaIds] = useState<string[]>([]);
   const [savingServiceAreaAssignments, setSavingServiceAreaAssignments] = useState(false);
+  const [pricingStructures, setPricingStructures] = useState<{ id: string; name: string }[]>([]);
+  const [selectedPricingStructureId, setSelectedPricingStructureId] = useState<string | null>(null);
 
   const toggleCard = (cardId: CardId) => {
     setExpandedCards((prev) => {
@@ -133,7 +133,6 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
         if (ghlRes.ok) {
           const g = await ghlRes.json();
           setGhlStatus(g);
-          if (g.locationId) setGhlLocationId(g.locationId);
         }
         if (trackRes.ok) {
           const t = await trackRes.json();
@@ -151,9 +150,10 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
           const oid = toolData?.org_id;
           if (oid) {
             setOrgId(oid);
-            const [areasRes, assignRes] = await Promise.all([
+            const [areasRes, assignRes, pricingRes] = await Promise.all([
               fetch(`/api/dashboard/orgs/${oid}/service-areas`),
               fetch(`/api/dashboard/tools/${toolId}/service-area-assignments`),
+              fetch(`/api/dashboard/tools/${toolId}/pricing-structures`),
             ]);
             if (areasRes.ok) {
               const areasData = await areasRes.json();
@@ -162,6 +162,11 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
             if (assignRes.ok) {
               const assignData = await assignRes.json();
               setAssignedServiceAreaIds(assignData.serviceAreaIds ?? []);
+            }
+            if (pricingRes.ok) {
+              const pricingData = await pricingRes.json();
+              setPricingStructures(pricingData.pricingStructures ?? []);
+              setSelectedPricingStructureId(pricingData.selectedPricingStructureId ?? null);
             }
           }
         }
@@ -268,39 +273,6 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
     }
   };
 
-  const saveGhl = async () => {
-    if (!ghlToken.trim() || !ghlLocationId.trim()) {
-      setSectionMessage({ card: 'ghl', type: 'error', text: 'HighLevel token and Location ID are required' });
-      return;
-    }
-    setSavingSection('ghl');
-    clearMessage('ghl');
-    // Use explicit URL so this always hits the dashboard GHL settings route (not any other handler)
-    const ghlSettingsUrl =
-      typeof window !== 'undefined'
-        ? `${window.location.origin}/api/dashboard/tools/${toolId}/ghl-settings`
-        : `/api/dashboard/tools/${toolId}/ghl-settings`;
-    try {
-      const res = await fetch(ghlSettingsUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: ghlToken.trim(), locationId: ghlLocationId.trim() }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setSectionMessage({ card: 'ghl', type: 'success', text: data.message ?? 'HighLevel settings saved' });
-        setGhlStatus({ configured: true, connected: true, locationId: ghlLocationId.trim() });
-      } else {
-        const detail = data.details ? `${data.error}. ${data.details}` : (data.error ?? 'Failed to save');
-        setSectionMessage({ card: 'ghl', type: 'error', text: detail });
-      }
-    } catch {
-      setSectionMessage({ card: 'ghl', type: 'error', text: 'Failed to save HighLevel settings' });
-    } finally {
-      setSavingSection(null);
-    }
-  };
-
   const saveTracking = async () => {
     setSavingSection('tracking');
     clearMessage('tracking');
@@ -372,6 +344,28 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
       setSectionMessage({ card: 'service-area', type: 'error', text: 'Failed to save service area assignments' });
     } finally {
       setSavingServiceAreaAssignments(false);
+    }
+  };
+
+  const savePricingStructure = async () => {
+    setSavingSection('pricing-structure');
+    clearMessage('pricing-structure');
+    try {
+      const res = await fetch(`/api/dashboard/tools/${toolId}/pricing-structures`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pricingStructureId: selectedPricingStructureId || null }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSectionMessage({ card: 'pricing-structure', type: 'success', text: 'Pricing structure saved. Quotes for this tool will use the selected structure.' });
+      } else {
+        setSectionMessage({ card: 'pricing-structure', type: 'error', text: data.error ?? 'Failed to save' });
+      }
+    } catch {
+      setSectionMessage({ card: 'pricing-structure', type: 'error', text: 'Failed to save pricing structure' });
+    } finally {
+      setSavingSection(null);
     }
   };
 
@@ -778,90 +772,63 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
         </Card>
       </motion.div>
 
-      {/* HighLevel Connection */}
+      {/* Pricing Structure */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
         <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
           <CardHeader
             className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
-            onClick={() => toggleCard('ghl')}
+            onClick={() => toggleCard('pricing-structure')}
           >
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="flex items-center gap-2 text-2xl font-bold text-foreground">
-                  <Sparkles className="h-6 w-6 text-primary" />
-                  HighLevel Integration
+                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                  <DollarSign className="h-6 w-6 text-primary" />
+                  Pricing Structure
                 </CardTitle>
-                <CardDescription className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                  Configure your HighLevel API token and Location ID for this tool.
-                  <Link href="/help/ghl-integration" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-                    <BookOpen className="h-3.5 w-3.5" />
-                    Instructions
-                  </Link>
+                <CardDescription className="text-muted-foreground mt-1">
+                  Choose which pricing structure this tool uses for quotes. Create and edit structures in{' '}
+                  <Link href="/dashboard/pricing-structures" className="text-primary hover:underline font-medium">Pricing structures</Link>.
                 </CardDescription>
               </div>
-              <div className="flex items-center gap-3">
-                {ghlStatus?.configured && (
-                  <span
-                    className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${
-                      ghlStatus.connected ? 'bg-green-100 text-green-800' : 'bg-muted text-gray-800'
-                    }`}
-                  >
-                    {ghlStatus.connected ? <><span className="w-2 h-2 rounded-full bg-green-600" /> Connected</> : 'Not connected'}
-                  </span>
-                )}
-                <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('ghl') ? 'rotate-180' : ''}`} />
-              </div>
+              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('pricing-structure') ? 'rotate-180' : ''}`} />
             </div>
           </CardHeader>
-          {isCardExpanded('ghl') && (
-            <CardContent className="pt-8 pb-8">
-              <div className="space-y-6">
-                {sectionMessage?.card === 'ghl' && (
+          {isCardExpanded('pricing-structure') && (
+            <CardContent className="pt-6 pb-6">
+              <div className="space-y-4">
+                {sectionMessage?.card === 'pricing-structure' && (
                   <div
                     className={`p-4 rounded-lg flex items-center gap-3 ${
-                      sectionMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+                      sectionMessage.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-200 border border-emerald-200' : 'bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-200 border border-red-200'
                     }`}
                   >
                     {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
-                    <p>{sectionMessage.text}</p>
+                    <p className="font-medium">{sectionMessage.text}</p>
                   </div>
                 )}
-                {ghlStatus?.configured && (
-                  <>
-                    <p className="text-sm text-muted-foreground">Location ID: {ghlStatus.locationId ?? '—'}. Enter new token/location below to update.</p>
-                    {ghlStatus.locationId && (
-                      <div className="rounded-lg border border-border bg-muted/30 p-3">
-                        <p className="text-xs font-medium text-muted-foreground mb-2">GHL Quoter Button – paste in GHL → Settings → Company → Custom JS:</p>
-                        <code className="text-xs block break-all bg-background p-2 rounded border">
-                          {`<script src="${typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || 'https://www.cleanquote.io')}/api/script/cleanquote.js" data-location-id="${ghlStatus.locationId}"></script>`}
-                        </code>
-                      </div>
-                    )}
-                  </>
-                )}
                 <div>
-                  <Label htmlFor="ghl-token" className="text-base font-semibold">HighLevel API Token</Label>
-                  <Input
-                    id="ghl-token"
-                    type="password"
-                    placeholder={ghlStatus?.configured ? '••••••••' : 'Paste your HighLevel API token'}
-                    value={ghlToken}
-                    onChange={(e) => setGhlToken(e.target.value)}
-                    className={inputClass}
-                  />
+                  <Label htmlFor="pricing-structure-select" className="text-base font-semibold">Pricing structure for this tool</Label>
+                  <select
+                    id="pricing-structure-select"
+                    value={selectedPricingStructureId ?? ''}
+                    onChange={(e) => setSelectedPricingStructureId(e.target.value || null)}
+                    className={selectClass}
+                  >
+                    <option value="">Tool default pricing</option>
+                    {pricingStructures.map((ps) => (
+                      <option key={ps.id} value={ps.id}>{ps.name}</option>
+                    ))}
+                  </select>
+                  {pricingStructures.length === 0 && (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      No pricing structures yet. Create one in{' '}
+                      <Link href="/dashboard/pricing-structures" className="text-primary hover:underline">Pricing structures</Link>, then select it here.
+                    </p>
+                  )}
                 </div>
-                <div>
-                  <Label htmlFor="ghl-location" className="text-base font-semibold">Location ID <span className="text-red-500">*</span></Label>
-                  <Input
-                    id="ghl-location"
-                    placeholder="HighLevel Location ID (e.g. yRlRzLxQ0y3TlR5V0xNdQ)"
-                    value={ghlLocationId}
-                    onChange={(e) => setGhlLocationId(e.target.value)}
-                    className={inputClass}
-                  />
-                </div>
-                <Button onClick={saveGhl} disabled={savingSection === 'ghl'} className="w-full h-11 font-semibold flex items-center gap-2">
-                  {savingSection === 'ghl' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save HighLevel connection</>}
+                <Button onClick={savePricingStructure} disabled={savingSection === 'pricing-structure'} className="gap-2">
+                  {savingSection === 'pricing-structure' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {savingSection === 'pricing-structure' ? 'Saving…' : 'Save pricing structure'}
                 </Button>
               </div>
             </CardContent>
@@ -869,7 +836,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
         </Card>
       </motion.div>
 
-      {/* HighLevel Integration Config */}
+      {/* HighLevel CRM Config */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
         <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border overflow-hidden">
           <CardHeader
@@ -883,7 +850,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                   HighLevel CRM Config
                 </CardTitle>
                 <CardDescription className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                  Control what happens in HighLevel when quotes and bookings happen. Save your connection above first.
+                  Control what happens in HighLevel when quotes and bookings happen. Set your HighLevel connection in Team → HighLevel Integration first; this card configures per-tool CRM behavior.
                   <Link href="/help/ghl-config" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline font-medium">
                     <BookOpen className="h-3.5 w-3.5" />
                     Full guide

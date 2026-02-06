@@ -186,9 +186,73 @@ export async function setGoogleMapsKey(key: string | null, toolId?: string): Pro
   await upsertConfig(toolId, { google_maps_key: key });
 }
 
-// ---- GHL ----
+// ---- GHL (org-level connection; per-tool CRM config below) ----
+/** Get org_id for a tool (for resolving org-level GHL). */
+export async function getOrgIdFromToolId(toolId: string): Promise<string | null> {
+  if (!isSupabaseConfigured() || !toolId) return null;
+  const supabase = createSupabaseServer();
+  const { data, error } = await supabase.from('tools').select('org_id').eq('id', toolId).maybeSingle();
+  if (error || !data) return null;
+  const orgId = (data as { org_id: string | null }).org_id;
+  return typeof orgId === 'string' ? orgId : null;
+}
+
+/** Read org-level GHL settings (one connection per org). */
+async function getOrgGHLRow(orgId: string): Promise<{ ghl_token: string | null; ghl_location_id: string | null } | null> {
+  if (!isSupabaseConfigured() || !orgId) return null;
+  const supabase = createSupabaseServer();
+  const { data, error } = await supabase
+    .from('org_ghl_settings')
+    .select('ghl_token, ghl_location_id')
+    .eq('org_id', orgId)
+    .maybeSingle();
+  if (error) {
+    console.error('org_ghl_settings getOrgGHLRow:', error);
+    return null;
+  }
+  return data as { ghl_token: string | null; ghl_location_id: string | null } | null;
+}
+
+export async function getGHLTokenForOrg(orgId: string): Promise<string | null> {
+  const row = await getOrgGHLRow(orgId);
+  const t = row?.ghl_token;
+  return typeof t === 'string' ? t : null;
+}
+
+export async function getGHLLocationIdForOrg(orgId: string): Promise<string | null> {
+  const row = await getOrgGHLRow(orgId);
+  const id = row?.ghl_location_id;
+  return typeof id === 'string' ? id : null;
+}
+
+export async function setOrgGHL(orgId: string, token: string, locationId: string): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  const supabase = createSupabaseServer();
+  const updated_at = new Date().toISOString();
+  // org_ghl_settings may not be in generated Supabase types
+  const { error } = await (supabase as any).from('org_ghl_settings').upsert(
+    { org_id: orgId, ghl_token: token, ghl_location_id: locationId, updated_at },
+    { onConflict: 'org_id' }
+  );
+  if (error) {
+    console.error('org_ghl_settings upsert:', error);
+    throw error;
+  }
+}
+
+/** Get GHL token: when toolId is provided, use org-level GHL for that tool's org; else legacy global tool_config. */
 export async function getGHLToken(toolId?: string): Promise<string | null> {
-  const row = await getConfigRow(toolId);
+  if (toolId) {
+    const orgId = await getOrgIdFromToolId(toolId);
+    if (orgId) {
+      const t = await getGHLTokenForOrg(orgId);
+      if (t) return t;
+    }
+    const row = await getConfigRow(toolId);
+    const t = row?.ghl_token;
+    return typeof t === 'string' ? t : null;
+  }
+  const row = await getConfigRow(undefined);
   const t = row?.ghl_token;
   return typeof t === 'string' ? t : null;
 }
@@ -197,8 +261,19 @@ export async function setGHLToken(token: string, toolId?: string): Promise<void>
   await upsertConfig(toolId, { ghl_token: token });
 }
 
+/** Get GHL location ID: when toolId is provided, use org-level GHL for that tool's org; else legacy global tool_config. */
 export async function getGHLLocationId(toolId?: string): Promise<string | null> {
-  const row = await getConfigRow(toolId);
+  if (toolId) {
+    const orgId = await getOrgIdFromToolId(toolId);
+    if (orgId) {
+      const id = await getGHLLocationIdForOrg(orgId);
+      if (id) return id;
+    }
+    const row = await getConfigRow(toolId);
+    const id = row?.ghl_location_id;
+    return typeof id === 'string' ? id : null;
+  }
+  const row = await getConfigRow(undefined);
   const id = row?.ghl_location_id;
   return typeof id === 'string' ? id : null;
 }
@@ -338,6 +413,19 @@ export async function getPricingStructureTable(structureId: string): Promise<Rec
     .maybeSingle();
   const p = (data as { pricing_table?: unknown } | null)?.pricing_table;
   return p && typeof p === 'object' ? (p as Record<string, unknown>) : null;
+}
+
+/** Load a pricing structure's initial_cleaning_config. Returns null if not set (caller should fall back to tool config). */
+export async function getInitialCleaningConfigForStructure(structureId: string): Promise<InitialCleaningConfig | null> {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = createSupabaseServer();
+  const { data } = await supabase
+    .from('pricing_structures')
+    .select('initial_cleaning_config')
+    .eq('id', structureId)
+    .maybeSingle();
+  const s = (data as { initial_cleaning_config?: unknown } | null)?.initial_cleaning_config;
+  return s && typeof s === 'object' ? (s as InitialCleaningConfig) : null;
 }
 
 // ---- Service area ----
