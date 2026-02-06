@@ -1,5 +1,8 @@
 /**
- * Load polygons for a tool from assigned org-level service areas.
+ * Load polygons for a single tool from its assigned org-level service areas only.
+ * Reads tool_service_areas for the given toolId, then loads each assigned area's polygon(s).
+ * Multiple areas and multi-polygon areas are flattened into one list; the caller treats
+ * "in service" as: point is inside ANY of these polygons.
  * Refreshes network-link areas if stale. Returns null if no assignments (caller falls back to tool_config).
  */
 

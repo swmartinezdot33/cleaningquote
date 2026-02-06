@@ -17,16 +17,18 @@ async function resolveToolId(toolSlug: string | undefined): Promise<string | und
 
 /**
  * POST /api/service-area/check
- * Check if an address is within the service area.
- * Uses the tool's service area when toolSlug is provided; otherwise global (backward compat).
+ * Check if an address is within the service area for a specific tool.
+ * Uses only that tool's assigned service areas (Settings → Service area check). If multiple
+ * areas are selected, the address is in service if it lies inside ANY of their polygons.
  *
  * Request body:
- * { lat: number, lng: number, toolSlug?: string }
+ * { lat: number, lng: number, toolSlug?: string, toolId?: string }
+ * Provide toolSlug (e.g. from /t/[slug]) or toolId so we know which tool's areas to use.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { lat, lng, toolSlug } = body;
+    const { lat, lng, toolSlug, toolId: bodyToolId } = body;
 
     // Validate coordinates
     if (typeof lat !== 'number' || typeof lng !== 'number') {
@@ -43,9 +45,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const toolId = await resolveToolId(toolSlug);
+    // Resolve tool: use body toolId if valid string, otherwise resolve from toolSlug
+    const toolId =
+      typeof bodyToolId === 'string' && bodyToolId.trim()
+        ? bodyToolId.trim()
+        : await resolveToolId(toolSlug);
 
-    // Prefer assigned org-level service areas; fall back to tool_config polygon / NetworkLink
+    // Use only this tool's assigned service areas (from tool_service_areas). Multiple areas
+    // are combined; address is in service if inside ANY polygon from ANY selected area.
     let polygons: PolygonCoordinates[] = [];
     let polygonSource = 'none';
 
@@ -54,7 +61,7 @@ export async function POST(request: NextRequest) {
       if (assignedPolygons && assignedPolygons.length > 0) {
         polygons = assignedPolygons;
         polygonSource = 'assigned';
-        console.log(`[service-area/check] Using ${polygons.length} polygon(s) from assigned service areas`);
+        console.log(`[service-area/check] Tool ${toolId}: using ${polygons.length} polygon(s) from assigned service areas`);
       }
     }
 

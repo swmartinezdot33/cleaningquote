@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
-import { ChevronDown, Sparkles, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings, HelpCircle, Pencil, User, Briefcase, Calendar, Tag, LayoutTemplate } from 'lucide-react';
+import { ChevronDown, Sparkles, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings, HelpCircle, Pencil, User, Briefcase, Calendar, Tag, LayoutTemplate, MapPin } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { TagPicker } from '@/components/ui/TagPicker';
 import {
@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-type CardId = 'widget' | 'form' | 'ghl' | 'tracking' | 'ghl-config';
+type CardId = 'widget' | 'form' | 'ghl' | 'tracking' | 'ghl-config' | 'service-area';
 
 const GHL_CONFIG_HELP = '/help/ghl-config';
 function GhlHelpIcon({ anchor }: { anchor: string }) {
@@ -93,6 +93,10 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
   const [sectionMessage, setSectionMessage] = useState<{ card: CardId; type: 'success' | 'error'; text: string } | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<CardId>>(new Set(['widget']));
   const [queryLinkCopied, setQueryLinkCopied] = useState(false);
+  const [orgId, setOrgId] = useState<string | null>(null);
+  const [orgServiceAreas, setOrgServiceAreas] = useState<{ id: string; name: string }[]>([]);
+  const [assignedServiceAreaIds, setAssignedServiceAreaIds] = useState<string[]>([]);
+  const [savingServiceAreaAssignments, setSavingServiceAreaAssignments] = useState(false);
 
   const toggleCard = (cardId: CardId) => {
     setExpandedCards((prev) => {
@@ -139,6 +143,26 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
         if (configRes.ok) {
           const { config } = await configRes.json();
           if (config) setGhlConfig((prev) => ({ ...prev, ...config }));
+        }
+        const toolRes = await fetch(`/api/dashboard/tools/${toolId}`);
+        if (toolRes.ok) {
+          const { tool: toolData } = await toolRes.json();
+          const oid = toolData?.org_id;
+          if (oid) {
+            setOrgId(oid);
+            const [areasRes, assignRes] = await Promise.all([
+              fetch(`/api/dashboard/orgs/${oid}/service-areas`),
+              fetch(`/api/dashboard/tools/${toolId}/service-area-assignments`),
+            ]);
+            if (areasRes.ok) {
+              const areasData = await areasRes.json();
+              setOrgServiceAreas(areasData.serviceAreas ?? []);
+            }
+            if (assignRes.ok) {
+              const assignData = await assignRes.json();
+              setAssignedServiceAreaIds(assignData.serviceAreaIds ?? []);
+            }
+          }
         }
       } catch {
         setSectionMessage({ card: 'widget', type: 'error', text: 'Failed to load settings' });
@@ -321,6 +345,28 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
       setSectionMessage({ card: 'ghl-config', type: 'error', text: 'Failed to save HighLevel config' });
     } finally {
       setSavingSection(null);
+    }
+  };
+
+  const saveServiceAreaAssignments = async () => {
+    setSavingServiceAreaAssignments(true);
+    clearMessage('service-area');
+    try {
+      const res = await fetch(`/api/dashboard/tools/${toolId}/service-area-assignments`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serviceAreaIds: assignedServiceAreaIds }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSectionMessage({ card: 'service-area', type: 'success', text: 'Service area assignments saved.' });
+      } else {
+        setSectionMessage({ card: 'service-area', type: 'error', text: data.error ?? 'Failed to save assignments' });
+      }
+    } catch {
+      setSectionMessage({ card: 'service-area', type: 'error', text: 'Failed to save service area assignments' });
+    } finally {
+      setSavingServiceAreaAssignments(false);
     }
   };
 
@@ -619,6 +665,87 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                 <Button onClick={saveTracking} disabled={savingSection === 'tracking'} className="w-full h-11 font-semibold flex items-center gap-2">
                   {savingSection === 'tracking' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Tracking Codes</>}
                 </Button>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      </motion.div>
+
+      {/* Service area check */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.13 }}>
+        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
+          <CardHeader
+            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
+            onClick={() => toggleCard('service-area')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                  <MapPin className="h-5 w-5 text-primary" />
+                  Service area check
+                </CardTitle>
+                <CardDescription className="text-muted-foreground mt-1">
+                  Choose which service areas to use for address checks on this tool. Create and manage areas in{' '}
+                  <Link href="/dashboard/service-areas" className="text-primary hover:underline font-medium">Service Areas</Link>.
+                </CardDescription>
+              </div>
+              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('service-area') ? 'rotate-180' : ''}`} />
+            </div>
+          </CardHeader>
+          {isCardExpanded('service-area') && (
+            <CardContent className="pt-6 pb-6">
+              <div className="space-y-4">
+                {sectionMessage?.card === 'service-area' && (
+                  <div
+                    className={`p-4 rounded-lg flex items-center gap-3 ${
+                      sectionMessage.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-200 border border-emerald-200' : 'bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-200 border border-red-200'
+                    }`}
+                  >
+                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
+                    <p className="font-medium">{sectionMessage.text}</p>
+                  </div>
+                )}
+                {orgServiceAreas.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">
+                    No service areas yet. Create one in{' '}
+                    <Link href="/dashboard/service-areas" className="text-primary hover:underline">Service Areas</Link>, then return here to assign them to this tool.
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      When a user enters an address, we check if it falls inside any of the selected areas. Select the areas that apply to this quoting tool.
+                    </p>
+                    <ul className="space-y-2">
+                      {orgServiceAreas.map((area) => (
+                        <li key={area.id}>
+                          <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg border border-border hover:bg-muted/30">
+                            <input
+                              type="checkbox"
+                              checked={assignedServiceAreaIds.includes(area.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setAssignedServiceAreaIds((prev) => [...prev, area.id]);
+                                } else {
+                                  setAssignedServiceAreaIds((prev) => prev.filter((id) => id !== area.id));
+                                }
+                              }}
+                              className="w-4 h-4 rounded border-input accent-primary"
+                            />
+                            <span className="font-medium">{area.name}</span>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                    <Button
+                      onClick={saveServiceAreaAssignments}
+                      disabled={savingServiceAreaAssignments}
+                      className="gap-2"
+                    >
+                      {savingServiceAreaAssignments ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Save service area assignments
+                    </Button>
+                  </>
+                )}
               </div>
             </CardContent>
           )}

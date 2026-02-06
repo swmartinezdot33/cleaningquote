@@ -19,6 +19,8 @@ interface ServiceAreaMapDrawerProps {
   height?: number | string;
   /** Optional class for the wrapper. */
   className?: string;
+  /** When true, only show polygons (no drawing toolbar, polygons not editable). Use for preview. */
+  readOnly?: boolean;
 }
 
 export function ServiceAreaMapDrawer({
@@ -26,6 +28,7 @@ export function ServiceAreaMapDrawer({
   onPolygonChange,
   height = 400,
   className = '',
+  readOnly = false,
 }: ServiceAreaMapDrawerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -96,13 +99,15 @@ export function ServiceAreaMapDrawer({
             path.forEach((p: any) => bounds.extend(p));
             const polygon = new google.maps.Polygon({
               paths: path,
-              editable: true,
+              editable: !readOnly,
               map,
             });
             refs.push(polygon);
-            ['insert_at', 'set_at'].forEach((eventName) => {
-              google.maps.event.addListener(polygon.getPath(), eventName, () => notifyChange());
-            });
+            if (!readOnly) {
+              ['insert_at', 'set_at'].forEach((eventName) => {
+                google.maps.event.addListener(polygon.getPath(), eventName, () => notifyChange());
+              });
+            }
           });
           polygonRefs.current = refs;
           if (bounds.getNorthEast() && bounds.getSouthWest()) {
@@ -110,31 +115,32 @@ export function ServiceAreaMapDrawer({
           }
         }
 
-        // Always show drawing toolbar so user can add more polygons (or draw first one)
-        const drawingManager = new google.maps.drawing.DrawingManager({
-          drawingMode: initialPolygons.length === 0 ? google.maps.drawing.OverlayType.POLYGON : null,
-          drawingControl: true,
-          drawingControlOptions: {
-            position: (google.maps as any).ControlPosition?.TOP_CENTER ?? 2,
-            drawingModes: [google.maps.drawing.OverlayType.POLYGON],
-          },
-        });
-        drawingManager.setMap(map);
-        drawingManagerRef.current = drawingManager;
-
-        google.maps.event.addListener(drawingManager, 'polygoncomplete', (poly: any) => {
-          const path = poly.getPath();
-          poly.setEditable(true);
-          poly.setMap(map);
-          polygonRefs.current = [...polygonRefs.current, poly];
-          // Keep drawing mode active so user can draw another zone
-          drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
-
-          ['insert_at', 'set_at'].forEach((eventName) => {
-            google.maps.event.addListener(path, eventName, () => notifyChange());
+        // Show drawing toolbar only when not readOnly (preview mode)
+        if (!readOnly) {
+          const drawingManager = new google.maps.drawing.DrawingManager({
+            drawingMode: initialPolygons.length === 0 ? google.maps.drawing.OverlayType.POLYGON : null,
+            drawingControl: true,
+            drawingControlOptions: {
+              position: (google.maps as any).ControlPosition?.TOP_CENTER ?? 2,
+              drawingModes: [google.maps.drawing.OverlayType.POLYGON],
+            },
           });
-          notifyChange();
-        });
+          drawingManager.setMap(map);
+          drawingManagerRef.current = drawingManager;
+
+          google.maps.event.addListener(drawingManager, 'polygoncomplete', (poly: any) => {
+            const path = poly.getPath();
+            poly.setEditable(true);
+            poly.setMap(map);
+            polygonRefs.current = [...polygonRefs.current, poly];
+            drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+
+            ['insert_at', 'set_at'].forEach((eventName) => {
+              google.maps.event.addListener(path, eventName, () => notifyChange());
+            });
+            notifyChange();
+          });
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load map');
       } finally {
@@ -166,7 +172,7 @@ export function ServiceAreaMapDrawer({
       polygonRefs.current = [];
       mapRef.current = null;
     };
-  }, [initialPolygon, onPolygonChange]);
+  }, [initialPolygon, onPolygonChange, readOnly]);
 
   const style = typeof height === 'number' ? { height: `${height}px` } : { height };
 

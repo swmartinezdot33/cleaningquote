@@ -1066,6 +1066,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
               lat: addressCoordinates.lat,
               lng: addressCoordinates.lng,
               ...(slug && { toolSlug: slug }),
+              ...((toolId || resolvedToolId) && { toolId: String(toolId || resolvedToolId) }),
             }),
           });
 
@@ -1179,6 +1180,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                 lat: placeDetails.lat,
                 lng: placeDetails.lng,
                 ...(slug && { toolSlug: slug }),
+                ...((toolId || resolvedToolId) && { toolId: String(toolId || resolvedToolId) }),
               }),
             });
             const result = await response.json();
@@ -2859,6 +2861,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                         lat,
                                         lng,
                                         ...(slug && { toolSlug: slug }),
+                                        ...((toolId || resolvedToolId) && { toolId: String(toolId || resolvedToolId) }),
                                       }),
                                     });
                                     const result = await response.json();

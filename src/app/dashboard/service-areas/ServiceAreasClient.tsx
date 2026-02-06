@@ -23,6 +23,7 @@ import {
   Link as LinkIcon,
   FileUp,
   Loader2,
+  Eye,
 } from 'lucide-react';
 import Link from 'next/link';
 import { ServiceAreaMapDrawer, type PolygonCoords } from '@/components/ServiceAreaMapDrawer';
@@ -53,6 +54,10 @@ export default function ServiceAreasClient() {
   const [importLinkUrl, setImportLinkUrl] = useState('');
   const [importing, setImporting] = useState(false);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewName, setPreviewName] = useState('');
+  const [previewPolygons, setPreviewPolygons] = useState<PolygonCoords[] | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const loadList = useCallback(() => {
     if (!orgId) return;
@@ -97,6 +102,22 @@ export default function ServiceAreasClient() {
         .catch(() => {});
     }
     setDrawModalOpen(true);
+  };
+
+  const openPreview = (areaId: string) => {
+    setPreviewOpen(true);
+    setPreviewName('');
+    setPreviewPolygons(null);
+    setPreviewLoading(true);
+    fetch(`/api/dashboard/orgs/${orgId}/service-areas/${areaId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        setPreviewName(d.serviceArea?.name ?? 'Service area');
+        const list = normalizeServiceAreaPolygons(d.serviceArea?.polygon);
+        setPreviewPolygons(list.length > 0 ? list : null);
+      })
+      .catch(() => {})
+      .finally(() => setPreviewLoading(false));
   };
 
   const saveDraw = async () => {
@@ -308,6 +329,12 @@ export default function ServiceAreasClient() {
                       <Download className="h-3.5 w-3.5" />
                       Download KML
                     </Button>
+                    {area.hasPolygon && (
+                      <Button variant="ghost" size="sm" onClick={() => openPreview(area.id)} className="gap-1" title="Preview map">
+                        <Eye className="h-3.5 w-3.5" />
+                        Preview
+                      </Button>
+                    )}
                     <Button variant="ghost" size="sm" onClick={() => openDrawModal(area.id)} className="gap-1">
                       <Pencil className="h-3.5 w-3.5" />
                       Edit
@@ -323,6 +350,36 @@ export default function ServiceAreasClient() {
           )}
         </CardContent>
       </Card>
+
+      {/* Preview map modal */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Preview: {previewName || 'Service area'}</DialogTitle>
+            <DialogDescription>Map view of the service area. No editing.</DialogDescription>
+          </DialogHeader>
+          <div className="mt-2 rounded-lg overflow-hidden border border-border">
+            {previewLoading ? (
+              <div className="flex items-center justify-center py-24 text-muted-foreground">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            ) : previewPolygons && previewPolygons.length > 0 ? (
+              <ServiceAreaMapDrawer
+                initialPolygon={previewPolygons}
+                readOnly
+                height={400}
+              />
+            ) : (
+              <div className="py-24 text-center text-muted-foreground">
+                No polygon data to show.
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPreviewOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Draw / Edit modal */}
       <Dialog open={drawModalOpen} onOpenChange={setDrawModalOpen}>
