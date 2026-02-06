@@ -93,6 +93,13 @@ export function DashboardHeader({
             Service Areas
           </Link>
           <Link
+            href="/dashboard/pricing-structures"
+            onClick={closeMobileMenu}
+            className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+          >
+            Pricing Structures
+          </Link>
+          <Link
             href="/dashboard/team"
             onClick={closeMobileMenu}
             className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
@@ -221,6 +228,13 @@ export function DashboardHeader({
                       className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                     >
                       Service Areas
+                    </Link>
+                    <Link
+                      href="/dashboard/pricing-structures"
+                      onClick={closeMobileMenu}
+                      className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                    >
+                      Pricing Structures
                     </Link>
                     <Link
                       href="/dashboard/team"

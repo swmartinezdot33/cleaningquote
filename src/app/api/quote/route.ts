@@ -9,6 +9,7 @@ import { createSupabaseServer } from '@/lib/supabase/server';
 import { SurveyQuestion } from '@/lib/survey/schema';
 import { sanitizeCustomFields } from '@/lib/ghl/field-normalizer';
 import { parseAddress } from '@/lib/utils/parseAddress';
+import { getPricingStructureIdFromConfig } from '@/lib/config/store';
 
 /**
  * Generate a human-readable, unique Quote ID
@@ -202,10 +203,14 @@ export async function POST(request: NextRequest) {
       cleanedWithin3Months: body.cleanedWithin3Months,
     };
 
-    const pricingStructureId =
+    let pricingStructureId: string | undefined =
       typeof body.pricingStructureId === 'string' && body.pricingStructureId.trim()
         ? body.pricingStructureId.trim()
         : undefined;
+    if (pricingStructureId === undefined) {
+      const fromConfig = await getPricingStructureIdFromConfig(toolId);
+      if (fromConfig) pricingStructureId = fromConfig;
+    }
     const result = await calcQuote(inputs, toolId, pricingStructureId);
 
     if (result.outOfLimits || !result.ranges) {

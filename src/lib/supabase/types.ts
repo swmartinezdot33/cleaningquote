@@ -175,6 +175,7 @@ export interface Database {
           service_area_network_link: string | null;
           survey_questions: Json | null;
           pricing_table: Json | null;
+          pricing_structure_id: string | null;
           pricing_network_path: string | null;
           pricing_file_base64: string | null;
           pricing_file_metadata: Json | null;
@@ -197,6 +198,7 @@ export interface Database {
           service_area_network_link?: string | null;
           survey_questions?: Json | null;
           pricing_table?: Json | null;
+          pricing_structure_id?: string | null;
           pricing_network_path?: string | null;
           pricing_file_base64?: string | null;
           pricing_file_metadata?: Json | null;

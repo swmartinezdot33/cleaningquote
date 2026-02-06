@@ -316,6 +316,17 @@ export async function setPricingNetworkPathInConfig(path: string | null, toolId?
   await upsertConfig(toolId, { pricing_network_path: path });
 }
 
+/** Get the tool's selected pricing structure id (from tool_config). When set, quotes use this structure instead of tool default. */
+export async function getPricingStructureIdFromConfig(toolId?: string): Promise<string | null> {
+  const row = await getConfigRow(toolId);
+  const id = row?.pricing_structure_id;
+  return typeof id === 'string' && id.trim() ? id.trim() : null;
+}
+
+export async function setPricingStructureIdInConfig(structureId: string | null, toolId?: string): Promise<void> {
+  await upsertConfig(toolId, { pricing_structure_id: structureId });
+}
+
 /** Load a pricing structure's table by id (from pricing_structures table). Returns null if not found or not configured. */
 export async function getPricingStructureTable(structureId: string): Promise<Record<string, unknown> | null> {
   if (!isSupabaseConfigured()) return null;

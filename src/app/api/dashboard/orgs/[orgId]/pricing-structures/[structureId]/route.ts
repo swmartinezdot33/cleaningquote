@@ -1,27 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDashboardUserAndTool } from '@/lib/dashboard-auth';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { canManageOrg } from '@/lib/org-auth';
 import { invalidatePricingCacheForStructure } from '@/lib/pricing/loadPricingTable';
 import type { PricingTable } from '@/lib/pricing/types';
 
 export const dynamic = 'force-dynamic';
 
-/** GET - Get one pricing structure (with pricing_table). Structure must belong to this tool or to the tool's org. */
+/** GET - Get one pricing structure (with pricing_table). Structure must belong to org. */
 export async function GET(
   _request: NextRequest,
-  context: { params: Promise<{ toolId: string; structureId: string }> }
+  context: { params: Promise<{ orgId: string; structureId: string }> }
 ) {
-  const { toolId, structureId } = await context.params;
-  const auth = await getDashboardUserAndTool(toolId);
-  if (auth instanceof NextResponse) return auth;
-
+  const { orgId, structureId } = await context.params;
   const supabase = await createSupabaseServerSSR();
-  const orgId = auth.tool.org_id;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const canManage = await canManageOrg(user.id, user.email ?? undefined, orgId);
+  if (!canManage) {
+    return NextResponse.json({ error: 'Only org admins can view pricing structures' }, { status: 403 });
+  }
+
   const { data, error } = await supabase
     .from('pricing_structures')
     .select('id, name, pricing_table, created_at, updated_at')
     .eq('id', structureId)
-    .or(`tool_id.eq.${toolId},org_id.eq.${orgId}`)
+    .eq('org_id', orgId)
     .single();
 
   if (error || !data) {
@@ -40,14 +46,22 @@ export async function GET(
   });
 }
 
-/** PUT - Update name and/or pricing_table. Body: { name?: string, pricingTable?: PricingTable } */
-export async function PUT(
+/** PATCH - Update name and/or pricing_table. Structure must belong to org. */
+export async function PATCH(
   request: NextRequest,
-  context: { params: Promise<{ toolId: string; structureId: string }> }
+  context: { params: Promise<{ orgId: string; structureId: string }> }
 ) {
-  const { toolId, structureId } = await context.params;
-  const auth = await getDashboardUserAndTool(toolId);
-  if (auth instanceof NextResponse) return auth;
+  const { orgId, structureId } = await context.params;
+  const supabase = await createSupabaseServerSSR();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const canManage = await canManageOrg(user.id, user.email ?? undefined, orgId);
+  if (!canManage) {
+    return NextResponse.json({ error: 'Only org admins can update pricing structures' }, { status: 403 });
+  }
 
   const body = await request.json().catch(() => ({}));
   const updates: { name?: string; pricing_table?: unknown; updated_at: string } = {
@@ -60,14 +74,12 @@ export async function PUT(
     updates.pricing_table = body.pricingTable;
   }
 
-  const supabase = await createSupabaseServerSSR();
-  const orgId = auth.tool.org_id;
   const { data, error } = await supabase
     .from('pricing_structures')
     // @ts-expect-error Supabase generated types may not include pricing_structures table
     .update(updates)
     .eq('id', structureId)
-    .or(`tool_id.eq.${toolId},org_id.eq.${orgId}`)
+    .eq('org_id', orgId)
     .select('id, name, updated_at')
     .single();
 
@@ -75,7 +87,7 @@ export async function PUT(
     if (error.code === '23505') {
       return NextResponse.json({ error: 'A pricing structure with this name already exists.' }, { status: 400 });
     }
-    console.error('PUT pricing-structures:', error);
+    console.error('PATCH org pricing-structures:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
@@ -86,25 +98,31 @@ export async function PUT(
   });
 }
 
-/** DELETE - Remove pricing structure. Service area assignments referencing it will have pricing_structure_id set to null. */
+/** DELETE - Remove pricing structure. Structure must belong to org. */
 export async function DELETE(
   _request: NextRequest,
-  context: { params: Promise<{ toolId: string; structureId: string }> }
+  context: { params: Promise<{ orgId: string; structureId: string }> }
 ) {
-  const { toolId, structureId } = await context.params;
-  const auth = await getDashboardUserAndTool(toolId);
-  if (auth instanceof NextResponse) return auth;
-
+  const { orgId, structureId } = await context.params;
   const supabase = await createSupabaseServerSSR();
-  const orgId = auth.tool.org_id;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const canManage = await canManageOrg(user.id, user.email ?? undefined, orgId);
+  if (!canManage) {
+    return NextResponse.json({ error: 'Only org admins can delete pricing structures' }, { status: 403 });
+  }
+
   const { error } = await supabase
     .from('pricing_structures')
     .delete()
     .eq('id', structureId)
-    .or(`tool_id.eq.${toolId},org_id.eq.${orgId}`);
+    .eq('org_id', orgId);
 
   if (error) {
-    console.error('DELETE pricing-structures:', error);
+    console.error('DELETE org pricing-structures:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

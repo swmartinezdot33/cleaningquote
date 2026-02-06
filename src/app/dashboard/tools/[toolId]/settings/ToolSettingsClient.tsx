@@ -97,9 +97,10 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgServiceAreas, setOrgServiceAreas] = useState<{ id: string; name: string }[]>([]);
   const [assignedServiceAreaIds, setAssignedServiceAreaIds] = useState<string[]>([]);
-  const [assignmentPricing, setAssignmentPricing] = useState<Record<string, string | null>>({});
   const [pricingStructures, setPricingStructures] = useState<{ id: string; name: string }[]>([]);
+  const [selectedPricingStructureId, setSelectedPricingStructureId] = useState<string | null>(null);
   const [savingServiceAreaAssignments, setSavingServiceAreaAssignments] = useState(false);
+  const [savingPricingStructure, setSavingPricingStructure] = useState(false);
 
   const toggleCard = (cardId: CardId) => {
     setExpandedCards((prev) => {
@@ -164,12 +165,6 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
             if (assignRes.ok) {
               const assignData = await assignRes.json();
               setAssignedServiceAreaIds(assignData.serviceAreaIds ?? []);
-              const assignments = assignData.assignments ?? [];
-              const byArea: Record<string, string | null> = {};
-              for (const a of assignments) {
-                if (a.serviceAreaId) byArea[a.serviceAreaId] = a.pricingStructureId ?? null;
-              }
-              setAssignmentPricing(byArea);
             }
           }
         }
@@ -177,6 +172,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
         if (psRes.ok) {
           const psData = await psRes.json();
           setPricingStructures(psData.pricingStructures ?? []);
+          setSelectedPricingStructureId(psData.selectedPricingStructureId ?? null);
         }
       } catch {
         setSectionMessage({ card: 'widget', type: 'error', text: 'Failed to load settings' });
@@ -368,7 +364,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
     try {
       const assignments = assignedServiceAreaIds.map((serviceAreaId) => ({
         serviceAreaId,
-        pricingStructureId: assignmentPricing[serviceAreaId] ?? null,
+        pricingStructureId: null as string | null,
       }));
       const res = await fetch(`/api/dashboard/tools/${toolId}/service-area-assignments`, {
         method: 'PUT',
@@ -385,6 +381,28 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
       setSectionMessage({ card: 'service-area', type: 'error', text: 'Failed to save service area assignments' });
     } finally {
       setSavingServiceAreaAssignments(false);
+    }
+  };
+
+  const savePricingStructureSelection = async () => {
+    setSavingPricingStructure(true);
+    clearMessage('service-area');
+    try {
+      const res = await fetch(`/api/dashboard/tools/${toolId}/pricing-structures`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pricingStructureId: selectedPricingStructureId }),
+      });
+      if (res.ok) {
+        setSectionMessage({ card: 'service-area', type: 'success', text: 'Pricing structure saved.' });
+      } else {
+        const data = await res.json();
+        setSectionMessage({ card: 'service-area', type: 'error', text: data.error ?? 'Failed to save pricing structure' });
+      }
+    } catch {
+      setSectionMessage({ card: 'service-area', type: 'error', text: 'Failed to save pricing structure' });
+    } finally {
+      setSavingPricingStructure(false);
     }
   };
 
@@ -751,8 +769,38 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                   </p>
                 ) : (
                   <>
+                    {pricingStructures.length > 0 && (
+                      <div className="space-y-2 pb-4 border-b border-border">
+                        <Label className="text-sm font-medium">Pricing structure</Label>
+                        <p className="text-xs text-muted-foreground">
+                          This tool uses one pricing structure for all quotes. Manage structures in{' '}
+                          <Link href="/dashboard/pricing-structures" className="text-primary hover:underline">Pricing Structures</Link>.
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <select
+                            value={selectedPricingStructureId ?? ''}
+                            onChange={(e) => setSelectedPricingStructureId(e.target.value || null)}
+                            className={selectClass}
+                          >
+                            <option value="">Tool default pricing</option>
+                            {pricingStructures.map((ps) => (
+                              <option key={ps.id} value={ps.id}>{ps.name}</option>
+                            ))}
+                          </select>
+                          <Button
+                            onClick={savePricingStructureSelection}
+                            disabled={savingPricingStructure}
+                            size="sm"
+                            className="gap-2"
+                          >
+                            {savingPricingStructure ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                            Save
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     <p className="text-sm text-muted-foreground">
-                      When a user enters an address, we check if it falls inside any of the selected areas. You can assign a pricing structure per area so quotes use that area&apos;s pricing.
+                      When a user enters an address, we check if it falls inside any of the selected areas below.
                     </p>
                     <ul className="space-y-2">
                       {orgServiceAreas.map((area) => (
@@ -764,38 +812,14 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                               onChange={(e) => {
                                 if (e.target.checked) {
                                   setAssignedServiceAreaIds((prev) => [...prev, area.id]);
-                                  setAssignmentPricing((prev) => ({ ...prev, [area.id]: null }));
                                 } else {
                                   setAssignedServiceAreaIds((prev) => prev.filter((id) => id !== area.id));
-                                  setAssignmentPricing((prev) => {
-                                    const next = { ...prev };
-                                    delete next[area.id];
-                                    return next;
-                                  });
                                 }
                               }}
                               className="w-4 h-4 rounded border-input accent-primary"
                             />
                             <span className="font-medium">{area.name}</span>
                           </label>
-                          {assignedServiceAreaIds.includes(area.id) && pricingStructures.length > 0 && (
-                            <div className="ml-6 pl-2 border-l-2 border-border">
-                              <Label className="text-xs text-muted-foreground">Pricing for this area</Label>
-                              <select
-                                value={assignmentPricing[area.id] ?? ''}
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  setAssignmentPricing((prev) => ({ ...prev, [area.id]: v || null }));
-                                }}
-                                className={selectClass}
-                              >
-                                <option value="">Tool default</option>
-                                {pricingStructures.map((ps) => (
-                                  <option key={ps.id} value={ps.id}>{ps.name}</option>
-                                ))}
-                              </select>
-                            </div>
-                          )}
                         </li>
                       ))}
                     </ul>
