@@ -6,11 +6,10 @@ import { useRouter } from 'next/navigation';
 import type { Tool } from '@/lib/supabase/types';
 import ToolSettingsClient from './settings/ToolSettingsClient';
 import ToolSurveyClient from './survey/ToolSurveyClient';
-import ToolPricingClient from './pricing/ToolPricingClient';
 import { ExternalLink, Copy, Check, Loader2, Share2, Pencil, CodeXml, BookOpen, X } from 'lucide-react';
 import { CloneToolButton } from '@/components/CloneToolButton';
 
-type TabId = 'overview' | 'settings' | 'survey' | 'pricing';
+type TabId = 'overview' | 'survey' | 'settings';
 
 export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?: string | null }) {
   const router = useRouter();
@@ -316,7 +315,6 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
   const tabs: { id: TabId; label: string }[] = [
     { id: 'overview', label: 'Overview' },
     { id: 'survey', label: 'Survey builder' },
-    { id: 'pricing', label: 'Pricing' },
     { id: 'settings', label: 'Settings' },
   ];
 
@@ -672,7 +670,6 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
 
       {tab === 'settings' && <ToolSettingsClient toolId={toolId} />}
       {tab === 'survey' && <ToolSurveyClient toolId={toolId} />}
-      {tab === 'pricing' && <ToolPricingClient toolId={toolId} />}
     </div>
   );
 }

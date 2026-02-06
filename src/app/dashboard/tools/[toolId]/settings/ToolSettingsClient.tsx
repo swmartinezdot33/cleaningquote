@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
-import { ChevronDown, Sparkles, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings, HelpCircle, Pencil, User, Briefcase, Calendar, Tag, LayoutTemplate, MapPin, DollarSign } from 'lucide-react';
+import { ChevronDown, Sparkles, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings, HelpCircle, Pencil, User, Briefcase, Calendar, Tag, LayoutTemplate, MapPin } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { TagPicker } from '@/components/ui/TagPicker';
 import {
@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-type CardId = 'widget' | 'form' | 'ghl' | 'tracking' | 'ghl-config' | 'pricing-structure' | 'service-area';
+type CardId = 'widget' | 'form' | 'ghl' | 'tracking' | 'ghl-config' | 'service-area';
 
 const GHL_CONFIG_HELP = '/help/ghl-config';
 function GhlHelpIcon({ anchor }: { anchor: string }) {
@@ -97,10 +97,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgServiceAreas, setOrgServiceAreas] = useState<{ id: string; name: string }[]>([]);
   const [assignedServiceAreaIds, setAssignedServiceAreaIds] = useState<string[]>([]);
-  const [pricingStructures, setPricingStructures] = useState<{ id: string; name: string }[]>([]);
-  const [selectedPricingStructureId, setSelectedPricingStructureId] = useState<string | null>(null);
   const [savingServiceAreaAssignments, setSavingServiceAreaAssignments] = useState(false);
-  const [savingPricingStructure, setSavingPricingStructure] = useState(false);
 
   const toggleCard = (cardId: CardId) => {
     setExpandedCards((prev) => {
@@ -167,12 +164,6 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
               setAssignedServiceAreaIds(assignData.serviceAreaIds ?? []);
             }
           }
-        }
-        const psRes = await fetch(`/api/dashboard/tools/${toolId}/pricing-structures`);
-        if (psRes.ok) {
-          const psData = await psRes.json();
-          setPricingStructures(psData.pricingStructures ?? []);
-          setSelectedPricingStructureId(psData.selectedPricingStructureId ?? null);
         }
       } catch {
         setSectionMessage({ card: 'widget', type: 'error', text: 'Failed to load settings' });
@@ -381,28 +372,6 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
       setSectionMessage({ card: 'service-area', type: 'error', text: 'Failed to save service area assignments' });
     } finally {
       setSavingServiceAreaAssignments(false);
-    }
-  };
-
-  const savePricingStructureSelection = async () => {
-    setSavingPricingStructure(true);
-    clearMessage('pricing-structure');
-    try {
-      const res = await fetch(`/api/dashboard/tools/${toolId}/pricing-structures`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pricingStructureId: selectedPricingStructureId }),
-      });
-      if (res.ok) {
-        setSectionMessage({ card: 'pricing-structure', type: 'success', text: 'Pricing structure saved.' });
-      } else {
-        const data = await res.json();
-        setSectionMessage({ card: 'pricing-structure', type: 'error', text: data.error ?? 'Failed to save pricing structure' });
-      }
-    } catch {
-      setSectionMessage({ card: 'pricing-structure', type: 'error', text: 'Failed to save pricing structure' });
-    } finally {
-      setSavingPricingStructure(false);
     }
   };
 
@@ -722,76 +691,6 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                 <Button onClick={saveTracking} disabled={savingSection === 'tracking'} className="w-full h-11 font-semibold flex items-center gap-2">
                   {savingSection === 'tracking' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Tracking Codes</>}
                 </Button>
-              </div>
-            </CardContent>
-          )}
-        </Card>
-      </motion.div>
-
-      {/* Pricing structure selection */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
-          <CardHeader
-            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
-            onClick={() => toggleCard('pricing-structure')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                  <DollarSign className="h-5 w-5 text-primary" />
-                  Pricing structure
-                </CardTitle>
-                <CardDescription className="text-muted-foreground mt-1">
-                  Choose which pricing structure this tool uses for quotes. Create and manage structures in{' '}
-                  <Link href="/dashboard/pricing-structures" className="text-primary hover:underline font-medium">Pricing</Link>.
-                </CardDescription>
-              </div>
-              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('pricing-structure') ? 'rotate-180' : ''}`} />
-            </div>
-          </CardHeader>
-          {isCardExpanded('pricing-structure') && (
-            <CardContent className="pt-6 pb-6">
-              <div className="space-y-4">
-                {sectionMessage?.card === 'pricing-structure' && (
-                  <div
-                    className={`p-4 rounded-lg flex items-center gap-3 ${
-                      sectionMessage.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-200 border border-emerald-200' : 'bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-200 border border-red-200'
-                    }`}
-                  >
-                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
-                    <p className="font-medium">{sectionMessage.text}</p>
-                  </div>
-                )}
-                {pricingStructures.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">
-                    No pricing structures yet. Create one in{' '}
-                    <Link href="/dashboard/pricing-structures" className="text-primary hover:underline">Pricing</Link>, then return here to assign one to this tool.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Pricing structure for this tool</Label>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <select
-                        value={selectedPricingStructureId ?? ''}
-                        onChange={(e) => setSelectedPricingStructureId(e.target.value || null)}
-                        className={selectClass}
-                      >
-                        <option value="">Tool default pricing</option>
-                        {pricingStructures.map((ps) => (
-                          <option key={ps.id} value={ps.id}>{ps.name}</option>
-                        ))}
-                      </select>
-                      <Button
-                        onClick={savePricingStructureSelection}
-                        disabled={savingPricingStructure}
-                        className="gap-2"
-                      >
-                        {savingPricingStructure ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                        Save
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </div>
             </CardContent>
           )}
