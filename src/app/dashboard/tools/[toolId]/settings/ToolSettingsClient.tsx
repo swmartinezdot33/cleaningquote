@@ -10,7 +10,7 @@ import { ChevronDown, Sparkles, MapPin, Code, FileText, Save, Loader2, CheckCirc
 import { motion } from 'framer-motion';
 import { TagPicker } from '@/components/ui/TagPicker';
 
-type CardId = 'widget' | 'form' | 'ghl' | 'tracking' | 'maps' | 'ghl-config' | 'service-area';
+type CardId = 'widget' | 'form' | 'ghl' | 'tracking' | 'ghl-config' | 'service-area';
 
 const GHL_CONFIG_HELP = '/help/ghl-config';
 function GhlHelpIcon({ anchor }: { anchor: string }) {
@@ -803,36 +803,6 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                   </Button>
                 </div>
               </div>
-            </CardContent>
-          )}
-        </Card>
-      </motion.div>
-
-      {/* Google Maps — platform-provided; no customer key required */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14 }}>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
-          <CardHeader
-            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
-            onClick={() => toggleCard('maps')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                  <Code className="h-5 w-5 text-primary" />
-                  Google Maps
-                </CardTitle>
-                <CardDescription className="text-muted-foreground mt-1">
-                  Address autocomplete and service area checks use CleanQuote&apos;s Google Maps integration. No setup required.
-                </CardDescription>
-              </div>
-              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('maps') ? 'rotate-180' : ''}`} />
-            </div>
-          </CardHeader>
-          {isCardExpanded('maps') && (
-            <CardContent className="pt-8 pb-8">
-              <p className="text-muted-foreground">
-                Your quote form automatically gets address autocomplete and geocoding. CleanQuote provides the Google Maps API key for all tools as part of your subscription.
-              </p>
             </CardContent>
           )}
         </Card>

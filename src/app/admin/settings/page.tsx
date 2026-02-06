@@ -2954,42 +2954,6 @@ export default function SettingsPage() {
           </Card>
         </motion.div>
 
-        {/* Google Maps — platform key (no customer setup) */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.34 }}
-        >
-          <Card className="shadow-lg hover:shadow-xl transition-shadow border border-gray-200">
-            <CardHeader 
-              className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border-b border-gray-200 pb-6 cursor-pointer"
-              onClick={() => toggleCard('google-maps')}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                    <Code className="h-5 w-5 text-blue-600" />
-                    Google Maps
-                  </CardTitle>
-                  <CardDescription className="text-gray-600 mt-1">
-                    CleanQuote provides Google Maps for address autocomplete and service area checks. Set GOOGLE_MAPS_API_KEY in Vercel (or .env.local) to enable.
-                  </CardDescription>
-                </div>
-                <ChevronDown 
-                  className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('google-maps') ? 'rotate-180' : ''}`}
-                />
-              </div>
-            </CardHeader>
-            {isCardExpanded('google-maps') && (
-              <CardContent className="pt-8 pb-8">
-                <p className="text-gray-600">
-                  No customer configuration is required. Add <code className="bg-gray-100 px-1 rounded">GOOGLE_MAPS_API_KEY</code> in your deployment environment (Vercel → Settings → Environment Variables) with a key that has Maps JavaScript API and Places API enabled. All tools use this platform key automatically.
-                </p>
-              </CardContent>
-            )}
-          </Card>
-        </motion.div>
-
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
