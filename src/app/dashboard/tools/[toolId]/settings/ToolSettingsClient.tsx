@@ -850,7 +850,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                   HighLevel CRM Config
                 </CardTitle>
                 <CardDescription className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                  Control what happens in HighLevel when quotes and bookings happen. Set your HighLevel connection in Team → HighLevel Integration first; this card configures per-tool CRM behavior.
+                  Control what happens in HighLevel when quotes and bookings happen. Set your HighLevel connection in Settings → HighLevel Integration first; this card configures per-tool CRM behavior.
                   <Link href="/help/ghl-config" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline font-medium">
                     <BookOpen className="h-3.5 w-3.5" />
                     Full guide

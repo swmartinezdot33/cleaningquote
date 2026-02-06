@@ -100,11 +100,11 @@ export function DashboardHeader({
             Pricing
           </Link>
           <Link
-            href="/dashboard/team"
+            href="/dashboard/settings"
             onClick={closeMobileMenu}
             className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
           >
-            Team
+            Settings
           </Link>
         </>
       )}
@@ -237,11 +237,11 @@ export function DashboardHeader({
                       Pricing
                     </Link>
                     <Link
-                      href="/dashboard/team"
+                      href="/dashboard/settings"
                       onClick={closeMobileMenu}
                       className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                     >
-                      Team
+                      Settings
                     </Link>
                   </>
                 )}
