@@ -13,7 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Loader2, DollarSign } from 'lucide-react';
+import Link from 'next/link';
+import { Plus, Pencil, Trash2, Loader2, DollarSign, Sparkles } from 'lucide-react';
 
 interface PricingStructureItem {
   id: string;
@@ -223,7 +224,13 @@ export default function PricingStructuresClient() {
               {list.map((ps) => (
                 <li key={ps.id} className="flex items-center justify-between px-4 py-3">
                   <span className="font-medium">{ps.name}</span>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
+                    <Link href={`/dashboard/pricing-structures/${ps.id}/edit`}>
+                      <Button variant="default" size="sm" className="gap-1">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Build / Edit
+                      </Button>
+                    </Link>
                     <Button
                       variant="ghost"
                       size="sm"

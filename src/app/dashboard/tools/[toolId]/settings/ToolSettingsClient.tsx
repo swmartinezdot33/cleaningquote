@@ -743,7 +743,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                 </CardTitle>
                 <CardDescription className="text-muted-foreground mt-1">
                   Choose which pricing structure this tool uses for quotes. Create and manage structures in{' '}
-                  <Link href="/dashboard/pricing-structures" className="text-primary hover:underline font-medium">Pricing Structures</Link>.
+                  <Link href="/dashboard/pricing-structures" className="text-primary hover:underline font-medium">Pricing</Link>.
                 </CardDescription>
               </div>
               <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('pricing-structure') ? 'rotate-180' : ''}`} />
@@ -765,7 +765,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                 {pricingStructures.length === 0 ? (
                   <p className="text-muted-foreground text-sm">
                     No pricing structures yet. Create one in{' '}
-                    <Link href="/dashboard/pricing-structures" className="text-primary hover:underline">Pricing Structures</Link>, then return here to assign one to this tool.
+                    <Link href="/dashboard/pricing-structures" className="text-primary hover:underline">Pricing</Link>, then return here to assign one to this tool.
                   </p>
                 ) : (
                   <div className="space-y-2">

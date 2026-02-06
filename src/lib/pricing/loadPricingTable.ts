@@ -399,6 +399,110 @@ export function invalidatePricingCacheForStructure(pricingStructureId: string) {
   cacheByTool.delete(STRUCTURE_CACHE_PREFIX + pricingStructureId);
 }
 
+/**
+ * Parse an Excel buffer into a PricingTable (no KV or tool ID).
+ * Used when uploading Excel for an org-level pricing structure.
+ */
+export function parseExcelBufferToPricingTable(buffer: Buffer): PricingTable {
+  const workbook = XLSX.read(buffer, { type: 'buffer' });
+  let sheetName = 'Sheet1';
+  if (!workbook.SheetNames.includes(sheetName)) {
+    const pricingSheet = workbook.SheetNames.find((name) =>
+      name.toLowerCase().includes('pricing') || name.toLowerCase().includes('sheet')
+    );
+    if (pricingSheet) sheetName = pricingSheet;
+    else if (workbook.SheetNames.length > 0) sheetName = workbook.SheetNames[0];
+    else throw new Error('No sheets found in Excel file.');
+  }
+  const worksheet = workbook.Sheets[sheetName];
+  const data = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' }) as unknown[][];
+  if (data.length < 2) throw new Error('Excel file must have at least 2 rows (header + data)');
+
+  const rows: PricingRow[] = [];
+  let maxSqFt = 0;
+  const headerRow = data[0] as unknown[];
+  let sqFtColIdx = -1, weeklyColIdx = -1, biWeeklyColIdx = -1, fourWeekColIdx = -1;
+  let generalColIdx = -1, deepColIdx = -1, moveInOutBasicColIdx = -1, moveInOutFullColIdx = -1;
+
+  for (let i = 0; i < headerRow.length; i++) {
+    const header = String(headerRow[i] || '').trim().toLowerCase();
+    if ((header.includes('sqft') || header.includes('range')) && sqFtColIdx === -1) sqFtColIdx = i;
+    if (header.includes('weekly') && !header.includes('bi') && !header.includes('4 week') && weeklyColIdx === -1) weeklyColIdx = i;
+    if (((header.includes('bi') && header.includes('weekly')) || header.includes('bi-weekly') || header.includes('biweekly')) && biWeeklyColIdx === -1) biWeeklyColIdx = i;
+    if ((header.includes('4 week') || header.includes('four week') || header.includes('monthly')) && fourWeekColIdx === -1) fourWeekColIdx = i;
+    if (header.includes('general') && !header.includes('deep') && generalColIdx === -1) generalColIdx = i;
+    if (header.includes('deep') && deepColIdx === -1) deepColIdx = i;
+    const isMoveBasic = header.includes('basic') || (header.includes('move') && !header.includes('full') && !header.includes('deep'));
+    const isMoveFull = header.includes('full') || (header.includes('move') && header.includes('deep'));
+    if (isMoveBasic && moveInOutBasicColIdx === -1) moveInOutBasicColIdx = i;
+    if (isMoveFull && moveInOutFullColIdx === -1) moveInOutFullColIdx = i;
+  }
+  for (let i = 0; i < headerRow.length; i++) {
+    const header = String(headerRow[i] || '').trim().toLowerCase();
+    const isMoveBasic = header.includes('basic') || (header.includes('move') && !header.includes('full') && !header.includes('deep'));
+    const isMoveFull = header.includes('full') || (header.includes('move') && header.includes('deep'));
+    if (isMoveBasic && moveInOutBasicColIdx === -1) moveInOutBasicColIdx = i;
+    if (isMoveFull && moveInOutFullColIdx === -1) moveInOutFullColIdx = i;
+    if (header === '' && i >= 6 && data.length > 1) {
+      const firstDataRow = data[1] as unknown[];
+      const cellValue = String(firstDataRow[i] || '').trim();
+      if (cellValue?.includes('$')) {
+        if (moveInOutBasicColIdx === -1 && i >= 6) moveInOutBasicColIdx = i;
+        else if (moveInOutFullColIdx === -1 && i > moveInOutBasicColIdx) moveInOutFullColIdx = i;
+      }
+    }
+  }
+  if (moveInOutBasicColIdx === -1) moveInOutBasicColIdx = 7;
+  if (moveInOutFullColIdx === -1) moveInOutFullColIdx = 8;
+
+  const missingColumns: string[] = [];
+  if (sqFtColIdx === -1) missingColumns.push('SqFt Range');
+  if (weeklyColIdx === -1) missingColumns.push('Weekly');
+  if (biWeeklyColIdx === -1) missingColumns.push('Bi-Weekly');
+  if (fourWeekColIdx === -1) missingColumns.push('4 Week');
+  if (generalColIdx === -1) missingColumns.push('General');
+  if (deepColIdx === -1) missingColumns.push('Deep');
+  if (missingColumns.length > 0) {
+    const foundHeaders = headerRow.map((h, i) => `[${i}]: "${String(h || '').trim()}"`).join(', ');
+    throw new Error(`Missing required columns: ${missingColumns.join(', ')}. Found headers: ${foundHeaders}`);
+  }
+
+  for (let rowIdx = 1; rowIdx < data.length; rowIdx++) {
+    const row = data[rowIdx] as unknown[];
+    if (!row || row.length === 0) continue;
+    const sqFtRangeStr = String(row[sqFtColIdx] || '').trim();
+    if (!sqFtRangeStr) continue;
+    const sqFtRange = parseSqFtRange(sqFtRangeStr);
+    if (!sqFtRange) continue;
+    maxSqFt = Math.max(maxSqFt, sqFtRange.max);
+    const weekly = parsePriceRange(String(row[weeklyColIdx] || ''));
+    const biWeekly = parsePriceRange(String(row[biWeeklyColIdx] || ''));
+    const fourWeek = parsePriceRange(String(row[fourWeekColIdx] || ''));
+    const general = parsePriceRange(String(row[generalColIdx] || ''));
+    const deep = parsePriceRange(String(row[deepColIdx] || ''));
+    const moveInOutBasic = parsePriceRange(String(row[moveInOutBasicColIdx] || ''));
+    const moveInOutFull = parsePriceRange(String(row[moveInOutFullColIdx] || ''));
+    if (!weekly || !biWeekly || !fourWeek || !general || !deep) continue;
+    rows.push({
+      sqFtRange,
+      weekly: weekly || { low: 0, high: 0 },
+      biWeekly: biWeekly || { low: 0, high: 0 },
+      fourWeek: fourWeek || { low: 0, high: 0 },
+      general: general || { low: 0, high: 0 },
+      deep: deep || { low: 0, high: 0 },
+      moveInOutBasic: moveInOutBasic || { low: 0, high: 0 },
+      moveInOutFull: moveInOutFull || { low: 0, high: 0 },
+    });
+  }
+
+  if (rows.length === 0) {
+    throw new Error(
+      'No valid pricing rows found in Excel file. Ensure header row has: SqFt Range, Weekly, Bi-Weekly, 4 Week, General, Deep and data rows have valid ranges and "$low-$high" prices.'
+    );
+  }
+  return { rows, maxSqFt };
+}
+
 /** Tier option for square footage dropdown; derived from pricing table so options match the chart. */
 export interface PricingTierOption {
   min: number;

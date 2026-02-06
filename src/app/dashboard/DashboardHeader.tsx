@@ -97,7 +97,7 @@ export function DashboardHeader({
             onClick={closeMobileMenu}
             className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
           >
-            Pricing Structures
+            Pricing
           </Link>
           <Link
             href="/dashboard/team"
@@ -234,7 +234,7 @@ export function DashboardHeader({
                       onClick={closeMobileMenu}
                       className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                     >
-                      Pricing Structures
+                      Pricing
                     </Link>
                     <Link
                       href="/dashboard/team"
