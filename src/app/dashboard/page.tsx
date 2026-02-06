@@ -96,16 +96,18 @@ export default async function DashboardPage({
             <li key={tool.id}>
               <div className="block rounded-xl border border-border bg-card p-6 shadow-sm hover:border-primary/40 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between gap-2">
-                  <Link href={`/dashboard/tools/${tool.id}`} className="block flex-1 min-w-0">
-                    <h2 className="font-semibold text-foreground">{tool.name}</h2>
+                  <Link href={`/dashboard/tools/${tool.id}`} className="block flex-1 min-w-0 overflow-hidden">
+                    <h2 className="font-semibold text-foreground truncate">{tool.name}</h2>
                     <p className="mt-1 text-sm text-muted-foreground">/{tool.slug}</p>
                   </Link>
-                  <ToolCardActions
+                  <div className="shrink-0">
+                    <ToolCardActions
                     toolId={tool.id}
                     toolName={tool.name}
                     toolSlug={tool.slug}
                     toolOrgId={tool.org_id}
                   />
+                  </div>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground/80">
                   Survey:{' '}

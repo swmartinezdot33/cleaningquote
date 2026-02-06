@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
-import { ChevronDown, Sparkles, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings, HelpCircle, Pencil } from 'lucide-react';
+import { ChevronDown, Sparkles, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings, HelpCircle, Pencil, User, Briefcase, Calendar, Tag, LayoutTemplate } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { TagPicker } from '@/components/ui/TagPicker';
 import {
@@ -716,9 +716,9 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
         </Card>
       </motion.div>
 
-      {/* HighLevel Integration Config - right after HighLevel Integration */}
+      {/* HighLevel Integration Config */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
+        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border overflow-hidden">
           <CardHeader
             className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
             onClick={() => toggleCard('ghl-config')}
@@ -727,13 +727,13 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
               <div>
                 <CardTitle className="flex items-center gap-2 text-2xl font-bold">
                   <Settings className="h-5 w-5 text-primary" />
-                  HighLevel Config
+                  HighLevel CRM Config
                 </CardTitle>
                 <CardDescription className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                  Configure CRM behavior when a quote is submitted (contacts, opportunities, notes, calendars, tags). Save HighLevel connection first.
-                  <Link href="/help/ghl-config" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                  Control what happens in HighLevel when quotes and bookings happen. Save your connection above first.
+                  <Link href="/help/ghl-config" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline font-medium">
                     <BookOpen className="h-3.5 w-3.5" />
-                    Instructions
+                    Full guide
                   </Link>
                 </CardDescription>
               </div>
@@ -741,78 +741,112 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
             </div>
           </CardHeader>
           {isCardExpanded('ghl-config') && (
-            <CardContent className="pt-8 pb-8">
-              <div className="space-y-6">
+            <CardContent className="pt-6 pb-8">
+              <div className="space-y-8">
                 {sectionMessage?.card === 'ghl-config' && (
                   <div
-                    className={`p-4 rounded-lg flex items-center gap-3 ${
-                      sectionMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+                    className={`p-4 rounded-xl flex items-center gap-3 ${
+                      sectionMessage.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800' : 'bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800'
                     }`}
                   >
                     {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
-                    <p>{sectionMessage.text}</p>
+                    <p className="font-medium">{sectionMessage.text}</p>
                   </div>
                 )}
-                <div className="space-y-3">
-                  {[
-                    { key: 'createContact' as const, label: 'Create/update contact', desc: 'Create or update contact with customer info', anchor: 'create-contact' },
-                    { key: 'createNote' as const, label: 'Create note', desc: 'Add a note with quote summary', anchor: 'create-note' },
-                    { key: 'createQuoteObject' as const, label: 'Create Quote (custom object)', desc: 'Create Quote custom object in HighLevel', anchor: 'create-quote-object' },
-                    { key: 'createOpportunity' as const, label: 'Create opportunity', desc: 'Create sales opportunity with quote details', anchor: 'create-opportunity' },
-                  ].map(({ key, label, desc, anchor }) => (
-                    <div key={key} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border">
-                      <input
-                        type="checkbox"
-                        id={key}
-                        checked={ghlConfig[key]}
-                        onChange={(e) => setGhlConfig((c) => ({ ...c, [key]: e.target.checked }))}
-                        className="w-4 h-4 rounded border-input"
-                      />
-                      <label htmlFor={key} className="flex-1 cursor-pointer flex items-start gap-1.5">
-                        <span>
-                          <div className="font-medium text-foreground">{label}</div>
-                          <div className="text-xs text-muted-foreground">{desc}</div>
-                        </span>
-                        <GhlHelpIcon anchor={anchor} />
-                      </label>
-                    </div>
-                  ))}
+
+                {/* At-a-glance summary */}
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="text-muted-foreground font-medium">Active:</span>
+                  {ghlConfig.createContact && <span className="px-2.5 py-0.5 rounded-full bg-primary/15 text-primary font-medium">Contact</span>}
+                  {ghlConfig.createNote && <span className="px-2.5 py-0.5 rounded-full bg-primary/15 text-primary font-medium">Note</span>}
+                  {ghlConfig.createQuoteObject && <span className="px-2.5 py-0.5 rounded-full bg-primary/15 text-primary font-medium">Quote object</span>}
+                  {ghlConfig.createOpportunity && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-primary/15 text-primary font-medium">
+                      Opportunity{ghlConfig.pipelineId ? ` → ${pipelines.find((p) => p.id === ghlConfig.pipelineId)?.name ?? 'Pipeline'}` : ''}
+                    </span>
+                  )}
+                  {!ghlConfig.createContact && !ghlConfig.createNote && !ghlConfig.createQuoteObject && !ghlConfig.createOpportunity && (
+                    <span className="text-muted-foreground italic">Nothing sent to CRM yet — enable options below</span>
+                  )}
                 </div>
-                {ghlConfig.createOpportunity && (
-                  <>
-                    {pipelines.length === 0 ? (
-                      <div className="pt-2 border-t border-border text-sm text-muted-foreground">
-                        No pipelines found. Please create a pipeline in HighLevel first.
+
+                {/* Section: When a quote is submitted */}
+                <section className="rounded-xl border border-border bg-muted/20 dark:bg-muted/10 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-border bg-muted/30 dark:bg-muted/20">
+                    <h3 className="font-semibold text-foreground flex items-center gap-2">
+                      <User className="h-4 w-4 text-primary" />
+                      When a quote is submitted
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Choose what we create or update in HighLevel</p>
+                  </div>
+                  <div className="p-5 space-y-3">
+                    {[
+                      { key: 'createContact' as const, label: 'Create or update contact', desc: 'Sync name, email, phone, address', anchor: 'create-contact' },
+                      { key: 'createNote' as const, label: 'Add a note', desc: 'Quote summary and details', anchor: 'create-note' },
+                      { key: 'createQuoteObject' as const, label: 'Create Quote (custom object)', desc: 'Store quote in your Quote object', anchor: 'create-quote-object' },
+                      { key: 'createOpportunity' as const, label: 'Create opportunity', desc: 'Deal in pipeline with value and stage', anchor: 'create-opportunity' },
+                    ].map(({ key, label, desc, anchor }) => (
+                      <div key={key} className="flex items-center gap-3 p-3 rounded-lg bg-background border border-border hover:border-primary/30 transition-colors">
+                        <input
+                          type="checkbox"
+                          id={key}
+                          checked={ghlConfig[key]}
+                          onChange={(e) => setGhlConfig((c) => ({ ...c, [key]: e.target.checked }))}
+                          className="w-4 h-4 rounded border-input accent-primary"
+                        />
+                        <label htmlFor={key} className="flex-1 cursor-pointer flex items-start justify-between gap-2">
+                          <span>
+                            <span className="font-medium text-foreground block">{label}</span>
+                            <span className="text-xs text-muted-foreground">{desc}</span>
+                          </span>
+                          <GhlHelpIcon anchor={anchor} />
+                        </label>
                       </div>
+                    ))}
+                  </div>
+                </section>
+                {/* Section: Opportunities (pipeline, stage, routing) */}
+                {ghlConfig.createOpportunity && (
+                  <section className="rounded-xl border border-border bg-muted/20 dark:bg-muted/10 overflow-hidden">
+                    <div className="px-5 py-4 border-b border-border bg-muted/30 dark:bg-muted/20">
+                      <h3 className="font-semibold text-foreground flex items-center gap-2">
+                        <Briefcase className="h-4 w-4 text-primary" />
+                        Opportunities
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">Pipeline, stage, and UTM-based routing</p>
+                    </div>
+                    <div className="p-5 space-y-5">
+                    {pipelines.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-2">No pipelines found. Create a pipeline in HighLevel first.</p>
                     ) : (
                       <>
-                        <div className="pt-2 border-t border-border">
-                          <div className="flex items-center gap-1.5 mb-2">
-                            <Label className="text-base font-semibold">Default Pipeline</Label>
+                        <div>
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <Label className="text-sm font-semibold">Default pipeline</Label>
                             <GhlHelpIcon anchor="default-pipeline" />
                           </div>
                           <select
                             value={ghlConfig.pipelineId ?? ''}
                             onChange={(e) => setGhlConfig((c) => ({ ...c, pipelineId: e.target.value || undefined, pipelineStageId: undefined }))}
-                            className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                            className={selectClass}
                           >
                             <option value="">— Select a pipeline —</option>
                             {pipelines.map((p) => (
                               <option key={p.id} value={p.id}>{p.name}</option>
                             ))}
                           </select>
-                          <div className="text-sm text-muted-foreground mt-1">Used when no UTM routing rule matches.</div>
+                          <p className="text-xs text-muted-foreground mt-1">Used when no UTM routing rule matches.</p>
                         </div>
                         {ghlConfig.pipelineId && (
-                          <div className="pt-2 border-t border-border">
-                            <div className="flex items-center gap-1.5 mb-2">
-                              <Label className="text-base font-semibold">Default Starting Stage</Label>
+                          <div>
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                              <Label className="text-sm font-semibold">Default starting stage</Label>
                               <GhlHelpIcon anchor="default-pipeline" />
                             </div>
                             <select
                               value={ghlConfig.pipelineStageId ?? ''}
                               onChange={(e) => setGhlConfig((c) => ({ ...c, pipelineStageId: e.target.value || undefined }))}
-                              className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                              className={selectClass}
                             >
                               <option value="">— Select a stage —</option>
                               {pipelines.find((p) => p.id === ghlConfig.pipelineId)?.stages?.map((s) => (
@@ -821,13 +855,14 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                             </select>
                           </div>
                         )}
-                        <div className="pt-4 border-t border-input">
-                          <h5 className="font-semibold text-foreground mb-2 flex items-center gap-1.5">
-                            Pipeline Routing by UTM (Optional)
+                        <div className="pt-3 border-t border-border">
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <Label className="text-sm font-semibold">Pipeline routing by UTM</Label>
+                            <span className="text-xs text-muted-foreground font-normal">(optional)</span>
                             <GhlHelpIcon anchor="pipeline-routing-utm" />
-                          </h5>
-                          <p className="text-sm text-muted-foreground mb-3">
-                            First matching rule wins. Match is case-insensitive. If none match, the default pipeline is used.
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-3">
+                            First matching rule wins. If none match, default pipeline is used.
                           </p>
                           <Button
                             type="button"
@@ -851,15 +886,16 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                                 ],
                               }));
                             }}
-                            className="bg-green-600 hover:bg-green-700 text-white"
+                            variant="outline"
+                            className="border-primary text-primary hover:bg-primary/10"
                           >
-                            Add Rule
+                            + Add UTM rule
                           </Button>
                         </div>
                         {(ghlConfig.pipelineRoutingRules?.length ?? 0) > 0 && (
                           <div className="space-y-3 mt-3">
                             {(ghlConfig.pipelineRoutingRules ?? []).map((rule, idx) => (
-                              <div key={idx} className="p-3 bg-muted/50 border border-border rounded-lg space-y-2">
+                              <div key={idx} className="p-4 bg-background border border-border rounded-xl space-y-2">
                                 <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
                                   <div>
                                     <label className="block text-xs font-semibold text-foreground mb-1">UTM Param</label>
@@ -1049,25 +1085,36 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                         )}
                       </>
                     )}
-                  </>
-                )}
-                <div className="pt-2 border-t border-border space-y-4">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="useDynamicPricing"
-                      checked={ghlConfig.useDynamicPricingForValue !== false}
-                      onChange={(e) => setGhlConfig((c) => ({ ...c, useDynamicPricingForValue: e.target.checked }))}
-                      className="rounded border-input"
-                    />
-                    <Label htmlFor="useDynamicPricing" className="text-base font-semibold cursor-pointer flex items-center gap-1.5">Use quoted amount for opportunity value <GhlHelpIcon anchor="quoted-amount-value" /></Label>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <Label className="text-base font-semibold">Quoted amount field (HighLevel custom field key)</Label>
-                      <GhlHelpIcon anchor="quoted-amount-field" />
                     </div>
-                    <p className="text-xs text-muted-foreground mb-2">Contact custom fields from your HighLevel location. Select one or enter a custom key below (e.g. quoted_cleaning_price).</p>
+                  </section>
+                )}
+
+                {/* Section: Quote value & custom fields */}
+                <section className="rounded-xl border border-border bg-muted/20 dark:bg-muted/10 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-border bg-muted/30 dark:bg-muted/20">
+                    <h3 className="font-semibold text-foreground flex items-center gap-2">
+                      <Briefcase className="h-4 w-4 text-primary opacity-80" />
+                      Quote value in HighLevel
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Map quoted amount to opportunity value and contact custom fields</p>
+                  </div>
+                  <div className="p-5 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="useDynamicPricing"
+                        checked={ghlConfig.useDynamicPricingForValue !== false}
+                        onChange={(e) => setGhlConfig((c) => ({ ...c, useDynamicPricingForValue: e.target.checked }))}
+                        className="rounded border-input accent-primary"
+                      />
+                      <Label htmlFor="useDynamicPricing" className="text-sm font-semibold cursor-pointer flex items-center gap-1.5">Use quoted amount for opportunity value <GhlHelpIcon anchor="quoted-amount-value" /></Label>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Label className="text-sm font-semibold">Quoted amount field (contact custom field)</Label>
+                        <GhlHelpIcon anchor="quoted-amount-field" />
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-2">Select a HighLevel contact field or enter a custom key (e.g. quoted_cleaning_price).</p>
                     {customFields.length > 0 ? (
                       <>
                         <Input
@@ -1129,12 +1176,24 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                         </p>
                       </div>
                     )}
+                    </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border">
+                </section>
+
+                {/* Section: Opportunity defaults + Calendars & booking */}
+                <section className="rounded-xl border border-border bg-muted/20 dark:bg-muted/10 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-border bg-muted/30 dark:bg-muted/20">
+                    <h3 className="font-semibold text-foreground flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-primary" />
+                      Defaults, calendars & booking
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Assigned user, source, calendars, redirect, and event tags</p>
+                  </div>
+                  <div className="p-5 space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <div className="flex items-center gap-1.5 mb-1">
-                      <Label className="text-base font-semibold">Opportunity assigned to</Label>
+                      <Label className="text-sm font-semibold">Opportunity assigned to</Label>
                       <GhlHelpIcon anchor="opportunity-assigned-to" />
                     </div>
                     <select
@@ -1150,7 +1209,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5 mb-1">
-                      <Label className="text-base font-semibold">Opportunity source</Label>
+                      <Label className="text-sm font-semibold">Opportunity source</Label>
                       <GhlHelpIcon anchor="opportunity-source" />
                     </div>
                     <Input
@@ -1160,9 +1219,9 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                       className={inputClass}
                     />
                   </div>
-                  <div>
+                  <div className="sm:col-span-2">
                     <div className="flex items-center gap-1.5 mb-1">
-                      <Label className="text-base font-semibold">Opportunity tags</Label>
+                      <Label className="text-sm font-semibold">Opportunity tags</Label>
                       <GhlHelpIcon anchor="opportunity-tags" />
                     </div>
                     <TagPicker
@@ -1174,10 +1233,10 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <div className="flex items-center gap-1.5 mb-1">
-                      <Label className="text-base font-semibold">Appointment calendar</Label>
+                      <Label className="text-sm font-semibold">Appointment calendar</Label>
                       <GhlHelpIcon anchor="calendars" />
                     </div>
                     <select
@@ -1192,7 +1251,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                     </select>
                   </div>
                   <div>
-                    <Label className="text-base font-semibold">Call calendar</Label>
+                    <Label className="text-sm font-semibold">Call calendar</Label>
                     <select
                       value={ghlConfig.callCalendarId ?? ''}
                       onChange={(e) => setGhlConfig((c) => ({ ...c, callCalendarId: e.target.value || undefined }))}
@@ -1205,10 +1264,10 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                     </select>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <div className="flex items-center gap-1.5 mb-1">
-                      <Label className="text-base font-semibold">Appointment user</Label>
+                      <Label className="text-sm font-semibold">Appointment user</Label>
                       <GhlHelpIcon anchor="calendar-users" />
                     </div>
                     <select
@@ -1224,7 +1283,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5 mb-1">
-                      <Label className="text-base font-semibold">Call user</Label>
+                      <Label className="text-sm font-semibold">Call user</Label>
                       <GhlHelpIcon anchor="calendar-users" />
                     </div>
                     <select
@@ -1239,101 +1298,114 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                     </select>
                   </div>
                 </div>
-                <div className="pt-2 border-t border-border space-y-2">
+                <div className="pt-3 border-t border-border space-y-2">
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       id="redirectAfterAppointment"
                       checked={ghlConfig.redirectAfterAppointment === true}
                       onChange={(e) => setGhlConfig((c) => ({ ...c, redirectAfterAppointment: e.target.checked }))}
-                      className="rounded border-input"
+                      className="rounded border-input accent-primary"
                     />
-                    <Label htmlFor="redirectAfterAppointment" className="text-base font-semibold cursor-pointer flex items-center gap-1.5">Redirect after appointment booking <GhlHelpIcon anchor="redirect-after-appointment" /></Label>
+                    <Label htmlFor="redirectAfterAppointment" className="text-sm font-semibold cursor-pointer flex items-center gap-1.5">Redirect after appointment booking <GhlHelpIcon anchor="redirect-after-appointment" /></Label>
                   </div>
-                    {ghlConfig.redirectAfterAppointment && (
-                      <div>
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <Label className="text-base font-semibold">Appointment redirect URL</Label>
-                          <GhlHelpIcon anchor="redirect-after-appointment" />
-                        </div>
-                        <Input
-                          type="url"
-                          value={ghlConfig.appointmentRedirectUrl ?? ''}
-                          onChange={(e) => setGhlConfig((c) => ({ ...c, appointmentRedirectUrl: e.target.value || undefined }))}
-                          placeholder="https://..."
-                          className={inputClass}
-                        />
-                      </div>
-                    )}
+                  {ghlConfig.redirectAfterAppointment && (
+                    <div>
+                      <Label className="text-sm font-semibold">Appointment redirect URL</Label>
+                      <Input
+                        type="url"
+                        value={ghlConfig.appointmentRedirectUrl ?? ''}
+                        onChange={(e) => setGhlConfig((c) => ({ ...c, appointmentRedirectUrl: e.target.value || undefined }))}
+                        placeholder="https://..."
+                        className={inputClass}
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="pt-2 border-t border-border">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="formIsIframed"
-                      checked={ghlConfig.formIsIframed === true}
-                      onChange={(e) => setGhlConfig((c) => ({ ...c, formIsIframed: e.target.checked }))}
-                      className="rounded border-input"
-                    />
-                    <Label htmlFor="formIsIframed" className="text-base font-semibold cursor-pointer">
-                      Form is iframed (pre-fill from GHL)
-                    </Label>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    When checked, the quote form loads in an iframe with a GHL contact ID in the URL. We fetch name, phone, email, and address from GHL and land the user on the address step (Google autocomplete). Use iframe URL: <code className="text-xs">?contactId=&#123;&#123;Contact.Id&#125;&#125;</code>
-                  </p>
-                </div>
-                <div className="pt-2 border-t border-border">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Label className="text-base font-semibold">In-service tags</Label>
-                    <GhlHelpIcon anchor="service-area-tags" />
+                </section>
+
+                {/* Section: Tags & automation */}
+                <section className="rounded-xl border border-border bg-muted/20 dark:bg-muted/10 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-border bg-muted/30 dark:bg-muted/20">
+                    <h3 className="font-semibold text-foreground flex items-center gap-2">
+                      <Tag className="h-4 w-4 text-primary" />
+                      Tags & automation
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Apply tags when address is in/out of service, or when booking or quote events happen</p>
                   </div>
-                  <TagPicker
-                    value={Array.isArray(ghlConfig.inServiceTags) ? ghlConfig.inServiceTags.join(', ') : ''}
-                    onChange={(csv) => setGhlConfig((c) => ({ ...c, inServiceTags: csv.split(',').map((s) => s.trim()).filter(Boolean) }))}
-                    suggestions={ghlTags.map((t) => t.name)}
-                    placeholder="Search or type a tag…"
-                    className="mt-3"
-                  />
-                </div>
-                <div className="pt-2 border-t border-border">
-                  <Label className="text-base font-semibold">Out-of-service tags</Label>
-                  <TagPicker
-                    value={Array.isArray(ghlConfig.outOfServiceTags) ? ghlConfig.outOfServiceTags.join(', ') : ''}
-                    onChange={(csv) => setGhlConfig((c) => ({ ...c, outOfServiceTags: csv.split(',').map((s) => s.trim()).filter(Boolean) }))}
-                    suggestions={ghlTags.map((t) => t.name)}
-                    placeholder="Search or type a tag…"
-                    className="mt-3"
-                  />
-                </div>
-                <div className="pt-2 border-t border-border">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Label className="text-base font-semibold">Appointment booked tags</Label>
-                    <GhlHelpIcon anchor="appointment-booked-tags" />
+                  <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                      <Label className="text-sm font-semibold flex items-center gap-1.5 mb-1.5">In-service tags <GhlHelpIcon anchor="service-area-tags" /></Label>
+                      <TagPicker
+                        value={Array.isArray(ghlConfig.inServiceTags) ? ghlConfig.inServiceTags.join(', ') : ''}
+                        onChange={(csv) => setGhlConfig((c) => ({ ...c, inServiceTags: csv.split(',').map((s) => s.trim()).filter(Boolean) }))}
+                        suggestions={ghlTags.map((t) => t.name)}
+                        placeholder="Search or type a tag…"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold mb-1.5 block">Out-of-service tags</Label>
+                      <TagPicker
+                        value={Array.isArray(ghlConfig.outOfServiceTags) ? ghlConfig.outOfServiceTags.join(', ') : ''}
+                        onChange={(csv) => setGhlConfig((c) => ({ ...c, outOfServiceTags: csv.split(',').map((s) => s.trim()).filter(Boolean) }))}
+                        suggestions={ghlTags.map((t) => t.name)}
+                        placeholder="Search or type a tag…"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold flex items-center gap-1.5 mb-1.5">Appointment booked tags <GhlHelpIcon anchor="appointment-booked-tags" /></Label>
+                      <TagPicker
+                        value={Array.isArray(ghlConfig.appointmentBookedTags) ? ghlConfig.appointmentBookedTags.join(', ') : ''}
+                        onChange={(csv) => setGhlConfig((c) => ({ ...c, appointmentBookedTags: csv.split(',').map((s) => s.trim()).filter(Boolean) }))}
+                        suggestions={ghlTags.map((t) => t.name)}
+                        placeholder="Search or type a tag…"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold flex items-center gap-1.5 mb-1.5">Quote completed tags <GhlHelpIcon anchor="quote-completed-tags" /></Label>
+                      <TagPicker
+                        value={Array.isArray(ghlConfig.quoteCompletedTags) ? ghlConfig.quoteCompletedTags.join(', ') : ''}
+                        onChange={(csv) => setGhlConfig((c) => ({ ...c, quoteCompletedTags: csv.split(',').map((s) => s.trim()).filter(Boolean) }))}
+                        suggestions={ghlTags.map((t) => t.name)}
+                        placeholder="Search or type a tag…"
+                        className="mt-1"
+                      />
+                    </div>
                   </div>
-                  <TagPicker
-                    value={Array.isArray(ghlConfig.appointmentBookedTags) ? ghlConfig.appointmentBookedTags.join(', ') : ''}
-                    onChange={(csv) => setGhlConfig((c) => ({ ...c, appointmentBookedTags: csv.split(',').map((s) => s.trim()).filter(Boolean) }))}
-                    suggestions={ghlTags.map((t) => t.name)}
-                    placeholder="Search or type a tag…"
-                    className="mt-3"
-                  />
-                </div>
-                <div className="pt-2 border-t border-border">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Label className="text-base font-semibold">Quote completed tags</Label>
-                    <GhlHelpIcon anchor="quote-completed-tags" />
+                </section>
+
+                {/* Section: Form behavior */}
+                <section className="rounded-xl border border-border bg-muted/20 dark:bg-muted/10 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-border bg-muted/30 dark:bg-muted/20">
+                    <h3 className="font-semibold text-foreground flex items-center gap-2">
+                      <LayoutTemplate className="h-4 w-4 text-primary" />
+                      Form behavior
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">When the form is embedded in HighLevel</p>
                   </div>
-                  <TagPicker
-                    value={Array.isArray(ghlConfig.quoteCompletedTags) ? ghlConfig.quoteCompletedTags.join(', ') : ''}
-                    onChange={(csv) => setGhlConfig((c) => ({ ...c, quoteCompletedTags: csv.split(',').map((s) => s.trim()).filter(Boolean) }))}
-                    suggestions={ghlTags.map((t) => t.name)}
-                    placeholder="Search or type a tag…"
-                    className="mt-3"
-                  />
-                </div>
+                  <div className="p-5">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="formIsIframed"
+                        checked={ghlConfig.formIsIframed === true}
+                        onChange={(e) => setGhlConfig((c) => ({ ...c, formIsIframed: e.target.checked }))}
+                        className="rounded border-input accent-primary"
+                      />
+                      <Label htmlFor="formIsIframed" className="text-sm font-semibold cursor-pointer">Form is iframed (pre-fill from GHL)</Label>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1.5">
+                      We fetch name, phone, email, and address from GHL and land the user on the address step. Use iframe URL: <code className="bg-muted px-1 rounded text-[11px]">?contactId=&#123;&#123;Contact.Id&#125;&#125;</code>
+                    </p>
+                  </div>
+                </section>
+
                 {loadingGhlLists && <p className="text-sm text-muted-foreground">Loading pipelines, users, calendars…</p>}
-                <Button onClick={saveGhlConfig} disabled={savingSection === 'ghl-config'} className="w-full h-11 font-semibold flex items-center gap-2">
+                <Button onClick={saveGhlConfig} disabled={savingSection === 'ghl-config'} className="w-full h-11 font-semibold flex items-center gap-2 rounded-xl">
                   {savingSection === 'ghl-config' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save HighLevel config</>}
                 </Button>
               </div>
