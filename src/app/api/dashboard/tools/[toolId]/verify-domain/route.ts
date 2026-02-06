@@ -18,7 +18,7 @@ export async function POST(
   const auth = await getDashboardUserAndTool(toolId);
   if (auth instanceof NextResponse) return auth;
 
-  const token = process.env.VERCEL_TOKEN?.trim();
+  const token = process.env.VERCEL_API_TOKEN?.trim();
   const projectId = process.env.VERCEL_PROJECT_ID?.trim() || process.env.VERCEL_PROJECT_NAME?.trim();
   const teamId = process.env.VERCEL_TEAM_ID?.trim();
 

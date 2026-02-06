@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
  * POST /api/admin/custom-domain/add
  *
  * Add a custom domain to the Vercel project via the Vercel REST API.
- * Requires: VERCEL_TOKEN (Vercel account token), VERCEL_PROJECT_ID (or project name)
+ * Requires: VERCEL_API_TOKEN (Vercel account token), VERCEL_PROJECT_ID (or project name)
  *
  * Body: { domain: "quote.customer.com" }
  *
