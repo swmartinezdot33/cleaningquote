@@ -68,6 +68,7 @@ export async function POST(
       appointmentRedirectUrl,
       appointmentBookedTags,
       quoteCompletedTags,
+      disqualifiedLeadTags,
       formIsIframed,
     } = body;
 
@@ -139,6 +140,7 @@ export async function POST(
         appointmentRedirectUrl: appointmentRedirectUrl ?? undefined,
         appointmentBookedTags: appointmentBookedTags ?? undefined,
         quoteCompletedTags: quoteCompletedTags ?? undefined,
+        disqualifiedLeadTags: disqualifiedLeadTags ?? undefined,
         formIsIframed: Boolean(formIsIframed),
       },
       toolId

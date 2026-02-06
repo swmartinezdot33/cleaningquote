@@ -101,6 +101,7 @@ export interface Database {
           payload: Record<string, unknown>;
           ghl_contact_id: string | null;
           ghl_object_id: string | null;
+          status: string;
           created_at: string;
         };
         Insert: {
@@ -128,6 +129,7 @@ export interface Database {
           payload?: Record<string, unknown>;
           ghl_contact_id?: string | null;
           ghl_object_id?: string | null;
+          status?: string;
           created_at?: string;
         };
         Update: {
@@ -155,6 +157,7 @@ export interface Database {
           payload?: Record<string, unknown>;
           ghl_contact_id?: string | null;
           ghl_object_id?: string | null;
+          status?: string;
           created_at?: string;
         };
       };

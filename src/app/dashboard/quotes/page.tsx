@@ -29,6 +29,8 @@ interface QuoteRow {
   created_at: string;
   toolName: string;
   toolSlug: string | null;
+  status?: string | null;
+  disqualifiedOptionLabel?: string | null;
 }
 
 function formatDate(iso: string) {
@@ -274,6 +276,7 @@ export default function DashboardQuotesPage() {
       'Quote ID',
       'Tool',
       'Date',
+      'Status',
       'First Name',
       'Last Name',
       'Email',
@@ -292,6 +295,7 @@ export default function DashboardQuotesPage() {
       escapeCsv(q.quote_id),
       escapeCsv(q.toolName),
       escapeCsv(formatDate(q.created_at)),
+      escapeCsv(q.status === 'disqualified' ? 'Disqualified' : 'Quote'),
       escapeCsv(q.first_name),
       escapeCsv(q.last_name),
       escapeCsv(q.email),
@@ -302,7 +306,7 @@ export default function DashboardQuotesPage() {
       escapeCsv(q.postal_code),
       escapeCsv(q.service_type),
       escapeCsv(q.frequency),
-      escapeCsv(formatPriceCellString(q)),
+      escapeCsv(q.status === 'disqualified' ? '—' : formatPriceCellString(q)),
       escapeCsv(q.square_feet),
       escapeCsv(q.bedrooms),
     ]);
@@ -574,6 +578,7 @@ export default function DashboardQuotesPage() {
                   <th className="px-4 py-3 font-medium">Quote ID</th>
                   <th className="px-4 py-3 font-medium">Tool</th>
                   <th className="px-4 py-3 font-medium">Date</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Contact</th>
                   <th className="px-4 py-3 font-medium">Service</th>
                   <th className="px-4 py-3 font-medium">Price</th>
@@ -597,13 +602,22 @@ export default function DashboardQuotesPage() {
                     <td className="px-4 py-3">{q.toolName}</td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(q.created_at)}</td>
                     <td className="px-4 py-3">
+                      {q.status === 'disqualified' ? (
+                        <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                          Disqualified
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">Quote</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
                       {[q.first_name, q.last_name].filter(Boolean).join(' ') || q.email || '—'}
                     </td>
                     <td className="px-4 py-3">
                       {q.service_type || '—'}
                       {q.frequency ? ` · ${q.frequency}` : ''}
                     </td>
-                    <td className="px-4 py-3">{formatPriceCell(q)}</td>
+                    <td className="px-4 py-3">{q.status === 'disqualified' ? '—' : formatPriceCell(q)}</td>
                     <td className="w-44 px-4 py-3">
                       <div className="flex items-center gap-1.5">
                         <a

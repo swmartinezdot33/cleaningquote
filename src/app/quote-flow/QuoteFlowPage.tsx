@@ -46,6 +46,9 @@ function getFormFieldName(questionId: string): string {
   return sanitizeFieldId(questionId);
 }
 
+/** Sentinel: getNextQuestionIndex returns this when the selected option has skipToQuestionId === '__DISQUALIFY__'. */
+const DISQUALIFIED_NEXT_INDEX = -1;
+
 /**
  * Parse option label to separate main text from details/explanations
  * Supports multiple formats: parentheses, dashes, colons, etc.
@@ -222,6 +225,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   const [isLoading, setIsLoading] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const [direction, setDirection] = useState(1); // 1 for forward, -1 for backward
+  const [disqualifiedInfo, setDisqualifiedInfo] = useState<{ questionLabel: string; optionLabel: string } | null>(null);
   const [showAppointmentForm, setShowAppointmentForm] = useState(false);
   const [showCallForm, setShowCallForm] = useState(false);
   const [appointmentDate, setAppointmentDate] = useState('');
@@ -264,6 +268,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   const [pricingTiers, setPricingTiers] = useState<{ tiers: PricingTierOption[]; maxSqFt: number } | null>(null);
   const serviceAreaCheckInProgress = useRef(false); // Prevent concurrent service area checks
   const autoAdvanceTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Track auto-advance timeout
+  const disqualifiedLoggedRef = useRef(false); // Log disqualified lead to quotes table only once
   const appointmentFormRef = useRef<HTMLDivElement>(null);
   const callFormRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
@@ -610,6 +615,10 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
       if (selectedOption.skipToQuestionId === '__END__') {
         return visibleQuestions.length; // Return length to trigger form submission
       }
+      // Special case: "__DISQUALIFY__" means disqualify the lead (show message and "Start new quote")
+      if (selectedOption.skipToQuestionId === '__DISQUALIFY__') {
+        return DISQUALIFIED_NEXT_INDEX;
+      }
       
       const skipToIndex = visibleQuestions.findIndex(q => q.id === selectedOption.skipToQuestionId);
       if (skipToIndex !== -1) {
@@ -811,6 +820,38 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         }
       }
   }, [questions, visibleQuestions, formSettings, mounted, setValue, reset, setGHLContactId, setServiceAreaChecked, setCurrentStep, formIsIframed, toolId, resolvedToolId, slug]);
+
+  // Log disqualified lead to quotes table when disqualified screen is shown
+  useEffect(() => {
+    if (!disqualifiedInfo) {
+      disqualifiedLoggedRef.current = false;
+      return;
+    }
+    if (disqualifiedLoggedRef.current) return;
+    disqualifiedLoggedRef.current = true;
+    const data = getValues();
+    const payload = {
+      firstName: data.firstName ?? data.first_name ?? '',
+      lastName: data.lastName ?? data.last_name ?? '',
+      email: data.email ?? '',
+      phone: data.phone ?? '',
+      address: data.address ?? data.address1 ?? '',
+      city: data.city ?? '',
+      state: data.state ?? '',
+      postalCode: data.postalCode ?? data.postal_code ?? '',
+      country: data.country ?? 'US',
+      toolId: toolId || resolvedToolId || undefined,
+      slug: slug || undefined,
+      ghlContactId: ghlContactId || undefined,
+      disqualifiedQuestionLabel: disqualifiedInfo.questionLabel,
+      disqualifiedOptionLabel: disqualifiedInfo.optionLabel,
+    };
+    fetch('/api/quote/disqualified', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).catch(() => {});
+  }, [disqualifiedInfo, getValues, toolId, resolvedToolId, slug, ghlContactId]);
 
   // Detect browser autofill and auto-advance
   useEffect(() => {
@@ -1047,7 +1088,13 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           
           // Calculate next step based on skip rules
           const nextIndex = getNextQuestionIndex(currentStep, fieldName);
-          
+          if (nextIndex === DISQUALIFIED_NEXT_INDEX) {
+            const q = visibleQuestions[currentStep];
+            const val = getValues(fieldName);
+            const opt = q?.options?.find(o => o.value === val);
+            setDisqualifiedInfo({ questionLabel: q?.label ?? '', optionLabel: opt?.label ?? '' });
+            return;
+          }
           if (nextIndex >= visibleQuestions.length) {
             handleFormSubmit();
           } else {
@@ -1255,6 +1302,13 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
             }
             setDirection(1);
             const nextIndex = getNextQuestionIndex(currentStep, fieldName);
+            if (nextIndex === DISQUALIFIED_NEXT_INDEX) {
+              const q = visibleQuestions[currentStep];
+              const val = getValues(fieldName);
+              const opt = q?.options?.find(o => o.value === val);
+              setDisqualifiedInfo({ questionLabel: q?.label ?? '', optionLabel: opt?.label ?? '' });
+              return;
+            }
             if (nextIndex >= visibleQuestions.length) {
               handleFormSubmit();
             } else {
@@ -1275,8 +1329,14 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
       
       // Calculate next step based on skip rules
       const nextIndex = getNextQuestionIndex(currentStep, fieldName);
-      
-            if (nextIndex >= visibleQuestions.length) {
+      if (nextIndex === DISQUALIFIED_NEXT_INDEX) {
+        const q = visibleQuestions[currentStep];
+        const val = getValues(fieldName);
+        const opt = q?.options?.find(o => o.value === val);
+        setDisqualifiedInfo({ questionLabel: q?.label ?? '', optionLabel: opt?.label ?? '' });
+        return;
+      }
+      if (nextIndex >= visibleQuestions.length) {
         // Reached end, submit form
         handleFormSubmit();
       } else {
@@ -1828,6 +1888,69 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           <p>No questions configured for this tool.</p>
           <p className="text-sm mt-2">Add questions in the survey builder in your dashboard.</p>
         </div>
+      </div>
+    );
+  }
+
+  if (disqualifiedInfo) {
+    return (
+      <div>
+        <style>{`
+          :root {
+            --primary-color: ${primaryColor};
+            --primary: ${hexToHsl(primaryColor)};
+            --ring: ${hexToHsl(primaryColor)};
+          }
+          .primary-from { background: linear-gradient(to right, var(--primary-color), ${hexToRgba(primaryColor, 0.6)}); }
+          .primary-bg { background-color: var(--primary-color); }
+          .primary-text { color: var(--primary-color); }
+          .primary-border { border-color: var(--primary-color); }
+        `}</style>
+        <main className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 pt-12 pb-20 px-4 sm:px-6 lg:px-8 flex items-center justify-center"
+          style={{
+            backgroundImage: `linear-gradient(135deg, ${hexToRgba(primaryColor, 0.05)} 0%, transparent 50%, ${hexToRgba(primaryColor, 0.05)} 100%)`,
+          }}>
+          <div className="max-w-lg w-full">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Card className="shadow-2xl border-2">
+                <CardContent className="pt-8 pb-8">
+                  <div className="text-center space-y-4">
+                    <div className="flex justify-center">
+                      <AlertCircle className="h-12 w-12 text-amber-500" />
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-900">Quote not available</h2>
+                    <p className="text-gray-600">
+                      Based on your selection, we’re not able to provide a quote for this request.
+                    </p>
+                    {disqualifiedInfo.optionLabel && (
+                      <p className="text-sm text-gray-500 bg-gray-100 rounded-lg px-4 py-2">
+                        Selection: <span className="font-medium text-gray-700">{disqualifiedInfo.optionLabel}</span>
+                      </p>
+                    )}
+                    <Button
+                      onClick={() => {
+                        setDisqualifiedInfo(null);
+                        reset(getDefaultValues());
+                        setCurrentStep(0);
+                        setQuoteResult(null);
+                        setHouseDetails(null);
+                        setServiceAreaChecked(false);
+                      }}
+                      style={{ backgroundColor: primaryColor, borderColor: primaryColor }}
+                      className="mt-4"
+                    >
+                      Start new quote
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+        </main>
       </div>
     );
   }

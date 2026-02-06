@@ -752,6 +752,9 @@ export default function SurveyBuilderPage() {
                                   <SelectItem value="__END__">
                                     <span className="text-sm">🏁 Skip to Quote Summary</span>
                                   </SelectItem>
+                                  <SelectItem value="__DISQUALIFY__">
+                                    <span className="text-sm">⚠️ Disqualify lead</span>
+                                  </SelectItem>
                                   {questions
                                     .filter(q => q.order > (editingQuestion.order || 0))
                                     .sort((a, b) => a.order - b.order)
@@ -765,9 +768,11 @@ export default function SurveyBuilderPage() {
                               {option.skipToQuestionId && (
                                 <p className="text-xs text-blue-600 mt-1">
                                   ✓ Will skip to: {
-                                    option.skipToQuestionId === '__END__' 
-                                      ? 'Quote Summary (End of Form)' 
-                                      : questions.find(q => q.id === option.skipToQuestionId)?.label
+                                    option.skipToQuestionId === '__END__'
+                                      ? 'Quote Summary (End of Form)'
+                                      : option.skipToQuestionId === '__DISQUALIFY__'
+                                        ? 'Disqualify lead'
+                                        : questions.find(q => q.id === option.skipToQuestionId)?.label
                                   }
                                 </p>
                               )}

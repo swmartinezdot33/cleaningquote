@@ -235,6 +235,7 @@ export async function storeGHLConfig(config: {
   appointmentRedirectUrl?: string;
   appointmentBookedTags?: string[];
   quoteCompletedTags?: string[];
+  disqualifiedLeadTags?: string[];
   formIsIframed?: boolean;
 }, toolId?: string): Promise<void> {
   requireSupabaseForConfig();
@@ -269,6 +270,7 @@ export async function getGHLConfig(toolId?: string): Promise<{
   appointmentRedirectUrl?: string;
   appointmentBookedTags?: string[];
   quoteCompletedTags?: string[];
+  disqualifiedLeadTags?: string[];
   formIsIframed?: boolean;
 } | null> {
   requireSupabaseForConfig();

@@ -168,7 +168,7 @@ export async function GET(request: NextRequest) {
         } else {
           const result = await admin
             .from('quotes')
-            .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at, payload')
+            .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at, payload, status')
             .in('tool_id', toolIdsForOrg)
             .order('created_at', { ascending: false })
             .limit(2000);
@@ -178,7 +178,7 @@ export async function GET(request: NextRequest) {
       } catch {
         const result = await supabase
           .from('quotes')
-          .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at, payload')
+          .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at, payload, status')
           .order('created_at', { ascending: false })
           .limit(2000);
         quotes = result.data ?? [];
@@ -187,7 +187,7 @@ export async function GET(request: NextRequest) {
     } else {
       const result = await supabase
         .from('quotes')
-        .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at, payload')
+        .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at, payload, status')
         .order('created_at', { ascending: false })
         .limit(2000);
       quotes = result.data ?? [];
@@ -243,18 +243,23 @@ export async function GET(request: NextRequest) {
         frequency = FREQUENCY_DISPLAY[normFreq] ?? normFreq ?? frequency;
       }
       const { payload: _payload, ...rest } = q;
+      const isDisqualified = (q as { status?: string }).status === 'disqualified';
+      const disqualifiedOptionLabel = isDisqualified && _payload && typeof _payload === 'object' && _payload !== null && 'disqualifiedOptionLabel' in _payload
+        ? String((_payload as { disqualifiedOptionLabel?: string }).disqualifiedOptionLabel ?? '')
+        : undefined;
       return {
         ...rest,
-        service_type,
-        frequency,
-        price_low: priceLow,
-        price_high: priceHigh,
-        ...(price_initial_low != null && { price_initial_low: price_initial_low as number }),
-        ...(price_initial_high != null && { price_initial_high: price_initial_high as number }),
-        ...(price_recurring_low != null && { price_recurring_low: price_recurring_low as number }),
-        ...(price_recurring_high != null && { price_recurring_high: price_recurring_high as number }),
+        service_type: isDisqualified ? (disqualifiedOptionLabel ? `Disqualified: ${disqualifiedOptionLabel}` : 'Disqualified') : service_type,
+        frequency: isDisqualified ? '' : frequency,
+        price_low: isDisqualified ? null : priceLow,
+        price_high: isDisqualified ? null : priceHigh,
+        ...(price_initial_low != null && !isDisqualified && { price_initial_low: price_initial_low as number }),
+        ...(price_initial_high != null && !isDisqualified && { price_initial_high: price_initial_high as number }),
+        ...(price_recurring_low != null && !isDisqualified && { price_recurring_low: price_recurring_low as number }),
+        ...(price_recurring_high != null && !isDisqualified && { price_recurring_high: price_recurring_high as number }),
         toolName: tool?.name ?? 'Legacy',
         toolSlug: tool?.slug ?? null,
+        ...(disqualifiedOptionLabel && { disqualifiedOptionLabel }),
       };
     });
 

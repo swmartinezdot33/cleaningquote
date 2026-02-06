@@ -1008,6 +1008,7 @@ export async function POST(request: NextRequest) {
       const { error } = await supabase.from('quotes').insert({
         quote_id: generatedQuoteId,
         tool_id: toolId || null,
+        status: 'quote',
         first_name: body.firstName || null,
         last_name: body.lastName || null,
         email: body.email || null,

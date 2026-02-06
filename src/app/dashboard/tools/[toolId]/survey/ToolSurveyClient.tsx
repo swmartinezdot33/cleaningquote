@@ -792,6 +792,7 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                                   <SelectContent className="max-h-[200px]">
                                     <SelectItem value="next">→ Next Question</SelectItem>
                                     <SelectItem value="__END__">🏁 Skip to Quote Summary</SelectItem>
+                                    <SelectItem value="__DISQUALIFY__">⚠️ Disqualify lead</SelectItem>
                                     {questions
                                       .filter((q) => q.order > (editingQuestion.order ?? 0))
                                       .sort((a, b) => a.order - b.order)

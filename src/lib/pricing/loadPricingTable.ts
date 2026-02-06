@@ -164,30 +164,28 @@ export async function loadPricingTable(toolId?: string): Promise<PricingTable> {
       if (header.includes('deep') && deepColIdx === -1) {
         deepColIdx = i;
       }
-      // Try to find move-in/move-out columns
-      if ((header.includes('move') || header.includes('basic')) && !header.includes('full') && moveInOutBasicColIdx === -1) {
+      // Move-in/move-out: Basic = column with "basic" (or "move" but NOT "full"/"deep"); Full = "full" or "deep" (so Basic and Deep don't share the same column)
+      const isMoveBasic = (header.includes('basic') || (header.includes('move') && !header.includes('full') && !header.includes('deep')));
+      const isMoveFull = header.includes('full') || (header.includes('move') && header.includes('deep'));
+      if (isMoveBasic && moveInOutBasicColIdx === -1) {
         moveInOutBasicColIdx = i;
       }
-      if ((header.includes('move') || header.includes('full')) && moveInOutFullColIdx === -1 && i > moveInOutBasicColIdx) {
+      if (isMoveFull && moveInOutFullColIdx === -1) {
         moveInOutFullColIdx = i;
       }
     }
 
-    // Move-in/move-out columns - check for headers like "Move in/ Move out", "BASIC", "FULL", etc.
-    // Also check empty headers with pricing data
+    // Move-in/move-out columns - check for headers like "Move in/ Move out", "BASIC", "FULL", "DEEP", etc.
+    // Also check empty headers with pricing data. Use same semantic rules so Basic and Full/Deep are never swapped.
     for (let i = 0; i < headerRow.length; i++) {
       const header = String(headerRow[i] || '').trim().toLowerCase();
-      
-      // Check for move-in/move-out related headers
-      if (header.includes('move') || header.includes('basic')) {
-        if (moveInOutBasicColIdx === -1 && !header.includes('full')) {
-          moveInOutBasicColIdx = i;
-        }
+      const isMoveBasic = (header.includes('basic') || (header.includes('move') && !header.includes('full') && !header.includes('deep')));
+      const isMoveFull = header.includes('full') || (header.includes('move') && header.includes('deep'));
+      if (isMoveBasic && moveInOutBasicColIdx === -1) {
+        moveInOutBasicColIdx = i;
       }
-      if (header.includes('move') || header.includes('full')) {
-        if (moveInOutFullColIdx === -1 && i > moveInOutBasicColIdx) {
-          moveInOutFullColIdx = i;
-        }
+      if (isMoveFull && moveInOutFullColIdx === -1) {
+        moveInOutFullColIdx = i;
       }
       
       // Check empty headers that might contain pricing data

@@ -59,6 +59,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
     appointmentRedirectUrl?: string;
     appointmentBookedTags?: string[];
     quoteCompletedTags?: string[];
+    disqualifiedLeadTags?: string[];
     formIsIframed?: boolean;
     pipelineRoutingRules?: Array<{
       utmParam: string;
@@ -1499,6 +1500,17 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                         onChange={(csv) => setGhlConfig((c) => ({ ...c, quoteCompletedTags: csv.split(',').map((s) => s.trim()).filter(Boolean) }))}
                         suggestions={ghlTags.map((t) => t.name)}
                         placeholder="Search or type a tag…"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold flex items-center gap-1.5 mb-1.5">Disqualified lead tags</Label>
+                      <p className="text-xs text-muted-foreground mb-1.5">Applied to the contact in HighLevel when a lead is disqualified by a survey option (e.g. &quot;Disqualify lead&quot;).</p>
+                      <TagPicker
+                        value={Array.isArray(ghlConfig.disqualifiedLeadTags) ? ghlConfig.disqualifiedLeadTags.join(', ') : ''}
+                        onChange={(csv) => setGhlConfig((c) => ({ ...c, disqualifiedLeadTags: csv.split(',').map((s) => s.trim()).filter(Boolean) }))}
+                        suggestions={ghlTags.map((t) => t.name)}
+                        placeholder="e.g. Disqualified, Out of Scope"
                         className="mt-1"
                       />
                     </div>

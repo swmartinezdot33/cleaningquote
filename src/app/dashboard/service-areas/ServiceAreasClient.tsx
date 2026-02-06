@@ -353,12 +353,12 @@ export default function ServiceAreasClient() {
 
       {/* Preview map modal */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[90vw] w-full max-h-[90vh] overflow-y-auto sm:max-w-[min(90vw,1200px)]">
           <DialogHeader>
             <DialogTitle>Preview: {previewName || 'Service area'}</DialogTitle>
             <DialogDescription>Map view of the service area. No editing.</DialogDescription>
           </DialogHeader>
-          <div className="mt-2 rounded-lg overflow-hidden border border-border">
+          <div className="mt-2 rounded-lg overflow-hidden border border-border min-h-[60vh]">
             {previewLoading ? (
               <div className="flex items-center justify-center py-24 text-muted-foreground">
                 <Loader2 className="h-8 w-8 animate-spin" />
@@ -367,7 +367,7 @@ export default function ServiceAreasClient() {
               <ServiceAreaMapDrawer
                 initialPolygon={previewPolygons}
                 readOnly
-                height={400}
+                height="65vh"
               />
             ) : (
               <div className="py-24 text-center text-muted-foreground">
