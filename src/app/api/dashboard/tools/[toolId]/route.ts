@@ -5,6 +5,17 @@ import { slugToSafe } from '@/lib/supabase/tools';
 
 export const dynamic = 'force-dynamic';
 
+/** GET - Return tool (for client to get org_id etc.). */
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ toolId: string }> }
+) {
+  const { toolId } = await context.params;
+  const auth = await getDashboardUserAndToolWithClient(toolId);
+  if (auth instanceof NextResponse) return auth;
+  return NextResponse.json({ tool: auth.tool });
+}
+
 /** DELETE - Delete tool. Use service role so RLS never blocks after we've verified access. */
 export async function DELETE(
   _request: Request,

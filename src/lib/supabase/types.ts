@@ -205,6 +205,43 @@ export interface Database {
         };
         Update: Partial<Database['public']['Tables']['tool_config']['Insert']>;
       };
+      service_areas: {
+        Row: {
+          id: string;
+          org_id: string;
+          name: string;
+          polygon: Json | null;
+          network_link_url: string | null;
+          network_link_fetched_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          name: string;
+          polygon?: Json | null;
+          network_link_url?: string | null;
+          network_link_fetched_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          name?: string;
+          polygon?: Json | null;
+          network_link_url?: string | null;
+          network_link_fetched_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      tool_service_areas: {
+        Row: { tool_id: string; service_area_id: string };
+        Insert: { tool_id: string; service_area_id: string };
+        Update: { tool_id?: string; service_area_id?: string };
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -226,3 +263,10 @@ export type QuoteInsert = Database['public']['Tables']['quotes']['Insert'];
 export type ToolConfigRow = Database['public']['Tables']['tool_config']['Row'];
 export type ToolConfigInsert = Database['public']['Tables']['tool_config']['Insert'];
 export type ToolConfigUpdate = Database['public']['Tables']['tool_config']['Update'];
+
+export type ServiceAreaRow = Database['public']['Tables']['service_areas']['Row'];
+export type ServiceAreaInsert = Database['public']['Tables']['service_areas']['Insert'];
+export type ServiceAreaUpdate = Database['public']['Tables']['service_areas']['Update'];
+
+export type ToolServiceAreaRow = Database['public']['Tables']['tool_service_areas']['Row'];
+export type ToolServiceAreaInsert = Database['public']['Tables']['tool_service_areas']['Insert'];

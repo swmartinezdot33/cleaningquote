@@ -9,14 +9,30 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'dashboard/layout.tsx:entry', message: 'DashboardLayout start', data: {}, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H4' }) }).catch(() => {});
+  // #endregion
   const supabase = await createSupabaseServerSSR();
   const { data: { user } } = await supabase.auth.getUser();
-
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'dashboard/layout.tsx:afterGetUser', message: 'after getUser', data: { hasUser: !!user }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H4' }) }).catch(() => {});
+  // #endregion
   if (!user) {
     redirect('/login?redirect=/dashboard');
   }
 
-  const orgs = await getOrgsForDashboard(user.id, user.email ?? undefined);
+  let orgs;
+  try {
+    orgs = await getOrgsForDashboard(user.id, user.email ?? undefined);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'dashboard/layout.tsx:afterGetOrgs', message: 'after getOrgsForDashboard', data: { orgCount: orgs?.length ?? 0 }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' }) }).catch(() => {});
+    // #endregion
+  } catch (layoutErr) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'dashboard/layout.tsx:catch', message: 'layout catch', data: { err: String(layoutErr), name: (layoutErr as Error)?.name }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' }) }).catch(() => {});
+    // #endregion
+    throw layoutErr;
+  }
   const cookieStore = await cookies();
   let selectedOrgId = cookieStore.get('selected_org_id')?.value ?? orgs[0]?.id ?? null;
   let selectedOrg = orgs.find((o) => o.id === selectedOrgId) ?? orgs[0] ?? null;

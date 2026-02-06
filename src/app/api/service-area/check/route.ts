@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceAreaPolygon, getServiceAreaNetworkLink } from '@/lib/kv';
 import { pointInPolygon, PolygonCoordinates } from '@/lib/service-area/pointInPolygon';
 import { fetchAndParseNetworkKML } from '@/lib/service-area/fetchNetworkKML';
+import { getToolPolygonsFromAssignedAreas } from '@/lib/service-area/getToolPolygons';
 import { createSupabaseServer } from '@/lib/supabase/server';
 
 /**
@@ -44,32 +45,40 @@ export async function POST(request: NextRequest) {
 
     const toolId = await resolveToolId(toolSlug);
 
-    // Try to get polygons: first from NetworkLink if available, then from stored polygon (tool-scoped or global)
+    // Prefer assigned org-level service areas; fall back to tool_config polygon / NetworkLink
     let polygons: PolygonCoordinates[] = [];
     let polygonSource = 'none';
 
-    const networkLink = await getServiceAreaNetworkLink(toolId);
-    if (networkLink) {
-      try {
-        const result = await fetchAndParseNetworkKML(networkLink);
-        if (result.polygons && result.polygons.length > 0) {
-          polygons = result.polygons;
-          polygonSource = 'network';
-          console.log(`[service-area/check] Found ${polygons.length} polygon(s) from NetworkLink`);
-        }
-      } catch (error) {
-        console.error('Error fetching NetworkLink KML:', error);
-        // Fall back to stored polygon
+    if (toolId) {
+      const assignedPolygons = await getToolPolygonsFromAssignedAreas(toolId);
+      if (assignedPolygons && assignedPolygons.length > 0) {
+        polygons = assignedPolygons;
+        polygonSource = 'assigned';
+        console.log(`[service-area/check] Using ${polygons.length} polygon(s) from assigned service areas`);
       }
     }
 
-    // Fall back to stored polygon if NetworkLink didn't work
     if (polygons.length === 0) {
-      const storedPolygon = await getServiceAreaPolygon(toolId);
-      if (storedPolygon && storedPolygon.length > 0) {
-        polygons = [storedPolygon];
-        polygonSource = 'stored';
-        console.log(`[service-area/check] Using stored polygon with ${storedPolygon.length} points`);
+      const networkLink = await getServiceAreaNetworkLink(toolId);
+      if (networkLink) {
+        try {
+          const result = await fetchAndParseNetworkKML(networkLink);
+          if (result.polygons && result.polygons.length > 0) {
+            polygons = result.polygons;
+            polygonSource = 'network';
+            console.log(`[service-area/check] Found ${polygons.length} polygon(s) from NetworkLink`);
+          }
+        } catch (error) {
+          console.error('Error fetching NetworkLink KML:', error);
+        }
+      }
+      if (polygons.length === 0) {
+        const storedPolygon = await getServiceAreaPolygon(toolId);
+        if (storedPolygon && storedPolygon.length > 0) {
+          polygons = [storedPolygon];
+          polygonSource = 'stored';
+          console.log(`[service-area/check] Using stored polygon with ${storedPolygon.length} points`);
+        }
       }
     }
 

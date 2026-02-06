@@ -6,11 +6,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
-import { ChevronDown, Sparkles, MapPin, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings, HelpCircle } from 'lucide-react';
+import { ChevronDown, Sparkles, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings, HelpCircle, Pencil } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { TagPicker } from '@/components/ui/TagPicker';
-
-type CardId = 'widget' | 'form' | 'ghl' | 'tracking' | 'ghl-config' | 'service-area';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+type CardId = 'widget' | 'form' | 'ghl' | 'tracking' | 'ghl-config';
 
 const GHL_CONFIG_HELP = '/help/ghl-config';
 function GhlHelpIcon({ anchor }: { anchor: string }) {
@@ -30,9 +37,6 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
   const [customHeadCode, setCustomHeadCode] = useState('');
   const [trackingQuoteSummary, setTrackingQuoteSummary] = useState('');
   const [trackingAppointmentBooking, setTrackingAppointmentBooking] = useState('');
-  const [serviceAreaStatus, setServiceAreaStatus] = useState<{ type: string; polygonCount?: number; networkLink?: string } | null>(null);
-  const [serviceAreaFile, setServiceAreaFile] = useState<File | null>(null);
-  const [serviceAreaUploading, setServiceAreaUploading] = useState(false);
   const [ghlConfig, setGhlConfig] = useState<{
     createContact: boolean;
     createOpportunity: boolean;
@@ -106,12 +110,11 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
   useEffect(() => {
     const load = async () => {
       try {
-        const [wRes, fRes, ghlRes, trackRes, areaRes, configRes] = await Promise.all([
+        const [wRes, fRes, ghlRes, trackRes, configRes] = await Promise.all([
           fetch(`/api/dashboard/tools/${toolId}/widget-settings`),
           fetch(`/api/dashboard/tools/${toolId}/form-settings`),
           fetch(`/api/dashboard/tools/${toolId}/ghl-settings`),
           fetch(`/api/dashboard/tools/${toolId}/tracking-codes`),
-          fetch(`/api/dashboard/tools/${toolId}/service-area/status`),
           fetch(`/api/dashboard/tools/${toolId}/ghl-config`),
         ]);
         if (wRes.ok) {
@@ -132,10 +135,6 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
           setCustomHeadCode(t.trackingCodes?.customHeadCode ?? '');
           setTrackingQuoteSummary(t.trackingCodes?.trackingQuoteSummary ?? '');
           setTrackingAppointmentBooking(t.trackingCodes?.trackingAppointmentBooking ?? '');
-        }
-        if (areaRes.ok) {
-          const a = await areaRes.json();
-          setServiceAreaStatus(a);
         }
         if (configRes.ok) {
           const { config } = await configRes.json();
@@ -222,9 +221,9 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
     }
   };
 
-  const saveForm = async (messageCard: 'form' | 'service-area' = 'form') => {
+  const saveForm = async () => {
     setSavingSection('form');
-    clearMessage(messageCard);
+    clearMessage('form');
     try {
       const res = await fetch(`/api/dashboard/tools/${toolId}/form-settings`, {
         method: 'POST',
@@ -233,12 +232,12 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
       });
       const data = await res.json();
       if (res.ok) {
-        setSectionMessage({ card: messageCard, type: 'success', text: data.message ?? 'Form settings saved' });
+        setSectionMessage({ card: 'form', type: 'success', text: data.message ?? 'Form settings saved' });
       } else {
-        setSectionMessage({ card: messageCard, type: 'error', text: data.error ?? 'Failed to save' });
+        setSectionMessage({ card: 'form', type: 'error', text: data.error ?? 'Failed to save' });
       }
     } catch {
-      setSectionMessage({ card: messageCard, type: 'error', text: 'Failed to save form settings' });
+      setSectionMessage({ card: 'form', type: 'error', text: 'Failed to save form settings' });
     } finally {
       setSavingSection(null);
     }
@@ -322,39 +321,6 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
       setSectionMessage({ card: 'ghl-config', type: 'error', text: 'Failed to save HighLevel config' });
     } finally {
       setSavingSection(null);
-    }
-  };
-
-  const uploadServiceArea = async () => {
-    if (!serviceAreaFile) {
-      setSectionMessage({ card: 'service-area', type: 'error', text: 'Please select a KML file' });
-      return;
-    }
-    setServiceAreaUploading(true);
-    clearMessage('service-area');
-    try {
-      const content = await serviceAreaFile.text();
-      const res = await fetch(`/api/dashboard/tools/${toolId}/service-area/upload`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kmlContent: content }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setSectionMessage({ card: 'service-area', type: 'success', text: data.message ?? 'Service area updated' });
-        setServiceAreaFile(null);
-        const statusRes = await fetch(`/api/dashboard/tools/${toolId}/service-area/status`);
-        if (statusRes.ok) {
-          const a = await statusRes.json();
-          setServiceAreaStatus(a);
-        }
-      } else {
-        setSectionMessage({ card: 'service-area', type: 'error', text: data.error ?? 'Upload failed' });
-      }
-    } catch {
-      setSectionMessage({ card: 'service-area', type: 'error', text: 'Failed to upload service area' });
-    } finally {
-      setServiceAreaUploading(false);
     }
   };
 
@@ -545,7 +511,28 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                     </div>
                   );
                 })()}
-                <Button onClick={() => saveForm('form')} disabled={savingSection === 'form'} className="w-full h-11 font-semibold flex items-center gap-2">
+                <div className="border-t border-border pt-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <Label htmlFor="openSurveyInNewTab" className="text-base font-semibold cursor-pointer">
+                        Open survey in new tab after service area check success
+                      </Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        When enabled, after the user enters their address and passes the service area check, a new tab opens to continue the survey. Contact info is pre-filled and they skip to house details. Only works when the widget is embedded in an iframe.
+                      </p>
+                    </div>
+                    <div className="flex-shrink-0">
+                      <input
+                        type="checkbox"
+                        id="openSurveyInNewTab"
+                        checked={String(form.openSurveyInNewTab) === 'true'}
+                        onChange={(e) => setForm((f) => ({ ...f, openSurveyInNewTab: e.target.checked ? 'true' : 'false' }))}
+                        className="w-4 h-4 rounded border-input"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <Button onClick={() => saveForm()} disabled={savingSection === 'form'} className="w-full h-11 font-semibold flex items-center gap-2">
                   {savingSection === 'form' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Form Settings</>}
                 </Button>
               </div>
@@ -632,176 +619,6 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                 <Button onClick={saveTracking} disabled={savingSection === 'tracking'} className="w-full h-11 font-semibold flex items-center gap-2">
                   {savingSection === 'tracking' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Tracking Codes</>}
                 </Button>
-              </div>
-            </CardContent>
-          )}
-        </Card>
-      </motion.div>
-
-      {/* Service Area Configuration */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.13 }}>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
-          <CardHeader
-            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
-            onClick={() => toggleCard('service-area')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                  <MapPin className="h-5 w-5 text-purple-600" />
-                  Service Area Configuration
-                </CardTitle>
-                <CardDescription className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                  Upload a KML file with your service area polygon, and configure tags for in-service and out-of-service customers.
-                  <Link href="/help/service-area-polygon" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-                    <BookOpen className="h-3.5 w-3.5" />
-                    Instructions
-                  </Link>
-                </CardDescription>
-              </div>
-              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('service-area') ? 'rotate-180' : ''}`} />
-            </div>
-          </CardHeader>
-          {isCardExpanded('service-area') && (
-            <CardContent className="pt-8 pb-8">
-              <div className="space-y-6">
-                {sectionMessage?.card === 'service-area' && (
-                  <div
-                    className={`p-4 rounded-lg flex items-center gap-3 ${
-                      sectionMessage.type === 'success'
-                        ? 'bg-green-50 text-green-800 border border-green-200'
-                        : 'bg-red-50 text-red-800 border border-red-200'
-                    }`}
-                  >
-                    {sectionMessage.type === 'success' ? (
-                      <CheckCircle className="h-5 w-5 flex-shrink-0" />
-                    ) : (
-                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                    )}
-                    <p>{sectionMessage.text}</p>
-                  </div>
-                )}
-
-                {/* KML Upload */}
-                <div>
-                  <Label className="text-base font-semibold">Upload Service Area Polygon (KML)</Label>
-
-                  {/* Status Display */}
-                  {serviceAreaStatus && serviceAreaStatus.type !== 'none' && (
-                    <div
-                      className={`mt-3 p-4 rounded-lg border-2 ${
-                        serviceAreaStatus.type === 'network'
-                          ? 'bg-blue-50 border-blue-200'
-                          : 'bg-emerald-50 border-emerald-200'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1">
-                          <p
-                            className={`font-semibold ${
-                              serviceAreaStatus.type === 'network' ? 'text-blue-900' : 'text-emerald-900'
-                            }`}
-                          >
-                            {serviceAreaStatus.type === 'network'
-                              ? '🔗 NetworkLink Active'
-                              : '✓ Direct Polygon Active'}
-                          </p>
-                          <p
-                            className={`text-sm mt-1 ${
-                              serviceAreaStatus.type === 'network' ? 'text-blue-800' : 'text-emerald-800'
-                            }`}
-                          >
-                            {serviceAreaStatus.type === 'network'
-                              ? `Automatically fetching from: ${serviceAreaStatus.networkLink ?? 'URL'}`
-                              : `${serviceAreaStatus.polygonCount ?? 0} coordinates loaded`}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mt-3 p-4 border-2 border-dashed border-border rounded-lg text-center">
-                    <input
-                      type="file"
-                      accept=".kml,.kmz"
-                      onChange={(e) => setServiceAreaFile(e.target.files?.[0] ?? null)}
-                      className="hidden"
-                      id="kml-file-input"
-                    />
-                    <label htmlFor="kml-file-input" className="cursor-pointer block">
-                      <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                      <p className="font-semibold text-foreground">Click to select KML file</p>
-                      <p className="text-sm text-muted-foreground">or drag and drop</p>
-                      {serviceAreaFile && (
-                        <p className="text-sm text-emerald-600 mt-2">📁 {serviceAreaFile.name}</p>
-                      )}
-                    </label>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Export your service area as a KML file from Google Maps or other mapping software. The system supports:
-                  </p>
-                  <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1 ml-2 mt-1">
-                    <li>
-                      <strong>Direct KML files</strong> - Traditional KML with polygon coordinates. Uploads once and stores the data.
-                    </li>
-                    <li>
-                      <strong>NetworkLink references</strong> - KML files that link to a remote server. The system will automatically fetch and update the polygon data periodically, so you don&apos;t need to re-upload when your map changes!
-                    </li>
-                  </ul>
-                  {serviceAreaFile && (
-                    <Button
-                      onClick={uploadServiceArea}
-                      disabled={serviceAreaUploading}
-                      className="w-full mt-4 h-10 font-semibold flex items-center gap-2"
-                    >
-                      {serviceAreaUploading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="h-4 w-4" />
-                          Upload Polygon
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-
-                {/* Open survey in new tab after service area check success */}
-                <div className="border-t border-border pt-6 mt-6">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <Label htmlFor="openSurveyInNewTab" className="text-base font-semibold cursor-pointer">
-                        Open survey in new tab after service area check success
-                      </Label>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        When enabled, after the user enters their address and passes the service area check, a new tab opens to continue the survey. Contact info is pre-filled and they skip to house details. Only works when the widget is embedded in an iframe.
-                      </p>
-                    </div>
-                    <div className="flex-shrink-0">
-                      <input
-                        type="checkbox"
-                        id="openSurveyInNewTab"
-                        checked={String(form.openSurveyInNewTab) === 'true'}
-                        onChange={(e) => setForm((f) => ({ ...f, openSurveyInNewTab: e.target.checked ? 'true' : 'false' }))}
-                        className="w-4 h-4 rounded border-input"
-                      />
-                    </div>
-                  </div>
-                  <Button
-                    onClick={() => saveForm('service-area')}
-                    disabled={savingSection === 'form'}
-                    className="mt-4 h-10 font-semibold flex items-center gap-2"
-                  >
-                    {savingSection === 'form' ? (
-                      <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</>
-                    ) : (
-                      <><Save className="h-4 w-4" /> Save</>
-                    )}
-                  </Button>
-                </div>
               </div>
             </CardContent>
           )}
@@ -1524,6 +1341,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
           )}
         </Card>
       </motion.div>
+
     </div>
   );
 }

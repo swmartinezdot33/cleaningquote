@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDashboardUserAndTool } from '@/lib/dashboard-auth';
 import { getServiceAreaPolygon, getServiceAreaNetworkLink } from '@/lib/kv';
+import { createSupabaseServer } from '@/lib/supabase/server';
+import { isSupabaseConfigured } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +15,25 @@ export async function GET(
 
   const toolId = auth.tool.id;
   try {
+    if (isSupabaseConfigured()) {
+      const supabase = createSupabaseServer();
+      const { data: assignments } = await supabase
+        .from('tool_service_areas')
+        .select('service_area_id')
+        .eq('tool_id', toolId);
+      if (assignments?.length) {
+        const ids = assignments.map((a: { service_area_id: string }) => a.service_area_id);
+        const { data: areas } = await supabase
+          .from('service_areas')
+          .select('id, name')
+          .in('id', ids);
+        return NextResponse.json({
+          type: 'assigned',
+          assignedCount: ids.length,
+          assignedAreas: (areas ?? []).map((a: { id: string; name: string }) => ({ id: a.id, name: a.name })),
+        });
+      }
+    }
     const networkLink = await getServiceAreaNetworkLink(toolId);
     if (networkLink) {
       const polygon = await getServiceAreaPolygon(toolId);
