@@ -56,6 +56,10 @@ export default function ServiceAreasClient() {
   const [importing, setImporting] = useState(false);
   const [importZipCsvModalOpen, setImportZipCsvModalOpen] = useState(false);
   const [importZipCsvFile, setImportZipCsvFile] = useState<File | null>(null);
+  const [singleZipModalOpen, setSingleZipModalOpen] = useState(false);
+  const [singleZipName, setSingleZipName] = useState('');
+  const [singleZipCode, setSingleZipCode] = useState('');
+  const [singleZipCreating, setSingleZipCreating] = useState(false);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewName, setPreviewName] = useState('');
@@ -256,6 +260,32 @@ export default function ServiceAreasClient() {
     }
   };
 
+  const createFromSingleZip = async () => {
+    const zip5 = singleZipCode.trim().replace(/^(\d{5}).*/, '$1');
+    if (!orgId || !singleZipName.trim() || !/^\d{5}$/.test(zip5)) return;
+    setSingleZipCreating(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/dashboard/orgs/${orgId}/service-areas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: singleZipName.trim(), zipCodes: [zip5] }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMessage({ type: 'success', text: `Service area "${singleZipName.trim()}" created from ZIP ${zip5}.` });
+        setSingleZipModalOpen(false);
+        setSingleZipName('');
+        setSingleZipCode('');
+        loadList();
+      } else {
+        setMessage({ type: 'error', text: data.error ?? 'Could not create area from ZIP.' });
+      }
+    } finally {
+      setSingleZipCreating(false);
+    }
+  };
+
   const deleteArea = async (areaId: string) => {
     if (!orgId || !confirm('Delete this service area? Tools using it will no longer have this area assigned.')) return;
     const res = await fetch(`/api/dashboard/orgs/${orgId}/service-areas/${areaId}`, { method: 'DELETE' });
@@ -310,7 +340,7 @@ export default function ServiceAreasClient() {
           Service areas
         </h1>
         <p className="text-muted-foreground mt-1">
-          Define service areas for your organization and assign them to tools. Draw on the map, import from a KML file or network link, or upload a CSV of US ZIP codes.
+          Define service areas for your organization and assign them to tools. Enter a ZIP code to auto-map its boundary, draw on the map, or import from KML or CSV.
         </p>
       </div>
 
@@ -323,7 +353,11 @@ export default function ServiceAreasClient() {
       )}
 
       <div className="flex flex-wrap gap-2">
-        <Button onClick={() => openDrawModal()} variant="default" className="gap-2">
+        <Button onClick={() => { setSingleZipName(''); setSingleZipCode(''); setSingleZipModalOpen(true); }} variant="default" className="gap-2">
+          <MapPin className="h-4 w-4" />
+          Add by ZIP code
+        </Button>
+        <Button onClick={() => openDrawModal()} variant="outline" className="gap-2">
           <Plus className="h-4 w-4" />
           Draw new area
         </Button>
@@ -623,6 +657,52 @@ export default function ServiceAreasClient() {
             <Button onClick={importFromLink} disabled={importing || !importName.trim() || !importLinkUrl.trim()}>
               {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Add area
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add by single ZIP code modal */}
+      <Dialog open={singleZipModalOpen} onOpenChange={setSingleZipModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create service area from ZIP code</DialogTitle>
+            <DialogDescription>
+              Enter one US 5-digit ZIP code. We&apos;ll fetch its boundary from Census data and create a service area with that polygon. You can edit it later if needed.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="singlezip-name">Service area name</Label>
+              <Input
+                id="singlezip-name"
+                value={singleZipName}
+                onChange={(e) => setSingleZipName(e.target.value)}
+                placeholder="e.g. Raleigh 27601"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="singlezip-code">ZIP code</Label>
+              <Input
+                id="singlezip-code"
+                value={singleZipCode}
+                onChange={(e) => setSingleZipCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                placeholder="27601"
+                maxLength={5}
+                className="mt-1 w-32 font-mono"
+              />
+              <p className="text-xs text-muted-foreground mt-1">5-digit US ZIP code. The boundary (ZCTA) will be loaded automatically.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSingleZipModalOpen(false)}>Cancel</Button>
+            <Button
+              onClick={createFromSingleZip}
+              disabled={singleZipCreating || !singleZipName.trim() || singleZipCode.trim().length !== 5}
+            >
+              {singleZipCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Create area
             </Button>
           </DialogFooter>
         </DialogContent>
