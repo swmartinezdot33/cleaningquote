@@ -398,11 +398,14 @@ export async function updateContact(
 
 /**
  * Create an opportunity in GHL
- * Always uses stored locationId for sub-account (location-level) API calls
+ * Always uses stored locationId for sub-account (location-level) API calls.
+ * When tokenOverride is provided (e.g. tool-scoped token), use it so the opportunity
+ * is created in the correct GHL location and uses that tool's pipeline/stage settings.
  */
 export async function createOpportunity(
   opportunityData: GHLOpportunity,
-  locationId?: string
+  locationId?: string,
+  tokenOverride?: string
 ): Promise<GHLOpportunityResponse> {
   try {
     // Always use locationId - required for sub-account (location-level) API calls
@@ -446,7 +449,9 @@ export async function createOpportunity(
     const response = await makeGHLRequest<{ opportunity: GHLOpportunityResponse }>(
       `/opportunities/`,
       'POST',
-      payload
+      payload,
+      undefined,
+      tokenOverride
     );
 
     return response.opportunity || response;
@@ -465,9 +470,13 @@ export async function createOpportunity(
  * /contacts/:contactId/notes. locationId in body for sub-accounts; do NOT send
  * Location-Id header (can 403 with location-level PIT, same as associations).
  */
-export async function createNote(noteData: GHLNote, locationId?: string): Promise<GHLNoteResponse> {
+export async function createNote(
+  noteData: GHLNote,
+  locationId?: string,
+  tokenOverride?: string
+): Promise<GHLNoteResponse> {
   try {
-    let finalLocationId = locationId || (await getGHLLocationId());
+    const finalLocationId = locationId || (await getGHLLocationId());
 
     if (!finalLocationId) {
       throw new Error('Location ID is required. Please configure it in the admin settings.');
@@ -480,8 +489,9 @@ export async function createNote(noteData: GHLNote, locationId?: string): Promis
     const response = await makeGHLRequest<{ note: GHLNoteResponse }>(
       endpoint,
       'POST',
-      payload
-      // Do NOT pass Location-Id header (can 403 with location-level PIT)
+      payload,
+      undefined, // Do NOT pass Location-Id header (can 403 with location-level PIT)
+      tokenOverride
     );
 
     return response.note || response;

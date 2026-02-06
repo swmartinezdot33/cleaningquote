@@ -1022,7 +1022,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
               email: data.email || '',
               phone: data.phone || '',
               ...utmForContact,
-              ...(toolId && { toolId }),
+              ...((toolId || resolvedToolId) && { toolId: String(toolId || resolvedToolId) }),
             }),
           });
           const result = await response.json();
@@ -1099,7 +1099,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                     country: data.country || 'US',
                     ghlContactId: createdContactId,
                     ...utmForContact,
-                    ...(toolId && { toolId }),
+                    ...((toolId || resolvedToolId) && { toolId: String(toolId || resolvedToolId) }),
                   }),
                 });
               } catch (contactError) {
@@ -1209,7 +1209,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                       country: data.country || 'US',
                       ghlContactId: createdContactId,
                       ...utmForContact,
-                      ...(toolId && { toolId }),
+                      ...((toolId || resolvedToolId) && { toolId: String(toolId || resolvedToolId) }),
                     }),
                   });
                 } catch (e) {
@@ -1395,7 +1395,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         ...utmParams,
         ...passthroughToApi,
         ...(slug && { toolSlug: slug }),
-        ...(toolId && { toolId }),
+        ...((toolId || resolvedToolId) && { toolId: String(toolId || resolvedToolId) }),
       };
 
       // Add any custom fields (those that were sanitized)
@@ -1584,7 +1584,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           serviceType: selectedServiceType,
           frequency: selectedFrequency,
           ...(slug && { toolSlug: slug }),
-          ...(toolId && { toolId }),
+          ...((toolId || resolvedToolId) && { toolId: String(toolId || resolvedToolId) }),
           ...(preauthCardInfo && { preauthCardInfo }),
         }),
       });
@@ -1698,7 +1698,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           date,
           time,
           ...(slug && { toolSlug: slug }),
-          ...(toolId && { toolId }),
+          ...((toolId || resolvedToolId) && { toolId: String(toolId || resolvedToolId) }),
         }).toString()}`
       );
 
@@ -1766,7 +1766,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           notes: finalNotes || 'Call scheduled through quote form',
           type: 'call',
           ...(slug && { toolSlug: slug }),
-          ...(toolId && { toolId }),
+          ...((toolId || resolvedToolId) && { toolId: String(toolId || resolvedToolId) }),
         }),
       });
 
@@ -2907,7 +2907,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                               country: data.country || 'US',
                                               ghlContactId: createdContactId,
                                               ...utmForContact,
-                                              ...(toolId && { toolId }),
+                                              ...((toolId || resolvedToolId) && { toolId: String(toolId || resolvedToolId) }),
                                             }),
                                           });
                                         } catch (e) {

@@ -25,6 +25,28 @@ function generateReadableQuoteId(): string {
 }
 
 /**
+ * Normalize condition string from survey (option value or label) to a canonical key
+ * so getConditionMultiplier and pricing work even when admin changes option wording.
+ * Survey options may have value "excellent" or long text like "Excellent = Home is always spotless...".
+ */
+function normalizeConditionForPricing(raw: string | undefined): string | undefined {
+  if (raw == null || typeof raw !== 'string') return undefined;
+  const t = raw.trim();
+  if (!t) return undefined;
+  const lower = t.toLowerCase();
+  // Canonical keys that getConditionMultiplier expects (order matters: check very-poor before poor)
+  if (lower.includes('very poor') || lower === 'very-poor' || lower === 'very_poor' || lower.includes('extremely dusty')) return 'very-poor';
+  if (lower.includes('poor') || lower.startsWith('poor')) return 'poor';
+  if (lower.includes('perfectionist') || lower.includes('immaculate') || lower.includes('excellent')) return 'excellent';
+  if (lower.includes('good') || lower === 'clean') return 'good';
+  if (lower.includes('average') || lower.includes('fair') || lower.includes('dusty') || lower.includes('dirty')) return 'average';
+  if (lower.includes('above extremely') || lower.includes('out of scope')) return 'out of scope';
+  // Exact canonical values pass through
+  if (['excellent', 'good', 'average', 'poor', 'very-poor', 'very_poor', 'clean', 'fair'].includes(lower)) return lower;
+  return t;
+}
+
+/**
  * Normalize form service type (e.g. "Move In Clean", "move in") to canonical key
  * so one-time detection and range lookup work regardless of spelling.
  */
@@ -164,14 +186,9 @@ export async function POST(request: NextRequest) {
             .map((k) => body[k])
             .find((v) => v != null && typeof v === 'string' && String(v).trim())
         : undefined);
-    const inputsCondition =
+    const rawCondition =
       typeof conditionFromBody === 'string' ? conditionFromBody.trim() || undefined : undefined;
-    console.log('[quote] condition for multiplier', {
-      bodyCondition: body.condition,
-      conditionFromBody,
-      inputsCondition,
-      conditionKeys,
-    });
+    const inputsCondition = normalizeConditionForPricing(rawCondition) ?? rawCondition;
     const inputs: QuoteInputs = {
       squareFeet: squareFootage,
       bedrooms: Number(body.bedrooms) || 0,
@@ -184,8 +201,6 @@ export async function POST(request: NextRequest) {
       hasPreviousService: body.hasPreviousService,
       cleanedWithin3Months: body.cleanedWithin3Months,
     };
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/quote/route.ts:inputs',message:'condition for calcQuote',data:{bodyCondition:body.condition,conditionFromBody,inputsCondition:inputs.condition,bodyKeys:conditionKeys},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
 
     const result = await calcQuote(inputs, toolId);
 
@@ -676,7 +691,8 @@ export async function POST(request: NextRequest) {
               tags: resolvedOpportunityTags && resolvedOpportunityTags.length > 0 ? resolvedOpportunityTags : undefined,
               customFields: opportunityCustomFields,
             },
-            ghlLocationId ?? undefined
+            ghlLocationId ?? undefined,
+            ghlToken ?? undefined
           );
         }
 
@@ -852,10 +868,6 @@ export async function POST(request: NextRequest) {
         }
 
         // Prepare note creation (will parallelize with opportunity and custom object)
-        // #region agent log
-        const noteCondition = ghlConfig?.createNote !== false && !!ghlContactId;
-        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quote/route.ts:note-condition', message: 'note create decision', data: { createNoteConfig: ghlConfig?.createNote, ghlContactId: ghlContactId ?? null, noteCondition, willCreateNote: noteCondition }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1-H2' }) }).catch(() => {});
-        // #endregion
         if (ghlConfig?.createNote !== false && ghlContactId) {
           let noteBody = `Quote Generated from Website Form\n\n${summaryText}`;
           const notePassthrough = ['start', 'tashiane'].filter(k => body[k] && String(body[k]).trim());
@@ -864,7 +876,8 @@ export async function POST(request: NextRequest) {
           }
           notePromise = createNote(
             { contactId: ghlContactId, body: noteBody },
-            ghlLocationId ?? undefined
+            ghlLocationId ?? undefined,
+            ghlToken ?? undefined
           );
         }
 
@@ -920,11 +933,6 @@ export async function POST(request: NextRequest) {
           
           if (notePromise) {
             const noteResult = results.find((_, idx) => ghlOperations[idx] === notePromise);
-            const noteFulfilled = noteResult?.status === 'fulfilled';
-            const noteRejected = noteResult?.status === 'rejected';
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quote/route.ts:note-result', message: 'note promise result', data: { noteFulfilled, noteRejected, reason: noteRejected ? (noteResult?.reason instanceof Error ? noteResult.reason.message : String(noteResult?.reason)) : null, ghlContactId }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' }) }).catch(() => {});
-            // #endregion
             if (noteResult?.status === 'rejected') {
               console.error('⚠️ Failed to create note:', noteResult.reason);
               console.error('Note creation error details:', {

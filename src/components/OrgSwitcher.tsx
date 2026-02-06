@@ -38,19 +38,12 @@ export function OrgSwitcher({
     setTimeout(() => router.refresh(), 0);
   };
 
-  if (orgs.length <= 1) {
-    return (
-      <span className="text-sm font-medium text-foreground">
-        {orgs[0]?.name ?? 'Select org'}
-      </span>
-    );
-  }
-
   return (
     <select
-      value={current ?? ''}
+      value={current ?? (orgs[0]?.id ?? '')}
       onChange={(e) => handleChange(e.target.value)}
       className="rounded border border-input bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+      aria-label="Switch organization"
     >
       {orgs.map((o) => (
         <option key={o.id} value={o.id}>

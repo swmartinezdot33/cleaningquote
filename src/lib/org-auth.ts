@@ -130,7 +130,11 @@ export async function getOrgsForDashboard(userId: string, userEmail: string | un
         .order('name');
       const orgs = (orgsRaw ?? []) as Organization[];
       return orgs.map((o) => ({ ...o, role: 'admin' as const }));
-    } catch {
+    } catch (err) {
+      // In dev, SUPABASE_SERVICE_ROLE_KEY is often missing from .env.local, so super admin only sees member orgs
+      console.warn(
+        '[getOrgsForDashboard] Super admin: could not load all orgs (check SUPABASE_SERVICE_ROLE_KEY in .env.local). Using member orgs only. Add SUPABASE_SERVICE_ROLE_KEY from Supabase Dashboard → Settings → API → service_role and restart dev server.'
+      );
       return ensureUserOrgs(userId, userEmail);
     }
   }
