@@ -25,7 +25,7 @@ export async function GET(
 
   const { data, error } = await supabase
     .from('service_areas')
-    .select('id, org_id, name, polygon, network_link_url, network_link_fetched_at, created_at, updated_at')
+    .select('id, org_id, name, polygon, zone_display, network_link_url, network_link_fetched_at, created_at, updated_at')
     .eq('id', areaId)
     .eq('org_id', orgId)
     .single();
@@ -70,6 +70,11 @@ export async function PATCH(
         updates.polygon = stored as unknown as ServiceAreaUpdate['polygon'];
       }
     }
+  }
+  if (body.zone_display !== undefined) {
+    updates.zone_display = Array.isArray(body.zone_display)
+      ? (body.zone_display as unknown as ServiceAreaUpdate['zone_display'])
+      : null;
   }
   if (body.network_link_url !== undefined) {
     updates.network_link_url = typeof body.network_link_url === 'string' ? body.network_link_url.trim() || null : null;

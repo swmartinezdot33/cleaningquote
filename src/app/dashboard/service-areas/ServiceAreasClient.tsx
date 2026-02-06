@@ -26,7 +26,7 @@ import {
   Eye,
 } from 'lucide-react';
 import Link from 'next/link';
-import { ServiceAreaMapDrawer, type PolygonCoords } from '@/components/ServiceAreaMapDrawer';
+import { ServiceAreaMapDrawer, type PolygonCoords, type ZoneDisplayItem } from '@/components/ServiceAreaMapDrawer';
 import { normalizeServiceAreaPolygons } from '@/lib/service-area/normalizePolygons';
 
 interface ServiceAreaItem {
@@ -47,12 +47,15 @@ export default function ServiceAreasClient() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editPolygons, setEditPolygons] = useState<PolygonCoords[] | null>(null);
+  const [editZoneDisplay, setEditZoneDisplay] = useState<ZoneDisplayItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [importName, setImportName] = useState('');
   const [importKmlFile, setImportKmlFile] = useState<File | null>(null);
   const [importLinkUrl, setImportLinkUrl] = useState('');
   const [importing, setImporting] = useState(false);
+  const [importZipCsvModalOpen, setImportZipCsvModalOpen] = useState(false);
+  const [importZipCsvFile, setImportZipCsvFile] = useState<File | null>(null);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewName, setPreviewName] = useState('');
@@ -91,6 +94,7 @@ export default function ServiceAreasClient() {
     setEditingId(areaId ?? null);
     setEditName('');
     setEditPolygons(null);
+    setEditZoneDisplay([]);
     if (areaId) {
       fetch(`/api/dashboard/orgs/${orgId}/service-areas/${areaId}`)
         .then((r) => r.json())
@@ -98,16 +102,22 @@ export default function ServiceAreasClient() {
           setEditName(d.serviceArea?.name ?? '');
           const list = normalizeServiceAreaPolygons(d.serviceArea?.polygon);
           setEditPolygons(list.length > 0 ? list : null);
+          const zd = d.serviceArea?.zone_display;
+          const zoneList = Array.isArray(zd) ? zd.map((z: { label?: string; color?: string }) => ({ label: z?.label ?? '', color: z?.color ?? '' })) : [];
+          setEditZoneDisplay(list.length > 0 ? Array.from({ length: list.length }, (_, i) => zoneList[i] ?? { label: '', color: '' }) : []);
         })
         .catch(() => {});
     }
     setDrawModalOpen(true);
   };
 
+  const [previewZoneDisplay, setPreviewZoneDisplay] = useState<ZoneDisplayItem[]>([]);
+
   const openPreview = (areaId: string) => {
     setPreviewOpen(true);
     setPreviewName('');
     setPreviewPolygons(null);
+    setPreviewZoneDisplay([]);
     setPreviewLoading(true);
     fetch(`/api/dashboard/orgs/${orgId}/service-areas/${areaId}`)
       .then((r) => r.json())
@@ -115,6 +125,8 @@ export default function ServiceAreasClient() {
         setPreviewName(d.serviceArea?.name ?? 'Service area');
         const list = normalizeServiceAreaPolygons(d.serviceArea?.polygon);
         setPreviewPolygons(list.length > 0 ? list : null);
+        const zd = d.serviceArea?.zone_display;
+        setPreviewZoneDisplay(Array.isArray(zd) ? zd : []);
       })
       .catch(() => {})
       .finally(() => setPreviewLoading(false));
@@ -130,9 +142,15 @@ export default function ServiceAreasClient() {
         : `/api/dashboard/orgs/${orgId}/service-areas`;
       const method = editingId ? 'PATCH' : 'POST';
       const polygons = editPolygons ?? [];
+      const zoneDisplay = polygons.length > 0
+        ? Array.from({ length: polygons.length }, (_, i) => ({
+            label: (editZoneDisplay[i]?.label ?? '').trim() || undefined,
+            color: (editZoneDisplay[i]?.color ?? '').trim() || undefined,
+          }))
+        : [];
       const body = editingId
-        ? { name: editName.trim(), polygon: polygons.length > 0 ? polygons : undefined }
-        : { name: editName.trim(), polygon: polygons };
+        ? { name: editName.trim(), polygon: polygons.length > 0 ? polygons : undefined, zone_display: zoneDisplay }
+        : { name: editName.trim(), polygon: polygons, zone_display: zoneDisplay };
       const hasValidPolygon = polygons.some((p) => p.length >= 3);
       if (!editingId && !hasValidPolygon) {
         setMessage({ type: 'error', text: 'Draw at least one polygon with 3+ points.' });
@@ -208,6 +226,36 @@ export default function ServiceAreasClient() {
     }
   };
 
+  const importFromZipCsv = async () => {
+    if (!orgId || !importName.trim() || !importZipCsvFile) return;
+    setImporting(true);
+    setMessage(null);
+    try {
+      const csvText = await importZipCsvFile.text();
+      const res = await fetch(`/api/dashboard/orgs/${orgId}/service-areas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: importName.trim(), zipCsvContent: csvText }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const summary = data.zipSummary;
+        const msg = summary
+          ? `Service area created from ${summary.created} ZIP code(s).${summary.failed > 0 ? ` (${summary.failed} could not be loaded.)` : ''}`
+          : 'Service area created from ZIP codes.';
+        setMessage({ type: 'success', text: msg });
+        setImportZipCsvModalOpen(false);
+        setImportName('');
+        setImportZipCsvFile(null);
+        loadList();
+      } else {
+        setMessage({ type: 'error', text: data.error ?? 'Import failed.' });
+      }
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const deleteArea = async (areaId: string) => {
     if (!orgId || !confirm('Delete this service area? Tools using it will no longer have this area assigned.')) return;
     const res = await fetch(`/api/dashboard/orgs/${orgId}/service-areas/${areaId}`, { method: 'DELETE' });
@@ -262,7 +310,7 @@ export default function ServiceAreasClient() {
           Service areas
         </h1>
         <p className="text-muted-foreground mt-1">
-          Define service areas for your organization and assign them to tools. Draw on the map, or import from a KML file or network link.
+          Define service areas for your organization and assign them to tools. Draw on the map, import from a KML file or network link, or upload a CSV of US ZIP codes.
         </p>
       </div>
 
@@ -286,6 +334,10 @@ export default function ServiceAreasClient() {
         <Button onClick={() => { setImportName(''); setImportLinkUrl(''); setImportLinkModalOpen(true); }} variant="outline" className="gap-2">
           <LinkIcon className="h-4 w-4" />
           Import from network link
+        </Button>
+        <Button onClick={() => { setImportName(''); setImportZipCsvFile(null); setImportZipCsvModalOpen(true); }} variant="outline" className="gap-2">
+          <FileUp className="h-4 w-4" />
+          Import from ZIP code CSV
         </Button>
       </div>
 
@@ -366,6 +418,7 @@ export default function ServiceAreasClient() {
             ) : previewPolygons && previewPolygons.length > 0 ? (
               <ServiceAreaMapDrawer
                 initialPolygon={previewPolygons}
+                zoneDisplay={previewZoneDisplay.length > 0 ? previewZoneDisplay : undefined}
                 readOnly
                 height="65vh"
               />
@@ -409,18 +462,77 @@ export default function ServiceAreasClient() {
               <div className="mt-1 rounded-lg overflow-hidden border border-border">
                 <ServiceAreaMapDrawer
                   initialPolygon={editPolygons ?? undefined}
+                  zoneDisplay={editPolygons?.length ? editZoneDisplay.slice(0, editPolygons.length).concat(
+                    Array.from({ length: Math.max(0, editPolygons.length - editZoneDisplay.length) }, () => ({ label: '', color: '' }))
+                  ) : undefined}
                   onPolygonChange={(p) => {
-                    if (!p) setEditPolygons(null);
-                    else if (Array.isArray(p) && p.length > 0 && Array.isArray(p[0]) && p[0].length >= 3) {
-                      setEditPolygons(p as PolygonCoords[]);
+                    if (!p) {
+                      setEditPolygons(null);
+                      setEditZoneDisplay([]);
                     } else {
-                      setEditPolygons([p as PolygonCoords]);
+                      const list = Array.isArray(p) && p.length > 0 && Array.isArray(p[0]) && (p[0] as [number, number]).length >= 2
+                        ? (p as PolygonCoords[])
+                        : [p as PolygonCoords];
+                      setEditPolygons(list);
+                      setEditZoneDisplay((prev) => {
+                        const next = list.map((_, i) => prev[i] ?? { label: '', color: '' });
+                        return next;
+                      });
                     }
                   }}
                   height={360}
                 />
               </div>
             </div>
+            {(editPolygons?.length ?? 0) > 0 && (
+              <div>
+                <Label>Zone labels & colors</Label>
+                <p className="text-sm text-muted-foreground mb-2">Customize the label and color for each zone on the map.</p>
+                <ul className="space-y-3">
+                  {Array.from({ length: editPolygons!.length }, (_, idx) => (
+                    <li key={idx} className="flex flex-wrap items-center gap-3 p-3 rounded-lg border border-border bg-muted/30">
+                      <span className="text-sm font-medium w-14">Zone {idx + 1}</span>
+                      <Input
+                        placeholder="Label (e.g. Downtown)"
+                        value={editZoneDisplay[idx]?.label ?? ''}
+                        onChange={(e) => setEditZoneDisplay((prev) => {
+                          const next = [...prev];
+                          while (next.length <= idx) next.push({ label: '', color: '' });
+                          next[idx] = { ...next[idx], label: e.target.value };
+                          return next;
+                        })}
+                        className="flex-1 min-w-[120px] max-w-[200px]"
+                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={(editZoneDisplay[idx]?.color && /^#[0-9A-Fa-f]{6}$/.test(editZoneDisplay[idx].color!)) ? editZoneDisplay[idx].color! : '#3b82f6'}
+                          onChange={(e) => setEditZoneDisplay((prev) => {
+                            const next = [...prev];
+                            while (next.length <= idx) next.push({ label: '', color: '' });
+                            next[idx] = { ...next[idx], color: e.target.value };
+                            return next;
+                          })}
+                          className="w-10 h-10 rounded border border-border cursor-pointer"
+                          title="Zone color"
+                        />
+                        <Input
+                          placeholder="#3b82f6"
+                          value={editZoneDisplay[idx]?.color ?? ''}
+                          onChange={(e) => setEditZoneDisplay((prev) => {
+                            const next = [...prev];
+                            while (next.length <= idx) next.push({ label: '', color: '' });
+                            next[idx] = { ...next[idx], color: e.target.value };
+                            return next;
+                          })}
+                          className="w-24 font-mono text-sm"
+                        />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
           {message?.type && (
             <p className={message.type === 'success' ? 'text-emerald-600 text-sm' : 'text-destructive text-sm'}>
@@ -511,6 +623,48 @@ export default function ServiceAreasClient() {
             <Button onClick={importFromLink} disabled={importing || !importName.trim() || !importLinkUrl.trim()}>
               {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Add area
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import from ZIP code CSV modal */}
+      <Dialog open={importZipCsvModalOpen} onOpenChange={setImportZipCsvModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Import from ZIP code CSV</DialogTitle>
+            <DialogDescription>
+              Upload a CSV file containing US 5-digit ZIP codes (one per row or in any column). We&apos;ll fetch each ZIP&apos;s boundary from Census data and create a service area with one zone per ZIP. Max 150 ZIPs per import.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="zipcsv-name">Service area name</Label>
+              <Input
+                id="zipcsv-name"
+                value={importName}
+                onChange={(e) => setImportName(e.target.value)}
+                placeholder="e.g. Metro ZIPs"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="zipcsv-file">CSV file</Label>
+              <Input
+                id="zipcsv-file"
+                type="file"
+                accept=".csv,.txt,text/csv,text/plain"
+                onChange={(e) => setImportZipCsvFile(e.target.files?.[0] ?? null)}
+                className="mt-1"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Any CSV or text file with 5-digit US ZIP codes (e.g. 90210, 10001).</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportZipCsvModalOpen(false)}>Cancel</Button>
+            <Button onClick={importFromZipCsv} disabled={importing || !importName.trim() || !importZipCsvFile}>
+              {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Import ZIPs
             </Button>
           </DialogFooter>
         </DialogContent>

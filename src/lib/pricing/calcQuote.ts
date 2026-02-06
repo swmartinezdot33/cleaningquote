@@ -245,9 +245,10 @@ function applyMultiplier(range: { low: number; high: number }, multiplier: numbe
 /**
  * Calculate quote based on inputs
  * @param toolId - When provided, uses this quoting tool's pricing and config (multi-tenant).
+ * @param pricingStructureId - When provided (e.g. from service area match), uses this pricing structure instead of tool default.
  */
-export async function calcQuote(inputs: QuoteInputs, toolId?: string): Promise<QuoteResult> {
-  const table = await loadPricingTable(toolId);
+export async function calcQuote(inputs: QuoteInputs, toolId?: string, pricingStructureId?: string): Promise<QuoteResult> {
+  const table = await loadPricingTable(toolId, pricingStructureId);
   const config = await getInitialCleaningConfig(toolId);
 
   // Check if square footage exceeds limits

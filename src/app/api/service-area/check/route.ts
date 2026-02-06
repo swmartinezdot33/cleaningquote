@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceAreaPolygon, getServiceAreaNetworkLink } from '@/lib/kv';
 import { pointInPolygon, PolygonCoordinates } from '@/lib/service-area/pointInPolygon';
 import { fetchAndParseNetworkKML } from '@/lib/service-area/fetchNetworkKML';
-import { getToolPolygonsFromAssignedAreas } from '@/lib/service-area/getToolPolygons';
+import { getToolPolygonsFromAssignedAreas, getMatchingServiceAreaForPoint } from '@/lib/service-area/getToolPolygons';
 import { createSupabaseServer } from '@/lib/supabase/server';
 
 /**
@@ -51,12 +51,21 @@ export async function POST(request: NextRequest) {
         ? bodyToolId.trim()
         : await resolveToolId(toolSlug);
 
+    // When using assigned areas, try to resolve which area (and pricing structure) the point is in.
+    let matchedPricingStructureId: string | null = null;
+    let matchedServiceAreaId: string | null = null;
+
     // Use only this tool's assigned service areas (from tool_service_areas). Multiple areas
     // are combined; address is in service if inside ANY polygon from ANY selected area.
     let polygons: PolygonCoordinates[] = [];
     let polygonSource = 'none';
 
     if (toolId) {
+      const match = await getMatchingServiceAreaForPoint(toolId, lat, lng);
+      if (match) {
+        matchedServiceAreaId = match.serviceAreaId;
+        matchedPricingStructureId = match.pricingStructureId;
+      }
       const assignedPolygons = await getToolPolygonsFromAssignedAreas(toolId);
       if (assignedPolygons && assignedPolygons.length > 0) {
         polygons = assignedPolygons;
@@ -97,6 +106,8 @@ export async function POST(request: NextRequest) {
         {
           inServiceArea: true,
           message: 'Service area check skipped - no service area configured.',
+          ...(matchedPricingStructureId && { pricingStructureId: matchedPricingStructureId }),
+          ...(matchedServiceAreaId && { matchedServiceAreaId }),
         },
         { status: 200 }
       );
@@ -199,6 +210,8 @@ export async function POST(request: NextRequest) {
         message: inServiceArea
           ? 'Great! You are within our service area.'
           : 'Sorry, this address is outside our service area.',
+        ...(matchedPricingStructureId && { pricingStructureId: matchedPricingStructureId }),
+        ...(matchedServiceAreaId && { matchedServiceAreaId }),
       },
       { status: 200 }
     );

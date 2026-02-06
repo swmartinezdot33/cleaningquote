@@ -1,10 +1,12 @@
 import * as XLSX from 'xlsx';
 import { PricingTable, PricingRow, PriceRange } from './types';
 import { getPricingFile, getPricingTable, setPricingTable } from '@/lib/kv';
+import { getPricingStructureTable } from '@/lib/config/store';
 
-// Per-tool cache (key = toolId or '' for legacy)
+// Per-tool / per-structure cache (key = toolId, '' for legacy, or 'structure:<id>' for a pricing structure)
 const cacheByTool = new Map<string, { table: PricingTable; invalidated: boolean }>();
 const LEGACY_CACHE_KEY = '';
+const STRUCTURE_CACHE_PREFIX = 'structure:';
 
 // Pricing file is stored in Vercel KV (Upstash Redis) under key: 'pricing:file:2026'
 
@@ -74,8 +76,24 @@ function parseSqFtRange(rangeStr: string): { min: number; max: number } | null {
  * Load and parse the Excel pricing file from Vercel KV (Upstash Redis) storage.
  * Caches results in memory per tool after first load.
  * @param toolId - When provided, loads pricing for this quoting tool (multi-tenant).
+ * @param pricingStructureId - When provided, uses this pricing structure's table instead of tool default (service-area-specific pricing).
  */
-export async function loadPricingTable(toolId?: string): Promise<PricingTable> {
+export async function loadPricingTable(toolId?: string, pricingStructureId?: string): Promise<PricingTable> {
+  if (pricingStructureId) {
+    const cacheKey = STRUCTURE_CACHE_PREFIX + pricingStructureId;
+    const entry = cacheByTool.get(cacheKey);
+    if (entry && !entry.invalidated) {
+      return entry.table;
+    }
+    const structuredData = await getPricingStructureTable(pricingStructureId);
+    if (structuredData && structuredData.rows && Array.isArray(structuredData.rows) && structuredData.rows.length > 0) {
+      const table = structuredData as unknown as PricingTable;
+      cacheByTool.set(cacheKey, { table, invalidated: false });
+      return table;
+    }
+    throw new Error(`Pricing structure not found or has no data. Please assign a pricing structure in Service area settings.`);
+  }
+
   const cacheKey = toolId ?? LEGACY_CACHE_KEY;
   const entry = cacheByTool.get(cacheKey);
   if (entry && !entry.invalidated) {
@@ -366,7 +384,7 @@ export async function loadPricingTable(toolId?: string): Promise<PricingTable> {
 
 /**
  * Clear the cached pricing table (useful after uploading a new file).
- * @param toolId - When provided, clears only this tool's cache; otherwise clears all.
+ * @param toolId - When provided, clears only this tool's cache; when undefined, clears all (including structure caches).
  */
 export function invalidatePricingCache(toolId?: string) {
   if (toolId !== undefined) {
@@ -374,6 +392,11 @@ export function invalidatePricingCache(toolId?: string) {
   } else {
     cacheByTool.clear();
   }
+}
+
+/** Clear cache for a specific pricing structure (e.g. after editing that structure). */
+export function invalidatePricingCacheForStructure(pricingStructureId: string) {
+  cacheByTool.delete(STRUCTURE_CACHE_PREFIX + pricingStructureId);
 }
 
 /** Tier option for square footage dropdown; derived from pricing table so options match the chart. */

@@ -251,18 +251,24 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   const [primaryColor, setPrimaryColor] = useState(useServerConfig ? (initialConfig?.widget?.primaryColor ?? DEFAULT_PRIMARY_COLOR) : DEFAULT_PRIMARY_COLOR);
   const initialQuestions = (useServerConfig ? (initialConfig?.questions ?? []) : []) as SurveyQuestion[];
   const [questions, setQuestions] = useState<SurveyQuestion[]>(initialQuestions);
-  const visibleQuestions = useMemo(
-    () => questions.filter((q) => q.visible !== false),
-    [questions]
-  );
   const [quoteSchema, setQuoteSchema] = useState<z.ZodObject<any>>(() =>
     generateSchemaFromQuestions(initialQuestions.filter((q) => q.visible !== false))
   );
   const [addressCoordinates, setAddressCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [serviceAreaChecked, setServiceAreaChecked] = useState(false);
+  const [pricingStructureId, setPricingStructureId] = useState<string | null>(null);
   const [tabOpened, setTabOpened] = useState(false); // Prevent multiple tab opens
   const [formSettings, setFormSettings] = useState<any>(useServerConfig ? (initialConfig?.formSettings ?? {}) : {});
   const [openSurveyInNewTab, setOpenSurveyInNewTab] = useState(useServerConfig ? !!(initialConfig?.formSettings as any)?.openSurveyInNewTab : false);
+  const internalToolOnly = !!(formSettings?.internalToolOnly === true || formSettings?.internalToolOnly === 'true');
+  const visibleQuestions = useMemo(() => {
+    const filtered = questions.filter((q) => q.visible !== false);
+    if (!internalToolOnly) return filtered;
+    const contactIds = new Set(['firstName', 'lastName', 'email', 'phone', 'address']);
+    const contact = filtered.filter((q) => contactIds.has(q.id));
+    const rest = filtered.filter((q) => !contactIds.has(q.id));
+    return [...rest, ...contact];
+  }, [questions, internalToolOnly]);
   const [formIsIframed, setFormIsIframed] = useState(false);
   const [resolvedToolId, setResolvedToolId] = useState<string | null>(null);
   const [pricingTiers, setPricingTiers] = useState<{ tiers: PricingTierOption[]; maxSqFt: number } | null>(null);
@@ -1120,6 +1126,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           const result = await response.json();
 
           if (!result.inServiceArea) {
+            setPricingStructureId(null);
             const data = getValues();
             const addressFieldName = getFormFieldName(currentQuestion.id);
             const addressValue = data[addressFieldName] || data.address || '';
@@ -1233,6 +1240,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
             const result = await response.json();
 
             if (!result.inServiceArea) {
+              setPricingStructureId(null);
               const data = getValues();
               const addressValue = data[getFormFieldName(currentQuestion.id)] || data.address || '';
               if (createdContactId) {
@@ -1293,6 +1301,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
               return;
             }
 
+            setPricingStructureId(result.pricingStructureId ?? null);
             setServiceAreaChecked(true);
             const isInIframe = window.self !== window.top;
             if (openSurveyInNewTab && createdContactId && !tabOpened && isInIframe) {
@@ -1458,6 +1467,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         ...passthroughToApi,
         ...(slug && { toolSlug: slug }),
         ...((toolId || resolvedToolId) && { toolId: String(toolId || resolvedToolId) }),
+        ...(pricingStructureId && { pricingStructureId }),
       };
 
       // Add any custom fields (those that were sanitized)
@@ -2618,6 +2628,28 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                           Back to summary
                         </Button>
                       </div>
+                    ) : internalToolOnly ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex justify-center"
+                  >
+                    <Button
+                      className="w-full max-w-md h-24 md:h-28 text-xl md:text-2xl font-black shadow-2xl"
+                      style={{
+                        backgroundColor: primaryColor,
+                        boxShadow: `0 20px 40px -12px ${hexToRgba(primaryColor, 0.4)}`,
+                      }}
+                      onClick={() => {
+                        // Quote already saved on form submit; show brief confirmation if desired
+                      }}
+                    >
+                      <span className="flex items-center justify-center gap-3 text-white">
+                        <span className="text-3xl">✓</span>
+                        <span className="tracking-wide">Save quote</span>
+                      </span>
+                    </Button>
+                  </motion.div>
                     ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Book Appointment CTA */}
@@ -2990,6 +3022,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                     const result = await response.json();
                                     
                                     if (result.inServiceArea) {
+                                      setPricingStructureId(result.pricingStructureId ?? null);
                                       // Conversion fires only on /quote/[id] after form submit – not on landing.
                                       // In service area - check if we should open survey in new tab
                                       // Mark as checked BEFORE opening tab to prevent duplicate opens

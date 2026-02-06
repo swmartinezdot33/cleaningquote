@@ -5,14 +5,29 @@ import { Loader2 } from 'lucide-react';
 
 export type PolygonCoords = Array<[number, number]>;
 
+/** Per-zone label and color (same order as polygon array). */
+export type ZoneDisplayItem = { label?: string; color?: string };
+
+const DEFAULT_ZONE_COLORS = ['#3b82f680', '#10b98180', '#f59e0b80', '#ef444480', '#8b5cf680', '#ec489980'];
+
 /** Use window.google from existing global (GooglePlacesAutocomplete). */
 function getGoogle(): typeof window.google {
   return typeof window !== 'undefined' ? (window as Window & { google?: any }).google : undefined;
 }
 
+/** Compute centroid of a polygon for label placement. */
+function polygonCentroid(coords: PolygonCoords): [number, number] {
+  if (coords.length === 0) return [0, 0];
+  let sumLat = 0, sumLng = 0;
+  coords.forEach(([lat, lng]) => { sumLat += lat; sumLng += lng; });
+  return [sumLat / coords.length, sumLng / coords.length];
+}
+
 interface ServiceAreaMapDrawerProps {
   /** Initial polygon(s) to show and edit (optional). Single polygon or array of polygons. */
   initialPolygon?: PolygonCoords | PolygonCoords[] | null;
+  /** Per-zone label and fill color (hex, optional). Same length as polygon array. */
+  zoneDisplay?: ZoneDisplayItem[] | null;
   /** Called when the user finishes or edits polygons. Passes array of all polygons. */
   onPolygonChange?: (polygon: PolygonCoords | PolygonCoords[]) => void;
   /** Height of the map container (default 400px). */
@@ -25,6 +40,7 @@ interface ServiceAreaMapDrawerProps {
 
 export function ServiceAreaMapDrawer({
   initialPolygon,
+  zoneDisplay,
   onPolygonChange,
   height = 400,
   className = '',
@@ -34,6 +50,7 @@ export function ServiceAreaMapDrawer({
   const mapRef = useRef<any>(null);
   const drawingManagerRef = useRef<any>(null);
   const polygonRefs = useRef<any[]>([]);
+  const labelMarkerRefs = useRef<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,20 +106,49 @@ export function ServiceAreaMapDrawer({
         });
         mapRef.current = map;
 
-        // Draw existing polygons (create or edit)
+        // Draw existing polygons (create or edit) with optional zone colors and labels
         if (initialPolygons.length > 0) {
           const bounds = new google.maps.LatLngBounds();
           const refs: any[] = [];
-          initialPolygons.forEach((coords) => {
+          const labelRefs: any[] = [];
+          const display = Array.isArray(zoneDisplay) ? zoneDisplay : [];
+          initialPolygons.forEach((coords, idx) => {
             if (coords.length < 3) return;
             const path = coords.map(([lat, lng]) => new google.maps.LatLng(lat, lng));
             path.forEach((p: any) => bounds.extend(p));
+            const zone = display[idx];
+            const fillColor = (zone?.color && /^#[0-9A-Fa-f]{6}$/.test(zone.color))
+              ? zone.color + '99'
+              : (zone?.color && /^#[0-9A-Fa-f]{8}$/.test(zone.color))
+                ? zone.color
+                : DEFAULT_ZONE_COLORS[idx % DEFAULT_ZONE_COLORS.length];
+            const strokeColor = (zone?.color && /^#[0-9A-Fa-f]{6}$/.test(zone.color))
+              ? zone.color
+              : fillColor.slice(0, 7);
             const polygon = new google.maps.Polygon({
               paths: path,
               editable: !readOnly,
               map,
+              fillColor,
+              fillOpacity: 0.45,
+              strokeColor,
+              strokeWeight: 2,
             });
             refs.push(polygon);
+            const labelText = (zone?.label && zone.label.trim()) ? zone.label.trim() : `Zone ${idx + 1}`;
+            const [clat, clng] = polygonCentroid(coords);
+            const marker = new google.maps.Marker({
+              position: { lat: clat, lng: clng },
+              map,
+              label: {
+                text: labelText,
+                color: '#fff',
+                fontSize: '13px',
+                fontWeight: '600',
+              },
+              zIndex: 100 + idx,
+            });
+            labelRefs.push(marker);
             if (!readOnly) {
               ['insert_at', 'set_at'].forEach((eventName) => {
                 google.maps.event.addListener(polygon.getPath(), eventName, () => notifyChange());
@@ -110,6 +156,7 @@ export function ServiceAreaMapDrawer({
             }
           });
           polygonRefs.current = refs;
+          labelMarkerRefs.current = labelRefs;
           if (bounds.getNorthEast() && bounds.getSouthWest()) {
             map.fitBounds(bounds);
           }
@@ -166,13 +213,17 @@ export function ServiceAreaMapDrawer({
         drawingManagerRef.current.setMap(null);
         drawingManagerRef.current = null;
       }
+      labelMarkerRefs.current.forEach((m) => {
+        if (m && m.setMap) m.setMap(null);
+      });
+      labelMarkerRefs.current = [];
       polygonRefs.current.forEach((poly) => {
         if (poly && poly.setMap) poly.setMap(null);
       });
       polygonRefs.current = [];
       mapRef.current = null;
     };
-  }, [initialPolygon, onPolygonChange, readOnly]);
+  }, [initialPolygon, zoneDisplay, onPolygonChange, readOnly]);
 
   const style = typeof height === 'number' ? { height: `${height}px` } : { height };
 

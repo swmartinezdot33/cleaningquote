@@ -202,7 +202,11 @@ export async function POST(request: NextRequest) {
       cleanedWithin3Months: body.cleanedWithin3Months,
     };
 
-    const result = await calcQuote(inputs, toolId);
+    const pricingStructureId =
+      typeof body.pricingStructureId === 'string' && body.pricingStructureId.trim()
+        ? body.pricingStructureId.trim()
+        : undefined;
+    const result = await calcQuote(inputs, toolId, pricingStructureId);
 
     if (result.outOfLimits || !result.ranges) {
       return NextResponse.json({

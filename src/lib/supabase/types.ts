@@ -214,6 +214,7 @@ export interface Database {
           org_id: string;
           name: string;
           polygon: Json | null;
+          zone_display: Json | null;
           network_link_url: string | null;
           network_link_fetched_at: string | null;
           created_at: string;
@@ -224,6 +225,7 @@ export interface Database {
           org_id: string;
           name: string;
           polygon?: Json | null;
+          zone_display?: Json | null;
           network_link_url?: string | null;
           network_link_fetched_at?: string | null;
           created_at?: string;
@@ -234,6 +236,7 @@ export interface Database {
           org_id?: string;
           name?: string;
           polygon?: Json | null;
+          zone_display?: Json | null;
           network_link_url?: string | null;
           network_link_fetched_at?: string | null;
           created_at?: string;

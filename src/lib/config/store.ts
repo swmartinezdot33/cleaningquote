@@ -316,6 +316,19 @@ export async function setPricingNetworkPathInConfig(path: string | null, toolId?
   await upsertConfig(toolId, { pricing_network_path: path });
 }
 
+/** Load a pricing structure's table by id (from pricing_structures table). Returns null if not found or not configured. */
+export async function getPricingStructureTable(structureId: string): Promise<Record<string, unknown> | null> {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = createSupabaseServer();
+  const { data } = await supabase
+    .from('pricing_structures')
+    .select('pricing_table')
+    .eq('id', structureId)
+    .maybeSingle();
+  const p = (data as { pricing_table?: unknown } | null)?.pricing_table;
+  return p && typeof p === 'object' ? (p as Record<string, unknown>) : null;
+}
+
 // ---- Service area ----
 export async function getServiceAreaPolygonFromConfig(toolId?: string): Promise<unknown | null> {
   const row = await getConfigRow(toolId);

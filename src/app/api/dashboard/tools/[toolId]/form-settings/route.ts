@@ -84,6 +84,13 @@ export async function POST(
     } else if (body.openSurveyInNewTab === 'false') {
       settings.openSurveyInNewTab = false;
     }
+    if (typeof body.internalToolOnly === 'boolean') {
+      settings.internalToolOnly = body.internalToolOnly;
+    } else if (body.internalToolOnly === 'true') {
+      settings.internalToolOnly = true;
+    } else if (body.internalToolOnly === 'false') {
+      settings.internalToolOnly = false;
+    }
 
     // Add a new base URL (sets pending, adds domain to Vercel, returns DNS)
     if (body.addBaseUrl !== undefined) {

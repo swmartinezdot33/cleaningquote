@@ -97,6 +97,8 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgServiceAreas, setOrgServiceAreas] = useState<{ id: string; name: string }[]>([]);
   const [assignedServiceAreaIds, setAssignedServiceAreaIds] = useState<string[]>([]);
+  const [assignmentPricing, setAssignmentPricing] = useState<Record<string, string | null>>({});
+  const [pricingStructures, setPricingStructures] = useState<{ id: string; name: string }[]>([]);
   const [savingServiceAreaAssignments, setSavingServiceAreaAssignments] = useState(false);
 
   const toggleCard = (cardId: CardId) => {
@@ -162,8 +164,19 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
             if (assignRes.ok) {
               const assignData = await assignRes.json();
               setAssignedServiceAreaIds(assignData.serviceAreaIds ?? []);
+              const assignments = assignData.assignments ?? [];
+              const byArea: Record<string, string | null> = {};
+              for (const a of assignments) {
+                if (a.serviceAreaId) byArea[a.serviceAreaId] = a.pricingStructureId ?? null;
+              }
+              setAssignmentPricing(byArea);
             }
           }
+        }
+        const psRes = await fetch(`/api/dashboard/tools/${toolId}/pricing-structures`);
+        if (psRes.ok) {
+          const psData = await psRes.json();
+          setPricingStructures(psData.pricingStructures ?? []);
         }
       } catch {
         setSectionMessage({ card: 'widget', type: 'error', text: 'Failed to load settings' });
@@ -353,10 +366,14 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
     setSavingServiceAreaAssignments(true);
     clearMessage('service-area');
     try {
+      const assignments = assignedServiceAreaIds.map((serviceAreaId) => ({
+        serviceAreaId,
+        pricingStructureId: assignmentPricing[serviceAreaId] ?? null,
+      }));
       const res = await fetch(`/api/dashboard/tools/${toolId}/service-area-assignments`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ serviceAreaIds: assignedServiceAreaIds }),
+        body: JSON.stringify({ assignments }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -579,6 +596,27 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                     </div>
                   </div>
                 </div>
+                <div className="border-t border-border pt-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <Label htmlFor="internalToolOnly" className="text-base font-semibold cursor-pointer">
+                        Internal tool only
+                      </Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Collect contact info (name, email, phone, address) at the end of the survey instead of the beginning. On the quote summary, show a &quot;Save quote&quot; button instead of Book appointment / Schedule callback.
+                      </p>
+                    </div>
+                    <div className="flex-shrink-0">
+                      <input
+                        type="checkbox"
+                        id="internalToolOnly"
+                        checked={String(form.internalToolOnly ?? '') === 'true'}
+                        onChange={(e) => setForm((f) => ({ ...f, internalToolOnly: e.target.checked ? 'true' : 'false' }))}
+                        className="w-4 h-4 rounded border-input"
+                      />
+                    </div>
+                  </div>
+                </div>
                 <Button onClick={() => saveForm()} disabled={savingSection === 'form'} className="w-full h-11 font-semibold flex items-center gap-2">
                   {savingSection === 'form' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Form Settings</>}
                 </Button>
@@ -714,11 +752,11 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                 ) : (
                   <>
                     <p className="text-sm text-muted-foreground">
-                      When a user enters an address, we check if it falls inside any of the selected areas. Select the areas that apply to this quoting tool.
+                      When a user enters an address, we check if it falls inside any of the selected areas. You can assign a pricing structure per area so quotes use that area&apos;s pricing.
                     </p>
                     <ul className="space-y-2">
                       {orgServiceAreas.map((area) => (
-                        <li key={area.id}>
+                        <li key={area.id} className="flex flex-col gap-1">
                           <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg border border-border hover:bg-muted/30">
                             <input
                               type="checkbox"
@@ -726,14 +764,38 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                               onChange={(e) => {
                                 if (e.target.checked) {
                                   setAssignedServiceAreaIds((prev) => [...prev, area.id]);
+                                  setAssignmentPricing((prev) => ({ ...prev, [area.id]: null }));
                                 } else {
                                   setAssignedServiceAreaIds((prev) => prev.filter((id) => id !== area.id));
+                                  setAssignmentPricing((prev) => {
+                                    const next = { ...prev };
+                                    delete next[area.id];
+                                    return next;
+                                  });
                                 }
                               }}
                               className="w-4 h-4 rounded border-input accent-primary"
                             />
                             <span className="font-medium">{area.name}</span>
                           </label>
+                          {assignedServiceAreaIds.includes(area.id) && pricingStructures.length > 0 && (
+                            <div className="ml-6 pl-2 border-l-2 border-border">
+                              <Label className="text-xs text-muted-foreground">Pricing for this area</Label>
+                              <select
+                                value={assignmentPricing[area.id] ?? ''}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  setAssignmentPricing((prev) => ({ ...prev, [area.id]: v || null }));
+                                }}
+                                className={selectClass}
+                              >
+                                <option value="">Tool default</option>
+                                {pricingStructures.map((ps) => (
+                                  <option key={ps.id} value={ps.id}>{ps.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                         </li>
                       ))}
                     </ul>

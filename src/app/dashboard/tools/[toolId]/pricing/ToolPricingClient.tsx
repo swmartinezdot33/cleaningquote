@@ -9,6 +9,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import Link from 'next/link';
 import {
   Upload,
@@ -24,6 +32,7 @@ import {
   ArrowDown,
   Sparkles,
   BookOpen,
+  MapPin,
 } from 'lucide-react';
 import type { PricingTable } from '@/lib/pricing/types';
 
@@ -85,6 +94,12 @@ export default function ToolPricingClient({ toolId }: { toolId: string }) {
   });
   const [savingInitial, setSavingInitial] = useState(false);
   const [initialMessage, setInitialMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [pricingStructuresList, setPricingStructuresList] = useState<{ id: string; name: string }[]>([]);
+  const [createStructureOpen, setCreateStructureOpen] = useState(false);
+  const [newStructureName, setNewStructureName] = useState('');
+  const [newStructureCopyDefault, setNewStructureCopyDefault] = useState(true);
+  const [creatingStructure, setCreatingStructure] = useState(false);
+  const [structureMessage, setStructureMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const { register, control, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<PricingTableFormData>({
     resolver: zodResolver(pricingTableSchema),

@@ -5,6 +5,7 @@ import type { ServiceAreaInsert } from '@/lib/supabase/types';
 import { parseKML } from '@/lib/service-area/parseKML';
 import { fetchAndParseNetworkKML } from '@/lib/service-area/fetchNetworkKML';
 import { normalizeServiceAreaPolygons, toStoredPolygons } from '@/lib/service-area/normalizePolygons';
+import { parseCsvToZipCodes, zipCodesToPolygons } from '@/lib/service-area/zipCodeToPolygon';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +28,7 @@ export async function GET(
 
   const { data, error } = await supabase
     .from('service_areas')
-    .select('id, name, polygon, network_link_url, network_link_fetched_at, created_at, updated_at')
+    .select('id, name, polygon, zone_display, network_link_url, network_link_fetched_at, created_at, updated_at')
     .eq('org_id', orgId)
     .order('name');
 
@@ -81,10 +82,12 @@ export async function POST(
     if (stored.length === 0) {
       return NextResponse.json({ error: 'Provide at least one valid polygon (3+ points each)' }, { status: 400 });
     }
+    const zoneDisplay = Array.isArray(body.zone_display) ? (body.zone_display as import('@/lib/supabase/types').Json) : [];
     const insert: ServiceAreaInsert = {
       org_id: orgId,
       name,
       polygon: stored as unknown as import('@/lib/supabase/types').Json,
+      zone_display: zoneDisplay as import('@/lib/supabase/types').Json,
       network_link_url: null,
       network_link_fetched_at: null,
       created_at: now,
@@ -153,8 +156,52 @@ export async function POST(
     return NextResponse.json({ serviceArea: row });
   }
 
+  // Option 4: ZIP code CSV (or array of zip codes) – fetch ZCTA boundaries from Census
+  const zipCsvContent = typeof body.zipCsvContent === 'string' ? body.zipCsvContent.trim() : '';
+  const zipCodesArray = Array.isArray(body.zipCodes) ? body.zipCodes.filter((z: unknown) => typeof z === 'string').map((z: string) => z.trim()) : [];
+  const zipCodes = zipCsvContent ? parseCsvToZipCodes(zipCsvContent) : zipCodesArray;
+  if (zipCodes.length > 0) {
+    const maxZips = 150;
+    if (zipCodes.length > maxZips) {
+      return NextResponse.json(
+        { error: `Too many ZIP codes (${zipCodes.length}). Maximum ${maxZips} per import.` },
+        { status: 400 }
+      );
+    }
+    const result = await zipCodesToPolygons(zipCodes);
+    if (result.polygons.length === 0) {
+      return NextResponse.json(
+        {
+          error: result.failed.length === zipCodes.length
+            ? 'Could not fetch boundaries for any ZIP code. Check that codes are valid US 5-digit ZIPs and try again.'
+            : `No polygons could be fetched. Failed ZIPs: ${result.failed.slice(0, 20).join(', ')}${result.failed.length > 20 ? '…' : ''}.`,
+        },
+        { status: 400 }
+      );
+    }
+    const stored = toStoredPolygons(result.polygons);
+    const zoneDisplay = result.labels.map((label) => ({ label, color: undefined }));
+    const insert: ServiceAreaInsert = {
+      org_id: orgId,
+      name,
+      polygon: stored as unknown as import('@/lib/supabase/types').Json,
+      zone_display: zoneDisplay as unknown as import('@/lib/supabase/types').Json,
+      network_link_url: null,
+      network_link_fetched_at: null,
+      created_at: now,
+      updated_at: now,
+    };
+    // @ts-expect-error Supabase Insert type can be never for new table
+    const { data: row, error } = await supabase.from('service_areas').insert(insert).select('id, name, polygon').single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({
+      serviceArea: row,
+      zipSummary: { requested: zipCodes.length, created: result.polygons.length, failed: result.failed.length, failedList: result.failed.slice(0, 30) },
+    });
+  }
+
   return NextResponse.json(
-    { error: 'Provide polygon, kmlContent, or network_link_url' },
+    { error: 'Provide polygon, kmlContent, network_link_url, or zipCsvContent/zipCodes' },
     { status: 400 }
   );
 }

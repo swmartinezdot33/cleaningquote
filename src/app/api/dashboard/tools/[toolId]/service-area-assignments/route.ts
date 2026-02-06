@@ -4,7 +4,7 @@ import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 
 export const dynamic = 'force-dynamic';
 
-/** GET - Return assigned service area ids (and names) for the tool. */
+/** GET - Return assigned service area ids, names, and pricing structure per assignment. */
 export async function GET(
   _req: NextRequest,
   ctx: { params: Promise<{ toolId: string }> }
@@ -15,12 +15,12 @@ export async function GET(
   const supabase = await createSupabaseServerSSR();
   const { data: assignments } = await supabase
     .from('tool_service_areas')
-    .select('service_area_id')
+    .select('service_area_id, pricing_structure_id')
     .eq('tool_id', auth.tool.id);
 
   const ids = (assignments ?? []).map((a: { service_area_id: string }) => a.service_area_id);
   if (ids.length === 0) {
-    return NextResponse.json({ serviceAreaIds: [], serviceAreas: [] });
+    return NextResponse.json({ serviceAreaIds: [], serviceAreas: [], assignments: [] });
   }
 
   const { data: areas } = await supabase
@@ -28,11 +28,17 @@ export async function GET(
     .select('id, name')
     .in('id', ids);
 
+  const areaMap = new Map((areas ?? []).map((a: { id: string; name: string }) => [a.id, a.name]));
   const serviceAreas = (areas ?? []).map((a: { id: string; name: string }) => ({ id: a.id, name: a.name }));
-  return NextResponse.json({ serviceAreaIds: ids, serviceAreas });
+  const assignmentList = (assignments ?? []).map((a: { service_area_id: string; pricing_structure_id: string | null }) => ({
+    serviceAreaId: a.service_area_id,
+    serviceAreaName: areaMap.get(a.service_area_id) ?? '',
+    pricingStructureId: a.pricing_structure_id ?? null,
+  }));
+  return NextResponse.json({ serviceAreaIds: ids, serviceAreas, assignments: assignmentList });
 }
 
-/** PUT - Replace tool's service area assignments. Body: { serviceAreaIds: string[] }. */
+/** PUT - Replace tool's service area assignments. Body: { serviceAreaIds: string[] } or { assignments: { serviceAreaId: string, pricingStructureId?: string | null }[] }. */
 export async function PUT(
   request: NextRequest,
   ctx: { params: Promise<{ toolId: string }> }
@@ -41,10 +47,24 @@ export async function PUT(
   if (auth instanceof NextResponse) return auth;
 
   const body = await request.json().catch(() => ({}));
-  const raw = body.serviceAreaIds;
-  const serviceAreaIds = Array.isArray(raw)
-    ? raw.filter((id: unknown) => typeof id === 'string' && id.trim()).map((id: string) => id.trim())
-    : [];
+  let assignmentsInput: { serviceAreaId: string; pricingStructureId?: string | null }[] = [];
+
+  if (Array.isArray(body.assignments)) {
+    assignmentsInput = body.assignments
+      .filter((a: unknown) => a && typeof a === 'object' && typeof (a as { serviceAreaId?: string }).serviceAreaId === 'string')
+      .map((a: { serviceAreaId: string; pricingStructureId?: string | null }) => ({
+        serviceAreaId: String(a.serviceAreaId).trim(),
+        pricingStructureId: a.pricingStructureId === undefined ? null : (a.pricingStructureId ? String(a.pricingStructureId).trim() : null),
+      }));
+  } else {
+    const raw = body.serviceAreaIds;
+    const serviceAreaIds = Array.isArray(raw)
+      ? raw.filter((id: unknown) => typeof id === 'string' && (id as string).trim()).map((id: string) => (id as string).trim())
+      : [];
+    assignmentsInput = serviceAreaIds.map((serviceAreaId: string) => ({ serviceAreaId, pricingStructureId: null as string | null }));
+  }
+
+  const serviceAreaIds = [...new Set(assignmentsInput.map((a) => a.serviceAreaId))];
 
   const supabase = await createSupabaseServerSSR();
   const { error: deleteError } = await supabase
@@ -57,7 +77,7 @@ export async function PUT(
   }
 
   if (serviceAreaIds.length === 0) {
-    return NextResponse.json({ serviceAreaIds: [], serviceAreas: [] });
+    return NextResponse.json({ serviceAreaIds: [], serviceAreas: [], assignments: [] });
   }
 
   const { data: areasCheck } = await supabase
@@ -72,9 +92,11 @@ export async function PUT(
     );
   }
 
+  const pricingByArea = new Map(assignmentsInput.map((a) => [a.serviceAreaId, a.pricingStructureId ?? null]));
   const rows = serviceAreaIds.map((service_area_id: string) => ({
     tool_id: auth.tool.id,
     service_area_id,
+    pricing_structure_id: pricingByArea.get(service_area_id) ?? null,
   }));
 
   // @ts-expect-error Supabase Insert type can be never for new table
@@ -89,5 +111,11 @@ export async function PUT(
     .in('id', serviceAreaIds);
 
   const serviceAreas = (areas ?? []).map((a: { id: string; name: string }) => ({ id: a.id, name: a.name }));
-  return NextResponse.json({ serviceAreaIds, serviceAreas });
+  const areaList = (areas ?? []) as { id: string; name: string }[];
+  const assignmentList = serviceAreaIds.map((id: string) => ({
+    serviceAreaId: id,
+    serviceAreaName: areaList.find((a) => a.id === id)?.name ?? '',
+    pricingStructureId: pricingByArea.get(id) ?? null,
+  }));
+  return NextResponse.json({ serviceAreaIds, serviceAreas, assignments: assignmentList });
 }
