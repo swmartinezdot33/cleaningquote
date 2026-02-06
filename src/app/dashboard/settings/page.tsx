@@ -164,15 +164,22 @@ export default function SettingsPage() {
     if (!orgId) return;
     setGhlSaving(true);
     setGhlMessage(null);
+    const payload = { token: ghlToken.trim(), locationId: ghlLocationId.trim() };
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'settings/page.tsx:saveGhl',message:'saveGhl called',data:{orgId,hasToken:!!payload.token,tokenLen:payload.token.length,hasLocationId:!!payload.locationId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
     try {
       const res = await fetch(`/api/dashboard/orgs/${orgId}/ghl-settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: ghlToken.trim(), locationId: ghlLocationId.trim() }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'settings/page.tsx:saveGhl',message:'saveGhl response',data:{ok:res.ok,status:res.status,error:data.error},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
       if (res.ok) {
-        setGhlStatus({ configured: true, connected: data.connected, locationId: data.locationId });
+        setGhlStatus({ configured: true, connected: data.connected, locationId: data.locationId ?? ghlLocationId.trim() });
         if (data.locationId) setGhlLocationId(data.locationId);
         setGhlMessage('HighLevel connection saved.');
       } else {

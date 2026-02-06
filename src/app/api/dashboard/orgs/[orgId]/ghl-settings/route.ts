@@ -68,6 +68,9 @@ export async function POST(
   }
 
   const canManage = await canManageOrg(user.id, user.email ?? undefined, orgId);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ghl-settings/route.ts:POST',message:'auth check',data:{orgId,hasUser:!!user,canManage},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+  // #endregion
   if (!canManage) {
     return NextResponse.json({ error: 'Only org admins can save HighLevel settings' }, { status: 403 });
   }
@@ -75,6 +78,9 @@ export async function POST(
   try {
     const body = await request.json();
     const { token, locationId } = body;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ghl-settings/route.ts:POST',message:'body parsed',data:{hasToken:!!token,tokenType:typeof token,hasLocationId:!!locationId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
     if (!token || typeof token !== 'string') {
       return NextResponse.json({ error: 'Invalid token format' }, { status: 400 });
     }
@@ -99,14 +105,24 @@ export async function POST(
         { status: 400 }
       );
     }
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ghl-settings/route.ts:POST',message:'before setOrgGHL',data:{orgId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
     await setOrgGHL(orgId, token, locationIdTrimmed);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ghl-settings/route.ts:POST',message:'after setOrgGHL',data:{orgId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
     return NextResponse.json({
       success: true,
       message: 'HighLevel connection saved for this organization. All tools in this org will use it.',
       configured: true,
       connected: true,
+      locationId: locationIdTrimmed,
     });
   } catch (e) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ghl-settings/route.ts:POST',message:'catch',data:{err:String(e)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
     console.error('POST org ghl-settings:', e);
     return NextResponse.json(
       { error: e instanceof Error ? e.message : 'Failed to save HighLevel connection' },
