@@ -67,21 +67,24 @@ export default function GHLIntegrationHelpPage() {
       </ol>
 
       <h2 className="text-lg font-semibold text-foreground mt-8">3. Where to plug them into CleanQuote</h2>
+      <p className="text-foreground mb-2">
+        HighLevel is connected <strong className="text-foreground">once per organization</strong>. All tools in that org use the same connection. Per-tool CRM behavior (pipelines, calendars, tags) is set separately in each tool&apos;s Settings.
+      </p>
       <ol className="list-decimal list-inside space-y-2 text-foreground">
         <li>
-          In CleanQuote, open <strong className="text-foreground">Admin</strong> → <strong className="text-foreground">Settings</strong>, or for multi-tenant: <strong className="text-foreground">Dashboard</strong> → <strong className="text-foreground">Tools</strong> → select your tool → <strong className="text-foreground">Settings</strong>.
+          In CleanQuote, go to <strong className="text-foreground">Dashboard</strong> → <strong className="text-foreground">Settings</strong> (org-level menu).
         </li>
         <li>
-          Find the <strong className="text-foreground">HighLevel</strong> or <strong className="text-foreground">GHL API Configuration</strong> section.
+          Find the <strong className="text-foreground">HighLevel Integration</strong> section.
         </li>
         <li>
-          Paste your <strong className="text-foreground">PIT token</strong> into the token field.
+          Paste your <strong className="text-foreground">PIT token</strong> into the API token field.
         </li>
         <li>
           Enter your <strong className="text-foreground">Location ID</strong> in the Location ID field.
         </li>
         <li>
-          Click <strong className="text-foreground">Save Token</strong> or <strong className="text-foreground">Save</strong>.
+          Click <strong className="text-foreground">Save HighLevel connection</strong>.
         </li>
       </ol>
 

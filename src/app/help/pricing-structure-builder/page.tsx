@@ -22,19 +22,16 @@ export default function PricingStructureBuilderHelpPage() {
 
       <h1 className="text-2xl font-bold text-foreground">Pricing Structure Builder</h1>
       <p className="text-muted-foreground">
-        Use this guide to set up your quoting prices in CleanQuote. You can build pricing manually or import from an Excel file.
+        Use this guide to set up your quoting prices in CleanQuote. You create and edit <strong className="text-foreground">pricing structures</strong> at the org level, then assign which structure each tool uses in <strong className="text-foreground">Tool Settings → Pricing Structure</strong>. You can build pricing manually or import from an Excel file.
       </p>
 
       <h2 className="text-lg font-semibold text-foreground mt-8">1. Where to find the Pricing Builder</h2>
       <ol className="list-decimal list-inside space-y-2 text-foreground">
         <li>
-          In CleanQuote, go to <strong className="text-foreground">Dashboard</strong> → <strong className="text-foreground">Tools</strong>.
+          In CleanQuote, go to <strong className="text-foreground">Dashboard</strong> → <strong className="text-foreground">Pricing</strong> (org-level). Here you create and edit pricing structures.
         </li>
         <li>
-          Select your quoting tool.
-        </li>
-        <li>
-          Open the <strong className="text-foreground">Pricing</strong> tab.
+          To have a tool use a structure: go to <strong className="text-foreground">Dashboard</strong> → <strong className="text-foreground">Tools</strong> → your tool → <strong className="text-foreground">Settings</strong>, then in the <strong className="text-foreground">Pricing Structure</strong> card select which structure that tool uses.
         </li>
       </ol>
 
@@ -81,12 +78,17 @@ export default function PricingStructureBuilderHelpPage() {
         </li>
       </ol>
 
-      <h2 className="text-lg font-semibold text-foreground mt-8">3. How pricing is used</h2>
+      <h2 className="text-lg font-semibold text-foreground mt-8">3. Initial cleaning &amp; multipliers (per structure)</h2>
       <p className="text-foreground">
-        Quotes use the customer&apos;s square footage to pick the right tier. People and shedding-pet multipliers are applied to the base price. Addresses outside your maximum tier show an out-of-limits message instead of a price.
+        Each pricing structure has its own <strong className="text-foreground">Initial cleaning &amp; multipliers</strong> settings. When editing a structure, you can set: initial cleaning multiplier, people and pet base multipliers, per-person and per-pet multipliers, and required/recommended condition multipliers. Quotes that use that structure apply these values when calculating the final price.
       </p>
 
-      <h2 className="text-lg font-semibold text-foreground mt-8">4. Viewing your structure</h2>
+      <h2 className="text-lg font-semibold text-foreground mt-8">4. How pricing is used</h2>
+      <p className="text-foreground">
+        Quotes use the customer&apos;s square footage to pick the right tier from the structure assigned to the tool. People and shedding-pet multipliers (from the structure or tool config) are applied to the base price. Addresses outside your maximum tier show an out-of-limits message instead of a price.
+      </p>
+
+      <h2 className="text-lg font-semibold text-foreground mt-8">5. Viewing your structure</h2>
       <p className="text-foreground">
         Click <strong className="text-foreground">View Structure</strong> to see all tiers and prices in a table. Use <strong className="text-foreground">Edit Pricing</strong> to change them.
       </p>

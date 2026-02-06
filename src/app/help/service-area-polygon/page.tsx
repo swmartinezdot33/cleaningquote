@@ -3,27 +3,43 @@ import type { Metadata } from 'next';
 import { BreadcrumbJsonLd } from '@/components/BreadcrumbJsonLd';
 
 export const metadata: Metadata = {
-  title: 'Service area polygon in Google',
+  title: 'Service area polygon and ZIP codes',
   description:
-    'Create and draw a service area polygon in Google My Maps, export to KML, and upload it to CleanQuote to qualify leads by location.',
+    'Add service areas by US ZIP code or draw polygons in CleanQuote. Create and upload KML from Google My Maps, or add zones from ZIP codes when drawing.',
 };
 
 export default function ServiceAreaPolygonHelpPage() {
   return (
     <article className="prose prose-slate dark:prose-invert max-w-none">
-      <BreadcrumbJsonLd items={[{ name: 'Home', path: '/' }, { name: 'Help', path: '/help' }, { name: 'Service area polygon', path: '/help/service-area-polygon' }]} />
+      <BreadcrumbJsonLd items={[{ name: 'Home', path: '/' }, { name: 'Help', path: '/help' }, { name: 'Service area polygon and ZIP codes', path: '/help/service-area-polygon' }]} />
       <nav className="mb-6 text-sm text-muted-foreground">
         <Link href="/help" className="hover:text-primary hover:underline">
           Help
         </Link>
         <span className="mx-2">/</span>
-        <span className="text-foreground">Service area polygon in Google</span>
+        <span className="text-foreground">Service area polygon and ZIP codes</span>
       </nav>
 
-      <h1 className="text-2xl font-bold text-foreground">How to Make and Draw a Service Area Polygon in Google</h1>
+      <h1 className="text-2xl font-bold text-foreground">Service Areas: ZIP Codes and Polygons</h1>
       <p className="text-muted-foreground">
-        Use this guide to create a service area polygon in Google My Maps, export it as KML, and upload it to CleanQuote so you can qualify leads by location before they complete the quote form.
+        You can add service areas in two ways: <strong className="text-foreground">Add by ZIP code</strong> (quick, uses US Census boundaries) or <strong className="text-foreground">draw/upload polygons</strong> (KML or draw on the map). You can also mix both—e.g. draw a polygon and add extra zones from ZIP codes in the same map.
       </p>
+
+      <h2 className="text-lg font-semibold text-foreground mt-8">Quick option: Add by ZIP code</h2>
+      <ol className="list-decimal list-inside space-y-2 text-foreground">
+        <li>
+          Go to <strong className="text-foreground">Dashboard</strong> → <strong className="text-foreground">Service areas</strong>.
+        </li>
+        <li>
+          Click <strong className="text-foreground">Add by ZIP code</strong>.
+        </li>
+        <li>
+          Enter a 5-digit US ZIP code. CleanQuote fetches the boundary (Census ZCTA) and creates a service area from it.
+        </li>
+        <li>
+          You can also <strong className="text-foreground">Draw new area</strong> to sketch a polygon on the map, or open an existing area and use <strong className="text-foreground">Add zone from ZIP code</strong> inside the Draw/Edit modal to add more zones (ZIPs or drawn shapes) to the same map.
+        </li>
+      </ol>
 
       <h2 className="text-lg font-semibold text-foreground mt-8">1. Create or open a map in Google My Maps</h2>
       <ol className="list-decimal list-inside space-y-2 text-foreground">
@@ -73,19 +89,16 @@ export default function ServiceAreaPolygonHelpPage() {
         </li>
       </ol>
 
-      <h2 className="text-lg font-semibold text-foreground mt-8">4. Upload to CleanQuote</h2>
+      <h2 className="text-lg font-semibold text-foreground mt-8">4. Upload to CleanQuote (or draw on the map)</h2>
       <ol className="list-decimal list-inside space-y-2 text-foreground">
         <li>
-          In CleanQuote, go to <strong className="text-foreground">Admin</strong> → <strong className="text-foreground">Settings</strong>, or <strong className="text-foreground">Dashboard</strong> → <strong className="text-foreground">Tools</strong> → your tool → <strong className="text-foreground">Settings</strong>.
+          In CleanQuote, go to <strong className="text-foreground">Dashboard</strong> → <strong className="text-foreground">Service areas</strong>. Service areas are org-level; you assign which area(s) a tool uses in <strong className="text-foreground">Tool</strong> → <strong className="text-foreground">Settings</strong>.
         </li>
         <li>
-          Find the <strong className="text-foreground">Service Area Configuration</strong> card and expand it.
+          To use a KML file: open an area (or create one with <strong className="text-foreground">Draw new area</strong>), then find the upload option to replace or add polygon data from your KML/KMZ file.
         </li>
         <li>
-          Click to select your KML or KMZ file (or drag and drop it).
-        </li>
-        <li>
-          Click <strong className="text-foreground">Upload Polygon</strong>.
+          Alternatively, use <strong className="text-foreground">Add by ZIP code</strong> for a single ZIP, or draw on the map and use <strong className="text-foreground">Add zone from ZIP code</strong> in the Draw/Edit modal to mix drawn polygons with ZIP-based zones.
         </li>
       </ol>
 

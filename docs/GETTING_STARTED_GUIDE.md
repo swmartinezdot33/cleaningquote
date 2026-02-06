@@ -25,10 +25,10 @@ Quick path from sign-up to your first embedded quote widget.
 - In the Dashboard you’ll see your **organization** and a default **tool** (or “Quote form”).
 - **To create another tool:** use **Add tool** (or equivalent) and give it a name and slug (e.g. `my-cleaning-quote`).
 - **Configure the tool:**
-  - **Pricing:** Upload your pricing file (Excel) or set prices so quotes calculate correctly.
+  - **Pricing:** Create pricing structures under **Dashboard → Pricing**; assign one to this tool in **Tool → Settings → Pricing Structure**.
   - **Form / survey:** Adjust questions and fields if needed.
-  - **GHL (optional):** Connect your GoHighLevel location and map fields so leads go to your CRM.
-  - **Service area (optional):** Upload a KML or set a network link so “in/out of area” works.
+  - **GHL (optional):** Connect HighLevel in **Settings → HighLevel Integration** (one per org); then set pipelines, calendars, and tags per tool in **Tool Settings → HighLevel CRM Config**.
+  - **Service area (optional):** Add areas under **Dashboard → Service areas** (ZIP code or draw/upload KML); assign to the tool in **Tool Settings**.
 
 Your quote form URL will look like:
 

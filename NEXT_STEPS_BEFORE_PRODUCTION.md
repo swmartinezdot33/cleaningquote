@@ -67,7 +67,7 @@ Use this checklist before going live and onboarding paying users. Order matters:
 - [ ] **Admin:** `/admin` — log in with JWT (or legacy password); upload pricing / change settings.
 - [ ] **Quote flow:** Submit a quote from `/t/{orgSlug}/{toolSlug}` or embed; quote calculates and (if configured) creates GHL contact/opportunity.
 - [ ] **Stripe:** Test checkout (test mode) → webhook runs → user/org created and (if configured) set-password email sent.
-- [ ] **Invite:** From dashboard Team page, invite a second user; they receive email and can accept via `NEXT_PUBLIC_APP_URL` invite link.
+- [ ] **Invite:** From dashboard Settings page, invite a second user; they receive email and can accept via `NEXT_PUBLIC_APP_URL` invite link.
 
 ---
 

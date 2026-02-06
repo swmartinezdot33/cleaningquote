@@ -22,12 +22,12 @@ export default function GHLConfigHelpPage() {
 
       <h1 className="text-2xl font-bold text-foreground">HighLevel Config: Every Setting Explained</h1>
       <p className="text-muted-foreground">
-        HighLevel Config controls what happens in your CRM when a customer submits a quote. Save your HighLevel connection (API token and Location ID) in the <strong className="text-foreground">HighLevel Integration</strong> section first, then use this guide to understand each option.
+        HighLevel Config controls what happens in your CRM when a customer submits a quote. Set your HighLevel <strong className="text-foreground">connection</strong> (API token and Location ID) in <strong className="text-foreground">Dashboard → Settings → HighLevel Integration</strong> (one per organization) first. Then, in each tool&apos;s Settings, the <strong className="text-foreground">HighLevel CRM Config</strong> card lets you configure per-tool behavior (pipelines, calendars, tags, etc.).
       </p>
 
       <h2 id="when-to-use" className="text-lg font-semibold text-foreground mt-8">When to use HighLevel Config</h2>
       <p className="text-foreground">
-        Go to <strong className="text-foreground">Dashboard</strong> → <strong className="text-foreground">Tools</strong> → your tool → <strong className="text-foreground">Settings</strong>. Expand the <strong className="text-foreground">HighLevel Config</strong> card. Each setting below corresponds to a checkbox, dropdown, or field in that card.
+        Go to <strong className="text-foreground">Dashboard</strong> → <strong className="text-foreground">Tools</strong> → your tool → <strong className="text-foreground">Settings</strong>. Expand the <strong className="text-foreground">HighLevel CRM Config</strong> card. Each setting below corresponds to a checkbox, dropdown, or field in that card.
       </p>
 
       <h2 id="create-contact" className="text-lg font-semibold text-foreground mt-8">Create/update contact</h2>
@@ -116,7 +116,7 @@ export default function GHLConfigHelpPage() {
       </p>
 
       <p className="mt-8 text-sm text-muted-foreground">
-        Need to set up the connection first? See <Link href="/help/ghl-integration" className="text-primary hover:underline">HighLevel integration (PIT token &amp; Location ID)</Link>.
+        Need to set up the connection first? Add your PIT token and Location ID in <strong className="text-foreground">Settings → HighLevel Integration</strong>. See <Link href="/help/ghl-integration" className="text-primary hover:underline">HighLevel integration (PIT token &amp; Location ID)</Link>.
       </p>
     </article>
   );

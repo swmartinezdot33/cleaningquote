@@ -22,17 +22,17 @@ const guides = [
   {
     slug: 'ghl-integration',
     title: 'HighLevel integration (PIT token & Location ID)',
-    description: 'Get your HighLevel Private Integration Token (PIT) and Location ID so leads, contacts, appointments, and opportunities sync with CleanQuote.',
+    description: 'Connect HighLevel once per org in Settings. Get your PIT token and Location ID so leads, contacts, appointments, and opportunities sync with CleanQuote.',
   },
   {
     slug: 'ghl-config',
     title: 'HighLevel Config',
-    description: 'Guide to every HighLevel Config setting: contacts, notes, opportunities, pipelines, calendars, and tags when a quote is submitted.',
+    description: 'Per-tool CRM settings: contacts, notes, opportunities, pipelines, calendars, and tags. Set your connection in Settings → HighLevel Integration first.',
   },
   {
     slug: 'service-area-polygon',
-    title: 'Service area polygon in Google',
-    description: 'Create and draw a service area polygon in Google My Maps, export to KML, and upload it to CleanQuote to qualify leads by location.',
+    title: 'Service area polygon and ZIP codes',
+    description: 'Add service areas by US ZIP code or draw/upload polygons. Mix ZIP zones and drawn shapes in the same map; assign areas to tools in Tool Settings.',
   },
   {
     slug: 'survey-builder',
@@ -42,7 +42,7 @@ const guides = [
   {
     slug: 'pricing-structure-builder',
     title: 'Pricing structure builder',
-    description: 'Create pricing tiers manually or import from Excel so your quote form calculates prices correctly.',
+    description: 'Create pricing structures (manual or Excel); assign which structure each tool uses in Tool Settings. Each structure has its own initial cleaning and multipliers.',
   },
   {
     slug: 'custom-domain',

@@ -64,10 +64,10 @@ export default function GettingStartedHelpPage() {
         <li>
           <strong>Configure the tool:</strong>
           <ul className="ml-6 mt-2 list-disc list-inside space-y-1 text-muted-foreground">
-            <li><strong className="text-foreground">Pricing:</strong> Upload your pricing file (Excel) or set prices so quotes calculate correctly.</li>
+            <li><strong className="text-foreground">Pricing:</strong> Create pricing structures under <strong className="text-foreground">Dashboard → Pricing</strong>; assign one to this tool in <strong className="text-foreground">Tool → Settings → Pricing Structure</strong>.</li>
             <li><strong className="text-foreground">Form / survey:</strong> Adjust questions and fields if needed.</li>
-            <li><strong className="text-foreground">GHL (optional):</strong> Connect your GoHighLevel location and map fields so leads go to your CRM.</li>
-            <li><strong className="text-foreground">Service area (optional):</strong> Upload a KML or set a network link so &quot;in/out of area&quot; works.</li>
+            <li><strong className="text-foreground">GHL (optional):</strong> Connect HighLevel in <strong className="text-foreground">Settings → HighLevel Integration</strong> (one per org); then set pipelines, calendars, and tags per tool in <strong className="text-foreground">Tool Settings → HighLevel CRM Config</strong>.</li>
+            <li><strong className="text-foreground">Service area (optional):</strong> Add areas under <strong className="text-foreground">Dashboard → Service areas</strong> (ZIP code or draw/upload KML); assign to the tool in <strong className="text-foreground">Tool Settings</strong>.</li>
           </ul>
         </li>
       </ul>
