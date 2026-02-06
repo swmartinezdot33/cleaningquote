@@ -60,6 +60,9 @@ export default function ServiceAreasClient() {
   const [singleZipName, setSingleZipName] = useState('');
   const [singleZipCode, setSingleZipCode] = useState('');
   const [singleZipCreating, setSingleZipCreating] = useState(false);
+  const [addZipInput, setAddZipInput] = useState('');
+  const [addZipLoading, setAddZipLoading] = useState(false);
+  const [addZipError, setAddZipError] = useState<string | null>(null);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewName, setPreviewName] = useState('');
@@ -99,6 +102,8 @@ export default function ServiceAreasClient() {
     setEditName('');
     setEditPolygons(null);
     setEditZoneDisplay([]);
+    setAddZipInput('');
+    setAddZipError(null);
     if (areaId) {
       fetch(`/api/dashboard/orgs/${orgId}/service-areas/${areaId}`)
         .then((r) => r.json())
@@ -260,6 +265,28 @@ export default function ServiceAreasClient() {
     }
   };
 
+  const addZipToMap = async () => {
+    const zip5 = addZipInput.trim().replace(/\D/g, '').slice(0, 5);
+    if (!orgId || zip5.length !== 5) return;
+    setAddZipLoading(true);
+    setAddZipError(null);
+    try {
+      const res = await fetch(`/api/dashboard/orgs/${orgId}/service-areas/zip-to-polygon?zip=${encodeURIComponent(zip5)}`);
+      const data = await res.json();
+      if (res.ok && data.polygon) {
+        setEditPolygons((prev) => [...(prev ?? []), data.polygon]);
+        setEditZoneDisplay((prev) => [...prev, { label: zip5, color: '' }]);
+        setAddZipInput('');
+      } else {
+        setAddZipError(data.error ?? 'Could not load ZIP boundary.');
+      }
+    } catch {
+      setAddZipError('Failed to load ZIP boundary.');
+    } finally {
+      setAddZipLoading(false);
+    }
+  };
+
   const createFromSingleZip = async () => {
     const zip5 = singleZipCode.trim().replace(/^(\d{5}).*/, '$1');
     if (!orgId || !singleZipName.trim() || !/^\d{5}$/.test(zip5)) return;
@@ -357,7 +384,7 @@ export default function ServiceAreasClient() {
           <MapPin className="h-4 w-4" />
           Add by ZIP code
         </Button>
-        <Button onClick={() => openDrawModal()} variant="outline" className="gap-2">
+        <Button onClick={() => openDrawModal()} variant="default" className="gap-2">
           <Plus className="h-4 w-4" />
           Draw new area
         </Button>
@@ -475,8 +502,8 @@ export default function ServiceAreasClient() {
             <DialogTitle>{editingId ? 'Edit service area' : 'Draw new service area'}</DialogTitle>
             <DialogDescription>
               {editingId
-                ? 'Adjust the polygons or name below. Use the map toolbar to add more zones.'
-                : 'Draw one or more zones on the map. Click to add points; close the shape to finish. Use the polygon tool to add another zone.'}
+                ? 'Adjust the polygons or name below. Add ZIP codes to include their boundaries, or use the map toolbar to draw more zones.'
+                : 'Draw zones on the map and/or add ZIP codes to include their boundaries. All zones stay on the same map.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -489,6 +516,31 @@ export default function ServiceAreasClient() {
                 placeholder="e.g. Downtown zone"
                 className="mt-1"
               />
+            </div>
+            <div className="flex flex-wrap items-end gap-2 p-3 rounded-lg border border-border bg-muted/30">
+              <div className="flex-1 min-w-[140px]">
+                <Label htmlFor="add-zip-draw" className="text-sm font-medium">Add zone from ZIP code</Label>
+                <Input
+                  id="add-zip-draw"
+                  value={addZipInput}
+                  onChange={(e) => { setAddZipInput(e.target.value.replace(/\D/g, '').slice(0, 5)); setAddZipError(null); }}
+                  placeholder="e.g. 27601"
+                  maxLength={5}
+                  className="mt-1 w-28 font-mono"
+                />
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={addZipToMap}
+                disabled={addZipLoading || addZipInput.trim().length !== 5}
+              >
+                {addZipLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Add ZIP to map
+              </Button>
+              {addZipError && <p className="text-sm text-destructive w-full">{addZipError}</p>}
+              <p className="text-xs text-muted-foreground w-full">Enter a US 5-digit ZIP to add its boundary as another zone on this map. You can mix drawn polygons and ZIPs.</p>
             </div>
             <div>
               <Label>Map</Label>
