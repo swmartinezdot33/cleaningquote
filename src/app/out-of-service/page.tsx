@@ -15,9 +15,16 @@ interface LocationData {
   address: string;
 }
 
+interface OrgContact {
+  orgName: string;
+  contactEmail: string | null;
+  contactPhone: string | null;
+}
+
 export default function OutOfService() {
   const [mounted, setMounted] = useState(false);
   const [primaryColor, setPrimaryColor] = useState('transparent');
+  const [orgContact, setOrgContact] = useState<OrgContact | null>(null);
   const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [contactId, setContactId] = useState<string | null>(null);
   const [returnPath, setReturnPath] = useState<string>('');
@@ -50,7 +57,8 @@ export default function OutOfService() {
   const loadWidgetSettings = async () => {
     try {
       const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-      const toolIdParam = params.get('toolId');
+      // Support both toolId and toolld (typo resilience)
+      const toolIdParam = params.get('toolId') ?? params.get('toolld');
       const slugParam = params.get('slug');
       const url =
         toolIdParam
@@ -66,6 +74,28 @@ export default function OutOfService() {
         setPrimaryColor(color);
       } else {
         setPrimaryColor('#7c3aed');
+      }
+      // Load org contact for Contact Us and Get in touch (by toolId or slug)
+      if (toolIdParam) {
+        const contactRes = await fetch(`/api/tools/by-id/org-contact?toolId=${encodeURIComponent(toolIdParam)}`);
+        if (contactRes.ok) {
+          const contactData = await contactRes.json();
+          setOrgContact({
+            orgName: contactData.orgName ?? '',
+            contactEmail: contactData.contactEmail ?? null,
+            contactPhone: contactData.contactPhone ?? null,
+          });
+        }
+      } else if (slugParam) {
+        const contactRes = await fetch(`/api/tools/${encodeURIComponent(slugParam)}/org-contact`);
+        if (contactRes.ok) {
+          const contactData = await contactRes.json();
+          setOrgContact({
+            orgName: contactData.orgName ?? '',
+            contactEmail: contactData.contactEmail ?? null,
+            contactPhone: contactData.contactPhone ?? null,
+          });
+        }
       }
     } catch (error) {
       console.error('Failed to load widget settings:', error);
@@ -216,8 +246,9 @@ export default function OutOfService() {
                 </Link>
 
                 <a
-                  href="mailto:hello@raleighcleaningcompany.com"
+                  href={orgContact?.contactEmail ? `mailto:${orgContact.contactEmail}` : '#'}
                   className="w-full"
+                  style={orgContact?.contactEmail ? undefined : { pointerEvents: 'none', opacity: 0.7 }}
                 >
                   <Button
                     variant="outline"
@@ -233,11 +264,20 @@ export default function OutOfService() {
           </Card>
 
           <div className="text-center text-muted-foreground text-sm">
-            <p className="mb-1">Get in touch</p>
+            <p className="mb-1">{orgContact?.orgName ? `Get in touch — ${orgContact.orgName}` : 'Get in touch'}</p>
             <p>
-              <a href="tel:9199252378" className="underline" style={{ color: primaryColor }}>Phone: 919.925.2378</a>
-              {' · '}
-              <a href="mailto:hello@raleighcleaningcompany.com" className="underline" style={{ color: primaryColor }}>Email: hello@raleighcleaningcompany.com</a>
+              {orgContact?.contactPhone && (
+                <>
+                  <a href={`tel:${orgContact.contactPhone.replace(/\D/g, '')}`} className="underline" style={{ color: primaryColor }}>Phone: {orgContact.contactPhone}</a>
+                  {orgContact.contactEmail && ' · '}
+                </>
+              )}
+              {orgContact?.contactEmail && (
+                <a href={`mailto:${orgContact.contactEmail}`} className="underline" style={{ color: primaryColor }}>Email: {orgContact.contactEmail}</a>
+              )}
+              {!orgContact?.contactPhone && !orgContact?.contactEmail && (
+                <span>Set org name, contact email, and phone in Dashboard → Team → Organization details.</span>
+              )}
             </p>
           </div>
         </motion.div>

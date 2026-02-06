@@ -45,6 +45,10 @@ export default function TeamPage() {
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [orgContactEmail, setOrgContactEmail] = useState('');
+  const [orgContactPhone, setOrgContactPhone] = useState('');
+  const [orgSaving, setOrgSaving] = useState(false);
+  const [orgMessage, setOrgMessage] = useState<string | null>(null);
 
   const refreshMembers = () => {
     if (!orgId) return;
@@ -95,6 +99,8 @@ export default function TeamPage() {
       .then((d) => {
         setOrgId(d.org?.id ?? null);
         setOrgName(d.org?.name ?? '');
+        setOrgContactEmail(d.org?.contact_email ?? '');
+        setOrgContactPhone(d.org?.contact_phone ?? '');
         return d.org?.id;
       })
       .then((id) => {
@@ -108,6 +114,31 @@ export default function TeamPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const saveOrgDetails = async () => {
+    if (!orgId) return;
+    setOrgSaving(true);
+    setOrgMessage(null);
+    try {
+      const res = await fetch(`/api/dashboard/orgs/${orgId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: orgName.trim() || undefined,
+          contact_email: orgContactEmail.trim() || null,
+          contact_phone: orgContactPhone.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setOrgMessage('Organization details saved.');
+      } else {
+        setOrgMessage(data.error ?? 'Failed to save.');
+      }
+    } finally {
+      setOrgSaving(false);
+    }
+  };
 
   const sendInvite = async () => {
     if (!orgId || !inviteEmail.trim()) return;
@@ -174,6 +205,54 @@ export default function TeamPage() {
         <h1 className="mt-2 text-2xl font-bold">Team: {orgName}</h1>
         <p className="text-sm text-muted-foreground">Invite users to join this organization</p>
       </div>
+
+      <section>
+        <h2 className="text-lg font-semibold">Organization details</h2>
+        <p className="text-sm text-muted-foreground mb-2">
+          Name, contact email, and phone shown on the out-of-service page and Contact Us for this org&apos;s tools.
+        </p>
+        <div className="space-y-2 rounded-lg border p-4">
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground">Org name</label>
+            <input
+              type="text"
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+              className="mt-1 w-full rounded border px-3 py-2 text-sm"
+              placeholder="e.g. Raleigh Cleaning Company"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground">Contact email</label>
+            <input
+              type="email"
+              value={orgContactEmail}
+              onChange={(e) => setOrgContactEmail(e.target.value)}
+              className="mt-1 w-full rounded border px-3 py-2 text-sm"
+              placeholder="e.g. hello@yourcompany.com"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground">Contact phone</label>
+            <input
+              type="tel"
+              value={orgContactPhone}
+              onChange={(e) => setOrgContactPhone(e.target.value)}
+              className="mt-1 w-full rounded border px-3 py-2 text-sm"
+              placeholder="e.g. 919.925.2378"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={saveOrgDetails}
+            disabled={orgSaving}
+            className="mt-2 rounded bg-primary px-4 py-2 text-sm text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          >
+            {orgSaving ? 'Saving…' : 'Save organization details'}
+          </button>
+          {orgMessage && <p className="mt-2 text-sm text-muted-foreground">{orgMessage}</p>}
+        </div>
+      </section>
 
       <section>
         <h2 className="text-lg font-semibold">Members</h2>
