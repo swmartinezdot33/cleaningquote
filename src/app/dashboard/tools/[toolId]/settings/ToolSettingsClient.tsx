@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
-import { ChevronDown, Sparkles, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings, HelpCircle, Pencil, User, Briefcase, Calendar, Tag, LayoutTemplate, MapPin } from 'lucide-react';
+import { ChevronDown, Sparkles, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings, HelpCircle, Pencil, User, Briefcase, Calendar, Tag, LayoutTemplate, MapPin, DollarSign } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { TagPicker } from '@/components/ui/TagPicker';
 import {
@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-type CardId = 'widget' | 'form' | 'ghl' | 'tracking' | 'ghl-config' | 'service-area';
+type CardId = 'widget' | 'form' | 'ghl' | 'tracking' | 'ghl-config' | 'pricing-structure' | 'service-area';
 
 const GHL_CONFIG_HELP = '/help/ghl-config';
 function GhlHelpIcon({ anchor }: { anchor: string }) {
@@ -386,7 +386,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
 
   const savePricingStructureSelection = async () => {
     setSavingPricingStructure(true);
-    clearMessage('service-area');
+    clearMessage('pricing-structure');
     try {
       const res = await fetch(`/api/dashboard/tools/${toolId}/pricing-structures`, {
         method: 'PATCH',
@@ -394,13 +394,13 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
         body: JSON.stringify({ pricingStructureId: selectedPricingStructureId }),
       });
       if (res.ok) {
-        setSectionMessage({ card: 'service-area', type: 'success', text: 'Pricing structure saved.' });
+        setSectionMessage({ card: 'pricing-structure', type: 'success', text: 'Pricing structure saved.' });
       } else {
         const data = await res.json();
-        setSectionMessage({ card: 'service-area', type: 'error', text: data.error ?? 'Failed to save pricing structure' });
+        setSectionMessage({ card: 'pricing-structure', type: 'error', text: data.error ?? 'Failed to save pricing structure' });
       }
     } catch {
-      setSectionMessage({ card: 'service-area', type: 'error', text: 'Failed to save pricing structure' });
+      setSectionMessage({ card: 'pricing-structure', type: 'error', text: 'Failed to save pricing structure' });
     } finally {
       setSavingPricingStructure(false);
     }
@@ -728,6 +728,76 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
         </Card>
       </motion.div>
 
+      {/* Pricing structure selection */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
+        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
+          <CardHeader
+            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
+            onClick={() => toggleCard('pricing-structure')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                  <DollarSign className="h-5 w-5 text-primary" />
+                  Pricing structure
+                </CardTitle>
+                <CardDescription className="text-muted-foreground mt-1">
+                  Choose which pricing structure this tool uses for quotes. Create and manage structures in{' '}
+                  <Link href="/dashboard/pricing-structures" className="text-primary hover:underline font-medium">Pricing Structures</Link>.
+                </CardDescription>
+              </div>
+              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('pricing-structure') ? 'rotate-180' : ''}`} />
+            </div>
+          </CardHeader>
+          {isCardExpanded('pricing-structure') && (
+            <CardContent className="pt-6 pb-6">
+              <div className="space-y-4">
+                {sectionMessage?.card === 'pricing-structure' && (
+                  <div
+                    className={`p-4 rounded-lg flex items-center gap-3 ${
+                      sectionMessage.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-200 border border-emerald-200' : 'bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-200 border border-red-200'
+                    }`}
+                  >
+                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
+                    <p className="font-medium">{sectionMessage.text}</p>
+                  </div>
+                )}
+                {pricingStructures.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">
+                    No pricing structures yet. Create one in{' '}
+                    <Link href="/dashboard/pricing-structures" className="text-primary hover:underline">Pricing Structures</Link>, then return here to assign one to this tool.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Pricing structure for this tool</Label>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        value={selectedPricingStructureId ?? ''}
+                        onChange={(e) => setSelectedPricingStructureId(e.target.value || null)}
+                        className={selectClass}
+                      >
+                        <option value="">Tool default pricing</option>
+                        {pricingStructures.map((ps) => (
+                          <option key={ps.id} value={ps.id}>{ps.name}</option>
+                        ))}
+                      </select>
+                      <Button
+                        onClick={savePricingStructureSelection}
+                        disabled={savingPricingStructure}
+                        className="gap-2"
+                      >
+                        {savingPricingStructure ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      </motion.div>
+
       {/* Service area check */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.13 }}>
         <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
@@ -769,36 +839,6 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                   </p>
                 ) : (
                   <>
-                    {pricingStructures.length > 0 && (
-                      <div className="space-y-2 pb-4 border-b border-border">
-                        <Label className="text-sm font-medium">Pricing structure</Label>
-                        <p className="text-xs text-muted-foreground">
-                          This tool uses one pricing structure for all quotes. Manage structures in{' '}
-                          <Link href="/dashboard/pricing-structures" className="text-primary hover:underline">Pricing Structures</Link>.
-                        </p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <select
-                            value={selectedPricingStructureId ?? ''}
-                            onChange={(e) => setSelectedPricingStructureId(e.target.value || null)}
-                            className={selectClass}
-                          >
-                            <option value="">Tool default pricing</option>
-                            {pricingStructures.map((ps) => (
-                              <option key={ps.id} value={ps.id}>{ps.name}</option>
-                            ))}
-                          </select>
-                          <Button
-                            onClick={savePricingStructureSelection}
-                            disabled={savingPricingStructure}
-                            size="sm"
-                            className="gap-2"
-                          >
-                            {savingPricingStructure ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                            Save
-                          </Button>
-                        </div>
-                      </div>
-                    )}
                     <p className="text-sm text-muted-foreground">
                       When a user enters an address, we check if it falls inside any of the selected areas below.
                     </p>
