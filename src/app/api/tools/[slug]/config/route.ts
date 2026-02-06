@@ -189,10 +189,10 @@ export async function GET(
         }
       : { redirectAfterAppointment: false, appointmentRedirectUrl: '', formIsIframed: false };
 
-    const googleMapsKey =
-      typeof row?.google_maps_key === 'string' && row.google_maps_key.length > 0
-        ? row.google_maps_key
-        : null;
+    // Platform key (env) first; then per-tool override from config
+    const platformMapsKey = process.env.GOOGLE_MAPS_API_KEY?.trim() || null;
+    const toolMapsKey = typeof row?.google_maps_key === 'string' && row.google_maps_key.length > 0 ? row.google_maps_key : null;
+    const googleMapsKey = platformMapsKey || toolMapsKey;
 
     const trackingCodes =
       row?.tracking_codes && typeof row.tracking_codes === 'object'

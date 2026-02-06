@@ -2954,7 +2954,7 @@ export default function SettingsPage() {
           </Card>
         </motion.div>
 
-        {/* Google Maps API Key Card */}
+        {/* Google Maps — platform key (no customer setup) */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -2969,14 +2969,10 @@ export default function SettingsPage() {
                 <div>
                   <CardTitle className="flex items-center gap-2 text-2xl font-bold">
                     <Code className="h-5 w-5 text-blue-600" />
-                    Google Maps API Key
+                    Google Maps
                   </CardTitle>
-                  <CardDescription className="text-gray-600 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                    Configure your Google Maps API key for address autocomplete and service area mapping.
-                    <Link href="/help/google-maps-api" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-                      <BookOpen className="h-3.5 w-3.5" />
-                      Instructions
-                    </Link>
+                  <CardDescription className="text-gray-600 mt-1">
+                    CleanQuote provides Google Maps for address autocomplete and service area checks. Set GOOGLE_MAPS_API_KEY in Vercel (or .env.local) to enable.
                   </CardDescription>
                 </div>
                 <ChevronDown 
@@ -2986,76 +2982,10 @@ export default function SettingsPage() {
             </CardHeader>
             {isCardExpanded('google-maps') && (
               <CardContent className="pt-8 pb-8">
-              <div className="space-y-6">
-                {apiKeyMessage && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`p-4 rounded-lg flex items-center gap-3 ${
-                      apiKeyMessage.type === 'success'
-                        ? 'bg-green-50 text-green-800 border border-green-200'
-                        : 'bg-red-50 text-red-800 border border-red-200'
-                    }`}
-                  >
-                    {apiKeyMessage.type === 'success' ? (
-                      <CheckCircle className="h-5 w-5 flex-shrink-0" />
-                    ) : (
-                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                    )}
-                    <p>{apiKeyMessage.text}</p>
-                  </motion.div>
-                )}
-
-                <div>
-                  <Label htmlFor="google-maps-key" className="text-base font-semibold">
-                    API Key
-                  </Label>
-                  <Input
-                    id="google-maps-key"
-                    type="password"
-                    value={googleMapsApiKey}
-                    onChange={(e) => setGoogleMapsApiKey(e.target.value)}
-                    placeholder="Leave blank to keep current key"
-                    className="mt-3"
-                  />
-                  <p className="text-sm text-gray-600 mt-1">
-                    Current key: {googleMapsApiKeyDisplay}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-2">
-                    Enter your Google Maps API key to enable Google Places Autocomplete for address input and service area mapping features.
-                  </p>
-                </div>
-
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h4 className="font-semibold text-blue-900 mb-2">How to get a Google Maps API Key:</h4>
-                  <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-                    <li>Go to <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Google Cloud Console</a></li>
-                    <li>Create a new project or select an existing one</li>
-                    <li>Enable the "Places API" and "Maps JavaScript API"</li>
-                    <li>Go to "Credentials" and create an API key</li>
-                    <li>Copy the API key and paste it above</li>
-                  </ol>
-                </div>
-
-                <Button
-                  onClick={handleSaveGoogleMapsKey}
-                  disabled={isSavingApiKey}
-                  className="w-full h-11 font-semibold flex items-center gap-2"
-                >
-                  {isSavingApiKey ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4" />
-                      Save Google Maps API Key
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
+                <p className="text-gray-600">
+                  No customer configuration is required. Add <code className="bg-gray-100 px-1 rounded">GOOGLE_MAPS_API_KEY</code> in your deployment environment (Vercel → Settings → Environment Variables) with a key that has Maps JavaScript API and Places API enabled. All tools use this platform key automatically.
+                </p>
+              </CardContent>
             )}
           </Card>
         </motion.div>

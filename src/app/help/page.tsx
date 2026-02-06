@@ -16,8 +16,8 @@ const guides = [
   },
   {
     slug: 'google-maps-api',
-    title: 'Google Maps API key',
-    description: 'Create a Google Cloud API key and enable Maps, Places, and Geocoding so address autocomplete and service area checks work on your quote form.',
+    title: 'Google Maps',
+    description: 'Address autocomplete and service area checks are included; CleanQuote provides the integration. No setup required.',
   },
   {
     slug: 'ghl-integration',

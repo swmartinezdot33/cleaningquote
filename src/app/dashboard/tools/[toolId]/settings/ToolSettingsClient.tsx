@@ -30,8 +30,6 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
   const [customHeadCode, setCustomHeadCode] = useState('');
   const [trackingQuoteSummary, setTrackingQuoteSummary] = useState('');
   const [trackingAppointmentBooking, setTrackingAppointmentBooking] = useState('');
-  const [googleMapsKey, setGoogleMapsKey] = useState('');
-  const [googleMapsExists, setGoogleMapsExists] = useState(false);
   const [serviceAreaStatus, setServiceAreaStatus] = useState<{ type: string; polygonCount?: number; networkLink?: string } | null>(null);
   const [serviceAreaFile, setServiceAreaFile] = useState<File | null>(null);
   const [serviceAreaUploading, setServiceAreaUploading] = useState(false);
@@ -108,12 +106,11 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
   useEffect(() => {
     const load = async () => {
       try {
-        const [wRes, fRes, ghlRes, trackRes, mapsRes, areaRes, configRes] = await Promise.all([
+        const [wRes, fRes, ghlRes, trackRes, areaRes, configRes] = await Promise.all([
           fetch(`/api/dashboard/tools/${toolId}/widget-settings`),
           fetch(`/api/dashboard/tools/${toolId}/form-settings`),
           fetch(`/api/dashboard/tools/${toolId}/ghl-settings`),
           fetch(`/api/dashboard/tools/${toolId}/tracking-codes`),
-          fetch(`/api/dashboard/tools/${toolId}/google-maps-key`),
           fetch(`/api/dashboard/tools/${toolId}/service-area/status`),
           fetch(`/api/dashboard/tools/${toolId}/ghl-config`),
         ]);
@@ -135,10 +132,6 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
           setCustomHeadCode(t.trackingCodes?.customHeadCode ?? '');
           setTrackingQuoteSummary(t.trackingCodes?.trackingQuoteSummary ?? '');
           setTrackingAppointmentBooking(t.trackingCodes?.trackingAppointmentBooking ?? '');
-        }
-        if (mapsRes.ok) {
-          const m = await mapsRes.json();
-          setGoogleMapsExists(m.exists ?? false);
         }
         if (areaRes.ok) {
           const a = await areaRes.json();
@@ -305,34 +298,6 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
       }
     } catch {
       setSectionMessage({ card: 'tracking', type: 'error', text: 'Failed to save tracking codes' });
-    } finally {
-      setSavingSection(null);
-    }
-  };
-
-  const saveGoogleMaps = async () => {
-    if (!googleMapsKey.trim()) {
-      setSectionMessage({ card: 'maps', type: 'error', text: 'Google Maps API key is required' });
-      return;
-    }
-    setSavingSection('maps');
-    clearMessage('maps');
-    try {
-      const res = await fetch(`/api/dashboard/tools/${toolId}/google-maps-key`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: googleMapsKey.trim() }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setSectionMessage({ card: 'maps', type: 'success', text: data.message ?? 'Google Maps key saved' });
-        setGoogleMapsExists(true);
-        setGoogleMapsKey('');
-      } else {
-        setSectionMessage({ card: 'maps', type: 'error', text: data.error ?? 'Failed to save' });
-      }
-    } catch {
-      setSectionMessage({ card: 'maps', type: 'error', text: 'Failed to save Google Maps key' });
     } finally {
       setSavingSection(null);
     }
@@ -843,7 +808,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
         </Card>
       </motion.div>
 
-      {/* Google Maps API Key */}
+      {/* Google Maps — platform-provided; no customer key required */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14 }}>
         <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
           <CardHeader
@@ -854,14 +819,10 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
               <div>
                 <CardTitle className="flex items-center gap-2 text-2xl font-bold">
                   <Code className="h-5 w-5 text-primary" />
-                  Google Maps API Key
+                  Google Maps
                 </CardTitle>
-                <CardDescription className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                  Required for address autocomplete and geocoding on the quote form.
-                  <Link href="/help/google-maps-api" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-                    <BookOpen className="h-3.5 w-3.5" />
-                    Instructions
-                  </Link>
+                <CardDescription className="text-muted-foreground mt-1">
+                  Address autocomplete and service area checks use CleanQuote&apos;s Google Maps integration. No setup required.
                 </CardDescription>
               </div>
               <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('maps') ? 'rotate-180' : ''}`} />
@@ -869,33 +830,9 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
           </CardHeader>
           {isCardExpanded('maps') && (
             <CardContent className="pt-8 pb-8">
-              <div className="space-y-6">
-                {sectionMessage?.card === 'maps' && (
-                  <div
-                    className={`p-4 rounded-lg flex items-center gap-3 ${
-                      sectionMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
-                    }`}
-                  >
-                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
-                    <p>{sectionMessage.text}</p>
-                  </div>
-                )}
-                {googleMapsExists && <p className="text-sm text-muted-foreground">API key is set. Enter a new value below to replace.</p>}
-                <div>
-                  <Label htmlFor="google-maps-key" className="text-base font-semibold">API key</Label>
-                  <Input
-                    id="google-maps-key"
-                    type="password"
-                    placeholder={googleMapsExists ? '••••••••' : 'Paste Google Maps API key'}
-                    value={googleMapsKey}
-                    onChange={(e) => setGoogleMapsKey(e.target.value)}
-                    className={inputClass}
-                  />
-                </div>
-                <Button onClick={saveGoogleMaps} disabled={savingSection === 'maps'} className="w-full h-11 font-semibold flex items-center gap-2">
-                  {savingSection === 'maps' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Google Maps key</>}
-                </Button>
-              </div>
+              <p className="text-muted-foreground">
+                Your quote form automatically gets address autocomplete and geocoding. CleanQuote provides the Google Maps API key for all tools as part of your subscription.
+              </p>
             </CardContent>
           )}
         </Card>

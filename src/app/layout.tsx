@@ -90,17 +90,18 @@ export const metadata: Metadata = {
   },
 }
 
-// No global keys or analytics: each tool uses its own (Maps + tracking loaded per-tool on /t/[slug]).
+// Platform Google Maps key (env) used for all tools; no customer key required.
 async function getLayoutData(): Promise<{ googleMapsApiKey: string }> {
-  let googleMapsApiKey = ""
+  const platformKey = process.env.GOOGLE_MAPS_API_KEY?.trim() || ''
+  if (platformKey) return { googleMapsApiKey: platformKey }
   try {
     const { getGoogleMapsKey } = await import("@/lib/kv")
     const apiKey = await getGoogleMapsKey(undefined)
-    googleMapsApiKey = apiKey || ""
+    return { googleMapsApiKey: apiKey || "" }
   } catch (error) {
     console.error("Layout: failed to load config:", error)
   }
-  return { googleMapsApiKey }
+  return { googleMapsApiKey: "" }
 }
 
 export default async function RootLayout({

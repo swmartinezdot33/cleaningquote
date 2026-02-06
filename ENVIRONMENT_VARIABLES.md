@@ -265,26 +265,16 @@ See [MIGRATION_OPTION_B.md](MIGRATION_OPTION_B.md) for full migration steps.
 ---
 
 ### `GOOGLE_MAPS_API_KEY`
-**Required:** ⚠️ Optional  
+**Required:** Yes (for address autocomplete and service area checks)  
 **Type:** String  
-**Description:** Google Maps API key for address autocomplete functionality  
-**Where to Set:** Vercel Dashboard → Settings → Environment Variables  
+**Description:** Platform Google Maps API key. Used for all tools so customers don’t need to provide their own. Powers address autocomplete (Places API), geocoding (Geocoding API), and the Maps JavaScript SDK.  
+**Where to Set:** `.env.local` (local) and Vercel → Settings → Environment Variables (production)  
 **Example:** `AIzaSyBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`  
-**Usage:** 
-- Google Places Autocomplete component
-- Address validation
-- Geocoding
 
-**Setup:**
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create or select a project
-3. Enable "Places API" and "Geocoding API"
-4. Create API key
-5. Restrict API key to your domain (recommended)
-6. Add to Vercel environment variables
+**Full setup (enable APIs, create key, restrict, billing):** See [docs/GOOGLE_MAPS_PLATFORM_KEY.md](docs/GOOGLE_MAPS_PLATFORM_KEY.md).
 
 **Security:**
-- Restrict API key to specific domains
+- Restrict the key to HTTP referrers (e.g. `https://www.cleanquote.io/*`) and to the three APIs only (Maps JavaScript API, Places API, Geocoding API)
 - Set usage quotas
 - Monitor usage in Google Cloud Console
 
