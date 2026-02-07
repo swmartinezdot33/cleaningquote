@@ -53,7 +53,7 @@ export default function SurveyBuilderHelpPage() {
           For select fields, add the options (one per line).
         </li>
         <li>
-          Optional: map the question to a HighLevel custom field in <strong className="text-foreground">GHL Field Mapping</strong>.
+          Optional: map the question to a HighLevel custom field in <strong className="text-foreground">Field Mapping</strong>.
         </li>
         <li>
           Click <strong className="text-foreground">Save Question</strong>.
@@ -87,7 +87,7 @@ export default function SurveyBuilderHelpPage() {
         You can still edit their labels, placeholders, and GHL mappings.
       </p>
 
-      <h2 className="text-lg font-semibold text-foreground mt-8">5. GHL Field Mapping</h2>
+      <h2 className="text-lg font-semibold text-foreground mt-8">5. Field Mapping</h2>
       <p className="text-foreground">
         To sync survey answers to HighLevel contacts, map questions to GHL custom fields. The system validates compatibility between question type and GHL field type. Critical mappings (e.g. Service Type, Frequency, Condition) must stay correct for quotes to sync properly.
       </p>

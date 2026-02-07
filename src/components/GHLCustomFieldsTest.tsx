@@ -301,7 +301,7 @@ export function GHLCustomFieldsTest({ adminPassword }: { adminPassword: string }
                 </div>
                 <div className="mt-4 p-3 bg-blue-100 rounded border border-blue-300">
                   <p className="text-sm text-blue-900">
-                    <strong>Next Steps:</strong> Go to <strong>Admin → Survey Builder</strong> and edit each question to set the GHL Field Mapping.
+                    <strong>Next Steps:</strong> Go to <strong>Admin → Survey Builder</strong> and edit each question to set the Field Mapping.
                   </p>
                 </div>
               </CardContent>

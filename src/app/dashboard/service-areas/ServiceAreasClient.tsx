@@ -568,6 +568,7 @@ export default function ServiceAreasClient() {
             <div>
               <Label>Map</Label>
               <p className="text-sm text-muted-foreground mb-1">Draw or edit polygons. Each closed shape is one zone; you can add multiple zones.</p>
+              <p className="text-sm font-medium text-primary mb-1">Click on the map to add points. Double-click or click the first point again to close the polygon.</p>
               <div className="mt-1 rounded-lg overflow-hidden border border-border">
                 <ServiceAreaMapDrawer
                   initialPolygon={editPolygons ?? undefined}

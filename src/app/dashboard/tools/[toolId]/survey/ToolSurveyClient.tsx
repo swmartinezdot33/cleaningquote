@@ -26,6 +26,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import type { SurveyQuestion, SurveyQuestionOption } from '@/lib/survey/schema';
+import { CALCULATION_LOCKED_QUESTION_IDS } from '@/lib/survey/schema';
 
 export default function ToolSurveyClient({ toolId }: { toolId: string }) {
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
@@ -566,6 +567,11 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                   {editingQuestion.type === 'select' && (
                     <div>
                       <Label>Options</Label>
+                      {CALCULATION_LOCKED_QUESTION_IDS.includes(editingQuestion.id ?? '') && (
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Values are used as keys for pricing and cannot be changed. You can edit labels only.
+                        </p>
+                      )}
                       {editingQuestion.id === 'squareFeet' && (
                         <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
                           <p className="font-medium">Pricing mapping</p>
@@ -618,9 +624,11 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                           : (editingQuestion.options ?? [])
                         ).map((option, idx) => {
                           const isSynced = editingQuestion.id === 'squareFeet' && !!editingQuestion.syncOptionsWithPricingTable;
+                          const isCalculationLocked = CALCULATION_LOCKED_QUESTION_IDS.includes(editingQuestion.id ?? '');
+                          const valueLocked = isSynced || isCalculationLocked;
                           return (
-                          <div key={idx} className="flex flex-col gap-2 p-3 border border-border rounded-lg bg-muted/50">
-                            <div className="flex gap-2 flex-wrap">
+                          <div key={idx} className="relative flex flex-col gap-2 p-3 border border-border rounded-lg bg-muted/50">
+                            <div className="flex gap-2 flex-wrap pr-8">
                               <Input
                                 value={option.value}
                                 onChange={(e) => {
@@ -629,8 +637,9 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                                   setEditingQuestion({ ...editingQuestion, options: newOptions });
                                 }}
                                 placeholder="Value"
-                                disabled={isSynced}
-                                className={isSynced ? 'bg-muted cursor-not-allowed' : ''}
+                                disabled={valueLocked}
+                                className={valueLocked ? 'bg-muted cursor-not-allowed' : ''}
+                                title={isCalculationLocked ? 'Value is used as a key for pricing; only the label can be edited.' : undefined}
                               />
                               <Input
                                 value={option.label}
@@ -643,20 +652,8 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                                 disabled={isSynced}
                                 className={isSynced ? 'bg-muted cursor-not-allowed' : ''}
                               />
-                              {!isSynced && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    const newOptions = (editingQuestion.options || []).filter((_, i) => i !== idx);
-                                    setEditingQuestion({ ...editingQuestion, options: newOptions });
-                                  }}
-                                >
-                                  <X className="w-4 h-4" />
-                                </Button>
-                              )}
                             </div>
-                            {!isSynced && (
+                            {!isSynced && !isCalculationLocked && (
                             <details className="group mt-2">
                               <summary className="flex items-center gap-2 cursor-pointer list-none text-sm text-muted-foreground hover:text-foreground select-none">
                                 <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-open:rotate-90" />
@@ -832,10 +829,25 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                               </div>
                             </details>
                             )}
+                            {!isSynced && !isCalculationLocked && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="absolute bottom-2 right-2 h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => {
+                                  const newOptions = (editingQuestion.options || []).filter((_, i) => i !== idx);
+                                  setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                }}
+                                aria-label="Remove option"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                           );
                         })}
-                        {!(editingQuestion.id === 'squareFeet' && editingQuestion.syncOptionsWithPricingTable) && (
+                        {!(editingQuestion.id === 'squareFeet' && editingQuestion.syncOptionsWithPricingTable) && !CALCULATION_LOCKED_QUESTION_IDS.includes(editingQuestion.id ?? '') && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -864,7 +876,7 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                   </div>
 
                   <div>
-                    <Label>GHL Field Mapping (optional)</Label>
+                    <Label>Field Mapping (optional)</Label>
                     <p className="text-xs text-muted-foreground mb-2">
                       Map to a GHL custom field or native field (firstName, lastName, email, phone)
                     </p>

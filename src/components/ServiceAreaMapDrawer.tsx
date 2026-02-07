@@ -344,6 +344,13 @@ export function ServiceAreaMapDrawer({
           {error}
         </div>
       )}
+      {!readOnly && !loading && !error && (
+        <div className="absolute top-2 left-2 right-2 z-10 flex justify-center pointer-events-none">
+          <span className="inline-flex items-center gap-2 rounded-md bg-primary/90 text-primary-foreground px-3 py-1.5 text-xs font-medium shadow-md">
+            Click map to add points · Double-click to finish polygon
+          </span>
+        </div>
+      )}
       <div ref={containerRef} className="w-full h-full min-h-[300px]" />
     </div>
   );

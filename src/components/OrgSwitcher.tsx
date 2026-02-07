@@ -38,6 +38,17 @@ export function OrgSwitcher({
     setTimeout(() => router.refresh(), 0);
   };
 
+  // Single org: show name only (no dropdown)
+  if (orgs.length <= 1) {
+    const name = orgs[0]?.name ?? 'No organization';
+    return (
+      <span className="text-sm font-medium text-foreground" aria-label="Current organization">
+        {name}
+      </span>
+    );
+  }
+
+  // Multiple orgs: show dropdown to switch
   return (
     <select
       value={current ?? (orgs[0]?.id ?? '')}

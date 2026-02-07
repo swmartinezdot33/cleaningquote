@@ -37,6 +37,17 @@ export interface SurveyQuestion {
 }
 
 /**
+ * Question IDs whose option values are used as keys in pricing/quote calculations.
+ * For these questions: option Value is read-only (key), Label is editable; options cannot be deleted or added.
+ */
+export const CALCULATION_LOCKED_QUESTION_IDS: string[] = [
+  'condition',
+  'serviceType',
+  'frequency',
+  'cleanedWithin3Months',
+];
+
+/**
  * Default survey questions - these are the ONLY defaults
  * The admin can customize these, and that customization is stored in KV
  * All code paths use KV data, never these hardcoded values

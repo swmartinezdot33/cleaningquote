@@ -24,7 +24,7 @@ import {
   ArrowLeft,
   RotateCw
 } from 'lucide-react';
-import { SurveyQuestion, SurveyQuestionOption } from '@/lib/survey/schema';
+import { SurveyQuestion, SurveyQuestionOption, CALCULATION_LOCKED_QUESTION_IDS } from '@/lib/survey/schema';
 
 export default function SurveyBuilderPage() {
   const router = useRouter();
@@ -691,6 +691,11 @@ export default function SurveyBuilderPage() {
                   {editingQuestion.type === 'select' && (
                     <div>
                       <Label>Options</Label>
+                      {CALCULATION_LOCKED_QUESTION_IDS.includes(editingQuestion.id ?? '') && (
+                        <p className="text-xs text-gray-500 mb-2">
+                          Values are used as keys for pricing and cannot be changed. You can edit labels only.
+                        </p>
+                      )}
                       {editingQuestion.id === 'squareFeet' && (
                         <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
                           <p className="font-medium">Pricing mapping</p>
@@ -700,8 +705,10 @@ export default function SurveyBuilderPage() {
                         </div>
                       )}
                       <div className="space-y-2">
-                        {(editingQuestion.options || []).map((option, idx) => (
-                          <div key={idx} className="flex flex-col gap-2 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                        {(editingQuestion.options || []).map((option, idx) => {
+                          const isCalculationLocked = CALCULATION_LOCKED_QUESTION_IDS.includes(editingQuestion.id ?? '');
+                          return (
+                          <div key={idx} className="relative flex flex-col gap-2 p-3 border border-gray-200 rounded-lg bg-gray-50 pr-10">
                             <div className="flex gap-2">
                               <Input
                                 value={option.value}
@@ -711,6 +718,9 @@ export default function SurveyBuilderPage() {
                                   setEditingQuestion({ ...editingQuestion, options: newOptions });
                                 }}
                                 placeholder="Value"
+                                disabled={isCalculationLocked}
+                                className={isCalculationLocked ? 'bg-gray-200 cursor-not-allowed' : ''}
+                                title={isCalculationLocked ? 'Value is used as a key for pricing; only the label can be edited.' : undefined}
                               />
                               <Input
                                 value={option.label}
@@ -721,16 +731,6 @@ export default function SurveyBuilderPage() {
                                 }}
                                 placeholder="Label"
                               />
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  const newOptions = (editingQuestion.options || []).filter((_, i) => i !== idx);
-                                  setEditingQuestion({ ...editingQuestion, options: newOptions });
-                                }}
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
                             </div>
                             <div>
                               <Label className="text-xs">Skip to question (optional):</Label>
@@ -777,8 +777,25 @@ export default function SurveyBuilderPage() {
                                 </p>
                               )}
                             </div>
+                            {!isCalculationLocked && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="absolute bottom-2 right-2 h-8 w-8 text-gray-500 hover:text-red-600 hover:bg-red-50"
+                                onClick={() => {
+                                  const newOptions = (editingQuestion.options || []).filter((_, i) => i !== idx);
+                                  setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                }}
+                                aria-label="Remove option"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
-                        ))}
+                        );
+                        })}
+                        {!CALCULATION_LOCKED_QUESTION_IDS.includes(editingQuestion.id ?? '') && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -790,6 +807,7 @@ export default function SurveyBuilderPage() {
                           <Plus className="w-4 h-4 mr-2" />
                           Add Option
                         </Button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -806,7 +824,7 @@ export default function SurveyBuilderPage() {
                   </div>
 
                   <div>
-                    <Label>GHL Field Mapping (optional)</Label>
+                    <Label>Field Mapping (optional)</Label>
                     <p className="text-xs text-gray-500 mb-2">
                       Map this question to a GHL custom field or native field (firstName, lastName, email, phone)
                     </p>
