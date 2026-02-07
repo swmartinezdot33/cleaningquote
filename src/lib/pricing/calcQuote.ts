@@ -268,7 +268,14 @@ async function getInitialCleaningConfigForQuote(toolId?: string, pricingStructur
 }
 
 /**
- * Calculate quote based on inputs
+ * Calculate quote based on inputs.
+ *
+ * Formula (fact-checked; see __tests__/calcQuote.test.ts and calcQuote.verification.test.ts):
+ * 1. Find pricing row by square footage (inclusive min/max).
+ * 2. Recurring (weekly, bi-weekly, 4-week, general, deep, move-in/out): base range × (people mult × pet mult). People mult: 1.0 up to base (default 4), then 1.0 + (people - base) × (perPerson - 1). Pet mult: same with sheddingPets and base (default 0). Round to whole dollars.
+ * 3. Initial cleaning: (general range × people×pet mult) × initial mult (default 1.5) × condition mult (1.0 clean, 1.1 dusty/fair, 1.4 poor/very poor, 20 out of scope). Condition applies only to initial.
+ * 4. Config (people/pet/initial mult, bases) comes from pricing structure if set, else tool config.
+ *
  * @param toolId - When provided, uses this quoting tool's pricing and config (multi-tenant).
  * @param pricingStructureId - When provided (e.g. from service area match), uses this pricing structure instead of tool default.
  */
