@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import Link from 'next/link';
-import { Plus, Pencil, Trash2, Loader2, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Loader2, Sparkles } from 'lucide-react';
 
 interface PricingStructureItem {
   id: string;
@@ -34,9 +34,6 @@ export default function PricingStructuresClient() {
   const [newName, setNewName] = useState('');
   const [copyFromToolId, setCopyFromToolId] = useState('');
   const [creating, setCreating] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editName, setEditName] = useState('');
-  const [savingEdit, setSavingEdit] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const loadList = useCallback(() => {
@@ -107,37 +104,6 @@ export default function PricingStructuresClient() {
       setMessage({ type: 'error', text: 'Failed to create pricing structure' });
     } finally {
       setCreating(false);
-    }
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editId || !orgId) return;
-    const name = editName.trim();
-    if (!name) {
-      setMessage({ type: 'error', text: 'Name is required' });
-      return;
-    }
-    setSavingEdit(true);
-    setMessage(null);
-    try {
-      const res = await fetch(`/api/dashboard/orgs/${orgId}/pricing-structures/${editId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-      });
-      if (res.ok) {
-        setEditId(null);
-        setEditName('');
-        loadList();
-        setMessage({ type: 'success', text: 'Name updated.' });
-      } else {
-        const data = await res.json();
-        setMessage({ type: 'error', text: data.error ?? 'Failed to update' });
-      }
-    } catch {
-      setMessage({ type: 'error', text: 'Failed to update' });
-    } finally {
-      setSavingEdit(false);
     }
   };
 
@@ -224,15 +190,6 @@ export default function PricingStructuresClient() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => { setEditId(ps.id); setEditName(ps.name); setMessage(null); }}
-                      className="gap-1"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                      Edit name
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
                       onClick={() => { setDeleteId(ps.id); setMessage(null); }}
                       className="gap-1 text-destructive hover:text-destructive"
                     >
@@ -289,33 +246,6 @@ export default function PricingStructuresClient() {
             <Button onClick={handleCreate} disabled={creating || !newName.trim()}>
               {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit name dialog */}
-      <Dialog open={!!editId} onOpenChange={(open) => { if (!open) { setEditId(null); setEditName(''); } }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit name</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <Label htmlFor="edit-name">Name</Label>
-            <Input
-              id="edit-name"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              className="mt-1"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setEditId(null); setEditName(''); }} disabled={savingEdit}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveEdit} disabled={savingEdit || !editName.trim()}>
-              {savingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Save
             </Button>
           </DialogFooter>
         </DialogContent>

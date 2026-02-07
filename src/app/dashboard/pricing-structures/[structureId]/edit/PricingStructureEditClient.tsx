@@ -89,6 +89,8 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
   const [initialCleaning, setInitialCleaning] = useState(DEFAULT_INITIAL_CLEANING);
   const [savingInitialCleaning, setSavingInitialCleaning] = useState(false);
   const [initialCleaningMessage, setInitialCleaningMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [savingName, setSavingName] = useState(false);
+  const [nameMessage, setNameMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const { register, control, handleSubmit, formState: { errors }, reset, watch } = useForm<PricingTableFormData>({
     resolver: zodResolver(pricingTableSchema),
@@ -295,15 +297,54 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
     );
   }
 
+  const handleSaveName = async () => {
+    const name = structureName.trim();
+    if (!name || !orgId) return;
+    setSavingName(true);
+    setNameMessage(null);
+    try {
+      const res = await fetch(`/api/dashboard/orgs/${orgId}/pricing-structures/${structureId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setNameMessage({ type: 'success', text: 'Name saved.' });
+      } else {
+        setNameMessage({ type: 'error', text: data.error ?? 'Failed to save name' });
+      }
+    } catch {
+      setNameMessage({ type: 'error', text: 'Failed to save name' });
+    } finally {
+      setSavingName(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Sparkles className="h-6 w-6 text-primary" />
-        <div>
-          <h2 className="text-xl font-bold text-foreground">
-            {structureName ? `Pricing structure: ${structureName}` : 'Pricing Builder'}
-          </h2>
-          <p className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
+        <Sparkles className="h-6 w-6 text-primary shrink-0" />
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl font-bold text-foreground mb-1">Pricing structure</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              value={structureName}
+              onChange={(e) => setStructureName(e.target.value)}
+              placeholder="Structure name"
+              className="max-w-xs h-9"
+            />
+            <Button type="button" variant="secondary" size="sm" onClick={handleSaveName} disabled={savingName || !structureName.trim()} className="gap-1.5">
+              {savingName ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+              Save name
+            </Button>
+            {nameMessage && (
+              <span className={nameMessage.type === 'success' ? 'text-sm text-green-600 dark:text-green-400' : 'text-sm text-destructive'}>
+                {nameMessage.text}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 mt-2">
             Create and manage the pricing table for this structure.
             <Link href="/help/pricing-structure-builder" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
               <BookOpen className="h-3.5 w-3.5" />
