@@ -52,7 +52,7 @@ export function MapsScriptLoader({ globalKey }: { globalKey: string }) {
 
     const script = document.createElement('script');
     script.id = SCRIPT_ID;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${keyToUse}&libraries=places,drawing&loading=async`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${keyToUse}&libraries=places,marker&loading=async`;
     script.async = true;
     script.defer = true;
     document.head.appendChild(script);

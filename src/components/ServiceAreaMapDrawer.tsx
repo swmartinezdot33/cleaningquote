@@ -2,6 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { TerraDraw } from 'terra-draw';
+import { TerraDrawGoogleMapsAdapter } from 'terra-draw-google-maps-adapter';
+import { TerraDrawPolygonMode } from 'terra-draw';
+import { TerraDrawSelectMode } from 'terra-draw';
 
 export type PolygonCoords = Array<[number, number]>;
 
@@ -11,6 +15,9 @@ export type ZoneDisplayItem = { label?: string; color?: string };
 /** 6-digit hex palette for zone colors; use same list in UI picker and map so they stay in sync. */
 export const DEFAULT_ZONE_COLORS_6 = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 const DEFAULT_ZONE_COLORS = DEFAULT_ZONE_COLORS_6.map((c) => c + '80');
+
+/** Map ID required for AdvancedMarkerElement. Set NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID in production for custom map styling. */
+const DEFAULT_MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID';
 
 /** Use window.google from existing global (GooglePlacesAutocomplete). */
 function getGoogle(): typeof window.google {
@@ -23,6 +30,21 @@ function polygonCentroid(coords: PolygonCoords): [number, number] {
   let sumLat = 0, sumLng = 0;
   coords.forEach(([lat, lng]) => { sumLat += lat; sumLng += lng; });
   return [sumLat / coords.length, sumLng / coords.length];
+}
+
+/** Convert our [lat,lng][] to GeoJSON ring [lng,lat][] (closed). */
+function coordsToGeoJSONRing(coords: PolygonCoords): number[][] {
+  const ring = coords.map(([lat, lng]) => [lng, lat]);
+  if (ring.length > 0 && (ring[0][0] !== ring[ring.length - 1][0] || ring[0][1] !== ring[ring.length - 1][1])) {
+    ring.push([ring[0][0], ring[0][1]]);
+  }
+  return ring;
+}
+
+/** Convert GeoJSON polygon ring to our [lat,lng][] (drop closing point). */
+function geoJSONRingToCoords(ring: number[][]): PolygonCoords {
+  if (!ring || ring.length < 4) return [];
+  return ring.slice(0, -1).map(([lng, lat]) => [lat, lng]);
 }
 
 interface ServiceAreaMapDrawerProps {
@@ -53,7 +75,7 @@ export function ServiceAreaMapDrawer({
 }: ServiceAreaMapDrawerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
-  const drawingManagerRef = useRef<any>(null);
+  const terraDrawRef = useRef<TerraDraw | null>(null);
   const polygonRefs = useRef<any[]>([]);
   const labelMarkerRefs = useRef<any[]>([]);
   const officeMarkerRef = useRef<any>(null);
@@ -72,200 +94,195 @@ export function ServiceAreaMapDrawer({
   useEffect(() => {
     if (typeof window === 'undefined' || !containerRef.current) return;
 
-    function pathToCoords(path: any): PolygonCoords {
-      const arr: PolygonCoords = [];
-      for (let i = 0; i < path.getLength(); i++) {
-        const p = path.getAt(i);
-        const lat = typeof p.lat === 'function' ? p.lat() : p.lat;
-        const lng = typeof p.lng === 'function' ? p.lng() : p.lng;
-        arr.push([lat, lng]);
-      }
-      return arr;
-    }
+    let cancelled = false;
 
-    function collectAllCoords(): PolygonCoords[] {
-      const out: PolygonCoords[] = [];
-      polygonRefs.current.forEach((poly) => {
-        if (poly && poly.getPath) {
-          const coords = pathToCoords(poly.getPath());
-          if (coords.length >= 3) out.push(coords);
-        }
-      });
-      return out;
-    }
-
-    function notifyChange() {
-      const all = collectAllCoords();
-      if (all.length === 1) onPolygonChange?.(all[0]);
-      else if (all.length > 1) onPolygonChange?.(all);
-    }
-
-    function initMap() {
+    async function initMap() {
       const google = getGoogle();
       if (!containerRef.current || !google?.maps) return;
       setError(null);
       try {
+        const { AdvancedMarkerElement } = (await google.maps.importLibrary('marker')) as google.maps.MarkerLibrary;
+
         const map = new google.maps.Map(containerRef.current, {
           center: { lat: 39.5, lng: -98.5 },
           zoom: 4,
           mapTypeId: google.maps.MapTypeId.ROADMAP,
+          mapId: DEFAULT_MAP_ID,
         });
         mapRef.current = map;
 
-        // Draw existing polygons (create or edit) with optional zone colors and labels
-        if (initialPolygons.length > 0) {
-          const bounds = new google.maps.LatLngBounds();
-          const refs: any[] = [];
-          const labelRefs: any[] = [];
-          const display = Array.isArray(zoneDisplay) ? zoneDisplay : [];
-          initialPolygons.forEach((coords, idx) => {
-            if (coords.length < 3) return;
-            const path = coords.map(([lat, lng]) => new google.maps.LatLng(lat, lng));
-            path.forEach((p: any) => bounds.extend(p));
-            const zone = display[idx];
-            const fillColor = (zone?.color && /^#[0-9A-Fa-f]{6}$/.test(zone.color))
-              ? zone.color + '99'
-              : (zone?.color && /^#[0-9A-Fa-f]{8}$/.test(zone.color))
+        const display = Array.isArray(zoneDisplay) ? zoneDisplay : [];
+
+        if (readOnly) {
+          // Read-only: draw polygons with Polygon + AdvancedMarkerElement labels
+          if (initialPolygons.length > 0) {
+            const bounds = new google.maps.LatLngBounds();
+            const refs: any[] = [];
+            const labelRefs: any[] = [];
+            initialPolygons.forEach((coords, idx) => {
+              if (coords.length < 3) return;
+              const path = coords.map(([lat, lng]) => new google.maps.LatLng(lat, lng));
+              path.forEach((p: any) => bounds.extend(p));
+              const zone = display[idx];
+              const fillColor = (zone?.color && /^#[0-9A-Fa-f]{6}$/.test(zone.color))
+                ? zone.color + '99'
+                : (zone?.color && /^#[0-9A-Fa-f]{8}$/.test(zone.color))
+                  ? zone.color
+                  : DEFAULT_ZONE_COLORS[idx % DEFAULT_ZONE_COLORS.length];
+              const strokeColor = (zone?.color && /^#[0-9A-Fa-f]{6}$/.test(zone.color))
                 ? zone.color
-                : DEFAULT_ZONE_COLORS[idx % DEFAULT_ZONE_COLORS.length];
-            const strokeColor = (zone?.color && /^#[0-9A-Fa-f]{6}$/.test(zone.color))
-              ? zone.color
-              : fillColor.slice(0, 7);
-            const polygon = new google.maps.Polygon({
-              paths: path,
-              editable: !readOnly,
-              map,
-              fillColor,
-              fillOpacity: 0.45,
-              strokeColor,
-              strokeWeight: 2,
-            });
-            refs.push(polygon);
-            const labelText = (zone?.label && zone.label.trim()) ? zone.label.trim() : `Zone ${idx + 1}`;
-            const [clat, clng] = polygonCentroid(coords);
-            const marker = new google.maps.Marker({
-              position: { lat: clat, lng: clng },
-              map,
-              label: {
-                text: labelText,
-                color: '#fff',
-                fontSize: '13px',
-                fontWeight: '600',
-              },
-              zIndex: 100 + idx,
-            });
-            labelRefs.push(marker);
-            if (!readOnly) {
-              ['insert_at', 'set_at'].forEach((eventName) => {
-                google.maps.event.addListener(polygon.getPath(), eventName, () => notifyChange());
+                : fillColor.slice(0, 7);
+              const polygon = new google.maps.Polygon({
+                paths: path,
+                editable: false,
+                map,
+                fillColor,
+                fillOpacity: 0.45,
+                strokeColor,
+                strokeWeight: 2,
               });
+              refs.push(polygon);
+              const labelText = (zone?.label && zone.label.trim()) ? zone.label.trim() : `Zone ${idx + 1}`;
+              const [clat, clng] = polygonCentroid(coords);
+              const el = document.createElement('div');
+              el.textContent = labelText;
+              el.style.cssText = 'padding:4px 8px;background:rgba(0,0,0,0.6);color:#fff;font-size:13px;font-weight:600;border-radius:4px;white-space:nowrap;';
+              const marker = new AdvancedMarkerElement({
+                map,
+                position: { lat: clat, lng: clng },
+                content: el,
+                zIndex: 100 + idx,
+              });
+              labelRefs.push(marker);
+            });
+            polygonRefs.current = refs;
+            labelMarkerRefs.current = labelRefs;
+            if (bounds.getNorthEast() && bounds.getSouthWest()) {
+              map.fitBounds(bounds);
             }
+          }
+        } else {
+          // Editable: use Terra Draw (replacement for deprecated Drawing library)
+          const adapter = new TerraDrawGoogleMapsAdapter({ map, lib: google.maps, coordinatePrecision: 9 });
+          const draw = new TerraDraw({
+            adapter,
+            modes: [
+              new TerraDrawSelectMode({
+                flags: {
+                  polygon: {
+                    feature: { draggable: true, coordinates: { midpoints: true, draggable: true, deletable: true } },
+                  },
+                },
+              }),
+              new TerraDrawPolygonMode({
+                styles: { fillColor: '#3b82f680', outlineColor: '#3b82f6', outlineWidth: 2 },
+              }),
+            ],
           });
-          polygonRefs.current = refs;
-          labelMarkerRefs.current = labelRefs;
-          if (bounds.getNorthEast() && bounds.getSouthWest()) {
-            map.fitBounds(bounds);
+          terraDrawRef.current = draw;
+
+          const notifyFromSnapshot = () => {
+            const features = draw.getSnapshot().filter((f) => f.geometry.type === 'Polygon');
+            const all: PolygonCoords[] = features.map((f) => {
+              const geom = f.geometry as { type: 'Polygon'; coordinates: number[][][] };
+              const ring = geom.coordinates[0];
+              return geoJSONRingToCoords(ring);
+            }).filter((c) => c.length >= 3);
+            if (all.length === 1) onPolygonChange?.(all[0]);
+            else if (all.length > 1) onPolygonChange?.(all);
+          };
+
+          draw.on('change', () => { if (!cancelled) notifyFromSnapshot(); });
+
+          draw.start();
+          draw.setMode(initialPolygons.length === 0 ? 'polygon' : 'select');
+
+          if (initialPolygons.length > 0) {
+            const features = initialPolygons.map((coords) => ({
+              type: 'Feature' as const,
+              geometry: { type: 'Polygon' as const, coordinates: [coordsToGeoJSONRing(coords)] },
+              properties: {},
+            }));
+            draw.addFeatures(features);
+            const bounds = new google.maps.LatLngBounds();
+            initialPolygons.forEach((coords) => {
+              coords.forEach(([lat, lng]) => bounds.extend({ lat, lng }));
+            });
+            if (bounds.getNorthEast() && bounds.getSouthWest()) map.fitBounds(bounds);
           }
         }
 
-        // Office pin: geocode address and add marker
+        // Office pin: AdvancedMarkerElement (replacement for deprecated Marker)
         const addressToGeocode = (typeof officeAddress === 'string' ? officeAddress.trim() : '') || null;
         if (addressToGeocode && google.maps.Geocoder) {
           const geocoder = new google.maps.Geocoder();
           geocoder.geocode({ address: addressToGeocode }, (results: any, status: string) => {
-            if (status === 'OK' && results?.[0]?.geometry?.location && mapRef.current) {
-              const loc = results[0].geometry.location;
-              const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
-              const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
-              if (officeMarkerRef.current?.setMap) officeMarkerRef.current.setMap(null);
-              officeMarkerRef.current = new google.maps.Marker({
-                position: { lat, lng },
-                map: mapRef.current,
-                title: 'Office',
-                icon: {
-                  path: google.maps.SymbolPath.CIRCLE,
-                  scale: 10,
-                  fillColor: '#1d4ed8',
-                  fillOpacity: 1,
-                  strokeColor: '#fff',
-                  strokeWeight: 2,
-                },
-                zIndex: 200,
+            if (cancelled || status !== 'OK' || !results?.[0]?.geometry?.location || !mapRef.current) return;
+            const loc = results[0].geometry.location;
+            const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
+            const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
+            if (officeMarkerRef.current?.map) officeMarkerRef.current.map = null;
+            const pinEl = document.createElement('div');
+            pinEl.style.cssText = 'width:20px;height:20px;background:#1d4ed8;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.3);';
+            officeMarkerRef.current = new AdvancedMarkerElement({
+              map: mapRef.current,
+              position: { lat, lng },
+              content: pinEl,
+              title: 'Office',
+              zIndex: 200,
+            });
+            if (initialPolygons.length > 0) {
+              const officeBounds = new google.maps.LatLngBounds();
+              officeBounds.extend({ lat, lng });
+              initialPolygons.forEach((coords) => {
+                coords.forEach(([la, ln]) => officeBounds.extend({ lat: la, lng: ln }));
               });
-              if (initialPolygons.length > 0) {
-                const officeBounds = new google.maps.LatLngBounds();
-                officeBounds.extend({ lat, lng });
-                initialPolygons.forEach((coords) => {
-                  coords.forEach(([la, ln]) => officeBounds.extend({ lat: la, lng: ln }));
-                });
-                mapRef.current.fitBounds(officeBounds);
-              } else {
-                mapRef.current.setCenter({ lat, lng });
-                mapRef.current.setZoom(12);
-              }
+              mapRef.current.fitBounds(officeBounds);
+            } else {
+              mapRef.current.setCenter({ lat, lng });
+              mapRef.current.setZoom(12);
             }
           });
         }
-
-        // Show drawing toolbar only when not readOnly (preview mode)
-        if (!readOnly) {
-          const drawingManager = new google.maps.drawing.DrawingManager({
-            drawingMode: initialPolygons.length === 0 ? google.maps.drawing.OverlayType.POLYGON : null,
-            drawingControl: true,
-            drawingControlOptions: {
-              position: (google.maps as any).ControlPosition?.TOP_CENTER ?? 2,
-              drawingModes: [google.maps.drawing.OverlayType.POLYGON],
-            },
-          });
-          drawingManager.setMap(map);
-          drawingManagerRef.current = drawingManager;
-
-          google.maps.event.addListener(drawingManager, 'polygoncomplete', (poly: any) => {
-            const path = poly.getPath();
-            poly.setEditable(true);
-            poly.setMap(map);
-            polygonRefs.current = [...polygonRefs.current, poly];
-            drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
-
-            ['insert_at', 'set_at'].forEach((eventName) => {
-              google.maps.event.addListener(path, eventName, () => notifyChange());
-            });
-            notifyChange();
-          });
-        }
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to load map');
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load map');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
-    const g = getGoogle();
-    if (!g?.maps?.Map) {
+    if (!getGoogle()?.maps?.Map) {
       const t = setInterval(() => {
         if (getGoogle()?.maps?.Map) {
           clearInterval(t);
+          setLoading(true);
           initMap();
         }
       }, 200);
-      return () => clearInterval(t);
+      return () => {
+        cancelled = true;
+        clearInterval(t);
+      };
     }
     setLoading(true);
     initMap();
 
     return () => {
-      if (officeMarkerRef.current?.setMap) officeMarkerRef.current.setMap(null);
-      officeMarkerRef.current = null;
-      if (drawingManagerRef.current) {
-        drawingManagerRef.current.setMap(null);
-        drawingManagerRef.current = null;
+      cancelled = true;
+      if (officeMarkerRef.current) {
+        officeMarkerRef.current.map = null;
+        officeMarkerRef.current = null;
+      }
+      if (terraDrawRef.current) {
+        terraDrawRef.current.stop();
+        terraDrawRef.current = null;
       }
       labelMarkerRefs.current.forEach((m) => {
-        if (m && m.setMap) m.setMap(null);
+        if (m) m.map = null;
       });
       labelMarkerRefs.current = [];
       polygonRefs.current.forEach((poly) => {
-        if (poly && poly.setMap) poly.setMap(null);
+        if (poly?.setMap) poly.setMap(null);
       });
       polygonRefs.current = [];
       mapRef.current = null;
