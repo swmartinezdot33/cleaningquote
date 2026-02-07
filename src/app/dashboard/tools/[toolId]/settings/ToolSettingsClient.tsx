@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
-import { ChevronDown, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings, HelpCircle, Pencil, User, Briefcase, Calendar, Tag, LayoutTemplate, MapPin, DollarSign } from 'lucide-react';
+import { ChevronDown, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings, HelpCircle, Pencil, User, Briefcase, Calendar, Tag, LayoutTemplate, MapPin, DollarSign, Palette } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { TagPicker } from '@/components/ui/TagPicker';
 import {
@@ -458,7 +458,10 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
           >
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-2xl font-bold">Site Customization</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                  <Palette className="h-5 w-5 text-primary" />
+                  Site Customization
+                </CardTitle>
                 <CardDescription className="text-muted-foreground mt-1">
                   Customize the title, subtitle, and primary color for this quoting tool
                   {toolSlug && (
