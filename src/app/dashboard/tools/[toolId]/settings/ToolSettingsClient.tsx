@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -85,6 +85,8 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
   const [ghlTags, setGhlTags] = useState<{ id: string; name: string }[]>([]);
   const [customFields, setCustomFields] = useState<{ key: string; name: string }[]>([]);
   const [quotedAmountFieldSearch, setQuotedAmountFieldSearch] = useState('');
+  const [quotedAmountFieldOpen, setQuotedAmountFieldOpen] = useState(false);
+  const quotedAmountFieldRef = useRef<HTMLDivElement>(null);
   const [loadingGhlLists, setLoadingGhlLists] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savingSection, setSavingSection] = useState<CardId | null>(null);
@@ -217,6 +219,16 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
     };
     loadLists();
   }, [toolId, ghlStatus?.connected]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (quotedAmountFieldRef.current && !quotedAmountFieldRef.current.contains(e.target as Node)) {
+        setQuotedAmountFieldOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const saveWidget = async () => {
     setSavingSection('widget');
@@ -836,7 +848,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
         </Card>
       </motion.div>
 
-      {/* HighLevel CRM Config */}
+      {/* Advanced Configuration (per-tool CRM / HighLevel) */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
         <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border overflow-hidden">
           <CardHeader
@@ -847,7 +859,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
               <div>
                 <CardTitle className="flex items-center gap-2 text-2xl font-bold">
                   <Settings className="h-5 w-5 text-primary" />
-                  HighLevel CRM Config
+                  Advanced Configuration
                 </CardTitle>
                 <CardDescription className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                   Control what happens in HighLevel when quotes and bookings happen. Set your HighLevel connection in Settings → HighLevel Integration first; this card configures per-tool CRM behavior.
@@ -1234,55 +1246,53 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                         <Label className="text-sm font-semibold">Quoted amount field (contact custom field)</Label>
                         <GhlHelpIcon anchor="quoted-amount-field" />
                       </div>
-                      <p className="text-xs text-muted-foreground mb-2">Select a HighLevel contact field or enter a custom key (e.g. quoted_cleaning_price).</p>
+                      <p className="text-xs text-muted-foreground mb-2">Search and select a HighLevel contact field. Type to narrow the list.</p>
                     {customFields.length > 0 ? (
-                      <>
+                      <div className="relative max-w-md" ref={quotedAmountFieldRef}>
                         <Input
                           type="text"
-                          placeholder="Search fields..."
-                          value={quotedAmountFieldSearch}
-                          onChange={(e) => setQuotedAmountFieldSearch(e.target.value)}
-                          className={`${inputClass} max-w-xs mb-2`}
-                        />
-                        <select
-                          className={`${selectClass} w-full max-w-md`}
-                          value={customFields.some((f) => f.key === (ghlConfig.quotedAmountField ?? '')) ? (ghlConfig.quotedAmountField ?? '') : '__custom__'}
+                          placeholder="Type to search fields..."
+                          value={quotedAmountFieldOpen ? quotedAmountFieldSearch : (() => {
+                            const sel = customFields.find((f) => f.key === (ghlConfig.quotedAmountField ?? ''));
+                            return sel ? `${sel.name} (${sel.key})` : quotedAmountFieldSearch || '';
+                          })()}
                           onChange={(e) => {
-                            const v = e.target.value;
-                            if (v === '__custom__') {
-                              setGhlConfig((c) => ({ ...c, quotedAmountField: undefined }));
-                            } else {
-                              setGhlConfig((c) => ({ ...c, quotedAmountField: v || undefined }));
-                            }
+                            setQuotedAmountFieldSearch(e.target.value);
+                            setQuotedAmountFieldOpen(true);
                           }}
-                        >
-                          <option value="">— Select field —</option>
-                          {customFields
-                            .filter(
-                              (f) =>
-                                !quotedAmountFieldSearch.trim() ||
-                                f.name.toLowerCase().includes(quotedAmountFieldSearch.toLowerCase()) ||
-                                f.key.toLowerCase().includes(quotedAmountFieldSearch.toLowerCase())
-                            )
-                            .map((f) => (
-                              <option key={f.key} value={f.key}>
-                                {f.name} ({f.key})
-                              </option>
-                            ))}
-                          <option value="__custom__">— Enter custom key —</option>
-                        </select>
-                        {!customFields.some((f) => f.key === (ghlConfig.quotedAmountField ?? '')) && (
-                          <div className="mt-2">
-                            <Label className="text-xs text-muted-foreground">Custom key (if not in list)</Label>
-                            <Input
-                              value={ghlConfig.quotedAmountField ?? ''}
-                              onChange={(e) => setGhlConfig((c) => ({ ...c, quotedAmountField: e.target.value || undefined }))}
-                              placeholder="e.g. quoted_cleaning_price"
-                              className={`${inputClass} max-w-xs mt-1`}
-                            />
-                          </div>
-                        )}
-                      </>
+                          onFocus={() => setQuotedAmountFieldOpen(true)}
+                          className={inputClass}
+                        />
+                        {quotedAmountFieldOpen && (() => {
+                          const q = quotedAmountFieldSearch.trim().toLowerCase();
+                          const filtered = customFields.filter((f) => {
+                            if (!q) return true;
+                            const keyNorm = f.key.toLowerCase().replace(/^contact\./, '');
+                            const searchNorm = q.replace(/^contact\./, '');
+                            return f.name.toLowerCase().includes(q) || f.key.toLowerCase().includes(q) || keyNorm.includes(searchNorm) || searchNorm.includes(keyNorm);
+                          });
+                          return (
+                            <ul className="absolute z-10 mt-1 w-full max-h-60 overflow-auto rounded-md border border-input bg-popover py-1 shadow-md">
+                              {filtered.map((f) => (
+                                <li
+                                  key={f.key}
+                                  className="cursor-pointer px-3 py-2 text-sm hover:bg-muted focus:bg-muted focus:outline-none"
+                                  onClick={() => {
+                                    setGhlConfig((c) => ({ ...c, quotedAmountField: f.key }));
+                                    setQuotedAmountFieldSearch('');
+                                    setQuotedAmountFieldOpen(false);
+                                  }}
+                                >
+                                  {f.name} ({f.key})
+                                </li>
+                              ))}
+                              {filtered.length === 0 && (
+                                <li className="px-3 py-2 text-sm text-muted-foreground">No fields match your search.</li>
+                              )}
+                            </ul>
+                          );
+                        })()}
+                      </div>
                     ) : (
                       <div className="space-y-2">
                         <Input

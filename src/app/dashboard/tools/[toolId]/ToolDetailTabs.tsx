@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import type { Tool } from '@/lib/supabase/types';
 import ToolSettingsClient from './settings/ToolSettingsClient';
 import ToolSurveyClient from './survey/ToolSurveyClient';
-import { ExternalLink, Copy, Check, Loader2, Share2, Pencil, CodeXml, BookOpen, X } from 'lucide-react';
+import { ExternalLink, Copy, Check, Loader2, Pencil, CodeXml, BookOpen, X } from 'lucide-react';
 import { CloneToolButton } from '@/components/CloneToolButton';
 
 type TabId = 'overview' | 'survey' | 'settings';
@@ -428,8 +428,8 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
                   className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
                   title="Copy link"
                 >
-                  {shareCopied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Share2 className="h-3.5 w-3.5" />}
-                  {shareCopied ? 'Link copied' : 'Share'}
+                  {shareCopied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+                  {shareCopied ? 'Copied' : 'Copy'}
                 </button>
                 <CloneToolButton toolId={tool.id} toolName={tool.name} toolOrgId={tool.org_id} className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted" />
               </div>
