@@ -182,10 +182,10 @@ function Hero({ onSignupClick }: { onSignupClick: () => void }) {
           <span className="bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">We help you close.</span>
         </h1>
         <p className="mt-6 text-lg text-muted-foreground sm:text-xl max-w-2xl mx-auto">
-          Instant quotes so you’re not just giving out a price—you’re closing. CleanQuote gives you custom quote forms, your pricing, and one-click booking so leads say yes while they’re hot. Connect to HighLevel, embed anywhere. No coding. More booked jobs.
+          Instant quotes so you’re not just giving out a price—you’re closing. CleanQuote gives you custom quote forms, pricing structures, a service area builder, and one-click booking so leads say yes while they’re hot. Connect to HighLevel, embed anywhere. No coding. More booked jobs.
         </p>
         <p className="mt-4 text-sm text-muted-foreground/90 max-w-xl mx-auto">
-          Same pricing you use today. One simple form. Stop losing leads to “we’ll get back to you.”
+          Multiple service areas, different pricing per zone—or one structure everywhere. One form. Stop losing leads to “we’ll get back to you.”
         </p>
         <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Button size="lg" className="gap-2 rounded-none text-base font-semibold shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 transition-shadow" onClick={onSignupClick}>
@@ -262,7 +262,7 @@ function Features() {
     {
       icon: Zap,
       title: 'Instant quotes that close',
-      description: 'Leads see a real price in seconds—no “we’ll get back to you.” Faster answers mean more yeses and fewer drop-offs. Turn looky-loos into booked jobs.',
+      description: 'Leads see a real price in seconds—no “we’ll get back to you.” You\'re not just giving out a number; you\'re closing. Turn looky-loos into booked jobs, and service the lead from first click to client.',
     },
     {
       icon: Calendar,
@@ -311,8 +311,10 @@ function Features() {
         </div>
         <ul className="mt-12 flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-sm text-muted-foreground">
           {[
+            'Pricing structures—multiple named structures, assign per tool or per service area',
+            'Service area builder—draw zones, add by ZIP, or import KML; multiple areas per org',
             'Custom survey questions',
-            'Google Maps service area',
+            'Google Maps service area checks',
             'HighLevel contacts & pipelines',
             'SMS-ready quote copy',
             'Excel pricing import',
@@ -334,9 +336,10 @@ function Features() {
 function Capabilities() {
   const capabilities = [
     'Build custom quote forms—address, home size, bedrooms, baths, pets, condition, frequency—only ask what you need',
-    'Import pricing from Excel or use the built-in structure—sq ft ranges, weekly, bi-weekly, 4-week, general, deep, move in/out',
+    'Pricing structures—create multiple named structures (e.g. residential vs commercial), import from Excel or build in-app; assign one structure per tool or use different structures for different service areas',
+    'Service area builder—draw polygons on the map, add zones by US ZIP code, or import KML/NetworkLink; define multiple service areas per organization and assign them to tools',
+    'Per-area pricing—use one pricing structure for one service area and another for a different zone, or the same structure across all areas; qualify leads by location and quote with the right rates',
     'Smart Initial Cleaning—auto-detect based on home condition and cleaning history, with configurable multipliers and conditions',
-    'Service area polygons—upload KML or NetworkLink, qualify leads by location before they even submit',
     'HighLevel sync—contacts, opportunities, notes, pipelines, custom fields, tags, appointment and callback booking',
     'Embed anywhere—widget snippet, iframe, or shareable link. Pass HighLevel contact data into pre-filled forms',
     'Google Maps autocomplete and geocoding—accurate addresses, automatic service area checks',
@@ -384,7 +387,7 @@ function Pricing({ onSignupClick }: { onSignupClick: () => void }) {
               <p className="text-4xl font-bold text-foreground">$297<span className="text-lg font-medium text-muted-foreground">/month</span></p>
               <p className="mt-2 text-sm font-medium text-primary">14-day free trial</p>
               <p className="mt-4 text-sm text-muted-foreground max-w-xs">
-                Unlimited quote tools, GHL integration, custom surveys, service areas, and more.
+                Unlimited quote tools, pricing structures, service area builder, multiple service areas, GHL integration, custom surveys, and more.
               </p>
             </div>
             <div className="flex-shrink-0">
@@ -404,11 +407,19 @@ function Pricing({ onSignupClick }: { onSignupClick: () => void }) {
 const FAQ_ITEMS: { q: string; a: string }[] = [
   {
     q: 'What is CleanQuote?',
-    a: 'CleanQuote is a sales solution with a web application that helps cleaning companies send accurate, instant quotes to leads instead of back-and-forth emails. You get custom quote forms, your own pricing, and HighLevel sync—all in the browser, no software to download.',
+    a: 'CleanQuote is a sales solution with a web application that helps cleaning companies send accurate, instant quotes to leads instead of back-and-forth emails. You get custom quote forms, pricing structures, a service area builder, multiple service areas, and HighLevel sync—all in the browser, no software to download.',
   },
   {
     q: 'How does CleanQuote work?',
-    a: 'You add your pricing (or import from Excel), customize your quote form with the questions you need, then embed the widget on your site or share a link. Leads get an instant price in seconds; you get leads that are ready to book, with optional callback and appointment booking.',
+    a: 'You add your pricing (or import from Excel), set up pricing structures and optional service areas, customize your quote form, then embed the widget on your site or share a link. Leads get an instant price in seconds; you get leads that are ready to book, with optional callback and appointment booking.',
+  },
+  {
+    q: 'What are pricing structures and service areas?',
+    a: 'Pricing structures are named pricing tables (e.g. Residential, Commercial) that you create and manage at the organization level. You can have multiple structures and assign different ones to different tools or to different service areas. Service areas are geographic zones you define—by drawing on the map, adding ZIP codes, or importing KML—and assign to tools. When a lead enters an address, CleanQuote can check if they\'re in a service area and apply the right pricing structure for that zone.',
+  },
+  {
+    q: 'Can I have different pricing for different service areas?',
+    a: 'Yes. You can create multiple service areas (e.g. downtown vs suburbs) and multiple pricing structures. In each tool\'s settings you assign which service areas apply and, optionally, which pricing structure to use per service area—or one default structure for all. So one zone can use "Residential" rates and another "Premium" or "Commercial" rates. Same tool, different areas, different pricing.',
   },
   {
     q: 'Does CleanQuote integrate with HighLevel?',
@@ -416,11 +427,11 @@ const FAQ_ITEMS: { q: string; a: string }[] = [
   },
   {
     q: 'How much does CleanQuote cost?',
-    a: '$297/month after a 14-day free trial. You get unlimited quote tools, HighLevel integration, custom surveys, service areas, Google Maps, and more. Cancel anytime.',
+    a: '$297/month after a 14-day free trial. You get unlimited quote tools, pricing structures, service area builder, multiple service areas, HighLevel integration, custom surveys, Google Maps, and more. Cancel anytime.',
   },
   {
     q: 'Can I use my own pricing with CleanQuote?',
-    a: 'Yes. Upload your pricing table or import from Excel. Square footage ranges, frequency tiers (weekly, bi-weekly, 4-week), add-ons, and Initial Cleaning multipliers are all configurable so quotes match how you actually price.',
+    a: 'Yes. Create one or more pricing structures—upload from Excel or build in the pricing structure builder. Square footage ranges, frequency tiers (weekly, bi-weekly, 4-week), add-ons, and Initial Cleaning multipliers are all configurable. You can assign different structures to different tools or different service areas so quotes always use the right rates.',
   },
   {
     q: 'How do I embed the quote form on my website?',
@@ -477,7 +488,7 @@ function CTA({ onSignupClick }: { onSignupClick: () => void }) {
             Ready to close more leads?
           </h2>
           <p className="mt-4 text-lg text-muted-foreground max-w-xl mx-auto">
-            Start your 14-day free trial. Full access to quote tools, HighLevel integration, and more. $297/month after trial—cancel anytime.
+            More closed jobs, less chasing. Your CRM handles the rest—CleanQuote handles the sale. Start your 14-day free trial. $297/month after—cancel anytime.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Button size="lg" className="gap-2 rounded-none text-base font-semibold shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 transition-shadow" onClick={onSignupClick}>
