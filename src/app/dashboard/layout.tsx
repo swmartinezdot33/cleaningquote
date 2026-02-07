@@ -71,7 +71,7 @@ export default async function DashboardLayout({
         userDisplayName={userDisplayName}
         isSuperAdmin={isSuperAdminEmail(user.email ?? undefined)}
       />
-      <main key={selectedOrgId ?? 'none'} className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">{children}</main>
+      <main key={selectedOrgId ?? 'none'} className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 overflow-x-hidden">{children}</main>
     </div>
   );
 }

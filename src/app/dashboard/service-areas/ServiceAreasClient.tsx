@@ -423,8 +423,8 @@ export default function ServiceAreasClient() {
           ) : (
             <ul className="divide-y divide-border">
               {list.map((area) => (
-                <li key={area.id} className="py-4 flex flex-wrap items-center justify-between gap-2">
-                  <div>
+                <li key={area.id} className="py-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3">
+                  <div className="min-w-0">
                     <span className="font-medium">{area.name}</span>
                     <span className="text-muted-foreground text-sm ml-2">
                       {area.pointCount} points
@@ -435,7 +435,7 @@ export default function ServiceAreasClient() {
                       )}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {area.networkLinkUrl && (
                       <Button
                         variant="ghost"

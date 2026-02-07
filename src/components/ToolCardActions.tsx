@@ -36,7 +36,7 @@ function IconButton({
         onClick();
       }}
       disabled={disabled}
-      className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+      className="rounded p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50 touch-manipulation"
       title={title}
     >
       {children}

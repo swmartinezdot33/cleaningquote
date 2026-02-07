@@ -70,11 +70,11 @@ export default async function DashboardPage({
           </div>
         </div>
       )}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Your quoting tools</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-foreground min-w-0">Your quoting tools</h1>
         <Link
           href="/dashboard/tools/new"
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          className="shrink-0 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
         >
           Create quoting tool
         </Link>
