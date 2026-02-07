@@ -8,7 +8,9 @@ export type PolygonCoords = Array<[number, number]>;
 /** Per-zone label and color (same order as polygon array). */
 export type ZoneDisplayItem = { label?: string; color?: string };
 
-const DEFAULT_ZONE_COLORS = ['#3b82f680', '#10b98180', '#f59e0b80', '#ef444480', '#8b5cf680', '#ec489980'];
+/** 6-digit hex palette for zone colors; use same list in UI picker and map so they stay in sync. */
+export const DEFAULT_ZONE_COLORS_6 = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const DEFAULT_ZONE_COLORS = DEFAULT_ZONE_COLORS_6.map((c) => c + '80');
 
 /** Use window.google from existing global (GooglePlacesAutocomplete). */
 function getGoogle(): typeof window.google {

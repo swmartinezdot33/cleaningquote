@@ -26,7 +26,7 @@ import {
   Eye,
 } from 'lucide-react';
 import Link from 'next/link';
-import { ServiceAreaMapDrawer, type PolygonCoords, type ZoneDisplayItem } from '@/components/ServiceAreaMapDrawer';
+import { ServiceAreaMapDrawer, DEFAULT_ZONE_COLORS_6, type PolygonCoords, type ZoneDisplayItem } from '@/components/ServiceAreaMapDrawer';
 import { normalizeServiceAreaPolygons } from '@/lib/service-area/normalizePolygons';
 
 interface ServiceAreaItem {
@@ -113,7 +113,11 @@ export default function ServiceAreasClient() {
           setEditPolygons(list.length > 0 ? list : null);
           const zd = d.serviceArea?.zone_display;
           const zoneList = Array.isArray(zd) ? zd.map((z: { label?: string; color?: string }) => ({ label: z?.label ?? '', color: z?.color ?? '' })) : [];
-          setEditZoneDisplay(list.length > 0 ? Array.from({ length: list.length }, (_, i) => zoneList[i] ?? { label: '', color: '' }) : []);
+          setEditZoneDisplay(list.length > 0 ? Array.from({ length: list.length }, (_, i) => {
+            const z = zoneList[i] ?? { label: '', color: '' };
+            const color = (z.color && /^#[0-9A-Fa-f]{6}$/.test(z.color)) ? z.color : DEFAULT_ZONE_COLORS_6[i % DEFAULT_ZONE_COLORS_6.length];
+            return { label: z.label ?? '', color };
+          }) : []);
         })
         .catch(() => {});
     }
@@ -275,7 +279,11 @@ export default function ServiceAreasClient() {
       const data = await res.json();
       if (res.ok && data.polygon) {
         setEditPolygons((prev) => [...(prev ?? []), data.polygon]);
-        setEditZoneDisplay((prev) => [...prev, { label: zip5, color: '' }]);
+        setEditZoneDisplay((prev) => {
+          const nextIndex = prev.length;
+          const color = DEFAULT_ZONE_COLORS_6[nextIndex % DEFAULT_ZONE_COLORS_6.length];
+          return [...prev, { label: zip5, color }];
+        });
         setAddZipInput('');
       } else {
         setAddZipError(data.error ?? 'Could not load ZIP boundary.');
@@ -549,7 +557,10 @@ export default function ServiceAreasClient() {
                 <ServiceAreaMapDrawer
                   initialPolygon={editPolygons ?? undefined}
                   zoneDisplay={editPolygons?.length ? editZoneDisplay.slice(0, editPolygons.length).concat(
-                    Array.from({ length: Math.max(0, editPolygons.length - editZoneDisplay.length) }, () => ({ label: '', color: '' }))
+                    Array.from({ length: Math.max(0, editPolygons.length - editZoneDisplay.length) }, (_, i) => ({
+                      label: '',
+                      color: DEFAULT_ZONE_COLORS_6[(editZoneDisplay.length + i) % DEFAULT_ZONE_COLORS_6.length],
+                    }))
                   ) : undefined}
                   onPolygonChange={(p) => {
                     if (!p) {
@@ -561,8 +572,11 @@ export default function ServiceAreasClient() {
                         : [p as PolygonCoords];
                       setEditPolygons(list);
                       setEditZoneDisplay((prev) => {
-                        const next = list.map((_, i) => prev[i] ?? { label: '', color: '' });
-                        return next;
+                        return list.map((_, i) => {
+                          const existing = prev[i];
+                          const color = (existing?.color && /^#[0-9A-Fa-f]{6}$/.test(existing.color)) ? existing.color : DEFAULT_ZONE_COLORS_6[i % DEFAULT_ZONE_COLORS_6.length];
+                          return { label: existing?.label ?? '', color };
+                        });
                       });
                     }
                   }}
@@ -583,7 +597,7 @@ export default function ServiceAreasClient() {
                         value={editZoneDisplay[idx]?.label ?? ''}
                         onChange={(e) => setEditZoneDisplay((prev) => {
                           const next = [...prev];
-                          while (next.length <= idx) next.push({ label: '', color: '' });
+                          while (next.length <= idx) next.push({ label: '', color: DEFAULT_ZONE_COLORS_6[next.length % DEFAULT_ZONE_COLORS_6.length] });
                           next[idx] = { ...next[idx], label: e.target.value };
                           return next;
                         })}
@@ -592,10 +606,10 @@ export default function ServiceAreasClient() {
                       <div className="flex items-center gap-2">
                         <input
                           type="color"
-                          value={(editZoneDisplay[idx]?.color && /^#[0-9A-Fa-f]{6}$/.test(editZoneDisplay[idx].color!)) ? editZoneDisplay[idx].color! : '#3b82f6'}
+                          value={(editZoneDisplay[idx]?.color && /^#[0-9A-Fa-f]{6}$/.test(editZoneDisplay[idx].color!)) ? editZoneDisplay[idx].color! : DEFAULT_ZONE_COLORS_6[idx % DEFAULT_ZONE_COLORS_6.length]}
                           onChange={(e) => setEditZoneDisplay((prev) => {
                             const next = [...prev];
-                            while (next.length <= idx) next.push({ label: '', color: '' });
+                            while (next.length <= idx) next.push({ label: '', color: DEFAULT_ZONE_COLORS_6[next.length % DEFAULT_ZONE_COLORS_6.length] });
                             next[idx] = { ...next[idx], color: e.target.value };
                             return next;
                           })}
@@ -607,7 +621,7 @@ export default function ServiceAreasClient() {
                           value={editZoneDisplay[idx]?.color ?? ''}
                           onChange={(e) => setEditZoneDisplay((prev) => {
                             const next = [...prev];
-                            while (next.length <= idx) next.push({ label: '', color: '' });
+                            while (next.length <= idx) next.push({ label: '', color: DEFAULT_ZONE_COLORS_6[next.length % DEFAULT_ZONE_COLORS_6.length] });
                             next[idx] = { ...next[idx], color: e.target.value };
                             return next;
                           })}

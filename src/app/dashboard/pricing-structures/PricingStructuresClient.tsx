@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import Link from 'next/link';
-import { Plus, Pencil, Trash2, Loader2, DollarSign, Sparkles } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Sparkles } from 'lucide-react';
 
 interface PricingStructureItem {
   id: string;
@@ -195,16 +195,7 @@ export default function PricingStructuresClient() {
   return (
     <>
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5" />
-            Structures
-          </CardTitle>
-          <CardDescription>
-            Create and name pricing structures. Assign which structure each tool uses in Tool → Settings → Pricing Structure.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="pt-6 space-y-4">
           {message && (
             <p className={message.type === 'success' ? 'text-sm text-green-600' : 'text-sm text-destructive'}>
               {message.text}
