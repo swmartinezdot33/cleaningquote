@@ -39,6 +39,7 @@ interface ServiceAreaItem {
 
 export default function ServiceAreasClient() {
   const [orgId, setOrgId] = useState<string | null>(null);
+  const [orgRole, setOrgRole] = useState<string | null>(null);
   const [orgOfficeAddress, setOrgOfficeAddress] = useState<string>('');
   const [list, setList] = useState<ServiceAreaItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,8 +84,9 @@ export default function ServiceAreasClient() {
       .then((r) => r.json())
       .then((d) => {
         setOrgId(d.org?.id ?? null);
+        setOrgRole(d.org?.role ?? null);
         setOrgOfficeAddress((d.org as { office_address?: string } | null)?.office_address ?? '');
-        return d.org?.id;
+        return d.org?.id && (d.org?.role === 'admin') ? d.org.id : null;
       })
       .then((id) => {
         if (id) return fetch(`/api/dashboard/orgs/${id}/service-areas`).then((r) => r.json());
@@ -366,6 +368,16 @@ export default function ServiceAreasClient() {
           Back to dashboard
         </Link>
       </div>
+    );
+  }
+
+  if (orgRole !== 'admin') {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-muted-foreground">Only org admins can manage service areas.</p>
+        </CardContent>
+      </Card>
     );
   }
 

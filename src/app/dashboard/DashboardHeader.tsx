@@ -83,6 +83,7 @@ export function DashboardHeader({
       >
         Quotes
       </Link>
+      {/* Service Areas and Pricing: admin only; members do not see these */}
       {selectedOrgRole === 'admin' && (
         <>
           <Link
@@ -220,6 +221,7 @@ export function DashboardHeader({
                 >
                   Quotes
                 </Link>
+                {/* Service Areas and Pricing: admin only */}
                 {selectedOrgRole === 'admin' && (
                   <>
                     <Link
