@@ -1550,18 +1550,18 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                     <p className="text-xs text-muted-foreground mt-1.5">
                       We fetch name, phone, email, and address from GHL and land the user on the address step. Use iframe URL: <code className="bg-muted px-1 rounded text-[11px]">?contactId=&#123;&#123;Contact.Id&#125;&#125;</code>
                     </p>
-                    <div className="flex items-center justify-between gap-4 mt-4 pt-4 border-t border-border">
-                      <div className="flex-1">
-                        <Label htmlFor="internalToolOnlyFormBehavior" className="text-sm font-semibold cursor-pointer">Internal tool only</Label>
-                        <p className="text-xs text-muted-foreground mt-1">Collect contact info at the end of the survey instead of the beginning. On the quote summary, show a &quot;Save quote&quot; button instead of Book appointment / Schedule callback.</p>
-                      </div>
+                    <div className="flex items-start gap-3 mt-4 pt-4 border-t border-border">
                       <input
                         type="checkbox"
                         id="internalToolOnlyFormBehavior"
                         checked={String(form.internalToolOnly ?? '') === 'true'}
                         onChange={(e) => setForm((f) => ({ ...f, internalToolOnly: e.target.checked ? 'true' : 'false' }))}
-                        className="w-4 h-4 rounded border-input accent-primary"
+                        className="mt-0.5 w-4 h-4 rounded border-input accent-primary shrink-0"
                       />
+                      <div className="min-w-0">
+                        <Label htmlFor="internalToolOnlyFormBehavior" className="text-sm font-semibold cursor-pointer">Internal tool only</Label>
+                        <p className="text-xs text-muted-foreground mt-1">Collect contact info at the end of the survey instead of the beginning. On the quote summary, show a &quot;Save quote&quot; button instead of Book appointment / Schedule callback.</p>
+                      </div>
                     </div>
                   </div>
                 </section>
