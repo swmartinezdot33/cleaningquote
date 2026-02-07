@@ -12,9 +12,9 @@ export interface Database {
   public: {
     Tables: {
       organizations: {
-        Row: { id: string; name: string; slug: string; created_at: string; updated_at: string; stripe_customer_id: string | null; stripe_subscription_id: string | null; subscription_status: string | null; contact_email: string | null; contact_phone: string | null };
-        Insert: { id?: string; name: string; slug: string; created_at?: string; updated_at?: string; stripe_customer_id?: string | null; stripe_subscription_id?: string | null; subscription_status?: string | null; contact_email?: string | null; contact_phone?: string | null };
-        Update: { id?: string; name?: string; slug?: string; created_at?: string; updated_at?: string; stripe_customer_id?: string | null; stripe_subscription_id?: string | null; subscription_status?: string | null; contact_email?: string | null; contact_phone?: string | null };
+        Row: { id: string; name: string; slug: string; created_at: string; updated_at: string; stripe_customer_id: string | null; stripe_subscription_id: string | null; subscription_status: string | null; contact_email: string | null; contact_phone: string | null; office_address: string | null };
+        Insert: { id?: string; name: string; slug: string; created_at?: string; updated_at?: string; stripe_customer_id?: string | null; stripe_subscription_id?: string | null; subscription_status?: string | null; contact_email?: string | null; contact_phone?: string | null; office_address?: string | null };
+        Update: { id?: string; name?: string; slug?: string; created_at?: string; updated_at?: string; stripe_customer_id?: string | null; stripe_subscription_id?: string | null; subscription_status?: string | null; contact_email?: string | null; contact_phone?: string | null; office_address?: string | null };
       };
       organization_members: {
         Row: { id: string; org_id: string; user_id: string; role: OrgRole; created_at: string };

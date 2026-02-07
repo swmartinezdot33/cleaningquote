@@ -39,6 +39,7 @@ interface ServiceAreaItem {
 
 export default function ServiceAreasClient() {
   const [orgId, setOrgId] = useState<string | null>(null);
+  const [orgOfficeAddress, setOrgOfficeAddress] = useState<string>('');
   const [list, setList] = useState<ServiceAreaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [drawModalOpen, setDrawModalOpen] = useState(false);
@@ -82,6 +83,7 @@ export default function ServiceAreasClient() {
       .then((r) => r.json())
       .then((d) => {
         setOrgId(d.org?.id ?? null);
+        setOrgOfficeAddress((d.org as { office_address?: string } | null)?.office_address ?? '');
         return d.org?.id;
       })
       .then((id) => {
@@ -490,6 +492,7 @@ export default function ServiceAreasClient() {
                 zoneDisplay={previewZoneDisplay.length > 0 ? previewZoneDisplay : undefined}
                 readOnly
                 height="65vh"
+                officeAddress={orgOfficeAddress || undefined}
               />
             ) : (
               <div className="py-24 text-center text-muted-foreground">
@@ -562,6 +565,7 @@ export default function ServiceAreasClient() {
                       color: DEFAULT_ZONE_COLORS_6[(editZoneDisplay.length + i) % DEFAULT_ZONE_COLORS_6.length],
                     }))
                   ) : undefined}
+                  officeAddress={orgOfficeAddress || undefined}
                   onPolygonChange={(p) => {
                     if (!p) {
                       setEditPolygons(null);

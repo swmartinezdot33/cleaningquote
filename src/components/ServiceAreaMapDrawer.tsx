@@ -38,6 +38,8 @@ interface ServiceAreaMapDrawerProps {
   className?: string;
   /** When true, only show polygons (no drawing toolbar, polygons not editable). Use for preview. */
   readOnly?: boolean;
+  /** Optional office address; shown as a pin on the map (geocoded client-side). */
+  officeAddress?: string | null;
 }
 
 export function ServiceAreaMapDrawer({
@@ -47,12 +49,14 @@ export function ServiceAreaMapDrawer({
   height = 400,
   className = '',
   readOnly = false,
+  officeAddress = null,
 }: ServiceAreaMapDrawerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const drawingManagerRef = useRef<any>(null);
   const polygonRefs = useRef<any[]>([]);
   const labelMarkerRefs = useRef<any[]>([]);
+  const officeMarkerRef = useRef<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -164,6 +168,45 @@ export function ServiceAreaMapDrawer({
           }
         }
 
+        // Office pin: geocode address and add marker
+        const addressToGeocode = (typeof officeAddress === 'string' ? officeAddress.trim() : '') || null;
+        if (addressToGeocode && google.maps.Geocoder) {
+          const geocoder = new google.maps.Geocoder();
+          geocoder.geocode({ address: addressToGeocode }, (results: any, status: string) => {
+            if (status === 'OK' && results?.[0]?.geometry?.location && mapRef.current) {
+              const loc = results[0].geometry.location;
+              const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
+              const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
+              if (officeMarkerRef.current?.setMap) officeMarkerRef.current.setMap(null);
+              officeMarkerRef.current = new google.maps.Marker({
+                position: { lat, lng },
+                map: mapRef.current,
+                title: 'Office',
+                icon: {
+                  path: google.maps.SymbolPath.CIRCLE,
+                  scale: 10,
+                  fillColor: '#1d4ed8',
+                  fillOpacity: 1,
+                  strokeColor: '#fff',
+                  strokeWeight: 2,
+                },
+                zIndex: 200,
+              });
+              if (initialPolygons.length > 0) {
+                const officeBounds = new google.maps.LatLngBounds();
+                officeBounds.extend({ lat, lng });
+                initialPolygons.forEach((coords) => {
+                  coords.forEach(([la, ln]) => officeBounds.extend({ lat: la, lng: ln }));
+                });
+                mapRef.current.fitBounds(officeBounds);
+              } else {
+                mapRef.current.setCenter({ lat, lng });
+                mapRef.current.setZoom(12);
+              }
+            }
+          });
+        }
+
         // Show drawing toolbar only when not readOnly (preview mode)
         if (!readOnly) {
           const drawingManager = new google.maps.drawing.DrawingManager({
@@ -211,6 +254,8 @@ export function ServiceAreaMapDrawer({
     initMap();
 
     return () => {
+      if (officeMarkerRef.current?.setMap) officeMarkerRef.current.setMap(null);
+      officeMarkerRef.current = null;
       if (drawingManagerRef.current) {
         drawingManagerRef.current.setMap(null);
         drawingManagerRef.current = null;
@@ -225,7 +270,7 @@ export function ServiceAreaMapDrawer({
       polygonRefs.current = [];
       mapRef.current = null;
     };
-  }, [initialPolygon, zoneDisplay, onPolygonChange, readOnly]);
+  }, [initialPolygon, zoneDisplay, onPolygonChange, readOnly, officeAddress]);
 
   const style = typeof height === 'number' ? { height: `${height}px` } : { height };
 

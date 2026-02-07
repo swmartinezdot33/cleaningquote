@@ -25,7 +25,7 @@ export async function PATCH(
   }
 
   const body = await request.json().catch(() => ({}));
-  const updates: { name?: string; contact_email?: string | null; contact_phone?: string | null } = {};
+  const updates: { name?: string; contact_email?: string | null; contact_phone?: string | null; office_address?: string | null } = {};
   if (typeof body.name === 'string') {
     const name = body.name.trim();
     if (name) updates.name = name;
@@ -35,6 +35,9 @@ export async function PATCH(
   }
   if (body.contact_phone !== undefined) {
     updates.contact_phone = typeof body.contact_phone === 'string' ? body.contact_phone.trim() || null : null;
+  }
+  if (body.office_address !== undefined) {
+    updates.office_address = typeof body.office_address === 'string' ? body.office_address.trim() || null : null;
   }
 
   if (Object.keys(updates).length === 0) {

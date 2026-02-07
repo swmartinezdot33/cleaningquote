@@ -47,6 +47,7 @@ export default function SettingsPage() {
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [orgContactEmail, setOrgContactEmail] = useState('');
   const [orgContactPhone, setOrgContactPhone] = useState('');
+  const [orgOfficeAddress, setOrgOfficeAddress] = useState('');
   const [orgSaving, setOrgSaving] = useState(false);
   const [orgMessage, setOrgMessage] = useState<string | null>(null);
   const [ghlStatus, setGhlStatus] = useState<{ configured: boolean; connected?: boolean; locationId?: string } | null>(null);
@@ -106,6 +107,7 @@ export default function SettingsPage() {
         setOrgName(d.org?.name ?? '');
         setOrgContactEmail(d.org?.contact_email ?? '');
         setOrgContactPhone(d.org?.contact_phone ?? '');
+        setOrgOfficeAddress((d.org as { office_address?: string } | null)?.office_address ?? '');
         return d.org?.id;
       })
       .then((id) => {
@@ -147,6 +149,7 @@ export default function SettingsPage() {
           name: orgName.trim() || undefined,
           contact_email: orgContactEmail.trim() || null,
           contact_phone: orgContactPhone.trim() || null,
+          office_address: orgOfficeAddress.trim() || null,
         }),
       });
       const data = await res.json();
@@ -259,7 +262,7 @@ export default function SettingsPage() {
       <section>
         <h2 className="text-lg font-semibold">Organization details</h2>
         <p className="text-sm text-muted-foreground mb-2">
-          Name, contact email, and phone shown on the out-of-service page and Contact Us for this org&apos;s tools.
+          Name, contact info, and office address. The office address appears as a pin on service area maps and previews.
         </p>
         <div className="space-y-2 rounded-lg border p-4">
           <div>
@@ -291,6 +294,17 @@ export default function SettingsPage() {
               className="mt-1 w-full rounded border px-3 py-2 text-sm"
               placeholder="e.g. 919.925.2378"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground">Office address</label>
+            <input
+              type="text"
+              value={orgOfficeAddress}
+              onChange={(e) => setOrgOfficeAddress(e.target.value)}
+              className="mt-1 w-full rounded border px-3 py-2 text-sm"
+              placeholder="e.g. 123 Main St, Raleigh, NC 27601"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">Shown as a pin on service area maps and previews.</p>
           </div>
           <button
             type="button"
