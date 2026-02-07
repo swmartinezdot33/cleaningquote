@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-type CardId = 'widget' | 'form' | 'tracking' | 'ghl-config' | 'service-area' | 'pricing-structure';
+type CardId = 'widget' | 'form' | 'tracking' | 'form-tracking' | 'ghl-config' | 'service-area' | 'pricing-structure';
 
 const GHL_CONFIG_HELP = '/help/ghl-config';
 function GhlHelpIcon({ anchor }: { anchor: string }) {
@@ -92,7 +92,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
   const [savingSection, setSavingSection] = useState<CardId | null>(null);
   const [expandedRuleIndex, setExpandedRuleIndex] = useState<number | null>(null);
   const [sectionMessage, setSectionMessage] = useState<{ card: CardId; type: 'success' | 'error'; text: string } | null>(null);
-  const [expandedCards, setExpandedCards] = useState<Set<CardId>>(new Set(['widget']));
+  const [expandedCards, setExpandedCards] = useState<Set<CardId>>(new Set());
   const [queryLinkCopied, setQueryLinkCopied] = useState(false);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgServiceAreas, setOrgServiceAreas] = useState<{ id: string; name: string }[]>([]);
@@ -311,6 +311,42 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
     }
   };
 
+  const saveFormAndTracking = async () => {
+    setSavingSection('form-tracking');
+    clearMessage('form-tracking');
+    try {
+      const [formRes, trackingRes] = await Promise.all([
+        fetch(`/api/dashboard/tools/${toolId}/form-settings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(form),
+        }),
+        fetch(`/api/dashboard/tools/${toolId}/tracking-codes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customHeadCode: customHeadCode.trim(),
+            trackingQuoteSummary: trackingQuoteSummary.trim(),
+            trackingAppointmentBooking: trackingAppointmentBooking.trim(),
+          }),
+        }),
+      ]);
+      const formOk = formRes.ok;
+      const trackingOk = trackingRes.ok;
+      if (formOk && trackingOk) {
+        setSectionMessage({ card: 'form-tracking', type: 'success', text: 'Query parameters and tracking saved.' });
+      } else if (!formOk && !trackingOk) {
+        setSectionMessage({ card: 'form-tracking', type: 'error', text: 'Failed to save query parameters and tracking.' });
+      } else {
+        setSectionMessage({ card: 'form-tracking', type: 'success', text: formOk ? 'Tracking saved.' : 'Query parameters saved.' });
+      }
+    } catch {
+      setSectionMessage({ card: 'form-tracking', type: 'error', text: 'Failed to save.' });
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
   const saveGhlConfig = async () => {
     setSavingSection('ghl-config');
     clearMessage('ghl-config');
@@ -347,13 +383,22 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
         body: JSON.stringify({ assignments }),
       });
       const data = await res.json();
-      if (res.ok) {
-        setSectionMessage({ card: 'service-area', type: 'success', text: 'Service area assignments saved.' });
-      } else {
+      if (!res.ok) {
         setSectionMessage({ card: 'service-area', type: 'error', text: data.error ?? 'Failed to save assignments' });
+        return;
+      }
+      const formRes = await fetch(`/api/dashboard/tools/${toolId}/form-settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (formRes.ok) {
+        setSectionMessage({ card: 'service-area', type: 'success', text: 'Service area settings saved.' });
+      } else {
+        setSectionMessage({ card: 'service-area', type: 'success', text: 'Service area assignments saved.' });
       }
     } catch {
-      setSectionMessage({ card: 'service-area', type: 'error', text: 'Failed to save service area assignments' });
+      setSectionMessage({ card: 'service-area', type: 'error', text: 'Failed to save service area settings' });
     } finally {
       setSavingServiceAreaAssignments(false);
     }
@@ -483,309 +528,8 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
         </Card>
       </motion.div>
 
-      {/* Query Parameter Settings (Form) */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
-          <CardHeader
-            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
-            onClick={() => toggleCard('form')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                  <FileText className="h-5 w-5 text-primary" />
-                  Query Parameter Settings
-                </CardTitle>
-                <CardDescription className="text-muted-foreground mt-1">
-                  Configure which URL query parameters pre-fill the form (e.g. ?firstName=John&email=test@example.com)
-                </CardDescription>
-              </div>
-              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('form') ? 'rotate-180' : ''}`} />
-            </div>
-          </CardHeader>
-          {isCardExpanded('form') && (
-            <CardContent className="pt-8 pb-8">
-              <div className="space-y-6">
-                {sectionMessage?.card === 'form' && (
-                  <div
-                    className={`p-4 rounded-lg flex items-center gap-3 ${
-                      sectionMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
-                    }`}
-                  >
-                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
-                    <p>{sectionMessage.text}</p>
-                  </div>
-                )}
-                {['firstNameParam', 'lastNameParam', 'emailParam', 'phoneParam', 'addressParam'].map((key) => (
-                  <div key={key}>
-                    <Label htmlFor={key} className="text-base font-semibold">{key.replace(/([A-Z])/g, ' $1').trim()}</Label>
-                    <Input
-                      id={key}
-                      value={(form[key] as string) ?? ''}
-                      onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                      placeholder={`e.g. ${key === 'emailParam' ? 'email' : key === 'phoneParam' ? 'phone' : key.toLowerCase().replace('param', '')}`}
-                      className={inputClass}
-                    />
-                  </div>
-                ))}
-                {/* Query link with placeholders — copy and replace {{...}} with your dynamic variables */}
-                {(() => {
-                  const paramKeys = ['firstNameParam', 'lastNameParam', 'emailParam', 'phoneParam', 'addressParam'] as const;
-                  const segments = paramKeys
-                    .filter((k) => (form[k] as string)?.trim())
-                    .map((k) => {
-                      const p = (form[k] as string).trim();
-                      return `${encodeURIComponent(p)}={{${p}}}`;
-                    });
-                  const queryLink = segments.length ? `?${segments.join('&')}` : '';
-                  return (
-                    <div className="space-y-2">
-                      <Label className="text-base font-semibold">Query link (copy and replace placeholders with your variables)</Label>
-                      <p className="text-sm text-muted-foreground">Append this to your survey URL. Replace each <code className="bg-muted px-1 rounded">{'{{param}}'}</code> with your CRM/email variable (e.g. HighLevel <code className="bg-muted px-1 rounded">{'{{contact.first_name}}'}</code>).</p>
-                      <div className="flex gap-2 items-center">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="shrink-0 gap-2"
-                          disabled={!queryLink}
-                          onClick={async () => {
-                            if (!queryLink) return;
-                            await navigator.clipboard.writeText(queryLink);
-                            setQueryLinkCopied(true);
-                            setTimeout(() => setQueryLinkCopied(false), 2000);
-                          }}
-                          title={queryLinkCopied ? 'Copied!' : 'Copy query link'}
-                        >
-                          <Copy className="h-4 w-4" />
-                          {queryLinkCopied ? 'Copied!' : 'Copy'}
-                        </Button>
-                        <Input
-                          readOnly
-                          value={queryLink || '(configure at least one param above)'}
-                          className={`font-mono text-sm flex-1 min-w-0 ${queryLink ? 'bg-background' : 'bg-muted/50 text-muted-foreground'}`}
-                        />
-                      </div>
-                    </div>
-                  );
-                })()}
-                <div className="border-t border-border pt-6">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <Label htmlFor="openSurveyInNewTab" className="text-base font-semibold cursor-pointer">
-                        Open survey in new tab after service area check success
-                      </Label>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        When enabled, after the user enters their address and passes the service area check, a new tab opens to continue the survey. Contact info is pre-filled and they skip to house details. Only works when the widget is embedded in an iframe.
-                      </p>
-                    </div>
-                    <div className="flex-shrink-0">
-                      <input
-                        type="checkbox"
-                        id="openSurveyInNewTab"
-                        checked={String(form.openSurveyInNewTab) === 'true'}
-                        onChange={(e) => setForm((f) => ({ ...f, openSurveyInNewTab: e.target.checked ? 'true' : 'false' }))}
-                        className="w-4 h-4 rounded border-input"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="border-t border-border pt-6">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <Label htmlFor="internalToolOnly" className="text-base font-semibold cursor-pointer">
-                        Internal tool only
-                      </Label>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Collect contact info (name, email, phone, address) at the end of the survey instead of the beginning. On the quote summary, show a &quot;Save quote&quot; button instead of Book appointment / Schedule callback.
-                      </p>
-                    </div>
-                    <div className="flex-shrink-0">
-                      <input
-                        type="checkbox"
-                        id="internalToolOnly"
-                        checked={String(form.internalToolOnly ?? '') === 'true'}
-                        onChange={(e) => setForm((f) => ({ ...f, internalToolOnly: e.target.checked ? 'true' : 'false' }))}
-                        className="w-4 h-4 rounded border-input"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <Button onClick={() => saveForm()} disabled={savingSection === 'form'} className="w-full h-11 font-semibold flex items-center gap-2">
-                  {savingSection === 'form' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Form Settings</>}
-                </Button>
-              </div>
-            </CardContent>
-          )}
-        </Card>
-      </motion.div>
-
-      {/* Tracking & Analytics */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
-          <CardHeader
-            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
-            onClick={() => toggleCard('tracking')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                  <Code className="h-5 w-5 text-primary" />
-                  Tracking & Analytics
-                </CardTitle>
-                <CardDescription className="text-muted-foreground mt-1">
-                  Three code boxes: every page (e.g. Meta PageView), quote summary (conversions), appointment booking (e.g. Appointment Booked)
-                </CardDescription>
-              </div>
-              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('tracking') ? 'rotate-180' : ''}`} />
-            </div>
-          </CardHeader>
-          {isCardExpanded('tracking') && (
-            <CardContent className="pt-8 pb-8">
-              <div className="space-y-6">
-                {sectionMessage?.card === 'tracking' && (
-                  <div
-                    className={`p-4 rounded-lg flex items-center gap-3 ${
-                      sectionMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
-                    }`}
-                  >
-                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
-                    <p>{sectionMessage.text}</p>
-                  </div>
-                )}
-                <div>
-                  <Label htmlFor="custom-head-code" className="text-base font-semibold">1. Every page (e.g. Meta PageView)</Label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Loads on every tool page (form, quote summary, confirmation). Use for page views and general tracking.
-                  </p>
-                  <textarea
-                    id="custom-head-code"
-                    value={customHeadCode}
-                    onChange={(e) => setCustomHeadCode(e.target.value)}
-                    rows={4}
-                    className="mt-2 w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
-                    placeholder="<script>...</script>"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="tracking-quote-summary" className="text-base font-semibold">2. Quote Summary only (e.g. Meta Conversion)</Label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Loads only when the user sees the quote result/summary. Use for conversion events (e.g. fbq(&apos;track&apos;, &apos;Lead&apos;)).
-                  </p>
-                  <textarea
-                    id="tracking-quote-summary"
-                    value={trackingQuoteSummary}
-                    onChange={(e) => setTrackingQuoteSummary(e.target.value)}
-                    rows={4}
-                    className="mt-2 w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
-                    placeholder="<script>...</script>"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="tracking-appointment-booking" className="text-base font-semibold">3. Appointment booking only (e.g. Appointment Booked event)</Label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Loads on the appointment-confirmed and callback-confirmed pages. Use for &quot;appointment booked&quot; or similar events.
-                  </p>
-                  <textarea
-                    id="tracking-appointment-booking"
-                    value={trackingAppointmentBooking}
-                    onChange={(e) => setTrackingAppointmentBooking(e.target.value)}
-                    rows={4}
-                    className="mt-2 w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
-                    placeholder="<script>...</script>"
-                  />
-                </div>
-                <Button onClick={saveTracking} disabled={savingSection === 'tracking'} className="w-full h-11 font-semibold flex items-center gap-2">
-                  {savingSection === 'tracking' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Tracking Codes</>}
-                </Button>
-              </div>
-            </CardContent>
-          )}
-        </Card>
-      </motion.div>
-
-      {/* Service area check */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.13 }}>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
-          <CardHeader
-            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
-            onClick={() => toggleCard('service-area')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-                  <MapPin className="h-5 w-5 text-primary" />
-                  Service area check
-                </CardTitle>
-                <CardDescription className="text-muted-foreground mt-1">
-                  Choose which service areas to use for address checks on this tool. Create and manage areas in{' '}
-                  <Link href="/dashboard/service-areas" className="text-primary hover:underline font-medium">Service Areas</Link>.
-                </CardDescription>
-              </div>
-              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('service-area') ? 'rotate-180' : ''}`} />
-            </div>
-          </CardHeader>
-          {isCardExpanded('service-area') && (
-            <CardContent className="pt-6 pb-6">
-              <div className="space-y-4">
-                {sectionMessage?.card === 'service-area' && (
-                  <div
-                    className={`p-4 rounded-lg flex items-center gap-3 ${
-                      sectionMessage.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-200 border border-emerald-200' : 'bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-200 border border-red-200'
-                    }`}
-                  >
-                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
-                    <p className="font-medium">{sectionMessage.text}</p>
-                  </div>
-                )}
-                {orgServiceAreas.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">
-                    No service areas yet. Create one in{' '}
-                    <Link href="/dashboard/service-areas" className="text-primary hover:underline">Service Areas</Link>, then return here to assign them to this tool.
-                  </p>
-                ) : (
-                  <>
-                    <p className="text-sm text-muted-foreground">
-                      When a user enters an address, we check if it falls inside any of the selected areas below.
-                    </p>
-                    <ul className="space-y-2">
-                      {orgServiceAreas.map((area) => (
-                        <li key={area.id} className="flex flex-col gap-1">
-                          <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg border border-border hover:bg-muted/30">
-                            <input
-                              type="checkbox"
-                              checked={assignedServiceAreaIds.includes(area.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setAssignedServiceAreaIds((prev) => [...prev, area.id]);
-                                } else {
-                                  setAssignedServiceAreaIds((prev) => prev.filter((id) => id !== area.id));
-                                }
-                              }}
-                              className="w-4 h-4 rounded border-input accent-primary"
-                            />
-                            <span className="font-medium">{area.name}</span>
-                          </label>
-                        </li>
-                      ))}
-                    </ul>
-                    <Button
-                      onClick={saveServiceAreaAssignments}
-                      disabled={savingServiceAreaAssignments}
-                      className="gap-2"
-                    >
-                      {savingServiceAreaAssignments ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                      Save service area assignments
-                    </Button>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          )}
-        </Card>
-      </motion.div>
-
       {/* Pricing Structure */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 }}>
         <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
           <CardHeader
             className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
@@ -841,6 +585,267 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                 <Button onClick={savePricingStructure} disabled={savingSection === 'pricing-structure'} className="gap-2">
                   {savingSection === 'pricing-structure' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                   {savingSection === 'pricing-structure' ? 'Saving…' : 'Save pricing structure'}
+                </Button>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      </motion.div>
+
+      {/* Service Area(s) */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.13 }}>
+        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
+          <CardHeader
+            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
+            onClick={() => toggleCard('service-area')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                  <MapPin className="h-5 w-5 text-primary" />
+                  Service Area(s)
+                </CardTitle>
+                <CardDescription className="text-muted-foreground mt-1">
+                  Choose which service areas to use for address checks on this tool. Create and manage areas in{' '}
+                  <Link href="/dashboard/service-areas" className="text-primary hover:underline font-medium">Service Areas</Link>.
+                </CardDescription>
+              </div>
+              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('service-area') ? 'rotate-180' : ''}`} />
+            </div>
+          </CardHeader>
+          {isCardExpanded('service-area') && (
+            <CardContent className="pt-6 pb-6">
+              <div className="space-y-4">
+                {sectionMessage?.card === 'service-area' && (
+                  <div
+                    className={`p-4 rounded-lg flex items-center gap-3 ${
+                      sectionMessage.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-200 border border-emerald-200' : 'bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-200 border border-red-200'
+                    }`}
+                  >
+                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
+                    <p className="font-medium">{sectionMessage.text}</p>
+                  </div>
+                )}
+                {orgServiceAreas.length === 0 ? (
+                  <div>
+                    <p className="text-muted-foreground text-sm">
+                      No service areas yet. Create one in{' '}
+                      <Link href="/dashboard/service-areas" className="text-primary hover:underline">Service Areas</Link>, then return here to assign them to this tool.
+                    </p>
+                    <Button
+                      onClick={saveServiceAreaAssignments}
+                      disabled={savingServiceAreaAssignments}
+                      className="gap-2 mt-3"
+                    >
+                      {savingServiceAreaAssignments ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Save service area settings
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      When a user enters an address, we check if it falls inside any of the selected areas below.
+                    </p>
+                    <ul className="space-y-2">
+                      {orgServiceAreas.map((area) => (
+                        <li key={area.id} className="flex flex-col gap-1">
+                          <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg border border-border hover:bg-muted/30">
+                            <input
+                              type="checkbox"
+                              checked={assignedServiceAreaIds.includes(area.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setAssignedServiceAreaIds((prev) => [...prev, area.id]);
+                                } else {
+                                  setAssignedServiceAreaIds((prev) => prev.filter((id) => id !== area.id));
+                                }
+                              }}
+                              className="w-4 h-4 rounded border-input accent-primary"
+                            />
+                            <span className="font-medium">{area.name}</span>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                    <Button
+                      onClick={saveServiceAreaAssignments}
+                      disabled={savingServiceAreaAssignments}
+                      className="gap-2"
+                    >
+                      {savingServiceAreaAssignments ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Save service area assignments
+                    </Button>
+                  </>
+                )}
+                <div className="border-t border-border pt-4 mt-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <Label htmlFor="openSurveyInNewTabServiceArea" className="text-base font-semibold cursor-pointer">
+                        Open survey in new tab after service area check success
+                      </Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        When enabled, after the user enters their address and passes the service area check, a new tab opens to continue the survey. Contact info is pre-filled and they skip to house details. Only works when the widget is embedded in an iframe.
+                      </p>
+                    </div>
+                    <div className="flex-shrink-0">
+                      <input
+                        type="checkbox"
+                        id="openSurveyInNewTabServiceArea"
+                        checked={String(form.openSurveyInNewTab) === 'true'}
+                        onChange={(e) => setForm((f) => ({ ...f, openSurveyInNewTab: e.target.checked ? 'true' : 'false' }))}
+                        className="w-4 h-4 rounded border-input accent-primary"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      </motion.div>
+
+      {/* Query Parameters & Tracking */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border">
+          <CardHeader
+            className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
+            onClick={() => toggleCard('form-tracking')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+                  <Code className="h-5 w-5 text-primary" />
+                  Query Parameters & Tracking
+                </CardTitle>
+                <CardDescription className="text-muted-foreground mt-1">
+                  URL query parameters for pre-fill and tracking/analytics code (every page, quote summary, appointment booking).
+                </CardDescription>
+              </div>
+              <ChevronDown className={`h-5 w-5 transition-transform flex-shrink-0 ${isCardExpanded('form-tracking') ? 'rotate-180' : ''}`} />
+            </div>
+          </CardHeader>
+          {isCardExpanded('form-tracking') && (
+            <CardContent className="pt-8 pb-8">
+              <div className="space-y-8">
+                {(sectionMessage?.card === 'form' || sectionMessage?.card === 'tracking' || sectionMessage?.card === 'form-tracking') && (
+                  <div
+                    className={`p-4 rounded-lg flex items-center gap-3 ${
+                      sectionMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}
+                  >
+                    {sectionMessage.type === 'success' ? <CheckCircle className="h-5 w-5 flex-shrink-0" /> : <AlertCircle className="h-5 w-5 flex-shrink-0" />}
+                    <p>{sectionMessage.text}</p>
+                  </div>
+                )}
+                <section className="space-y-4">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary" />
+                    Query parameters
+                  </h3>
+                  <p className="text-sm text-muted-foreground">Configure which URL query parameters pre-fill the form.</p>
+                  {['firstNameParam', 'lastNameParam', 'emailParam', 'phoneParam', 'addressParam'].map((key) => (
+                    <div key={key}>
+                      <Label htmlFor={`ft-${key}`} className="text-base font-semibold">{key.replace(/([A-Z])/g, ' $1').trim()}</Label>
+                      <Input
+                        id={`ft-${key}`}
+                        value={(form[key] as string) ?? ''}
+                        onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                        placeholder={`e.g. ${key === 'emailParam' ? 'email' : key === 'phoneParam' ? 'phone' : key.toLowerCase().replace('param', '')}`}
+                        className={inputClass}
+                      />
+                    </div>
+                  ))}
+                  {(() => {
+                    const paramKeys = ['firstNameParam', 'lastNameParam', 'emailParam', 'phoneParam', 'addressParam'] as const;
+                    const segments = paramKeys
+                      .filter((k) => (form[k] as string)?.trim())
+                      .map((k) => {
+                        const p = (form[k] as string).trim();
+                        return `${encodeURIComponent(p)}={{${p}}}`;
+                      });
+                    const queryLink = segments.length ? `?${segments.join('&')}` : '';
+                    return (
+                      <div className="space-y-2">
+                        <Label className="text-base font-semibold">Query link (copy and replace placeholders)</Label>
+                        <div className="flex gap-2 items-center">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="shrink-0 gap-2"
+                            disabled={!queryLink}
+                            onClick={async () => {
+                              if (!queryLink) return;
+                              await navigator.clipboard.writeText(queryLink);
+                              setQueryLinkCopied(true);
+                              setTimeout(() => setQueryLinkCopied(false), 2000);
+                            }}
+                            title={queryLinkCopied ? 'Copied!' : 'Copy query link'}
+                          >
+                            <Copy className="h-4 w-4" />
+                            {queryLinkCopied ? 'Copied!' : 'Copy'}
+                          </Button>
+                          <Input
+                            readOnly
+                            value={queryLink || '(configure at least one param above)'}
+                            className={`font-mono text-sm flex-1 min-w-0 ${queryLink ? 'bg-background' : 'bg-muted/50 text-muted-foreground'}`}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  <div className="flex items-center justify-between gap-4 pt-2">
+                    <div className="flex-1">
+                      <Label htmlFor="internalToolOnlyFt" className="text-base font-semibold cursor-pointer">Internal tool only</Label>
+                      <p className="text-sm text-muted-foreground mt-1">Collect contact at end; show &quot;Save quote&quot; instead of Book appointment.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      id="internalToolOnlyFt"
+                      checked={String(form.internalToolOnly ?? '') === 'true'}
+                      onChange={(e) => setForm((f) => ({ ...f, internalToolOnly: e.target.checked ? 'true' : 'false' }))}
+                      className="w-4 h-4 rounded border-input"
+                    />
+                  </div>
+                </section>
+                <section className="space-y-4 border-t border-border pt-6">
+                  <h3 className="text-lg font-semibold">Tracking & Analytics</h3>
+                  <p className="text-sm text-muted-foreground">Three code boxes: every page, quote summary, appointment booking.</p>
+                  <div>
+                    <Label htmlFor="custom-head-code-ft" className="text-base font-semibold">1. Every page (e.g. Meta PageView)</Label>
+                    <textarea
+                      id="custom-head-code-ft"
+                      value={customHeadCode}
+                      onChange={(e) => setCustomHeadCode(e.target.value)}
+                      rows={4}
+                      className="mt-2 w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
+                      placeholder="<script>...</script>"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="tracking-quote-summary-ft" className="text-base font-semibold">2. Quote Summary only (e.g. Meta Conversion)</Label>
+                    <textarea
+                      id="tracking-quote-summary-ft"
+                      value={trackingQuoteSummary}
+                      onChange={(e) => setTrackingQuoteSummary(e.target.value)}
+                      rows={4}
+                      className="mt-2 w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
+                      placeholder="<script>...</script>"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="tracking-appointment-booking-ft" className="text-base font-semibold">3. Appointment booking only</Label>
+                    <textarea
+                      id="tracking-appointment-booking-ft"
+                      value={trackingAppointmentBooking}
+                      onChange={(e) => setTrackingAppointmentBooking(e.target.value)}
+                      rows={4}
+                      className="mt-2 w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
+                      placeholder="<script>...</script>"
+                    />
+                  </div>
+                </section>
+                <Button onClick={saveFormAndTracking} disabled={savingSection === 'form-tracking'} className="w-full h-11 font-semibold flex items-center gap-2">
+                  {savingSection === 'form-tracking' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save query parameters & tracking</>}
                 </Button>
               </div>
             </CardContent>
