@@ -101,15 +101,28 @@ export function ServiceAreaMapDrawer({
       if (!containerRef.current || !google?.maps) return;
       setError(null);
       try {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ServiceAreaMapDrawer.tsx:initMap:entry',message:'initMap entry',data:{hasContainer:!!containerRef.current,readOnly},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+        // #endregion
         const { AdvancedMarkerElement } = (await google.maps.importLibrary('marker')) as google.maps.MarkerLibrary;
 
+        // Terra Draw's Google adapter uses map.data (Data layer). Vector maps (mapId) can have map.data null.
+        // Use mapId only for read-only (AdvancedMarkerElement); editable mode uses classic map so map.data exists.
+        const useMapId = readOnly;
         const map = new google.maps.Map(containerRef.current, {
           center: { lat: 39.5, lng: -98.5 },
           zoom: 4,
           mapTypeId: google.maps.MapTypeId.ROADMAP,
-          mapId: DEFAULT_MAP_ID,
+          ...(useMapId ? { mapId: DEFAULT_MAP_ID } : {}),
         });
         mapRef.current = map;
+
+        // #region agent log
+        const mapDataNull = !(map as any).data;
+        const getDiv = typeof map.getDiv === 'function' ? map.getDiv() : null;
+        const eventEl = getDiv?.querySelector?.('div[style*="z-index: 3;"]') ?? null;
+        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ServiceAreaMapDrawer.tsx:afterMap',message:'after Map creation',data:{useMapId,mapDataNull,hasGetDiv:!!getDiv,eventElNull:eventEl===null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+        // #endregion
 
         const display = Array.isArray(zoneDisplay) ? zoneDisplay : [];
 
@@ -212,7 +225,7 @@ export function ServiceAreaMapDrawer({
           }
         }
 
-        // Office pin: AdvancedMarkerElement (replacement for deprecated Marker)
+        // Office pin: AdvancedMarkerElement when mapId (read-only), else classic Marker (editable/Terra Draw)
         const addressToGeocode = (typeof officeAddress === 'string' ? officeAddress.trim() : '') || null;
         if (addressToGeocode && google.maps.Geocoder) {
           const geocoder = new google.maps.Geocoder();
@@ -221,16 +234,27 @@ export function ServiceAreaMapDrawer({
             const loc = results[0].geometry.location;
             const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
             const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
-            if (officeMarkerRef.current?.map) officeMarkerRef.current.map = null;
-            const pinEl = document.createElement('div');
-            pinEl.style.cssText = 'width:20px;height:20px;background:#1d4ed8;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.3);';
-            officeMarkerRef.current = new AdvancedMarkerElement({
-              map: mapRef.current,
-              position: { lat, lng },
-              content: pinEl,
-              title: 'Office',
-              zIndex: 200,
-            });
+            const prev = officeMarkerRef.current as any;
+            if (prev?.setMap) prev.setMap(null);
+            else if (prev?.map != null) prev.map = null;
+            if (useMapId) {
+              const pinEl = document.createElement('div');
+              pinEl.style.cssText = 'width:20px;height:20px;background:#1d4ed8;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.3);';
+              officeMarkerRef.current = new AdvancedMarkerElement({
+                map: mapRef.current,
+                position: { lat, lng },
+                content: pinEl,
+                title: 'Office',
+                zIndex: 200,
+              });
+            } else {
+              officeMarkerRef.current = new google.maps.Marker({
+                map: mapRef.current,
+                position: { lat, lng },
+                title: 'Office',
+                zIndex: 200,
+              });
+            }
             if (initialPolygons.length > 0) {
               const officeBounds = new google.maps.LatLngBounds();
               officeBounds.extend({ lat, lng });
@@ -269,8 +293,10 @@ export function ServiceAreaMapDrawer({
 
     return () => {
       cancelled = true;
-      if (officeMarkerRef.current) {
-        officeMarkerRef.current.map = null;
+      const m = officeMarkerRef.current as any;
+      if (m) {
+        if (m.setMap) m.setMap(null);
+        else if (m.map != null) m.map = null;
         officeMarkerRef.current = null;
       }
       if (terraDrawRef.current) {
