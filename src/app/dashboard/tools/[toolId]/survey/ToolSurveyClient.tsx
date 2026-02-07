@@ -661,13 +661,57 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                               <summary className="flex items-center gap-2 cursor-pointer list-none text-sm text-muted-foreground hover:text-foreground select-none">
                                 <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-open:rotate-90" />
                                 <span>More</span>
-                                <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">More</span>
                               </summary>
                               <div className="mt-2 pl-6 border-l-2 border-border space-y-3">
                                 <div>
                                   <Label className="text-xs">Option image (optional)</Label>
                                   <p className="text-xs text-muted-foreground mb-1">Show a picture for this option so users can select by image (e.g. condition of home). Uploads go to Supabase Storage (bucket cleaningquote-images). Or paste an image URL below.</p>
-                                  <div className="mt-1.5 flex flex-col gap-2">
+                                  <div className="mt-1.5 flex flex-col gap-3">
+                                    {(option as SurveyQuestionOption).imageUrl?.trim() && (
+                                      <div className="flex flex-wrap items-start gap-3 p-2 rounded-lg border border-border bg-muted/30">
+                                        <div className="relative shrink-0">
+                                          <img
+                                            src={(option as SurveyQuestionOption).imageUrl}
+                                            alt="Option preview"
+                                            className="h-20 w-20 sm:h-24 sm:w-24 rounded-lg border border-gray-200 object-cover bg-gray-100"
+                                            onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96"><rect fill="#f3f4f6" width="96" height="96"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#9ca3af" font-size="12">?</text></svg>'); }}
+                                          />
+                                          <Button
+                                            type="button"
+                                            variant="secondary"
+                                            size="icon"
+                                            className="absolute -top-1.5 -right-1.5 h-7 w-7 rounded-full shadow border border-gray-200 bg-white hover:bg-red-50 hover:text-red-600 p-0"
+                                            onClick={() => {
+                                              const newOptions = [...(editingQuestion.options || [])];
+                                              const o = newOptions[idx] as SurveyQuestionOption;
+                                              newOptions[idx] = { ...o, imageUrl: undefined };
+                                              setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                            }}
+                                            aria-label="Clear image"
+                                          >
+                                            <X className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </div>
+                                        <div className="flex flex-col gap-1 min-w-0">
+                                          <span className="text-xs font-medium text-foreground">Image preview</span>
+                                          <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-fit h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                                            onClick={() => {
+                                              const newOptions = [...(editingQuestion.options || [])];
+                                              const o = newOptions[idx] as SurveyQuestionOption;
+                                              newOptions[idx] = { ...o, imageUrl: undefined };
+                                              setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                            }}
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                            Remove image
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    )}
                                     <div className="flex items-center gap-2">
                                       <label className="flex cursor-pointer items-center gap-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-100">
                                         <Upload className="h-4 w-4" />
@@ -722,34 +766,6 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                                         <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
                                       )}
                                     </div>
-                                    {(option as SurveyQuestionOption).imageUrl?.trim() && (
-                                      <div className="flex items-center gap-2">
-                                        <div className="relative inline-block shrink-0">
-                                          <img
-                                            src={(option as SurveyQuestionOption).imageUrl}
-                                            alt=""
-                                            className="h-14 w-14 rounded-lg border border-gray-200 object-cover bg-gray-100"
-                                            onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56"><rect fill="#f3f4f6" width="56" height="56"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#9ca3af" font-size="10">?</text></svg>'); }}
-                                          />
-                                          <Button
-                                            type="button"
-                                            variant="secondary"
-                                            size="icon"
-                                            className="absolute -top-1.5 -right-1.5 h-6 w-6 rounded-full shadow border border-gray-200 bg-white hover:bg-red-50 hover:text-red-600 p-0"
-                                            onClick={() => {
-                                              const newOptions = [...(editingQuestion.options || [])];
-                                              const o = newOptions[idx] as SurveyQuestionOption;
-                                              newOptions[idx] = { ...o, imageUrl: undefined };
-                                              setEditingQuestion({ ...editingQuestion, options: newOptions });
-                                            }}
-                                            aria-label="Clear image"
-                                          >
-                                            <X className="h-3 w-3" />
-                                          </Button>
-                                        </div>
-                                        <span className="text-xs text-muted-foreground">Thumbnail · click X to clear</span>
-                                      </div>
-                                    )}
                                     <details className="text-xs">
                                       <summary className="cursor-pointer text-gray-500 hover:text-gray-700">Or paste image URL</summary>
                                       <Input

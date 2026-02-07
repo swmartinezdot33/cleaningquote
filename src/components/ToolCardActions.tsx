@@ -131,7 +131,7 @@ export function ToolCardActions({ toolId, toolName, toolSlug, toolOrgId }: ToolC
   };
 
   return (
-    <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+    <div className="flex flex-wrap items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
       <IconButton
         onClick={() => {
           // #region agent log

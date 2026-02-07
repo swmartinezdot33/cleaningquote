@@ -94,13 +94,13 @@ export default async function DashboardPage({
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {list.map((tool) => (
             <li key={tool.id}>
-              <div className="block rounded-xl border border-border bg-card p-6 shadow-sm hover:border-primary/40 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between gap-2">
-                  <Link href={`/dashboard/tools/${tool.id}`} className="block flex-1 min-w-0 overflow-hidden">
+              <div className="block rounded-xl border border-border bg-card p-4 sm:p-6 shadow-sm hover:border-primary/40 hover:shadow-md transition-shadow overflow-hidden">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <Link href={`/dashboard/tools/${tool.id}`} className="block min-w-0 flex-1 basis-full sm:basis-0">
                     <h2 className="font-semibold text-foreground truncate">{tool.name}</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">/{tool.slug}</p>
+                    <p className="mt-1 text-sm text-muted-foreground truncate">/{tool.slug}</p>
                   </Link>
-                  <div className="shrink-0">
+                  <div className="shrink-0 w-full sm:w-auto">
                     <ToolCardActions
                     toolId={tool.id}
                     toolName={tool.name}
