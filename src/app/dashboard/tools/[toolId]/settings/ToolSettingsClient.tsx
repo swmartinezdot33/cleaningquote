@@ -358,7 +358,17 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
       });
       const data = await res.json();
       if (res.ok) {
-        setSectionMessage({ card: 'ghl-config', type: 'success', text: data.message ?? 'HighLevel configuration saved' });
+        // Also persist form (e.g. internalToolOnly) when saving from Advanced Config
+        const formRes = await fetch(`/api/dashboard/tools/${toolId}/form-settings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(form),
+        });
+        setSectionMessage({
+          card: 'ghl-config',
+          type: 'success',
+          text: formRes.ok ? 'Advanced configuration saved.' : (data.message ?? 'HighLevel configuration saved'),
+        });
       } else {
         setSectionMessage({ card: 'ghl-config', type: 'error', text: data.error ?? 'Failed to save HighLevel config' });
       }
@@ -738,6 +748,43 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                   </div>
                 )}
                 <section className="space-y-4">
+                  <h3 className="text-lg font-semibold">Tracking & Analytics</h3>
+                  <p className="text-sm text-muted-foreground">Three code boxes: every page, quote summary, appointment booking.</p>
+                  <div>
+                    <Label htmlFor="custom-head-code-ft" className="text-base font-semibold">1. Every page (e.g. Meta PageView)</Label>
+                    <textarea
+                      id="custom-head-code-ft"
+                      value={customHeadCode}
+                      onChange={(e) => setCustomHeadCode(e.target.value)}
+                      rows={4}
+                      className="mt-2 w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
+                      placeholder="<script>...</script>"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="tracking-quote-summary-ft" className="text-base font-semibold">2. Quote Summary only (e.g. Meta Conversion)</Label>
+                    <textarea
+                      id="tracking-quote-summary-ft"
+                      value={trackingQuoteSummary}
+                      onChange={(e) => setTrackingQuoteSummary(e.target.value)}
+                      rows={4}
+                      className="mt-2 w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
+                      placeholder="<script>...</script>"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="tracking-appointment-booking-ft" className="text-base font-semibold">3. Appointment booking only</Label>
+                    <textarea
+                      id="tracking-appointment-booking-ft"
+                      value={trackingAppointmentBooking}
+                      onChange={(e) => setTrackingAppointmentBooking(e.target.value)}
+                      rows={4}
+                      className="mt-2 w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
+                      placeholder="<script>...</script>"
+                    />
+                  </div>
+                </section>
+                <section className="space-y-4 border-t border-border pt-6">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <FileText className="h-4 w-4 text-primary" />
                     Query parameters
@@ -793,56 +840,6 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                       </div>
                     );
                   })()}
-                  <div className="flex items-center justify-between gap-4 pt-2">
-                    <div className="flex-1">
-                      <Label htmlFor="internalToolOnlyFt" className="text-base font-semibold cursor-pointer">Internal tool only</Label>
-                      <p className="text-sm text-muted-foreground mt-1">Collect contact at end; show &quot;Save quote&quot; instead of Book appointment.</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      id="internalToolOnlyFt"
-                      checked={String(form.internalToolOnly ?? '') === 'true'}
-                      onChange={(e) => setForm((f) => ({ ...f, internalToolOnly: e.target.checked ? 'true' : 'false' }))}
-                      className="w-4 h-4 rounded border-input"
-                    />
-                  </div>
-                </section>
-                <section className="space-y-4 border-t border-border pt-6">
-                  <h3 className="text-lg font-semibold">Tracking & Analytics</h3>
-                  <p className="text-sm text-muted-foreground">Three code boxes: every page, quote summary, appointment booking.</p>
-                  <div>
-                    <Label htmlFor="custom-head-code-ft" className="text-base font-semibold">1. Every page (e.g. Meta PageView)</Label>
-                    <textarea
-                      id="custom-head-code-ft"
-                      value={customHeadCode}
-                      onChange={(e) => setCustomHeadCode(e.target.value)}
-                      rows={4}
-                      className="mt-2 w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
-                      placeholder="<script>...</script>"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="tracking-quote-summary-ft" className="text-base font-semibold">2. Quote Summary only (e.g. Meta Conversion)</Label>
-                    <textarea
-                      id="tracking-quote-summary-ft"
-                      value={trackingQuoteSummary}
-                      onChange={(e) => setTrackingQuoteSummary(e.target.value)}
-                      rows={4}
-                      className="mt-2 w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
-                      placeholder="<script>...</script>"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="tracking-appointment-booking-ft" className="text-base font-semibold">3. Appointment booking only</Label>
-                    <textarea
-                      id="tracking-appointment-booking-ft"
-                      value={trackingAppointmentBooking}
-                      onChange={(e) => setTrackingAppointmentBooking(e.target.value)}
-                      rows={4}
-                      className="mt-2 w-full px-3 py-2 border border-input rounded-md font-mono text-sm"
-                      placeholder="<script>...</script>"
-                    />
-                  </div>
                 </section>
                 <Button onClick={saveFormAndTracking} disabled={savingSection === 'form-tracking'} className="w-full h-11 font-semibold flex items-center gap-2">
                   {savingSection === 'form-tracking' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save query parameters & tracking</>}
@@ -867,7 +864,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                   Advanced Configuration
                 </CardTitle>
                 <CardDescription className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                  Control what happens in HighLevel when quotes and bookings happen. Set your HighLevel connection in Settings → HighLevel Integration first; this card configures per-tool CRM behavior.
+                  Configure what happens when quotes and bookings are submitted. Set your CRM connection in Settings first; this card is per-tool.
                   <Link href="/help/ghl-config" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline font-medium">
                     <BookOpen className="h-3.5 w-3.5" />
                     Full guide
@@ -1258,7 +1255,9 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                           type="text"
                           placeholder="Type to search fields..."
                           value={quotedAmountFieldOpen ? quotedAmountFieldSearch : (() => {
-                            const sel = customFields.find((f) => f.key === (ghlConfig.quotedAmountField ?? ''));
+                            const saved = (ghlConfig.quotedAmountField ?? '').trim();
+                            const norm = (s: string) => s.toLowerCase().replace(/^contact\./, '');
+                            const sel = customFields.find((f) => saved && (f.key === saved || norm(f.key) === norm(saved)));
                             return sel ? `${sel.name} (${sel.key})` : quotedAmountFieldSearch || '';
                           })()}
                           onChange={(e) => {
@@ -1270,11 +1269,12 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                         />
                         {quotedAmountFieldOpen && (() => {
                           const q = quotedAmountFieldSearch.trim().toLowerCase();
+                          const searchNorm = q.replace(/^contact\./, '');
                           const filtered = customFields.filter((f) => {
                             if (!q) return true;
                             const keyNorm = f.key.toLowerCase().replace(/^contact\./, '');
-                            const searchNorm = q.replace(/^contact\./, '');
-                            return f.name.toLowerCase().includes(q) || f.key.toLowerCase().includes(q) || keyNorm.includes(searchNorm) || searchNorm.includes(keyNorm);
+                            const nameLower = f.name.toLowerCase();
+                            return nameLower.includes(q) || f.key.toLowerCase().includes(q) || keyNorm.includes(searchNorm) || searchNorm.includes(keyNorm) || (searchNorm.length >= 2 && nameLower.includes(searchNorm));
                           });
                           return (
                             <ul className="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-md border border-input bg-popover py-1 shadow-md bg-background">
@@ -1547,6 +1547,19 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                     <p className="text-xs text-muted-foreground mt-1.5">
                       We fetch name, phone, email, and address from GHL and land the user on the address step. Use iframe URL: <code className="bg-muted px-1 rounded text-[11px]">?contactId=&#123;&#123;Contact.Id&#125;&#125;</code>
                     </p>
+                    <div className="flex items-center justify-between gap-4 mt-4 pt-4 border-t border-border">
+                      <div className="flex-1">
+                        <Label htmlFor="internalToolOnlyFormBehavior" className="text-sm font-semibold cursor-pointer">Internal tool only</Label>
+                        <p className="text-xs text-muted-foreground mt-1">Collect contact info at the end of the survey instead of the beginning. On the quote summary, show a &quot;Save quote&quot; button instead of Book appointment / Schedule callback.</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        id="internalToolOnlyFormBehavior"
+                        checked={String(form.internalToolOnly ?? '') === 'true'}
+                        onChange={(e) => setForm((f) => ({ ...f, internalToolOnly: e.target.checked ? 'true' : 'false' }))}
+                        className="w-4 h-4 rounded border-input accent-primary"
+                      />
+                    </div>
                   </div>
                 </section>
 

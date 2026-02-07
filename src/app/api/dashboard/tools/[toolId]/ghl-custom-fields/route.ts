@@ -56,17 +56,16 @@ export async function GET(
     const data = await res.json();
     const raw = data.customFields ?? data.fields ?? data.data ?? (Array.isArray(data) ? data : []);
     const list = Array.isArray(raw) ? raw : [];
-    const valid = list.filter(
-      (f: { key?: string; name?: string }) => f && typeof (f.key ?? f.name) === 'string' && String((f.key ?? f.name) as string).trim() !== ''
-    );
+    type FieldLike = { key?: string; fieldKey?: string; id?: string; _id?: string; fieldId?: string; name?: string; label?: string; title?: string; type?: string; fieldType?: string; dataType?: string };
+    const getKey = (f: FieldLike) => (f.key ?? f.fieldKey ?? (f.id != null ? String(f.id) : undefined) ?? (f._id != null ? String(f._id) : undefined) ?? (f.fieldId != null ? String(f.fieldId) : undefined))?.trim() ?? '';
+    const valid = list.filter((f: FieldLike) => f && getKey(f) !== '');
     const defaultFields = allowedModel === 'opportunity' ? [] : NATIVE_FIELDS;
     const fields = valid.length > 0
-      ? valid.map((f: { key?: string; name?: string; type?: string; fieldType?: string }) => ({
-          key: (f.key ?? f.name ?? '').trim(),
-          name: (f.name ?? f.key ?? 'Unknown').trim(),
-          type: f.type ?? 'custom',
-          fieldType: f.fieldType,
-        }))
+      ? valid.map((f: FieldLike) => {
+          const key = getKey(f);
+          const name = (f.name ?? f.label ?? f.title ?? (key || 'Unknown')).trim() || 'Unknown';
+          return { key, name, type: f.type ?? 'custom', fieldType: f.fieldType };
+        })
       : defaultFields;
     return NextResponse.json({ fields });
   } catch (e) {
