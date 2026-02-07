@@ -24,6 +24,8 @@ import {
   ArrowDown,
   Sparkles,
   BookOpen,
+  Pencil,
+  Check,
 } from 'lucide-react';
 import type { PricingTable, PricingRow } from '@/lib/pricing/types';
 
@@ -89,8 +91,10 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
   const [initialCleaning, setInitialCleaning] = useState(DEFAULT_INITIAL_CLEANING);
   const [savingInitialCleaning, setSavingInitialCleaning] = useState(false);
   const [initialCleaningMessage, setInitialCleaningMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
   const [savingName, setSavingName] = useState(false);
-  const [nameMessage, setNameMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   const { register, control, handleSubmit, formState: { errors }, reset, watch } = useForm<PricingTableFormData>({
     resolver: zodResolver(pricingTableSchema),
@@ -297,11 +301,15 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
     );
   }
 
-  const handleSaveName = async () => {
-    const name = structureName.trim();
+  useEffect(() => {
+    if (!editingName) setNameInput(structureName);
+  }, [structureName, editingName]);
+
+  const saveName = async () => {
+    const name = nameInput.trim();
     if (!name || !orgId) return;
     setSavingName(true);
-    setNameMessage(null);
+    setNameError(null);
     try {
       const res = await fetch(`/api/dashboard/orgs/${orgId}/pricing-structures/${structureId}`, {
         method: 'PATCH',
@@ -310,12 +318,13 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
       });
       const data = await res.json();
       if (res.ok) {
-        setNameMessage({ type: 'success', text: 'Name saved.' });
+        setStructureName(name);
+        setEditingName(false);
       } else {
-        setNameMessage({ type: 'error', text: data.error ?? 'Failed to save name' });
+        setNameError(data.error ?? 'Failed to save name');
       }
     } catch {
-      setNameMessage({ type: 'error', text: 'Failed to save name' });
+      setNameError('Failed to save name');
     } finally {
       setSavingName(false);
     }
@@ -326,24 +335,50 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
       <div className="flex items-center gap-3">
         <Sparkles className="h-6 w-6 text-primary shrink-0" />
         <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-bold text-foreground mb-1">Pricing structure</h2>
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              value={structureName}
-              onChange={(e) => setStructureName(e.target.value)}
-              placeholder="Structure name"
-              className="max-w-xs h-9"
-            />
-            <Button type="button" variant="secondary" size="sm" onClick={handleSaveName} disabled={savingName || !structureName.trim()} className="gap-1.5">
-              {savingName ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-              Save name
-            </Button>
-            {nameMessage && (
-              <span className={nameMessage.type === 'success' ? 'text-sm text-green-600 dark:text-green-400' : 'text-sm text-destructive'}>
-                {nameMessage.text}
-              </span>
+          <div className="flex items-center gap-2 min-w-0">
+            {editingName ? (
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <input
+                  type="text"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && saveName()}
+                  className="text-2xl font-bold border border-input rounded-md px-3 py-1.5 bg-background min-w-0 max-w-sm"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={saveName}
+                  disabled={savingName || !nameInput.trim()}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                >
+                  {savingName ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setEditingName(false); setNameInput(structureName); setNameError(null); }}
+                  disabled={savingName}
+                  className="rounded-md border px-2.5 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <>
+                <h2 className="text-2xl font-bold text-foreground">{structureName || 'Unnamed'}</h2>
+                <button
+                  type="button"
+                  onClick={() => setEditingName(true)}
+                  className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  title="Edit name"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              </>
             )}
           </div>
+          {nameError && <p className="text-sm text-destructive mt-1">{nameError}</p>}
           <p className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 mt-2">
             Create and manage the pricing table for this structure.
             <Link href="/help/pricing-structure-builder" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
