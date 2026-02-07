@@ -165,6 +165,10 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
     if (orgId) loadStructure();
   }, [orgId, loadStructure]);
 
+  useEffect(() => {
+    if (!editingName) setNameInput(structureName);
+  }, [structureName, editingName]);
+
   const addNewRow = () => {
     const lastRow = watchedRows?.length > 0 ? watchedRows[watchedRows.length - 1] : null;
     const newMin = lastRow?.sqFtRange ? lastRow.sqFtRange.max + 1 : 0;
@@ -300,10 +304,6 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
       </Card>
     );
   }
-
-  useEffect(() => {
-    if (!editingName) setNameInput(structureName);
-  }, [structureName, editingName]);
 
   const saveName = async () => {
     const name = nameInput.trim();
