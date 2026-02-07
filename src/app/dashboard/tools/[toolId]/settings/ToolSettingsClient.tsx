@@ -850,7 +850,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
 
       {/* Advanced Configuration (per-tool CRM / HighLevel) */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border overflow-hidden">
+        <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border overflow-visible">
           <CardHeader
             className="bg-gradient-to-r from-primary/10 via-transparent to-transparent border-b border-border pb-6 cursor-pointer"
             onClick={() => toggleCard('ghl-config')}
@@ -1222,7 +1222,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                 )}
 
                 {/* Section: Quote value & custom fields */}
-                <section className="rounded-xl border border-border bg-muted/20 dark:bg-muted/10 overflow-hidden">
+                <section className="rounded-xl border border-border bg-muted/20 dark:bg-muted/10 overflow-visible">
                   <div className="px-5 py-4 border-b border-border bg-muted/30 dark:bg-muted/20">
                     <h3 className="font-semibold text-foreground flex items-center gap-2">
                       <Briefcase className="h-4 w-4 text-primary opacity-80" />
@@ -1272,7 +1272,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                             return f.name.toLowerCase().includes(q) || f.key.toLowerCase().includes(q) || keyNorm.includes(searchNorm) || searchNorm.includes(keyNorm);
                           });
                           return (
-                            <ul className="absolute z-10 mt-1 w-full max-h-60 overflow-auto rounded-md border border-input bg-popover py-1 shadow-md">
+                            <ul className="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-md border border-input bg-popover py-1 shadow-md bg-background">
                               {filtered.map((f) => (
                                 <li
                                   key={f.key}
