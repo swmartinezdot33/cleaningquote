@@ -1,8 +1,8 @@
 # CleanQuote.io
 
-> CleanQuote.io is cleaning quote software for cleaning companies. It provides smart quoting: custom quote forms, instant price calculation from your pricing table, HighLevel (GHL) integration for leads and appointments, and embeddable widgets. Cleaning businesses use CleanQuote to let leads get a real price in seconds and book callbacks or appointments.
+> CleanQuote.io is a sales solution for cleaning companies, delivered as a web application (no software to download). It provides smart quoting: custom quote forms, instant price calculation from your pricing table, HighLevel (GHL) integration for leads and appointments, and embeddable widgets. Cleaning businesses use CleanQuote to let leads get a real price in seconds and book callbacks or appointments.
 
-CleanQuote is cleaning quote software that helps residential and commercial cleaning companies close more leads by replacing "we'll get back to you" with instant, accurate quotes. Pricing is controlled via uploaded spreadsheets or the pricing builder; quote forms are customizable and sync to HighLevel. The main site is for marketing and sign-up; logged-in users manage tools, pricing, and surveys in the dashboard.
+CleanQuote is a sales solution that helps residential and commercial cleaning companies close more leads by replacing "we'll get back to you" with instant, accurate quotes. Pricing is controlled via uploaded spreadsheets or the pricing builder; quote forms are customizable and sync to HighLevel. The main site is for marketing and sign-up; logged-in users manage tools, pricing, and surveys in the dashboard.
 
 ## Main pages
 

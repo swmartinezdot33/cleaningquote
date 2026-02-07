@@ -79,6 +79,7 @@ export function ServiceAreaMapDrawer({
   const polygonRefs = useRef<any[]>([]);
   const labelMarkerRefs = useRef<any[]>([]);
   const officeMarkerRef = useRef<any>(null);
+  const mapIdleListenerRef = useRef<google.maps.MapsEventListener | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -101,9 +102,6 @@ export function ServiceAreaMapDrawer({
       if (!containerRef.current || !google?.maps) return;
       setError(null);
       try {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ServiceAreaMapDrawer.tsx:initMap:entry',message:'initMap entry',data:{hasContainer:!!containerRef.current,readOnly},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-        // #endregion
         const { AdvancedMarkerElement } = (await google.maps.importLibrary('marker')) as google.maps.MarkerLibrary;
 
         // Terra Draw's Google adapter uses map.data (Data layer). Vector maps (mapId) can have map.data null.
@@ -116,13 +114,6 @@ export function ServiceAreaMapDrawer({
           ...(useMapId ? { mapId: DEFAULT_MAP_ID } : {}),
         });
         mapRef.current = map;
-
-        // #region agent log
-        const mapDataNull = !(map as any).data;
-        const getDiv = typeof map.getDiv === 'function' ? map.getDiv() : null;
-        const eventEl = getDiv?.querySelector?.('div[style*="z-index: 3;"]') ?? null;
-        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ServiceAreaMapDrawer.tsx:afterMap',message:'after Map creation',data:{useMapId,mapDataNull,hasGetDiv:!!getDiv,eventElNull:eventEl===null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-        // #endregion
 
         const display = Array.isArray(zoneDisplay) ? zoneDisplay : [];
 
@@ -175,54 +166,65 @@ export function ServiceAreaMapDrawer({
             }
           }
         } else {
-          // Editable: use Terra Draw (replacement for deprecated Drawing library)
-          const adapter = new TerraDrawGoogleMapsAdapter({ map, lib: google.maps, coordinatePrecision: 9 });
-          const draw = new TerraDraw({
-            adapter,
-            modes: [
-              new TerraDrawSelectMode({
-                flags: {
-                  polygon: {
-                    feature: { draggable: true, coordinates: { midpoints: true, draggable: true, deletable: true } },
+          // Editable: use Terra Draw. Wait for map 'idle' so the map's DOM (e.g. clickable layer) exists;
+          // otherwise the adapter's getMapEventElement() can return null and TerraDraw calls addEventListener on null.
+          const startTerraDraw = () => {
+            if (cancelled || !mapRef.current) return;
+            const adapter = new TerraDrawGoogleMapsAdapter({ map, lib: google.maps, coordinatePrecision: 9 });
+            const draw = new TerraDraw({
+              adapter,
+              modes: [
+                new TerraDrawSelectMode({
+                  flags: {
+                    polygon: {
+                      feature: { draggable: true, coordinates: { midpoints: true, draggable: true, deletable: true } },
+                    },
                   },
-                },
-              }),
-              new TerraDrawPolygonMode({
-                styles: { fillColor: '#3b82f680', outlineColor: '#3b82f6', outlineWidth: 2 },
-              }),
-            ],
-          });
-          terraDrawRef.current = draw;
+                }),
+                new TerraDrawPolygonMode({
+                  styles: { fillColor: '#3b82f680', outlineColor: '#3b82f6', outlineWidth: 2 },
+                }),
+              ],
+            });
+            terraDrawRef.current = draw;
 
-          const notifyFromSnapshot = () => {
-            const features = draw.getSnapshot().filter((f) => f.geometry.type === 'Polygon');
-            const all: PolygonCoords[] = features.map((f) => {
-              const geom = f.geometry as { type: 'Polygon'; coordinates: number[][][] };
-              const ring = geom.coordinates[0];
-              return geoJSONRingToCoords(ring);
-            }).filter((c) => c.length >= 3);
-            if (all.length === 1) onPolygonChange?.(all[0]);
-            else if (all.length > 1) onPolygonChange?.(all);
+            const notifyFromSnapshot = () => {
+              const features = draw.getSnapshot().filter((f) => f.geometry.type === 'Polygon');
+              const all: PolygonCoords[] = features.map((f) => {
+                const geom = f.geometry as { type: 'Polygon'; coordinates: number[][][] };
+                const ring = geom.coordinates[0];
+                return geoJSONRingToCoords(ring);
+              }).filter((c) => c.length >= 3);
+              if (all.length === 1) onPolygonChange?.(all[0]);
+              else if (all.length > 1) onPolygonChange?.(all);
+            };
+
+            draw.on('change', () => { if (!cancelled) notifyFromSnapshot(); });
+
+            draw.start();
+            draw.setMode(initialPolygons.length === 0 ? 'polygon' : 'select');
+
+            if (initialPolygons.length > 0) {
+              const features = initialPolygons.map((coords) => ({
+                type: 'Feature' as const,
+                geometry: { type: 'Polygon' as const, coordinates: [coordsToGeoJSONRing(coords)] },
+                properties: {},
+              }));
+              draw.addFeatures(features);
+              const bounds = new google.maps.LatLngBounds();
+              initialPolygons.forEach((coords) => {
+                coords.forEach(([lat, lng]) => bounds.extend({ lat, lng }));
+              });
+              if (bounds.getNorthEast() && bounds.getSouthWest()) map.fitBounds(bounds);
+            }
           };
 
-          draw.on('change', () => { if (!cancelled) notifyFromSnapshot(); });
-
-          draw.start();
-          draw.setMode(initialPolygons.length === 0 ? 'polygon' : 'select');
-
-          if (initialPolygons.length > 0) {
-            const features = initialPolygons.map((coords) => ({
-              type: 'Feature' as const,
-              geometry: { type: 'Polygon' as const, coordinates: [coordsToGeoJSONRing(coords)] },
-              properties: {},
-            }));
-            draw.addFeatures(features);
-            const bounds = new google.maps.LatLngBounds();
-            initialPolygons.forEach((coords) => {
-              coords.forEach(([lat, lng]) => bounds.extend({ lat, lng }));
-            });
-            if (bounds.getNorthEast() && bounds.getSouthWest()) map.fitBounds(bounds);
-          }
+          const idleListener = google.maps.event.addListener(map, 'idle', () => {
+            google.maps.event.removeListener(idleListener);
+            mapIdleListenerRef.current = null;
+            startTerraDraw();
+          });
+          mapIdleListenerRef.current = idleListener;
         }
 
         // Office pin: AdvancedMarkerElement when mapId (read-only), else classic Marker (editable/Terra Draw)
@@ -293,6 +295,19 @@ export function ServiceAreaMapDrawer({
 
     return () => {
       cancelled = true;
+      const idleListener = mapIdleListenerRef.current;
+      if (idleListener && typeof (idleListener as any).remove === 'function') {
+        (idleListener as any).remove();
+        mapIdleListenerRef.current = null;
+      } else {
+        const g = getGoogle();
+        if (g?.maps?.event?.removeListener) {
+          try {
+            g.maps.event.removeListener(idleListener as any);
+          } catch (_) {}
+        }
+        mapIdleListenerRef.current = null;
+      }
       const m = officeMarkerRef.current as any;
       if (m) {
         if (m.setMap) m.setMap(null);

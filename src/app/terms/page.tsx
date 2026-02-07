@@ -31,7 +31,7 @@ export default function TermsPage() {
 
           <h2 className="text-xl font-semibold text-foreground mt-8">2. Description of Service</h2>
           <p className="text-muted-foreground">
-            CleanQuote.io is a software-as-a-service platform that helps cleaning companies create custom quote forms, calculate instant estimates, embed quote widgets on websites, and integrate with third-party tools. The Service includes quote generation, lead capture, calendar and callback booking, service area mapping, pricing configuration, survey customization, and related features. The Service is built on Next.js, React, and other open-source and commercial technologies.
+            CleanQuote.io is a sales solution delivered as a web application (no software to download). It helps cleaning companies create custom quote forms, calculate instant estimates, embed quote widgets on websites, and integrate with third-party tools. The Service includes quote generation, lead capture, calendar and callback booking, service area mapping, pricing configuration, survey customization, and related features. You access the Service through your web browser; it is built on Next.js, React, and other open-source and commercial technologies.
           </p>
 
           <h2 className="text-xl font-semibold text-foreground mt-8">3. Third-Party Services and Technologies</h2>
@@ -87,7 +87,7 @@ export default function TermsPage() {
 
           <h2 className="text-xl font-semibold text-foreground mt-8">10. Intellectual Property</h2>
           <p className="text-muted-foreground">
-            CleanQuote.io, including its software, design, branding, documentation, and all related intellectual property, is owned by us or our licensors. You may not copy, modify, create derivative works, or use our trademarks except as expressly permitted. You may use the embed widget and shareable links as provided for their intended purpose.
+            CleanQuote.io, including its platform, web application, design, branding, documentation, and all related intellectual property, is owned by us or our licensors. You may not copy, modify, create derivative works, or use our trademarks except as expressly permitted. You may use the embed widget and shareable links as provided for their intended purpose.
           </p>
 
           <h2 className="text-xl font-semibold text-foreground mt-8">11. Disclaimers</h2>

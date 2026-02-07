@@ -5,7 +5,7 @@ import { BreadcrumbJsonLd } from '@/components/BreadcrumbJsonLd';
 export const metadata: Metadata = {
   title: 'Setup guides',
   description:
-    'Step-by-step CleanQuote setup guides: Google Maps API key, HighLevel integration, service area polygon, survey builder, pricing structure, and custom domain for cleaning quote software.',
+    'Step-by-step CleanQuote setup guides: Google Maps API key, HighLevel integration, service area polygon, survey builder, pricing structure, and custom domain for the CleanQuote sales solution.',
 };
 
 const guides = [

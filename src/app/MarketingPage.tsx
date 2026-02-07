@@ -175,17 +175,17 @@ function Hero({ onSignupClick }: { onSignupClick: () => void }) {
       <div className="mx-auto max-w-4xl px-4 text-center sm:px-6">
         <div className="mb-6 inline-flex items-center gap-2 rounded-none border-2 border-primary/30 bg-white/60 px-4 py-1.5 text-sm font-medium text-primary shadow-lg shadow-primary/20 backdrop-blur-md">
           <Sparkles className="h-4 w-4" />
-          Cleaning quote software for cleaning companies
+          The sales piece your CRM doesn’t have
         </div>
         <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl">
-          Cleaning quote software that turns leads into quotes{' '}
-          <span className="bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">in seconds</span>
+          Your CRM runs the ops.{' '}
+          <span className="bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">We help you close.</span>
         </h1>
         <p className="mt-6 text-lg text-muted-foreground sm:text-xl max-w-2xl mx-auto">
-          Stop losing leads to slow back-and-forth. CleanQuote.io is cleaning quote software that gives you custom quote forms, instant pricing, and one-click booking—so you close more jobs while your competitors are still typing emails.
+          Instant quotes so you’re not just giving out a price—you’re closing. CleanQuote gives you custom quote forms, your pricing, and one-click booking so leads say yes while they’re hot. Connect to HighLevel, embed anywhere. No coding. More booked jobs.
         </p>
         <p className="mt-4 text-sm text-muted-foreground/90 max-w-xl mx-auto">
-          Connect to HighLevel, use your own pricing, and embed your quote widget anywhere. No coding. No guesswork. Just more booked jobs.
+          Same pricing you use today. One simple form. Stop losing leads to “we’ll get back to you.”
         </p>
         <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Button size="lg" className="gap-2 rounded-none text-base font-semibold shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 transition-shadow" onClick={onSignupClick}>
@@ -215,7 +215,7 @@ function WhySection() {
           Tired of losing leads while you run numbers?
         </h2>
         <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-          Most cleaning companies quote the old way: back-and-forth emails, manual spreadsheets, and “we’ll get back to you.” By the time you send a price, the lead has already moved on. CleanQuote.io is cleaning quote software that flips that. Your leads get an instant, accurate quote—and you get a hot lead who’s ready to book.
+          Most cleaning companies quote the old way: back-and-forth emails, manual spreadsheets, and “we’ll get back to you.” By the time you send a price, the lead has already moved on. CleanQuote.io is a sales solution that flips that. Your leads get an instant, accurate quote—and you get a hot lead who’s ready to book.
         </p>
         <p className="mt-4 text-base font-medium text-foreground">
           Same pricing you use today. One simple form. Way more closed jobs.
@@ -289,10 +289,10 @@ function Features() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="text-center">
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl drop-shadow-sm">
-            Everything you need in cleaning quote software—quote smarter, close more
+            Everything you need in one quote solution—quote smarter, close more
           </h2>
           <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-            One cleaning quote software tool to capture leads, calculate quotes, and book follow-ups. No spreadsheets, no manual math, no lost leads.
+            One solution to capture leads, calculate quotes, and book follow-ups. No spreadsheets, no manual math, no lost leads. Use it in your browser—no download required.
           </p>
         </div>
         <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
@@ -349,10 +349,10 @@ function Capabilities() {
       <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/5 via-background to-muted/30" />
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl text-center">
-          Cleaning quote software built for pros—every capability you need
+          Quote solution built for pros—every capability you need
         </h2>
         <p className="mt-4 text-lg text-muted-foreground text-center max-w-2xl mx-auto">
-          From pricing to booking to CRM sync, CleanQuote.io gives you the cleaning quote software tools to close more jobs—without the spreadsheets.
+          From pricing to booking to CRM sync, CleanQuote.io gives you the tools to close more jobs—without the spreadsheets. All in a web application you access from any device.
         </p>
         <ul className="mt-10 space-y-4 max-w-2xl mx-auto">
           {capabilities.map((item, i) => (
@@ -403,8 +403,8 @@ function Pricing({ onSignupClick }: { onSignupClick: () => void }) {
 
 const FAQ_ITEMS: { q: string; a: string }[] = [
   {
-    q: 'What is cleaning quote software?',
-    a: 'Cleaning quote software helps cleaning companies send accurate, instant quotes to leads instead of back-and-forth emails. CleanQuote.io lets you build custom quote forms, use your own pricing, and sync with HighLevel so you close more jobs.',
+    q: 'What is CleanQuote?',
+    a: 'CleanQuote is a sales solution with a web application that helps cleaning companies send accurate, instant quotes to leads instead of back-and-forth emails. You get custom quote forms, your own pricing, and HighLevel sync—all in the browser, no software to download.',
   },
   {
     q: 'How does CleanQuote work?',
@@ -451,7 +451,7 @@ function FAQ() {
           Frequently asked questions
         </h2>
         <p className="mt-3 text-muted-foreground text-center">
-          Quick answers about cleaning quote software and CleanQuote.io
+          Quick answers about the CleanQuote.io sales solution
         </p>
         <dl className="mt-12 space-y-6">
           {FAQ_ITEMS.map(({ q, a }) => (
@@ -506,7 +506,7 @@ function Footer({ onSignupClick }: { onSignupClick: () => void }) {
               <BrandLogo />
             </Link>
             <p className="text-sm text-muted-foreground max-w-xs text-center sm:text-left">
-              Cleaning quote software for cleaning companies. Instant quoting—close more leads, book more jobs.
+              Sales solution for cleaning companies. Instant quoting via web app—close more leads, book more jobs.
             </p>
           </div>
           <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground sm:gap-6" aria-label="Footer navigation">

@@ -11,9 +11,9 @@ const font = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-sans" })
 
 /** Canonical domain for SEO and social (always https://www.cleanquote.io). */
 const siteUrl = CANONICAL_SITE_URL
-const defaultTitle = "Cleaning Quote Software | CleanQuote.io — Instant Quotes for Cleaning Companies"
+const defaultTitle = "Sales Solution for Cleaning Companies | CleanQuote.io — Instant Quotes"
 const defaultDescription =
-  "CleanQuote.io is cleaning quote software that gives cleaning companies custom quote forms, instant pricing, and HighLevel sync. Close more leads with cleaning quote software built for residential and commercial cleaners."
+  "CleanQuote.io is a sales solution with a web application that gives cleaning companies custom quote forms, instant pricing, and HighLevel sync. Close more leads—no software to download, use in your browser."
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -23,18 +23,18 @@ export const metadata: Metadata = {
   },
   description: defaultDescription,
   keywords: [
-    "cleaning quote software",
-    "cleaning company software",
+    "cleaning quote solution",
+    "sales solution cleaning companies",
     "cleaning quote tool",
     "instant quote for cleaning",
-    "cleaning business software",
+    "cleaning business quoting",
     "quote form for cleaning company",
     "HighLevel cleaning",
     "cleaning company CRM",
-    "residential cleaning software",
+    "residential cleaning quote",
     "commercial cleaning quote",
     "cleaning service quote tool",
-    "online quote software cleaning",
+    "online quote for cleaning",
   ],
   authors: [{ name: "CleanQuote", url: siteUrl }],
   creator: "CleanQuote",
@@ -142,7 +142,7 @@ export default async function RootLayout({
         name: "CleanQuote.io",
         applicationCategory: "BusinessApplication",
         operatingSystem: "Web",
-        description: "Cleaning quote software for cleaning companies. Custom quote forms, instant pricing, HighLevel integration, and embeddable widgets for residential and commercial cleaning businesses.",
+        description: "Sales solution for cleaning companies—web application for custom quote forms, instant pricing, HighLevel integration, and embeddable widgets. No download required.",
         url: siteUrl,
         offers: { "@type": "Offer", price: "297", priceCurrency: "USD", priceValidUntil: "2026-12-31" },
         publisher: { "@id": `${siteUrl}/#organization` },
