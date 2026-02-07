@@ -13,7 +13,7 @@ const font = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-sans" })
 const siteUrl = CANONICAL_SITE_URL
 const defaultTitle = "Sales Solution for Cleaning Companies | CleanQuote.io — Instant Quotes"
 const defaultDescription =
-  "CleanQuote.io is a sales solution with a web application that gives cleaning companies custom quote forms, instant pricing, and HighLevel sync. Close more leads—no software to download, use in your browser."
+  "CleanQuote.io is a sales solution with a web application that gives cleaning companies custom quote forms, instant pricing, and optional CRM sync. Close more leads—no software to download, use in your browser."
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     "instant quote for cleaning",
     "cleaning business quoting",
     "quote form for cleaning company",
-    "HighLevel cleaning",
+    "cleaning sales",
     "cleaning company CRM",
     "residential cleaning quote",
     "commercial cleaning quote",
@@ -142,7 +142,7 @@ export default async function RootLayout({
         name: "CleanQuote.io",
         applicationCategory: "BusinessApplication",
         operatingSystem: "Web",
-        description: "Sales solution for cleaning companies—web application for custom quote forms, instant pricing, HighLevel integration, and embeddable widgets. No download required.",
+        description: "Sales solution for cleaning companies—web application for custom quote forms, instant pricing, optional CRM integration, and embeddable widgets. No download required.",
         url: siteUrl,
         offers: { "@type": "Offer", price: "297", priceCurrency: "USD", priceValidUntil: "2026-12-31" },
         publisher: { "@id": `${siteUrl}/#organization` },

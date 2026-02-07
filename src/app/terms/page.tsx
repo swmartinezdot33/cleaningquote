@@ -44,7 +44,7 @@ export default function TermsPage() {
             <li><strong className="text-foreground">Vercel</strong> — hosting, deployment, and serverless infrastructure</li>
             <li><strong className="text-foreground">Vercel KV (Upstash Redis)</strong> — caching, configuration storage, and session data</li>
             <li><strong className="text-foreground">Resend</strong> — transactional email (magic links, invite emails, notifications)</li>
-            <li><strong className="text-foreground">HighLevel</strong> — CRM integration when you configure it (contacts, opportunities, calendars, pipelines)</li>
+            <li><strong className="text-foreground">CRM (e.g. HighLevel)</strong> — optional integration when you configure it (contacts, opportunities, calendars, pipelines)</li>
             <li><strong className="text-foreground">Google Maps / Places API</strong> — address autocomplete and geocoding when you provide and configure your own API key</li>
           </ul>
           <p className="text-muted-foreground mt-4">
@@ -82,7 +82,7 @@ export default function TermsPage() {
 
           <h2 className="text-xl font-semibold text-foreground mt-8">9. Embed Widget and End-User Data</h2>
           <p className="text-muted-foreground">
-            When you embed our quote widget on your site or share links, your end users&apos; data (e.g., address, contact info, home details) is processed to generate quotes and may be synced to your HighLevel account if configured. You are the data controller for such end-user data; we process it on your behalf as a processor. You are responsible for obtaining consent, providing privacy notices, and complying with applicable laws (e.g., CCPA, GDPR) for data collected through your forms.
+            When you embed our quote widget on your site or share links, your end users&apos; data (e.g., address, contact info, home details) is processed to generate quotes and may be synced to your connected CRM if configured. You are the data controller for such end-user data; we process it on your behalf as a processor. You are responsible for obtaining consent, providing privacy notices, and complying with applicable laws (e.g., CCPA, GDPR) for data collected through your forms.
           </p>
 
           <h2 className="text-xl font-semibold text-foreground mt-8">10. Intellectual Property</h2>
@@ -102,7 +102,7 @@ export default function TermsPage() {
 
           <h2 className="text-xl font-semibold text-foreground mt-8">13. Indemnification</h2>
           <p className="text-muted-foreground">
-            You agree to indemnify, defend, and hold harmless CleanQuote.io and its affiliates, officers, directors, employees, and agents from and against any claims, damages, losses, liabilities, costs, and expenses (including reasonable attorneys&apos; fees) arising from: (a) your use of the Service; (b) your violation of these Terms or any law; (c) your content, data, or end-user data; (d) your use of third-party integrations (e.g., HighLevel, Google Maps); or (e) any dispute between you and your end users or third parties.
+            You agree to indemnify, defend, and hold harmless CleanQuote.io and its affiliates, officers, directors, employees, and agents from and against any claims, damages, losses, liabilities, costs, and expenses (including reasonable attorneys&apos; fees) arising from: (a) your use of the Service; (b) your violation of these Terms or any law; (c) your content, data, or end-user data; (d) your use of third-party integrations (e.g., your CRM, Google Maps); or (e) any dispute between you and your end users or third parties.
           </p>
 
           <h2 className="text-xl font-semibold text-foreground mt-8">14. Force Majeure</h2>

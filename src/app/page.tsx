@@ -5,11 +5,11 @@ import MarketingPage from "./MarketingPage";
 export const metadata: Metadata = {
   title: "Sales Solution for Cleaning Companies | Instant Quotes — CleanQuote.io",
   description:
-    "CleanQuote.io is a sales solution with a web application: custom quote forms, instant pricing, and HighLevel sync for cleaning companies. Close more leads—try free for 14 days. No software to download.",
+    "CleanQuote.io is a sales solution with a web application: custom quote forms, instant pricing, and optional CRM sync for cleaning companies. Close more leads—try free for 14 days. No software to download.",
   openGraph: {
     title: "Sales Solution for Cleaning Companies | Instant Quotes — CleanQuote.io",
     description:
-      "CleanQuote.io is a sales solution with a web application: custom quote forms, instant pricing, and HighLevel sync for cleaning companies. Close more leads—try free for 14 days.",
+      "CleanQuote.io is a sales solution with a web application: custom quote forms, instant pricing, and optional CRM sync for cleaning companies. Close more leads—try free for 14 days.",
   },
 };
 

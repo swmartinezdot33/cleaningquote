@@ -5,7 +5,7 @@ import { BreadcrumbJsonLd } from '@/components/BreadcrumbJsonLd';
 export const metadata: Metadata = {
   title: 'Setup guides',
   description:
-    'Step-by-step CleanQuote setup guides: Google Maps API key, HighLevel integration, service area polygon, survey builder, pricing structure, and custom domain for the CleanQuote sales solution.',
+    'Step-by-step CleanQuote setup guides: Google Maps API key, CRM integration, service area polygon, survey builder, pricing structure, and custom domain for the CleanQuote sales solution.',
 };
 
 const guides = [
@@ -21,8 +21,8 @@ const guides = [
   },
   {
     slug: 'ghl-integration',
-    title: 'HighLevel integration (PIT token & Location ID)',
-    description: 'Connect HighLevel once per org in Settings. Get your PIT token and Location ID so leads, contacts, appointments, and opportunities sync with CleanQuote.',
+    title: 'CRM integration (HighLevel: PIT token & Location ID)',
+    description: 'Connect your CRM (e.g. HighLevel) once per org in Settings. Get your PIT token and Location ID so leads, contacts, appointments, and opportunities sync with CleanQuote.',
   },
   {
     slug: 'ghl-config',

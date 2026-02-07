@@ -175,14 +175,14 @@ function Hero({ onSignupClick }: { onSignupClick: () => void }) {
       <div className="mx-auto max-w-4xl px-4 text-center sm:px-6">
         <div className="mb-6 inline-flex items-center gap-2 rounded-none border-2 border-primary/30 bg-white/60 px-4 py-1.5 text-sm font-medium text-primary shadow-lg shadow-primary/20 backdrop-blur-md">
           <Sparkles className="h-4 w-4" />
-          The sales piece your CRM doesn’t have
+          Quote, close, and manage leads in one place
         </div>
         <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl">
-          Your CRM runs the ops.{' '}
-          <span className="bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">We help you close.</span>
+          Your sales hub for cleaning.{' '}
+          <span className="bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">Quote. Close. Grow.</span>
         </h1>
         <p className="mt-6 text-lg text-muted-foreground sm:text-xl max-w-2xl mx-auto">
-          Instant quotes so you’re not just giving out a price—you’re closing. CleanQuote gives you custom quote forms, pricing structures, a service area builder, and one-click booking so leads say yes while they’re hot. Connect to HighLevel, embed anywhere. No coding. More booked jobs.
+          Instant quotes so you’re not just giving out a price—you’re closing. CleanQuote gives you custom quote forms, pricing structures, a service area builder, and one-click booking so leads say yes while they’re hot. Use it standalone or connect your CRM. Embed anywhere. No coding. More booked jobs.
         </p>
         <p className="mt-4 text-sm text-muted-foreground/90 max-w-xl mx-auto">
           Multiple service areas, different pricing per zone—or one structure everywhere. One form. Stop losing leads to “we’ll get back to you.”
@@ -267,7 +267,7 @@ function Features() {
     {
       icon: Calendar,
       title: 'Book callbacks & appointments',
-      description: 'Stop playing phone tag. Let leads pick a time or request a callback. Sync with HighLevel calendars and show only when you’re free. Fewer no-shows, more show-ups.',
+      description: 'Stop playing phone tag. Let leads pick a time or request a callback. Calendar sync shows only when you’re free. Fewer no-shows, more show-ups.',
     },
     {
       icon: BarChart3,
@@ -277,7 +277,7 @@ function Features() {
     {
       icon: Sparkles,
       title: 'Embed anywhere',
-      description: 'Drop the quote widget on your site, in HighLevel funnels, or behind one link. Same experience everywhere. Pass UTM params for tracking. One setup, one brand, more qualified leads.',
+      description: 'Drop the quote widget on your site, in your funnels, or behind one link. Same experience everywhere. Pass UTM params for tracking. One setup, one brand, more qualified leads.',
     },
   ];
 
@@ -315,7 +315,7 @@ function Features() {
             'Service area builder—draw zones, add by ZIP, or import KML; multiple areas per org',
             'Custom survey questions',
             'Google Maps service area checks',
-            'HighLevel contacts & pipelines',
+            'Contacts & pipelines',
             'SMS-ready quote copy',
             'Excel pricing import',
             'Initial Cleaning detection',
@@ -340,8 +340,8 @@ function Capabilities() {
     'Service area builder—draw polygons on the map, add zones by US ZIP code, or import KML/NetworkLink; define multiple service areas per organization and assign them to tools',
     'Per-area pricing—use one pricing structure for one service area and another for a different zone, or the same structure across all areas; qualify leads by location and quote with the right rates',
     'Smart Initial Cleaning—auto-detect based on home condition and cleaning history, with configurable multipliers and conditions',
-    'HighLevel sync—contacts, opportunities, notes, pipelines, custom fields, tags, appointment and callback booking',
-    'Embed anywhere—widget snippet, iframe, or shareable link. Pass HighLevel contact data into pre-filled forms',
+    'CRM sync—contacts, opportunities, notes, pipelines, custom fields, tags, appointment and callback booking (optional)',
+    'Embed anywhere—widget snippet, iframe, or shareable link. Pre-fill forms from your CRM when connected',
     'Google Maps autocomplete and geocoding—accurate addresses, automatic service area checks',
     'Multi-frequency pricing—weekly, bi-weekly, four-week, one-time general and deep clean, move in/move out',
     'Team and subaccounts—invite users, manage multiple quote tools per organization',
@@ -387,7 +387,7 @@ function Pricing({ onSignupClick }: { onSignupClick: () => void }) {
               <p className="text-4xl font-bold text-foreground">$297<span className="text-lg font-medium text-muted-foreground">/month</span></p>
               <p className="mt-2 text-sm font-medium text-primary">14-day free trial</p>
               <p className="mt-4 text-sm text-muted-foreground max-w-xs">
-                Unlimited quote tools, pricing structures, service area builder, multiple service areas, GHL integration, custom surveys, and more.
+                Unlimited quote tools, pricing structures, service area builder, multiple service areas, optional CRM integration, custom surveys, and more.
               </p>
             </div>
             <div className="flex-shrink-0">
@@ -407,7 +407,7 @@ function Pricing({ onSignupClick }: { onSignupClick: () => void }) {
 const FAQ_ITEMS: { q: string; a: string }[] = [
   {
     q: 'What is CleanQuote?',
-    a: 'CleanQuote is a sales solution with a web application that helps cleaning companies send accurate, instant quotes to leads instead of back-and-forth emails. You get custom quote forms, pricing structures, a service area builder, multiple service areas, and HighLevel sync—all in the browser, no software to download.',
+    a: 'CleanQuote is a sales solution with a web application that helps cleaning companies send accurate, instant quotes to leads instead of back-and-forth emails. You get custom quote forms, pricing structures, a service area builder, multiple service areas, and optional CRM sync—all in the browser, no software to download. Use it standalone or connect your CRM.',
   },
   {
     q: 'How does CleanQuote work?',
@@ -422,12 +422,12 @@ const FAQ_ITEMS: { q: string; a: string }[] = [
     a: 'Yes. You can create multiple service areas (e.g. downtown vs suburbs) and multiple pricing structures. In each tool\'s settings you assign which service areas apply and, optionally, which pricing structure to use per service area—or one default structure for all. So one zone can use "Residential" rates and another "Premium" or "Commercial" rates. Same tool, different areas, different pricing.',
   },
   {
-    q: 'Does CleanQuote integrate with HighLevel?',
-    a: 'Yes. CleanQuote syncs contacts, opportunities, notes, pipelines, and custom fields with HighLevel. You can book callbacks and appointments that show on your HighLevel calendar, and pass contact data into pre-filled quote forms.',
+    q: 'Does CleanQuote work with other CRMs?',
+    a: 'CleanQuote works as a standalone sales hub—quote, capture leads, and book callbacks or appointments in one place. You can also connect it to your CRM (e.g. HighLevel) to sync contacts, opportunities, and calendars. Integration is optional.',
   },
   {
     q: 'How much does CleanQuote cost?',
-    a: '$297/month after a 14-day free trial. You get unlimited quote tools, pricing structures, service area builder, multiple service areas, HighLevel integration, custom surveys, Google Maps, and more. Cancel anytime.',
+    a: '$297/month after a 14-day free trial. You get unlimited quote tools, pricing structures, service area builder, multiple service areas, optional CRM integration, custom surveys, Google Maps, and more. Cancel anytime.',
   },
   {
     q: 'Can I use my own pricing with CleanQuote?',
@@ -488,7 +488,7 @@ function CTA({ onSignupClick }: { onSignupClick: () => void }) {
             Ready to close more leads?
           </h2>
           <p className="mt-4 text-lg text-muted-foreground max-w-xl mx-auto">
-            More closed jobs, less chasing. Your CRM handles the rest—CleanQuote handles the sale. Start your 14-day free trial. $297/month after—cancel anytime.
+            More closed jobs, less chasing. Use CleanQuote standalone or with your CRM—we handle the sale. Start your 14-day free trial. $297/month after—cancel anytime.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Button size="lg" className="gap-2 rounded-none text-base font-semibold shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 transition-shadow" onClick={onSignupClick}>

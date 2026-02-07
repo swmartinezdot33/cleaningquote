@@ -4,12 +4,12 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Help & setup guides',
   description:
-    'CleanQuote help and setup guides: Google Maps API key, HighLevel integration, service area polygon, survey builder, pricing structure, and custom domain for the CleanQuote sales solution.',
+    'CleanQuote help and setup guides: Google Maps API key, CRM integration, service area polygon, survey builder, pricing structure, and custom domain for the CleanQuote sales solution.',
   robots: { index: true, follow: true },
   openGraph: {
     title: 'Help & setup guides | CleanQuote.io',
     description:
-      'Step-by-step guides for CleanQuote: Google Maps API, HighLevel, service area, survey builder, pricing, and custom domain.',
+      'Step-by-step guides for CleanQuote: Google Maps API, CRM integration, service area, survey builder, pricing, and custom domain.',
   },
 };
 

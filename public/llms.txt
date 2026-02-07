@@ -1,8 +1,8 @@
 # CleanQuote.io
 
-> CleanQuote.io is a sales solution for cleaning companies, delivered as a web application (no software to download). It provides smart quoting: custom quote forms, instant price calculation from your pricing table, HighLevel (GHL) integration for leads and appointments, and embeddable widgets. Cleaning businesses use CleanQuote to let leads get a real price in seconds and book callbacks or appointments.
+> CleanQuote.io is a sales solution for cleaning companies, delivered as a web application (no software to download). It provides smart quoting: custom quote forms, instant price calculation from your pricing table, optional CRM integration (e.g. HighLevel) for leads and appointments, and embeddable widgets. Cleaning businesses use CleanQuote to let leads get a real price in seconds and book callbacks or appointments.
 
-CleanQuote is a sales solution that helps residential and commercial cleaning companies close more leads by replacing "we'll get back to you" with instant, accurate quotes. Pricing is controlled via uploaded spreadsheets or the pricing builder; quote forms are customizable and sync to HighLevel. The main site is for marketing and sign-up; logged-in users manage tools, pricing, and surveys in the dashboard.
+CleanQuote is a sales solution that helps residential and commercial cleaning companies close more leads by replacing "we'll get back to you" with instant, accurate quotes. Use it standalone or connect your CRM. Pricing is controlled via uploaded spreadsheets or the pricing builder; quote forms are customizable. The main site is for marketing and sign-up; logged-in users manage tools, pricing, and surveys in the dashboard.
 
 ## Main pages
 
@@ -14,9 +14,9 @@ CleanQuote is a sales solution that helps residential and commercial cleaning co
 ## Help & documentation
 
 - [Google Maps API](https://www.cleanquote.io/help/google-maps-api): Enable address autocomplete and service area checks
-- [HighLevel integration](https://www.cleanquote.io/help/ghl-integration): PIT token, Location ID, lead and appointment sync
+- [CRM integration (HighLevel)](https://www.cleanquote.io/help/ghl-integration): PIT token, Location ID, lead and appointment sync
 - [Service area polygon](https://www.cleanquote.io/help/service-area-polygon): Define service area with KML for location qualification
-- [Survey builder](https://www.cleanquote.io/help/survey-builder): Build quote form questions and map to HighLevel fields
+- [Survey builder](https://www.cleanquote.io/help/survey-builder): Build quote form questions and map to CRM fields
 - [Pricing structure builder](https://www.cleanquote.io/help/pricing-structure-builder): Pricing tiers and Excel import
 - [Custom domain](https://www.cleanquote.io/help/custom-domain): Public link base URL and DNS for custom domains
 
@@ -44,17 +44,17 @@ Dashboard and admin APIs (session or API key): /api/dashboard/*, /api/admin/*. S
 
 Terms used in CleanQuote.io documentation, UI, and APIs.
 
-- **Tool** — A quoting tool: one configurable quote form + pricing + survey + HighLevel mapping. An organization can have multiple tools (e.g. residential vs commercial). Identified by a unique **slug** in URLs (e.g. /t/my-cleaning).
-- **Quote form** — The form a lead fills out (address, home size, frequency, etc.). Built in the Survey Builder; questions map to HighLevel custom fields.
+- **Tool** — A quoting tool: one configurable quote form + pricing + survey + optional CRM mapping. An organization can have multiple tools (e.g. residential vs commercial). Identified by a unique **slug** in URLs (e.g. /t/my-cleaning).
+- **Quote form** — The form a lead fills out (address, home size, frequency, etc.). Built in the Survey Builder; questions can map to CRM custom fields when connected.
 - **Survey / Survey Builder** — The set of questions on the quote form and the admin UI to add, reorder, and map them. Stored as survey questions with field keys (e.g. address, square_feet, frequency).
 - **Pricing structure** — Rules for calculating price: square footage ranges, frequency tiers (weekly, bi-weekly, 4-week), service types (general clean, deep clean, move-in/move-out, initial cleaning), add-ons, and multipliers. Can be imported from Excel or built in the pricing builder.
 - **Initial cleaning** — First-time or “heavy” clean; often priced with a multiplier. CleanQuote can auto-detect based on survey answers (e.g. condition, last cleaned) and apply the configured multiplier.
 - **Move-in / move-out** — Service type for moving cleans; has its own pricing tier in the pricing structure.
 - **Frequency** — How often the client wants service: e.g. weekly, bi-weekly, every 4 weeks, one-time. Used in pricing and in the quote form.
 - **Service area** — Geographic area you serve. Defined by a polygon (KML or NetworkLink). Addresses are checked against it; out-of-area leads can be shown an “out of service” message.
-- **HighLevel (GHL)** — CRM/platform integration. CleanQuote syncs contacts, opportunities, notes, custom fields, tags, and supports appointment and callback booking. Configured with **PIT token** (Private Integration Token) and **Location ID**.
-- **PIT token** — HighLevel Private Integration Token; used for API authentication.
-- **Location ID** — HighLevel location (sub-account) ID; identifies which GHL location receives leads and appointments.
+- **CRM integration** — Optional. CleanQuote can sync contacts, opportunities, notes, custom fields, tags, and support appointment and callback booking (e.g. via HighLevel). When using HighLevel: **PIT token** (Private Integration Token) and **Location ID**.
+- **PIT token** — HighLevel Private Integration Token; used for API authentication when CRM is HighLevel.
+- **Location ID** — HighLevel location (sub-account) ID when using that CRM; identifies which location receives leads and appointments.
 - **Slug** — Short URL identifier for a tool (e.g. my-cleaning). Used in paths: /t/[slug], /t/[slug]/quote/[id]. Must be unique per organization.
 - **Widget** — Embeddable quote form: JavaScript snippet or iframe that loads the quote flow. **Widget settings** = title, subtitle, primary color shown in the quote UI.
 - **Public link base URL** — Optional custom domain for quote and survey links (e.g. quote.yourcompany.com). Set in form settings; DNS is configured separately (see Custom domain help).
