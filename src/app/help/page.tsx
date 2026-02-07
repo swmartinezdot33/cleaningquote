@@ -26,8 +26,8 @@ const guides = [
   },
   {
     slug: 'ghl-config',
-    title: 'HighLevel Config',
-    description: 'Per-tool CRM settings: contacts, notes, opportunities, pipelines, calendars, and tags. Set your connection in Settings → HighLevel Integration first.',
+    title: 'Advanced Configuration (CRM & Webhooks)',
+    description: 'Per-tool CRM settings, form behavior (iframe, internal tool), and webhooks for Zapier or other CRMs. Set your connection in Settings first.',
   },
   {
     slug: 'service-area-polygon',
@@ -42,7 +42,7 @@ const guides = [
   {
     slug: 'pricing-structure-builder',
     title: 'Pricing structure builder',
-    description: 'Create pricing structures (manual or Excel); assign which structure each tool uses in Tool Settings. Each structure has its own initial cleaning and multipliers.',
+    description: 'Create pricing structures (manual or Excel); assign which structure each tool uses in Tool Settings → Pricing Structure. Each structure has its own initial cleaning and multipliers.',
   },
   {
     slug: 'custom-domain',

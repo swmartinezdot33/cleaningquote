@@ -375,7 +375,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
         setSectionMessage({ card: 'ghl-config', type: 'error', text: data.error ?? 'Failed to save HighLevel config' });
       }
     } catch {
-      setSectionMessage({ card: 'ghl-config', type: 'error', text: 'Failed to save HighLevel config' });
+      setSectionMessage({ card: 'ghl-config', type: 'error', text: 'Failed to save Advanced Configuration' });
     } finally {
       setSavingSection(null);
     }
@@ -1609,7 +1609,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
 
                 {loadingGhlLists && <p className="text-sm text-muted-foreground">Loading pipelines, users, calendars…</p>}
                 <Button onClick={saveGhlConfig} disabled={savingSection === 'ghl-config'} className="w-full h-11 font-semibold flex items-center gap-2 rounded-xl">
-                  {savingSection === 'ghl-config' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save HighLevel config</>}
+                  {savingSection === 'ghl-config' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Advanced Configuration</>}
                 </Button>
               </div>
             </CardContent>

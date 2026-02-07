@@ -68,7 +68,7 @@ export default function GHLIntegrationHelpPage() {
 
       <h2 className="text-lg font-semibold text-foreground mt-8">3. Where to plug them into CleanQuote</h2>
       <p className="text-foreground mb-2">
-        HighLevel is connected <strong className="text-foreground">once per organization</strong>. All tools in that org use the same connection. Per-tool CRM behavior (pipelines, calendars, tags) is set separately in each tool&apos;s Settings.
+        HighLevel is connected <strong className="text-foreground">once per organization</strong>. All tools in that org use the same connection. Per-tool CRM behavior (pipelines, calendars, tags, webhooks) is set in each tool&apos;s Settings under the <strong className="text-foreground">Advanced Configuration</strong> card. See the <Link href="/help/ghl-config" className="text-primary underline hover:no-underline">Advanced Configuration guide</Link> for details.
       </p>
       <ol className="list-decimal list-inside space-y-2 text-foreground">
         <li>
@@ -95,7 +95,10 @@ export default function GHLIntegrationHelpPage() {
         </p>
       </div>
 
-      <p className="mt-6">
+      <p className="mt-6 text-foreground">
+        <strong>Next:</strong> Configure per-tool behavior (pipelines, calendars, tags, webhooks, form behavior) in <Link href="/help/ghl-config" className="text-primary underline hover:no-underline">Advanced Configuration</Link>.
+      </p>
+      <p className="mt-2">
         <Link href="/help" className="text-primary underline hover:no-underline">
           ← Back to setup guides
         </Link>

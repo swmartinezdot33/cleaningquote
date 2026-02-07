@@ -27,8 +27,8 @@ Quick path from sign-up to your first embedded quote widget.
 - **Configure the tool:**
   - **Pricing:** Create pricing structures under **Dashboard → Pricing**; assign one to this tool in **Tool → Settings → Pricing Structure**.
   - **Form / survey:** Adjust questions and fields if needed.
-  - **GHL (optional):** Connect HighLevel in **Settings → HighLevel Integration** (one per org); then set pipelines, calendars, and tags per tool in **Tool Settings → HighLevel CRM Config**.
-  - **Service area (optional):** Add areas under **Dashboard → Service areas** (ZIP code or draw/upload KML); assign to the tool in **Tool Settings**.
+  - **CRM (optional):** Connect your CRM in **Settings → HighLevel Integration** (one per org); then set pipelines, calendars, tags, and webhooks per tool in **Tool Settings → Advanced Configuration**.
+  - **Service area (optional):** Add areas under **Dashboard → Service areas** (ZIP code or draw/upload KML); assign to the tool in **Tool Settings → Service Area(s)**.
 
 Your quote form URL will look like:
 

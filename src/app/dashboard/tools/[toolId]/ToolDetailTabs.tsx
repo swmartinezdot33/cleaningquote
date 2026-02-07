@@ -93,15 +93,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
   data-container-id="cleaning-quote-widget"
   data-height="1200"
   ${orgSlug ? `data-org-slug="${orgSlug}"\n  ` : ''}data-tool="${embedSlug}"
-  data-tool-slug="${embedSlug}"
-  data-first-name="{{contact.firstName}}"
-  data-last-name="{{contact.lastName}}"
-  data-phone="{{contact.phone}}"
-  data-email="{{contact.email}}"
-  data-address="{{contact.address}}"
-  data-city="{{contact.city}}"
-  data-state="{{contact.state}}"
-  data-postal-code="{{contact.postalCode}}">
+  data-tool-slug="${embedSlug}">
 </script>`;
 
   const saveName = async () => {
@@ -630,8 +622,8 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
             <h2 className="text-sm font-medium text-foreground">Embed snippet</h2>
             <p className="mt-1 text-sm text-muted-foreground mb-2">
               {orgSlug
-                ? <>Uses org-scoped URL (<code className="rounded bg-muted px-1">/t/{orgSlug}/{embedSlug}</code>) so quotes always stay with this organization. Includes HighLevel contact placeholders; remove <code className="rounded bg-muted px-1">data-*-name</code> if not using HighLevel.</>
-                : <>This code includes your public link, slug (<code className="rounded bg-muted px-1">/t/{embedSlug}</code>), and HighLevel contact placeholders for pre-fill. Paste it in HighLevel or your site; remove the <code className="rounded bg-muted px-1">data-*-name</code> attributes if not using HighLevel.</>
+                ? <>Uses org-scoped URL (<code className="rounded bg-muted px-1">/t/{orgSlug}/{embedSlug}</code>) so quotes always stay with this organization.</>
+                : <>This code includes your public link and slug (<code className="rounded bg-muted px-1">/t/{embedSlug}</code>). Paste it into your site or CRM.</>
               }
             </p>
             <div className="relative">
@@ -652,15 +644,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
   data-container-id="cleaning-quote-widget"
   data-height="1200"
   ${orgSlug ? `data-org-slug="${orgSlug}"\n  ` : ''}data-tool="${embedSlug}"
-  data-tool-slug="${embedSlug}"
-  data-first-name="{{contact.firstName}}"
-  data-last-name="{{contact.lastName}}"
-  data-phone="{{contact.phone}}"
-  data-email="{{contact.email}}"
-  data-address="{{contact.address}}"
-  data-city="{{contact.city}}"
-  data-state="{{contact.state}}"
-  data-postal-code="{{contact.postalCode}}">
+  data-tool-slug="${embedSlug}">
 </script>`}
               </pre>
             </div>

@@ -92,7 +92,7 @@ export default function ServiceAreaPolygonHelpPage() {
       <h2 className="text-lg font-semibold text-foreground mt-8">4. Upload to CleanQuote (or draw on the map)</h2>
       <ol className="list-decimal list-inside space-y-2 text-foreground">
         <li>
-          In CleanQuote, go to <strong className="text-foreground">Dashboard</strong> → <strong className="text-foreground">Service areas</strong>. Service areas are org-level; you assign which area(s) a tool uses in <strong className="text-foreground">Tool</strong> → <strong className="text-foreground">Settings</strong>.
+          In CleanQuote, go to <strong className="text-foreground">Dashboard</strong> → <strong className="text-foreground">Service areas</strong>. Service areas are org-level; you assign which area(s) a tool uses in <strong className="text-foreground">Tool</strong> → <strong className="text-foreground">Settings</strong> → <strong className="text-foreground">Service Area(s)</strong>.
         </li>
         <li>
           To use a KML file: open an area (or create one with <strong className="text-foreground">Draw new area</strong>), then find the upload option to replace or add polygon data from your KML/KMZ file.
