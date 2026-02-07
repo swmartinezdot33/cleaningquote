@@ -435,14 +435,15 @@ export function parseExcelBufferToPricingTable(buffer: Buffer): PricingTable {
     const isMoveBasic = header.includes('basic') || (header.includes('move') && !header.includes('full') && !header.includes('deep'));
     const isMoveFull = header.includes('full') || (header.includes('move') && header.includes('deep'));
     if (isMoveBasic && moveInOutBasicColIdx === -1) moveInOutBasicColIdx = i;
-    if (isMoveFull && moveInOutFullColIdx === -1) moveInOutFullColIdx = i;
+    // Never use the same column for both Basic and Full (e.g. "Move in/out basic and full" would match both)
+    if (isMoveFull && moveInOutFullColIdx === -1 && i !== moveInOutBasicColIdx) moveInOutFullColIdx = i;
   }
   for (let i = 0; i < headerRow.length; i++) {
     const header = String(headerRow[i] || '').trim().toLowerCase();
     const isMoveBasic = header.includes('basic') || (header.includes('move') && !header.includes('full') && !header.includes('deep'));
     const isMoveFull = header.includes('full') || (header.includes('move') && header.includes('deep'));
     if (isMoveBasic && moveInOutBasicColIdx === -1) moveInOutBasicColIdx = i;
-    if (isMoveFull && moveInOutFullColIdx === -1) moveInOutFullColIdx = i;
+    if (isMoveFull && moveInOutFullColIdx === -1 && i !== moveInOutBasicColIdx) moveInOutFullColIdx = i;
     if (header === '' && i >= 6 && data.length > 1) {
       const firstDataRow = data[1] as unknown[];
       const cellValue = String(firstDataRow[i] || '').trim();
