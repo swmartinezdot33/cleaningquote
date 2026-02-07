@@ -57,12 +57,45 @@ export async function POST(
     const supabase = createSupabaseServer();
     const arrayBuffer = await file.arrayBuffer();
 
-    const { error: uploadError } = await supabase.storage
-      .from(BUCKET)
-      .upload(path, arrayBuffer, {
-        contentType: file.type || `image/${safeExt}`,
-        upsert: false,
-      });
+    let uploadError: { message?: string } | null = null;
+    let uploadAttempt = 0;
+    const maxAttempts = 2;
+
+    while (uploadAttempt < maxAttempts) {
+      const result = await supabase.storage
+        .from(BUCKET)
+        .upload(path, arrayBuffer, {
+          contentType: file.type || `image/${safeExt}`,
+          upsert: false,
+        });
+      uploadError = result.error;
+      if (!uploadError) break;
+
+      const isBucketMissing =
+        uploadError.message?.includes('Bucket not found') ||
+        uploadError.message?.toLowerCase().includes('bucket') ||
+        uploadError.message?.includes('not found');
+      if (isBucketMissing && uploadAttempt === 0) {
+        const { error: createErr } = await supabase.storage.createBucket(BUCKET, {
+          public: true,
+          fileSizeLimit: '2MB',
+          allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+        });
+        if (createErr) {
+          console.error('Survey option image: createBucket failed:', createErr);
+          return NextResponse.json(
+            {
+              error: 'Storage bucket not found.',
+              hint: `Create a public bucket named "${BUCKET}" in Supabase: Dashboard → Storage → New bucket → name "${BUCKET}", set Public.`,
+            },
+            { status: 503 }
+          );
+        }
+        uploadAttempt++;
+        continue;
+      }
+      break;
+    }
 
     if (uploadError) {
       console.error('Survey option image upload (Supabase):', uploadError);

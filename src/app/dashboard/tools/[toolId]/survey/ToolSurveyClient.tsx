@@ -23,6 +23,7 @@ import {
   AlertCircle,
   BookOpen,
   Upload,
+  ChevronRight,
 } from 'lucide-react';
 import type { SurveyQuestion, SurveyQuestionOption } from '@/lib/survey/schema';
 
@@ -656,155 +657,164 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                               )}
                             </div>
                             {!isSynced && (
-                            <>
-                              <div className="mt-2">
-                                <Label className="text-xs">Option image (optional)</Label>
-                                <p className="text-xs text-muted-foreground mb-1">Show a picture for this option so users can select by image (e.g. condition of home). Uploads go to Supabase Storage (bucket cleaningquote-images). Or paste an image URL below.</p>
-                                <div className="mt-1.5 flex flex-col gap-2">
-                                  <div className="flex items-center gap-2">
-                                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-100">
-                                      <Upload className="h-4 w-4" />
-                                      Upload image
-                                      <input
-                                        type="file"
-                                        accept="image/jpeg,image/png,image/webp,image/gif"
-                                        className="sr-only"
-                                        onChange={async (e) => {
-                                          const f = e.target.files?.[0];
-                                          if (!f) return;
-                                          setUploadingOptionIndex(idx);
-                                          e.target.value = '';
-                                          try {
-                                            const form = new FormData();
-                                            form.append('file', f);
-                                            const res = await fetch(`/api/dashboard/tools/${toolId}/survey/upload-option-image`, {
-                                              method: 'POST',
-                                              body: form,
-                                            });
-                                            const data = await res.json().catch(() => ({}));
-                                            const url = typeof data?.url === 'string' ? data.url.trim() : '';
-                                            if (res.ok && url) {
-                                              setEditingQuestion((prev) => {
-                                                if (!prev || !Array.isArray(prev.options)) return prev;
-                                                const options = prev.options.map((opt, i) =>
-                                                  i === idx ? { ...opt, imageUrl: url } : opt
-                                                );
-                                                return { ...prev, options };
-                                              });
-                                              setUploadMessage({ type: 'success', text: 'Image added. Click "Save Question" below to keep your changes.' });
-                                              setTimeout(() => setUploadMessage(null), 5000);
-                                            } else {
-                                              const errText = typeof data?.error === 'string' ? data.error : !res.ok ? `Upload failed (${res.status})` : 'Upload succeeded but no image URL was returned.';
-                                              const hint = typeof data?.hint === 'string' ? data.hint : '';
-                                              setUploadMessage({
-                                                type: 'error',
-                                                text: hint ? `${errText} ${hint}` : errText,
-                                              });
-                                            }
-                                          } catch {
-                                            setUploadMessage({ type: 'error', text: 'Upload failed. Check your connection and try again.' });
-                                          } finally {
-                                            setUploadingOptionIndex(null);
-                                          }
-                                        }}
-                                      />
-                                    </label>
-                                    {uploadingOptionIndex === idx && (
-                                      <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
-                                    )}
-                                  </div>
-                                  {(option as SurveyQuestionOption).imageUrl?.trim() && (
+                            <details className="group mt-2">
+                              <summary className="flex items-center gap-2 cursor-pointer list-none text-sm text-muted-foreground hover:text-foreground select-none">
+                                <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-open:rotate-90" />
+                                <span>More</span>
+                                <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">More</span>
+                              </summary>
+                              <div className="mt-2 pl-6 border-l-2 border-border space-y-3">
+                                <div>
+                                  <Label className="text-xs">Option image (optional)</Label>
+                                  <p className="text-xs text-muted-foreground mb-1">Show a picture for this option so users can select by image (e.g. condition of home). Uploads go to Supabase Storage (bucket cleaningquote-images). Or paste an image URL below.</p>
+                                  <div className="mt-1.5 flex flex-col gap-2">
                                     <div className="flex items-center gap-2">
-                                      <div className="relative inline-block shrink-0">
-                                        <img
-                                          src={(option as SurveyQuestionOption).imageUrl}
-                                          alt=""
-                                          className="h-14 w-14 rounded-lg border border-gray-200 object-cover bg-gray-100"
-                                          onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56"><rect fill="#f3f4f6" width="56" height="56"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#9ca3af" font-size="10">?</text></svg>'); }}
-                                        />
-                                        <Button
-                                          type="button"
-                                          variant="secondary"
-                                          size="icon"
-                                          className="absolute -top-1.5 -right-1.5 h-6 w-6 rounded-full shadow border border-gray-200 bg-white hover:bg-red-50 hover:text-red-600 p-0"
-                                          onClick={() => {
-                                            const newOptions = [...(editingQuestion.options || [])];
-                                            const o = newOptions[idx] as SurveyQuestionOption;
-                                            newOptions[idx] = { ...o, imageUrl: undefined };
-                                            setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                      <label className="flex cursor-pointer items-center gap-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-100">
+                                        <Upload className="h-4 w-4" />
+                                        Upload image
+                                        <input
+                                          type="file"
+                                          accept="image/jpeg,image/png,image/webp,image/gif"
+                                          className="sr-only"
+                                          onChange={async (e) => {
+                                            const f = e.target.files?.[0];
+                                            if (!f) return;
+                                            setUploadingOptionIndex(idx);
+                                            e.target.value = '';
+                                            try {
+                                              const form = new FormData();
+                                              form.append('file', f);
+                                              const res = await fetch(`/api/dashboard/tools/${toolId}/survey/upload-option-image`, {
+                                                method: 'POST',
+                                                body: form,
+                                              });
+                                              const data = await res.json().catch(() => ({}));
+                                              const url = typeof data?.url === 'string' ? data.url.trim() : '';
+                                              if (res.ok && url) {
+                                                setEditingQuestion((prev) => {
+                                                  if (!prev || !Array.isArray(prev.options)) return prev;
+                                                  const options = prev.options.map((opt, i) =>
+                                                    i === idx ? { ...opt, imageUrl: url } : opt
+                                                  );
+                                                  return { ...prev, options };
+                                                });
+                                                setUploadMessage({ type: 'success', text: 'Image added. Click "Save Question" below to keep your changes.' });
+                                                setTimeout(() => setUploadMessage(null), 5000);
+                                              } else {
+                                                const errText = typeof data?.error === 'string' ? data.error : !res.ok ? `Upload failed (${res.status})` : 'Upload succeeded but no image URL was returned.';
+                                                const hint = typeof data?.hint === 'string' ? data.hint : '';
+                                                const isBucketError = (errText + hint).toLowerCase().includes('bucket') || (errText + hint).toLowerCase().includes('storage');
+                                                const fullText = hint ? `${errText} ${hint}` : errText;
+                                                setUploadMessage({
+                                                  type: 'error',
+                                                  text: isBucketError ? `${fullText} You can still save this question (labels and options) below.` : fullText,
+                                                });
+                                              }
+                                            } catch {
+                                              setUploadMessage({ type: 'error', text: 'Upload failed. Check your connection and try again.' });
+                                            } finally {
+                                              setUploadingOptionIndex(null);
+                                            }
                                           }}
-                                          aria-label="Clear image"
-                                        >
-                                          <X className="h-3 w-3" />
-                                        </Button>
-                                      </div>
-                                      <span className="text-xs text-muted-foreground">Thumbnail · click X to clear</span>
+                                        />
+                                      </label>
+                                      {uploadingOptionIndex === idx && (
+                                        <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+                                      )}
                                     </div>
-                                  )}
-                                  <details className="text-xs">
-                                    <summary className="cursor-pointer text-gray-500 hover:text-gray-700">Or paste image URL</summary>
-                                    <Input
-                                      value={(option as SurveyQuestionOption).imageUrl ?? ''}
+                                    {(option as SurveyQuestionOption).imageUrl?.trim() && (
+                                      <div className="flex items-center gap-2">
+                                        <div className="relative inline-block shrink-0">
+                                          <img
+                                            src={(option as SurveyQuestionOption).imageUrl}
+                                            alt=""
+                                            className="h-14 w-14 rounded-lg border border-gray-200 object-cover bg-gray-100"
+                                            onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56"><rect fill="#f3f4f6" width="56" height="56"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#9ca3af" font-size="10">?</text></svg>'); }}
+                                          />
+                                          <Button
+                                            type="button"
+                                            variant="secondary"
+                                            size="icon"
+                                            className="absolute -top-1.5 -right-1.5 h-6 w-6 rounded-full shadow border border-gray-200 bg-white hover:bg-red-50 hover:text-red-600 p-0"
+                                            onClick={() => {
+                                              const newOptions = [...(editingQuestion.options || [])];
+                                              const o = newOptions[idx] as SurveyQuestionOption;
+                                              newOptions[idx] = { ...o, imageUrl: undefined };
+                                              setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                            }}
+                                            aria-label="Clear image"
+                                          >
+                                            <X className="h-3 w-3" />
+                                          </Button>
+                                        </div>
+                                        <span className="text-xs text-muted-foreground">Thumbnail · click X to clear</span>
+                                      </div>
+                                    )}
+                                    <details className="text-xs">
+                                      <summary className="cursor-pointer text-gray-500 hover:text-gray-700">Or paste image URL</summary>
+                                      <Input
+                                        value={(option as SurveyQuestionOption).imageUrl ?? ''}
+                                        onChange={(e) => {
+                                          const newOptions = [...(editingQuestion.options || [])];
+                                          const o = newOptions[idx] as SurveyQuestionOption;
+                                          newOptions[idx] = { ...o, imageUrl: e.target.value.trim() || undefined };
+                                          setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                        }}
+                                        placeholder="https://..."
+                                        className="mt-1.5"
+                                      />
+                                    </details>
+                                  </div>
+                                </div>
+                                {((option as SurveyQuestionOption).imageUrl?.trim()) && (
+                                  <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={(option as SurveyQuestionOption).showLabel !== false}
                                       onChange={(e) => {
                                         const newOptions = [...(editingQuestion.options || [])];
                                         const o = newOptions[idx] as SurveyQuestionOption;
-                                        newOptions[idx] = { ...o, imageUrl: e.target.value.trim() || undefined };
+                                        newOptions[idx] = { ...o, showLabel: e.target.checked };
                                         setEditingQuestion({ ...editingQuestion, options: newOptions });
                                       }}
-                                      placeholder="https://..."
-                                      className="mt-1.5"
+                                      className="h-4 w-4 rounded border-gray-300"
                                     />
-                                  </details>
-                                </div>
-                              </div>
-                              {((option as SurveyQuestionOption).imageUrl?.trim()) && (
-                                <label className="mt-2 flex items-center gap-2 cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={(option as SurveyQuestionOption).showLabel !== false}
-                                    onChange={(e) => {
+                                    <span className="text-xs">Show label with image</span>
+                                  </label>
+                                )}
+                                <div>
+                                  <Label className="text-xs">Skip to question (optional)</Label>
+                                  <Select
+                                    value={(option as SurveyQuestionOption).skipToQuestionId || 'next'}
+                                    onValueChange={(value) => {
                                       const newOptions = [...(editingQuestion.options || [])];
-                                      const o = newOptions[idx] as SurveyQuestionOption;
-                                      newOptions[idx] = { ...o, showLabel: e.target.checked };
+                                      newOptions[idx] = {
+                                        ...newOptions[idx],
+                                        skipToQuestionId: value === 'next' ? undefined : value,
+                                      };
                                       setEditingQuestion({ ...editingQuestion, options: newOptions });
                                     }}
-                                    className="h-4 w-4 rounded border-gray-300"
-                                  />
-                                  <span className="text-xs">Show label with image</span>
-                                </label>
-                              )}
-                              <div className="mt-2">
-                                <Label className="text-xs">Skip to question (optional)</Label>
-                                <Select
-                                  value={(option as SurveyQuestionOption).skipToQuestionId || 'next'}
-                                  onValueChange={(value) => {
-                                    const newOptions = [...(editingQuestion.options || [])];
-                                    newOptions[idx] = {
-                                      ...newOptions[idx],
-                                      skipToQuestionId: value === 'next' ? undefined : value,
-                                    };
-                                    setEditingQuestion({ ...editingQuestion, options: newOptions });
-                                  }}
-                                >
-                                  <SelectTrigger className="mt-1">
-                                    <SelectValue placeholder="Next question" />
-                                  </SelectTrigger>
-                                  <SelectContent className="max-h-[200px]">
-                                    <SelectItem value="next">→ Next Question</SelectItem>
-                                    <SelectItem value="__END__">🏁 Skip to Quote Summary</SelectItem>
-                                    <SelectItem value="__DISQUALIFY__">⚠️ Disqualify lead</SelectItem>
-                                    {questions
-                                      .filter((q) => q.order > (editingQuestion.order ?? 0))
-                                      .sort((a, b) => a.order - b.order)
-                                      .map((q) => (
-                                        <SelectItem key={q.id} value={q.id}>
-                                          Q{q.order + 1}: {q.label.substring(0, 40)}
-                                        </SelectItem>
-                                      ))}
-                                  </SelectContent>
-                                </Select>
+                                  >
+                                    <SelectTrigger className="mt-1">
+                                      <SelectValue placeholder="Next question" />
+                                    </SelectTrigger>
+                                    <SelectContent className="max-h-[200px]">
+                                      <SelectItem value="next">→ Next Question</SelectItem>
+                                      <SelectItem value="__END__">🏁 Skip to Quote Summary</SelectItem>
+                                      <SelectItem value="__DISQUALIFY__">⚠️ Disqualify lead</SelectItem>
+                                      {questions
+                                        .filter((q) => q.order > (editingQuestion.order ?? 0))
+                                        .sort((a, b) => a.order - b.order)
+                                        .map((q) => (
+                                          <SelectItem key={q.id} value={q.id}>
+                                            Q{q.order + 1}: {q.label.substring(0, 40)}
+                                          </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
                               </div>
-                            </>
+                            </details>
                             )}
                           </div>
                           );
