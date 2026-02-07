@@ -70,6 +70,8 @@ export async function POST(
       quoteCompletedTags,
       disqualifiedLeadTags,
       formIsIframed,
+      webhookEnabled,
+      webhookUrl,
     } = body;
 
     let validatedRules:
@@ -142,6 +144,8 @@ export async function POST(
         quoteCompletedTags: quoteCompletedTags ?? undefined,
         disqualifiedLeadTags: disqualifiedLeadTags ?? undefined,
         formIsIframed: Boolean(formIsIframed),
+        webhookEnabled: Boolean(webhookEnabled),
+        webhookUrl: typeof webhookUrl === 'string' && webhookUrl.trim() ? webhookUrl.trim() : undefined,
       },
       toolId
     );

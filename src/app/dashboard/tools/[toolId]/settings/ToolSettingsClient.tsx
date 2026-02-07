@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
-import { ChevronDown, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings, HelpCircle, Pencil, User, Briefcase, Calendar, Tag, LayoutTemplate, MapPin, DollarSign, Palette } from 'lucide-react';
+import { ChevronDown, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings, HelpCircle, Pencil, User, Briefcase, Calendar, Tag, LayoutTemplate, MapPin, DollarSign, Palette, Webhook } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { TagPicker } from '@/components/ui/TagPicker';
 import {
@@ -59,6 +59,8 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
     quoteCompletedTags?: string[];
     disqualifiedLeadTags?: string[];
     formIsIframed?: boolean;
+    webhookEnabled?: boolean;
+    webhookUrl?: string;
     pipelineRoutingRules?: Array<{
       utmParam: string;
       match: string;
@@ -1563,6 +1565,45 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                         <p className="text-xs text-muted-foreground mt-1">Collect contact info at the end of the survey instead of the beginning. On the quote summary, show a &quot;Save quote&quot; button instead of Book appointment / Schedule callback.</p>
                       </div>
                     </div>
+                  </div>
+                </section>
+
+                {/* Section: Webhooks */}
+                <section className="rounded-xl border border-border bg-muted/20 dark:bg-muted/10 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-border bg-muted/30 dark:bg-muted/20">
+                    <h3 className="font-semibold text-foreground flex items-center gap-2">
+                      <Webhook className="h-4 w-4 text-primary" />
+                      Webhooks
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Send events to Zapier or another CRM when address is in/out of service, quote summary is viewed, or an appointment is booked</p>
+                  </div>
+                  <div className="p-5 space-y-4">
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        id="webhookEnabled"
+                        checked={ghlConfig.webhookEnabled === true}
+                        onChange={(e) => setGhlConfig((c) => ({ ...c, webhookEnabled: e.target.checked }))}
+                        className="mt-0.5 w-4 h-4 rounded border-input accent-primary shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <Label htmlFor="webhookEnabled" className="text-sm font-semibold cursor-pointer">Enable webhook</Label>
+                        <p className="text-xs text-muted-foreground mt-1">We will POST a JSON payload to your URL for: out of service area, in service area, quote summary viewed, appointment booked.</p>
+                      </div>
+                    </div>
+                    {ghlConfig.webhookEnabled && (
+                      <div>
+                        <Label htmlFor="webhookUrl" className="text-sm font-semibold">Webhook URL</Label>
+                        <Input
+                          id="webhookUrl"
+                          type="url"
+                          value={ghlConfig.webhookUrl ?? ''}
+                          onChange={(e) => setGhlConfig((c) => ({ ...c, webhookUrl: e.target.value }))}
+                          placeholder="https://hooks.zapier.com/..."
+                          className="mt-2 max-w-md"
+                        />
+                      </div>
+                    )}
                   </div>
                 </section>
 

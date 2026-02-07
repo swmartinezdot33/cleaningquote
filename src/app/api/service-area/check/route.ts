@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceAreaPolygon, getServiceAreaNetworkLink } from '@/lib/kv';
+import { fireWebhook } from '@/lib/webhook';
 import { pointInPolygon, PolygonCoordinates } from '@/lib/service-area/pointInPolygon';
 import { fetchAndParseNetworkKML } from '@/lib/service-area/fetchNetworkKML';
 import { getToolPolygonsFromAssignedAreas, getMatchingServiceAreaForPoint } from '@/lib/service-area/getToolPolygons';
@@ -203,6 +204,16 @@ export async function POST(request: NextRequest) {
         lngWithin: lng >= polygonBounds.minLng && lng <= polygonBounds.maxLng,
       } : null,
     });
+
+    if (toolId) {
+      fireWebhook(toolId, inServiceArea ? 'in_service_area' : 'out_of_service_area', {
+        inServiceArea,
+        lat,
+        lng,
+        ...(matchedPricingStructureId && { pricingStructureId: matchedPricingStructureId }),
+        ...(matchedServiceAreaId && { matchedServiceAreaId: matchedServiceAreaId }),
+      }).catch(() => {});
+    }
 
     return NextResponse.json(
       {

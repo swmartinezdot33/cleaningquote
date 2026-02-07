@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGHLToken, getGHLLocationId, getGHLConfig } from '@/lib/kv';
+import { fireWebhook } from '@/lib/webhook';
 import { createOrUpdateContact } from '@/lib/ghl/client';
 import { parseAddress } from '@/lib/utils/parseAddress';
 import { createSupabaseServer } from '@/lib/supabase/server';
@@ -89,6 +90,10 @@ export async function POST(request: NextRequest) {
       locationId,
       config?.outOfServiceTags
     );
+
+    if (toolId) {
+      fireWebhook(toolId, 'out_of_service_area', { contactId }).catch(() => {});
+    }
 
     return NextResponse.json(
       {

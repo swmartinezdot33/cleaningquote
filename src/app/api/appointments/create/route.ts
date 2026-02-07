@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createAppointment, makeGHLRequest } from '@/lib/ghl/client';
 import { ghlTokenExists, getGHLConfig, getGHLToken, getGHLLocationId } from '@/lib/kv';
+import { fireWebhook } from '@/lib/webhook';
 import { getServiceName, getServiceTypeDisplayName } from '@/lib/pricing/format';
 import { createSupabaseServer } from '@/lib/supabase/server';
 
@@ -361,6 +362,14 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+
+    fireWebhook(toolId, 'appointment_booked', {
+      contactId,
+      appointmentId: (appointment as { id?: string })?.id,
+      date: date as string,
+      time: time as string,
+      type: type as string,
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,

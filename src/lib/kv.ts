@@ -237,6 +237,8 @@ export async function storeGHLConfig(config: {
   quoteCompletedTags?: string[];
   disqualifiedLeadTags?: string[];
   formIsIframed?: boolean;
+  webhookEnabled?: boolean;
+  webhookUrl?: string;
 }, toolId?: string): Promise<void> {
   requireSupabaseForConfig();
   await configStore.setGHLConfig(config as Record<string, unknown>, toolId);
@@ -272,6 +274,8 @@ export async function getGHLConfig(toolId?: string): Promise<{
   quoteCompletedTags?: string[];
   disqualifiedLeadTags?: string[];
   formIsIframed?: boolean;
+  webhookEnabled?: boolean;
+  webhookUrl?: string;
 } | null> {
   requireSupabaseForConfig();
   const c = await configStore.getGHLConfig(toolId);

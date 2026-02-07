@@ -195,6 +195,7 @@ interface QuoteResponse {
   summaryText?: string;
   smsText?: string;
   ghlContactId?: string;
+  quoteId?: string;
   /** Labels from Survey Builder — use for all display names */
   serviceTypeLabel?: string;
   frequencyLabel?: string;
@@ -275,6 +276,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   const serviceAreaCheckInProgress = useRef(false); // Prevent concurrent service area checks
   const autoAdvanceTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Track auto-advance timeout
   const disqualifiedLoggedRef = useRef(false); // Log disqualified lead to quotes table only once
+  const webhookQuoteSummaryFiredRef = useRef(false);
   const appointmentFormRef = useRef<HTMLDivElement>(null);
   const callFormRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
@@ -411,6 +413,28 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
       document.title = widgetTitle;
     }
   }, [widgetTitle]);
+
+  // Fire webhook event when quote summary is viewed (once per result)
+  useEffect(() => {
+    if (!quoteResult) {
+      webhookQuoteSummaryFiredRef.current = false;
+      return;
+    }
+    if (quoteResult.outOfLimits || webhookQuoteSummaryFiredRef.current) return;
+    const effectiveToolId = toolId || resolvedToolId;
+    if (!effectiveToolId && !slug) return;
+    webhookQuoteSummaryFiredRef.current = true;
+    fetch('/api/webhook/event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event: 'quote_summary_viewed',
+        ...(effectiveToolId ? { toolId: String(effectiveToolId) } : {}),
+        ...(slug ? { toolSlug: slug } : {}),
+        quoteId: quoteResult.quoteId ?? undefined,
+      }),
+    }).catch(() => {});
+  }, [quoteResult, toolId, resolvedToolId, slug]);
 
   /**
    * Load survey questions from unified API
