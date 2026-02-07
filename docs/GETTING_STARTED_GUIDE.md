@@ -76,6 +76,12 @@ Link a button or text to the form URL:
 
 ---
 
+## Troubleshooting
+
+**Dashboard error:** If a dashboard page (e.g. Pricing, Tools, Settings) shows a "Dashboard error", the app displays the actual error message in a grey box. Use **Try again** for temporary issues (e.g. network). If the message mentions missing environment variables or Supabase, check Vercel environment variables and Supabase configuration (see `ENVIRONMENT_VARIABLES.md`).
+
+---
+
 ## Support
 
 **Need help?**  

@@ -4,34 +4,18 @@
   "installCommand": "npm install",
   "framework": "nextjs",
   "regions": ["iad1"],
-  "headers": [
+  "redirects": [
     {
-      "source": "/api/script/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" }
-      ]
-    },
-    {
-      "source": "/scripts/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" }
-      ]
-    },
-    {
-      "source": "/api/tools/(.*)/config",
-      "headers": [
-        { "key": "Cache-Control", "value": "private, no-store, no-cache, must-revalidate, max-age=0" },
-        { "key": "CDN-Cache-Control", "value": "no-store" },
-        { "key": "Vercel-CDN-Cache-Control", "value": "no-store" }
-      ]
-    },
-    {
-      "source": "/api/tools/by-id/config",
-      "headers": [
-        { "key": "Cache-Control", "value": "private, no-store, no-cache, must-revalidate, max-age=0" },
-        { "key": "CDN-Cache-Control", "value": "no-store" },
-        { "key": "Vercel-CDN-Cache-Control", "value": "no-store" }
-      ]
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "cleanquote.io" }],
+      "destination": "https://www.cleanquote.io/:path*",
+      "permanent": true
     }
+  ],
+  "headers": [
+    {"source":"/api/script/(.*)","headers":[{"key":"Access-Control-Allow-Origin","value":"*"}]},
+    {"source":"/scripts/(.*)","headers":[{"key":"Access-Control-Allow-Origin","value":"*"}]},
+    {"source":"/api/tools/(.*)/config","headers":[{"key":"Cache-Control","value":"private, no-store, no-cache, must-revalidate, max-age=0"},{"key":"CDN-Cache-Control","value":"no-store"},{"key":"Vercel-CDN-Cache-Control","value":"no-store"}]},
+    {"source":"/api/tools/by-id/config","headers":[{"key":"Cache-Control","value":"private, no-store, no-cache, must-revalidate, max-age=0"},{"key":"CDN-Cache-Control","value":"no-store"},{"key":"Vercel-CDN-Cache-Control","value":"no-store"}]}
   ]
 }

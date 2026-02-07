@@ -77,6 +77,8 @@ This document lists all environment variables used by the Cleaning Quote Platfor
 
 See [SUPABASE_MULTITENANT_SETUP.md](SUPABASE_MULTITENANT_SETUP.md) for creating the project and running the `tools` table migration.
 
+**Dashboard errors:** If users see a "Dashboard error" in the app, the error screen now shows the actual error message. When it mentions missing `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, or similar, ensure those variables are set in Vercel (and redeploy). For other messages (e.g. network or timeout), "Try again" often resolves temporary failures.
+
 **Invite emails (org invitations):** When inviting members via the Settings page (Dashboard → Settings), Supabase sends an invite email. Add your invite redirect URL to Supabase Dashboard → Authentication → URL Configuration → Redirect URLs, e.g. `https://www.cleanquote.io/invite/**` or `https://www.cleanquote.io/**`. Set `NEXT_PUBLIC_APP_URL` to your production domain so invite links use the correct URL (not localhost).
 
 ### `SUPER_ADMIN_EMAILS`

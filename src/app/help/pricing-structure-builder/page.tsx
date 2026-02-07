@@ -31,6 +31,9 @@ export default function PricingStructureBuilderHelpPage() {
           In CleanQuote, go to <strong className="text-foreground">Dashboard</strong> → <strong className="text-foreground">Pricing</strong> (org-level). Here you create and edit pricing structures.
         </li>
         <li>
+          To edit a structure: open it and use the Builder (manual or import). The structure <strong className="text-foreground">name</strong> can be edited on the edit page by clicking the pencil next to the name, then typing and saving.
+        </li>
+        <li>
           To have a tool use a structure: go to <strong className="text-foreground">Dashboard</strong> → <strong className="text-foreground">Tools</strong> → your tool → <strong className="text-foreground">Settings</strong>, then in the <strong className="text-foreground">Pricing Structure</strong> card select which structure that tool uses.
         </li>
       </ol>

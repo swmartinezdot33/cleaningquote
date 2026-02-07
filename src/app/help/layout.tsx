@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: 'Help & setup guides',
   description:
     'CleanQuote help and setup guides: Google Maps API key, HighLevel integration, service area polygon, survey builder, pricing structure, and custom domain for cleaning quote software.',
+  robots: { index: true, follow: true },
   openGraph: {
     title: 'Help & setup guides | CleanQuote.io',
     description:

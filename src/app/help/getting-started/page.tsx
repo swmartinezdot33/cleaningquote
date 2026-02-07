@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { BreadcrumbJsonLd } from '@/components/BreadcrumbJsonLd';
+import { CANONICAL_SITE_URL } from '@/lib/canonical-url';
 
 export const metadata: Metadata = {
   title: 'Getting started',
@@ -8,7 +9,7 @@ export const metadata: Metadata = {
     'Quick path from sign-up to your first embedded CleanQuote widget: sign up, set password, configure your tool, and embed on your site.',
 };
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.cleanquote.io';
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()?.replace(/\/$/, '') || CANONICAL_SITE_URL.replace(/\/$/, '');
 
 export default function GettingStartedHelpPage() {
   return (
@@ -104,6 +105,11 @@ export default function GettingStartedHelpPage() {
         <li>Fill out the form and submit a quote.</li>
         <li>Confirm you receive the quote (and, if GHL is connected, that the contact/opportunity appears in GHL).</li>
       </ol>
+
+      <h2 className="text-lg font-semibold text-foreground mt-8">Troubleshooting</h2>
+      <p className="text-foreground">
+        If you see a <strong className="text-foreground">Dashboard error</strong> when opening a dashboard page (e.g. Pricing, Tools, Settings), the screen now shows the actual error message in a grey box. Use <strong className="text-foreground">Try again</strong> for temporary issues (e.g. network). If the message mentions missing environment variables or Supabase, check your Vercel environment variables and Supabase configuration (see your deployment docs or <code className="bg-muted px-1 rounded">ENVIRONMENT_VARIABLES.md</code> in the repo).
+      </p>
 
       <h2 className="text-lg font-semibold text-foreground mt-8">Support</h2>
       <p className="text-foreground">

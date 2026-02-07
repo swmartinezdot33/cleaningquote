@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Trash2, Send, Loader2, Save, BookOpen, Sparkles } from 'lucide-react';
+import { CANONICAL_SITE_URL } from '@/lib/canonical-url';
 
 interface Member {
   user_id: string;
@@ -341,7 +342,7 @@ export default function SettingsPage() {
                 <div className="rounded-lg border border-border bg-muted/30 p-3">
                   <p className="text-xs font-medium text-muted-foreground mb-2">GHL Quoter Button – paste in GHL → Settings → Company → Custom JS:</p>
                   <code className="text-xs block break-all bg-background p-2 rounded border">
-                    {`<script src="${typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || 'https://www.cleanquote.io')}/api/script/cleanquote.js" data-location-id="${ghlStatus.locationId}"></script>`}
+                    {`<script src="${typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || CANONICAL_SITE_URL)}/api/script/cleanquote.js" data-location-id="${ghlStatus.locationId}"></script>`}
                   </code>
                 </div>
               )}

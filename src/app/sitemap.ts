@@ -9,6 +9,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/terms",
     "/privacy",
     "/help",
+    "/help/getting-started",
     "/help/google-maps-api",
     "/help/ghl-integration",
     "/help/ghl-config",
@@ -18,12 +19,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/help/custom-domain",
     "/login",
     "/signup",
+    "/subscribe",
   ]
 
-  return routes.map((path) => ({
-    url: `${CANONICAL_SITE_URL}${path}`,
-    lastModified: new Date(),
-    changeFrequency: path === "" ? "weekly" : ("monthly" as const),
-    priority: path === "" ? 1 : 0.8,
-  }))
+  return routes.map((path) => {
+    const isHelp = path === "/help" || path.startsWith("/help/");
+    const isKeyPublic = path === "/terms" || path === "/privacy";
+    const priority = path === "" ? 1 : (isHelp || isKeyPublic ? 0.9 : 0.8);
+    return {
+      url: `${CANONICAL_SITE_URL}${path}`,
+      lastModified: new Date(),
+      changeFrequency: path === "" ? "weekly" : ("monthly" as const),
+      priority,
+    };
+  })
 }
