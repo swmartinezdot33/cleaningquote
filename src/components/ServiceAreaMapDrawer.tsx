@@ -80,6 +80,8 @@ export function ServiceAreaMapDrawer({
   const labelMarkerRefs = useRef<any[]>([]);
   const officeMarkerRef = useRef<any>(null);
   const mapIdleListenerRef = useRef<google.maps.MapsEventListener | null>(null);
+  const onPolygonChangeRef = useRef(onPolygonChange);
+  onPolygonChangeRef.current = onPolygonChange;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -195,8 +197,9 @@ export function ServiceAreaMapDrawer({
                 const ring = geom.coordinates[0];
                 return geoJSONRingToCoords(ring);
               }).filter((c) => c.length >= 3);
-              if (all.length === 1) onPolygonChange?.(all[0]);
-              else if (all.length > 1) onPolygonChange?.(all);
+              const cb = onPolygonChangeRef.current;
+              if (all.length === 1) cb?.(all[0]);
+              else if (all.length > 1) cb?.(all);
             };
 
             draw.on('change', () => { if (!cancelled) notifyFromSnapshot(); });
@@ -328,7 +331,7 @@ export function ServiceAreaMapDrawer({
       polygonRefs.current = [];
       mapRef.current = null;
     };
-  }, [initialPolygon, zoneDisplay, onPolygonChange, readOnly, officeAddress]);
+  }, [initialPolygon, zoneDisplay, readOnly, officeAddress]);
 
   const style = typeof height === 'number' ? { height: `${height}px` } : { height };
 

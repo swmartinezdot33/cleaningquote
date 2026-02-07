@@ -80,6 +80,7 @@ export interface Database {
           id: string;
           quote_id: string;
           tool_id: string | null;
+          property_id: string | null;
           first_name: string | null;
           last_name: string | null;
           email: string | null;
@@ -108,6 +109,7 @@ export interface Database {
           id?: string;
           quote_id: string;
           tool_id?: string | null;
+          property_id?: string | null;
           first_name?: string | null;
           last_name?: string | null;
           email?: string | null;
@@ -136,6 +138,7 @@ export interface Database {
           id?: string;
           quote_id?: string;
           tool_id?: string | null;
+          property_id?: string | null;
           first_name?: string | null;
           last_name?: string | null;
           email?: string | null;
@@ -249,6 +252,170 @@ export interface Database {
         Row: { tool_id: string; service_area_id: string };
         Insert: { tool_id: string; service_area_id: string };
         Update: { tool_id?: string; service_area_id?: string };
+      };
+      contacts: {
+        Row: {
+          id: string;
+          org_id: string;
+          first_name: string | null;
+          last_name: string | null;
+          email: string | null;
+          phone: string | null;
+          ghl_contact_id: string | null;
+          stage: string;
+          source: string | null;
+          tags: string[];
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          first_name?: string | null;
+          last_name?: string | null;
+          email?: string | null;
+          phone?: string | null;
+          ghl_contact_id?: string | null;
+          stage?: string;
+          source?: string | null;
+          tags?: string[];
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['contacts']['Insert']>;
+      };
+      properties: {
+        Row: {
+          id: string;
+          contact_id: string;
+          org_id: string;
+          address: string | null;
+          city: string | null;
+          state: string | null;
+          postal_code: string | null;
+          country: string | null;
+          nickname: string | null;
+          stage: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          contact_id: string;
+          org_id: string;
+          address?: string | null;
+          city?: string | null;
+          state?: string | null;
+          postal_code?: string | null;
+          country?: string | null;
+          nickname?: string | null;
+          stage?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['properties']['Insert']>;
+      };
+      service_schedules: {
+        Row: {
+          id: string;
+          property_id: string;
+          org_id: string;
+          frequency: string;
+          preferred_day: string | null;
+          preferred_time_slot: string | null;
+          price_per_visit: number | null;
+          status: string;
+          start_date: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          org_id: string;
+          frequency: string;
+          preferred_day?: string | null;
+          preferred_time_slot?: string | null;
+          price_per_visit?: number | null;
+          status?: string;
+          start_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['service_schedules']['Insert']>;
+      };
+      appointments: {
+        Row: {
+          id: string;
+          property_id: string;
+          contact_id: string;
+          org_id: string;
+          service_type: string | null;
+          scheduled_at: string;
+          duration_minutes: number | null;
+          status: string;
+          ghl_appointment_id: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          contact_id: string;
+          org_id: string;
+          service_type?: string | null;
+          scheduled_at: string;
+          duration_minutes?: number | null;
+          status?: string;
+          ghl_appointment_id?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['appointments']['Insert']>;
+      };
+      activities: {
+        Row: {
+          id: string;
+          contact_id: string;
+          org_id: string;
+          type: string;
+          title: string;
+          metadata: Record<string, unknown>;
+          created_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          contact_id: string;
+          org_id: string;
+          type: string;
+          title: string;
+          metadata?: Record<string, unknown>;
+          created_at?: string;
+          created_by?: string | null;
+        };
+        Update: Partial<Database['public']['Tables']['activities']['Insert']>;
+      };
+      notes: {
+        Row: {
+          id: string;
+          contact_id: string;
+          org_id: string;
+          content: string;
+          created_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          contact_id: string;
+          org_id: string;
+          content: string;
+          created_at?: string;
+          created_by?: string | null;
+        };
+        Update: Partial<Database['public']['Tables']['notes']['Insert']>;
       };
     };
     Views: Record<string, never>;

@@ -2,6 +2,10 @@
 
 import './globals.css';
 import { useState, useEffect, Suspense } from 'react';
+
+function debugLog(location: string, message: string, data?: Record<string, unknown>) {
+  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location, message, data: data ?? {}, timestamp: Date.now() }) }).catch(() => {});
+}
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -27,6 +31,7 @@ function Header({ onSignupClick }: { onSignupClick: () => void }) {
 
   useEffect(() => {
     setMounted(true);
+    debugLog('MarketingPage.tsx:Header-mount', 'Header mounted', {});
   }, []);
 
   useEffect(() => {
@@ -182,10 +187,10 @@ function Hero({ onSignupClick }: { onSignupClick: () => void }) {
           <span className="bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">Quote. Close. Grow.</span>
         </h1>
         <p className="mt-6 text-lg text-muted-foreground sm:text-xl max-w-2xl mx-auto">
-          Instant quotes so you’re not just giving out a price—you’re closing. CleanQuote gives you custom quote forms, pricing structures, a service area builder, and one-click booking so leads say yes while they’re hot. Use it standalone or connect your CRM. Embed anywhere. No coding. More booked jobs.
+          Instant quotes so you're not just giving out a price—you're closing. CleanQuote gives you custom quote forms, pricing structures, a service area builder, and one-click booking so leads say yes while they're hot. Use it standalone or connect your CRM. Embed anywhere. No coding. More booked jobs.
         </p>
         <p className="mt-4 text-sm text-muted-foreground/90 max-w-xl mx-auto">
-          Multiple service areas, different pricing per zone—or one structure everywhere. One form. Stop losing leads to “we’ll get back to you.”
+          Multiple service areas, different pricing per zone—or one structure everywhere. One form. Stop losing leads to “we'll get back to you.”
         </p>
         <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Button size="lg" className="gap-2 rounded-none text-base font-semibold shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 transition-shadow" onClick={onSignupClick}>
@@ -215,7 +220,7 @@ function WhySection() {
           Tired of losing leads while you run numbers?
         </h2>
         <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-          Most cleaning companies quote the old way: back-and-forth emails, manual spreadsheets, and “we’ll get back to you.” By the time you send a price, the lead has already moved on. CleanQuote.io is a sales solution that flips that. Your leads get an instant, accurate quote—and you get a hot lead who’s ready to book.
+          Most cleaning companies quote the old way: back-and-forth emails, manual spreadsheets, and “we'll get back to you.” By the time you send a price, the lead has already moved on. CleanQuote.io is a sales solution that flips that. Your leads get an instant, accurate quote—and you get a hot lead who's ready to book.
         </p>
         <p className="mt-4 text-base font-medium text-foreground">
           Same pricing you use today. One simple form. Way more closed jobs.
@@ -262,12 +267,12 @@ function Features() {
     {
       icon: Zap,
       title: 'Instant quotes that close',
-      description: 'Leads see a real price in seconds—no “we’ll get back to you.” You\'re not just giving out a number; you\'re closing. Turn looky-loos into booked jobs, and service the lead from first click to client.',
+      description: `Leads see a real price in seconds—no "we'll get back to you." You're not just giving out a number; you're closing. Turn looky-loos into booked jobs, and service the lead from first click to client.`,
     },
     {
       icon: Calendar,
       title: 'Book callbacks & appointments',
-      description: 'Stop playing phone tag. Let leads pick a time or request a callback. Calendar sync shows only when you’re free. Fewer no-shows, more show-ups.',
+      description: `Stop playing phone tag. Let leads pick a time or request a callback. Calendar sync shows only when you're free. Fewer no-shows, more show-ups.`,
     },
     {
       icon: BarChart3,
@@ -590,6 +595,9 @@ function MarketingPageContent() {
 }
 
 export default function MarketingPage() {
+  useEffect(() => {
+    debugLog('MarketingPage.tsx:MarketingPage-mount', 'MarketingPage mounted', { path: typeof window !== 'undefined' ? window.location.pathname : 'ssr' });
+  }, []);
   return (
     <Suspense fallback={
       <div className="min-h-screen flex flex-col">

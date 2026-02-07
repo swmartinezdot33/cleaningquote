@@ -70,6 +70,9 @@ export default function ServiceAreasClient() {
   const [previewName, setPreviewName] = useState('');
   const [previewPolygons, setPreviewPolygons] = useState<PolygonCoords[] | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  /** Stable initial data for the map drawer (set when modal opens / fetch completes). Not updated on draw, so the map does not re-init and blank. */
+  const [initialPolygonForDrawer, setInitialPolygonForDrawer] = useState<PolygonCoords[] | null>(null);
+  const [initialZoneDisplayForDrawer, setInitialZoneDisplayForDrawer] = useState<ZoneDisplayItem[]>([]);
 
   const loadList = useCallback(() => {
     if (!orgId) return;
@@ -106,6 +109,8 @@ export default function ServiceAreasClient() {
     setEditName('');
     setEditPolygons(null);
     setEditZoneDisplay([]);
+    setInitialPolygonForDrawer(null);
+    setInitialZoneDisplayForDrawer([]);
     setAddZipInput('');
     setAddZipError(null);
     if (areaId) {
@@ -117,11 +122,14 @@ export default function ServiceAreasClient() {
           setEditPolygons(list.length > 0 ? list : null);
           const zd = d.serviceArea?.zone_display;
           const zoneList = Array.isArray(zd) ? zd.map((z: { label?: string; color?: string }) => ({ label: z?.label ?? '', color: z?.color ?? '' })) : [];
-          setEditZoneDisplay(list.length > 0 ? Array.from({ length: list.length }, (_, i) => {
+          const display = list.length > 0 ? Array.from({ length: list.length }, (_, i) => {
             const z = zoneList[i] ?? { label: '', color: '' };
             const color = (z.color && /^#[0-9A-Fa-f]{6}$/.test(z.color)) ? z.color : DEFAULT_ZONE_COLORS_6[i % DEFAULT_ZONE_COLORS_6.length];
             return { label: z.label ?? '', color };
-          }) : []);
+          }) : [];
+          setEditZoneDisplay(display);
+          setInitialPolygonForDrawer(list.length > 0 ? list : null);
+          setInitialZoneDisplayForDrawer(display);
         })
         .catch(() => {});
     }
@@ -282,11 +290,15 @@ export default function ServiceAreasClient() {
       const res = await fetch(`/api/dashboard/orgs/${orgId}/service-areas/zip-to-polygon?zip=${encodeURIComponent(zip5)}`);
       const data = await res.json();
       if (res.ok && data.polygon) {
-        setEditPolygons((prev) => [...(prev ?? []), data.polygon]);
+        setEditPolygons((prev) => {
+          const next = [...(prev ?? []), data.polygon];
+          setInitialPolygonForDrawer(next);
+          return next;
+        });
         setEditZoneDisplay((prev) => {
-          const nextIndex = prev.length;
-          const color = DEFAULT_ZONE_COLORS_6[nextIndex % DEFAULT_ZONE_COLORS_6.length];
-          return [...prev, { label: zip5, color }];
+          const next = [...prev, { label: zip5, color: DEFAULT_ZONE_COLORS_6[prev.length % DEFAULT_ZONE_COLORS_6.length] }];
+          setInitialZoneDisplayForDrawer(next);
+          return next;
         });
         setAddZipInput('');
       } else {
@@ -571,13 +583,8 @@ export default function ServiceAreasClient() {
               <p className="text-sm font-medium text-primary mb-1">Click on the map to add points. Double-click or click the first point again to close the polygon.</p>
               <div className="mt-1 rounded-lg overflow-hidden border border-border">
                 <ServiceAreaMapDrawer
-                  initialPolygon={editPolygons ?? undefined}
-                  zoneDisplay={editPolygons?.length ? editZoneDisplay.slice(0, editPolygons.length).concat(
-                    Array.from({ length: Math.max(0, editPolygons.length - editZoneDisplay.length) }, (_, i) => ({
-                      label: '',
-                      color: DEFAULT_ZONE_COLORS_6[(editZoneDisplay.length + i) % DEFAULT_ZONE_COLORS_6.length],
-                    }))
-                  ) : undefined}
+                  initialPolygon={initialPolygonForDrawer ?? undefined}
+                  zoneDisplay={initialZoneDisplayForDrawer.length ? initialZoneDisplayForDrawer : undefined}
                   officeAddress={orgOfficeAddress || undefined}
                   onPolygonChange={(p) => {
                     if (!p) {

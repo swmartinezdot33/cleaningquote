@@ -13,6 +13,10 @@ function LoginForm() {
   const redirect = searchParams.get('redirect') ?? '/dashboard';
 
   useEffect(() => {
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'login/page.tsx:LoginForm-mount', message: 'LoginForm mounted', data: { redirect }, timestamp: Date.now() }) }).catch(() => {});
+  }, [redirect]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
     const hash = window.location.hash || '';
     if (hash.includes('access_token') || hash.includes('refresh_token')) {

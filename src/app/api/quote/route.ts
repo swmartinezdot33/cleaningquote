@@ -10,6 +10,7 @@ import { SurveyQuestion } from '@/lib/survey/schema';
 import { sanitizeCustomFields } from '@/lib/ghl/field-normalizer';
 import { parseAddress } from '@/lib/utils/parseAddress';
 import { getPricingStructureIdFromConfig } from '@/lib/config/store';
+import { upsertContactAndPropertyFromQuote } from '@/lib/crm/upsert-contact-property';
 
 /**
  * Generate a human-readable, unique Quote ID
@@ -1042,6 +1043,32 @@ export async function POST(request: NextRequest) {
       });
       if (error) {
         console.error('❌ Failed to store quote in Supabase:', error);
+      } else if (toolId) {
+        // CRM: create/upsert contact and property, link quote
+        try {
+          const { data: toolRow } = await supabase.from('tools').select('org_id').eq('id', toolId).single();
+          const orgId = (toolRow as { org_id?: string } | null)?.org_id;
+          if (orgId) {
+            await upsertContactAndPropertyFromQuote(
+              orgId,
+              toolId,
+              generatedQuoteId,
+              {
+                firstName: body.firstName,
+                lastName: body.lastName,
+                email: body.email,
+                phone: body.phone,
+                address: body.address,
+                city: body.city,
+                state: body.state,
+                postalCode: body.postalCode,
+                country: body.country,
+              }
+            );
+          }
+        } catch (crmErr) {
+          console.error('CRM upsert failed (quote stored):', crmErr);
+        }
       }
     } catch (sbError) {
       console.error('❌ Supabase quote insert failed:', sbError);

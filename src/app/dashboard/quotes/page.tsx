@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { FileDown, ExternalLink, Loader2, ArrowRightLeft, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileDown, ExternalLink, Loader2, ArrowRightLeft, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User } from 'lucide-react';
 
 interface QuoteRow {
   id: string;
@@ -31,6 +31,7 @@ interface QuoteRow {
   toolSlug: string | null;
   status?: string | null;
   disqualifiedOptionLabel?: string | null;
+  contactId?: string | null;
 }
 
 function formatDate(iso: string) {
@@ -660,6 +661,15 @@ export default function DashboardQuotesPage() {
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
+                        )}
+                        {q.contactId && (
+                          <Link
+                            href={`/dashboard/crm/contacts/${q.contactId}`}
+                            className="inline-flex items-center justify-center rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            title="View in CRM"
+                          >
+                            <User className="h-4 w-4" />
+                          </Link>
                         )}
                       </div>
                     </td>

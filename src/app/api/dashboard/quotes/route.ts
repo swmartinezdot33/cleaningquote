@@ -132,7 +132,10 @@ export async function GET(request: NextRequest) {
 
     const orgs = await getOrgsForDashboard(user.id, user.email ?? undefined);
     const cookieStore = await cookies();
-    const selectedOrgId = cookieStore.get('selected_org_id')?.value ?? orgs[0]?.id;
+    let selectedOrgId = cookieStore.get('selected_org_id')?.value ?? orgs[0]?.id;
+    if (selectedOrgId && !orgs.some((o: { id: string }) => o.id === selectedOrgId)) {
+      selectedOrgId = orgs[0]?.id;
+    }
     const isSuperAdmin = isSuperAdminEmail(user.email ?? undefined);
     const selectedOrg = orgs.find((o: { id: string; role?: string }) => o.id === selectedOrgId);
     const isOrgAdmin = selectedOrg?.role === 'admin';
@@ -157,8 +160,13 @@ export async function GET(request: NextRequest) {
     }
     const toolIds = new Set(toolMap.keys());
 
+    const QUOTE_COLUMNS = 'id, quote_id, tool_id, property_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at, payload, status';
+    const QUOTE_COLUMNS_NO_PROPERTY = 'id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at, payload, status';
+
     let quotes: unknown[];
     let error: { message: string } | null = null;
+    let hasPropertyId = true;
+
     if (isSuperAdmin) {
       try {
         const admin = createSupabaseServer();
@@ -168,30 +176,64 @@ export async function GET(request: NextRequest) {
         } else {
           const result = await admin
             .from('quotes')
-            .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at, payload, status')
+            .select(QUOTE_COLUMNS)
             .in('tool_id', toolIdsForOrg)
             .order('created_at', { ascending: false })
             .limit(2000);
-          quotes = result.data ?? [];
-          error = result.error;
+          if (result.error?.message?.includes('property_id') || result.error?.message?.includes('does not exist')) {
+            const fallback = await admin
+              .from('quotes')
+              .select(QUOTE_COLUMNS_NO_PROPERTY)
+              .in('tool_id', toolIdsForOrg)
+              .order('created_at', { ascending: false })
+              .limit(2000);
+            quotes = (fallback.data ?? []).map((q: any) => ({ ...q, property_id: null }));
+            error = fallback.error;
+            hasPropertyId = false;
+          } else {
+            quotes = result.data ?? [];
+            error = result.error;
+          }
         }
       } catch {
         const result = await supabase
           .from('quotes')
-          .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at, payload, status')
+          .select(QUOTE_COLUMNS)
           .order('created_at', { ascending: false })
           .limit(2000);
-        quotes = result.data ?? [];
-        error = result.error;
+        if (result.error?.message?.includes('property_id') || result.error?.message?.includes('does not exist')) {
+          const fallback = await supabase
+            .from('quotes')
+            .select(QUOTE_COLUMNS_NO_PROPERTY)
+            .order('created_at', { ascending: false })
+            .limit(2000);
+          quotes = (fallback.data ?? []).map((q: any) => ({ ...q, property_id: null }));
+          error = fallback.error;
+          hasPropertyId = false;
+        } else {
+          quotes = result.data ?? [];
+          error = result.error;
+        }
       }
     } else {
       const result = await supabase
         .from('quotes')
-        .select('id, quote_id, tool_id, first_name, last_name, email, phone, address, city, state, postal_code, service_type, frequency, price_low, price_high, square_feet, bedrooms, created_at, payload, status')
+        .select(QUOTE_COLUMNS)
         .order('created_at', { ascending: false })
         .limit(2000);
-      quotes = result.data ?? [];
-      error = result.error;
+      if (result.error?.message?.includes('property_id') || result.error?.message?.includes('does not exist')) {
+        const fallback = await supabase
+          .from('quotes')
+          .select(QUOTE_COLUMNS_NO_PROPERTY)
+          .order('created_at', { ascending: false })
+          .limit(2000);
+        quotes = (fallback.data ?? []).map((q: any) => ({ ...q, property_id: null }));
+        error = fallback.error;
+        hasPropertyId = false;
+      } else {
+        quotes = result.data ?? [];
+        error = result.error;
+      }
     }
 
     if (error) {
@@ -201,6 +243,24 @@ export async function GET(request: NextRequest) {
 
     // Filter to user's tools (RLS on quotes filters by tool ownership)
     const filtered = (quotes ?? []).filter((q: any) => !q.tool_id || toolIds.has(q.tool_id));
+
+    const propertyIds = hasPropertyId ? [...new Set(filtered.map((q: any) => q.property_id).filter(Boolean))] : [];
+    const propertyToContact: Record<string, string> = {};
+    if (propertyIds.length > 0) {
+      try {
+        const propsRes = await (supabase as any)
+          .from('properties')
+          .select('id, contact_id')
+          .in('id', propertyIds);
+        if (!propsRes.error && propsRes.data) {
+          for (const p of propsRes.data) {
+            propertyToContact[p.id] = p.contact_id;
+          }
+        }
+      } catch {
+        // properties table may not exist if CRM migrations not applied
+      }
+    }
 
     const withToolInfo = filtered.map((q: any) => {
       const tool = q.tool_id ? toolMap.get(q.tool_id) : null;
@@ -259,6 +319,7 @@ export async function GET(request: NextRequest) {
         ...(price_recurring_high != null && !isDisqualified && { price_recurring_high: price_recurring_high as number }),
         toolName: tool?.name ?? 'Legacy',
         toolSlug: tool?.slug ?? null,
+        contactId: q.property_id ? propertyToContact[q.property_id] ?? null : null,
         ...(disqualifiedOptionLabel && { disqualifiedOptionLabel }),
       };
     });

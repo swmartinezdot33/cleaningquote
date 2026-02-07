@@ -83,6 +83,13 @@ export function DashboardHeader({
       >
         Quotes
       </Link>
+      <Link
+        href="/dashboard/crm"
+        onClick={closeMobileMenu}
+        className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+      >
+        CRM
+      </Link>
       {/* Service Areas and Pricing: admin only; members do not see these */}
       {selectedOrgRole === 'admin' && (
         <>
@@ -220,6 +227,13 @@ export function DashboardHeader({
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
                   Quotes
+                </Link>
+                <Link
+                  href="/dashboard/crm"
+                  onClick={closeMobileMenu}
+                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                >
+                  CRM
                 </Link>
                 {/* Service Areas and Pricing: admin only */}
                 {selectedOrgRole === 'admin' && (
