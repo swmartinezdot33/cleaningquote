@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveGHLContext } from '@/lib/ghl/api-context';
-import { getSession } from '@/lib/ghl/session';
 import { getLocationIdFromRequest } from '@/lib/request-utils';
 import { listGHLContacts } from '@/lib/ghl/client';
 import { getInstallation } from '@/lib/ghl/token-store';
@@ -37,16 +36,8 @@ export async function GET(request: NextRequest) {
       });
     }
     if ('needsConnect' in ctx) {
-      const session = await getSession();
+      // No token in KV for this location (primary lookup only). One reason, one message.
       const requestLocationId = getLocationIdFromRequest(request);
-      const sessionLocationId = session?.locationId;
-      const isLocationMismatch = !!(
-        requestLocationId &&
-        sessionLocationId &&
-        sessionLocationId !== requestLocationId
-      );
-      const reason = isLocationMismatch ? 'location_mismatch' : 'needs_connect';
-      // When user opened this location (e.g. custom menu link), show one clear CTA; avoid "session is for another location" to reduce confusion.
       const message =
         requestLocationId
           ? 'This location is not connected yet. Click below to authorize CleanQuote for this location.'
@@ -56,7 +47,7 @@ export async function GET(request: NextRequest) {
         hasToken: false,
         hasLocationId: !!locationIdParam,
         ghlCallOk: false,
-        reason,
+        reason: 'needs_connect',
         message,
       });
     }

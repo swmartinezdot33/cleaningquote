@@ -133,7 +133,7 @@ export default function CRMDashboardPage() {
           {verify && !verify.ok && (
             <div ref={statusRef} className="mt-3 rounded border border-amber-600/50 bg-amber-500/10 px-3 py-2">
               <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">
-                {testingConnection ? 'Testing…' : `Status: ${verify.reason ?? 'unknown'}`}
+                {testingConnection ? 'Testing…' : (effectiveLocationId ? 'Not connected' : 'No location')}
               </p>
               <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">{verify.message ?? ''}</p>
             </div>
@@ -164,7 +164,7 @@ export default function CRMDashboardPage() {
           {verify && (
             <div ref={statusRef} className="mt-3 rounded border border-amber-600/50 bg-amber-500/10 px-3 py-2">
               <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">
-                {testingConnection ? 'Testing…' : `Status: ${verify.reason ?? 'unknown'}`}
+                {testingConnection ? 'Testing…' : 'Not connected'}
               </p>
               <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">
                 {verify.message ?? ''}

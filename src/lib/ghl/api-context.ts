@@ -25,9 +25,9 @@ function debugLog(message: string, data: Record<string, unknown>) {
 
 /**
  * Resolve locationId + token for dashboard API calls.
- * Primary lookup only (no fallback): locationId → KV storage → token.
- * LocationId comes from request (query or x-ghl-location-id header) or, when absent, from session.
- * Token is always read from KV (stored at OAuth callback); no Agency or other fallback.
+ * We do NOT compare locationId to anything — it is only the key for KV lookup.
+ * Flow: get locationId from page (URL/header or session) → look up in KV → return token or needsConnect.
+ * Token is always from KV (stored at OAuth callback); no Agency or other fallback.
  */
 export async function resolveGHLContext(request: NextRequest): Promise<GHLContextResult> {
   const requestLocationId = getLocationIdFromRequest(request);
