@@ -236,9 +236,13 @@ export async function GET(request: NextRequest) {
       }
     }
   }
-  console.log(LOG, 'State parsed', { redirectTo, hasOrgId: !!orgId, locationIdFromState: locationIdFromState ? locationIdFromState.slice(0, 8) + '..' + locationIdFromState.slice(-4) : null, stateRawLength: stateRaw?.length ?? 0 });
+  const locationIdFromQuery = (() => {
+    const q = searchParams.get('locationId') ?? searchParams.get('location_id') ?? searchParams.get('location') ?? null;
+    return typeof q === 'string' && q.trim() ? q.trim() : null;
+  })();
+  console.log(LOG, 'State parsed', { redirectTo, hasOrgId: !!orgId, locationIdFromState: locationIdFromState ? locationIdFromState.slice(0, 8) + '..' + locationIdFromState.slice(-4) : null, locationIdFromQuery: locationIdFromQuery ? locationIdFromQuery.slice(0, 8) + '..' : null, stateRawLength: stateRaw?.length ?? 0 });
   // #region agent log
-  debugIngest('after state parse (H4)', { redirectTo, hasOrgId: !!orgId, locationIdFromStateFull: locationIdFromState ?? null, hypothesisId: 'H4' });
+  debugIngest('after state parse (H4)', { redirectTo, hasOrgId: !!orgId, locationIdFromStateFull: locationIdFromState ?? null, locationIdFromQueryFull: locationIdFromQuery ?? null, hypothesisId: 'H4' });
   // #endregion
 
   if (error) {
@@ -330,9 +334,9 @@ export async function GET(request: NextRequest) {
     const companyId = data.companyId ?? data.company_id ?? '';
     const userId = data.userId ?? data.user_id ?? '';
 
-    // Prefer state (iframe location) when present — user clicked Connect from a specific location, so store under that id. Then token, JWT, API.
+    // Match MaidCentral / Culture Index: state (iframe) first, then query (GHL may pass locationId in callback URL), then token, JWT, API.
     let locationId: string | null = null;
-    let locationSource: 'state' | 'token' | 'jwt' | 'api' = 'token';
+    let locationSource: 'state' | 'query' | 'token' | 'jwt' | 'api' = 'token';
     if (locationIdFromState) {
       locationId = locationIdFromState;
       locationSource = 'state';
@@ -340,6 +344,11 @@ export async function GET(request: NextRequest) {
       debugIngest('using locationId from state (iframe)', { locationIdFromState: locationId, hypothesisId: 'H4' });
       // #endregion
       console.log(LOG, 'Using locationId from state (iframe where user clicked Connect)', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
+    }
+    if (!locationId && locationIdFromQuery) {
+      locationId = locationIdFromQuery;
+      locationSource = 'query';
+      console.log(LOG, 'Using locationId from callback URL query (GHL may pass it)', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
     }
     if (!locationId) {
       locationId =
@@ -405,13 +414,15 @@ export async function GET(request: NextRequest) {
 
     const sessionToken = await createSessionToken({ locationId, companyId, userId });
     const stateDebug =
-      locationSource === 'token'
-        ? 'Location from GHL token response (installed location).'
-        : locationSource === 'jwt'
-          ? 'Location from JWT payload (token body had no locationId).'
-          : locationSource === 'state'
-            ? 'Location from state (iframe); token was Company-level so no locationId in response.'
-            : 'Location from /locations/ API fallback.';
+      locationSource === 'state'
+        ? 'Location from state (iframe where you clicked Connect).'
+        : locationSource === 'query'
+          ? 'Location from callback URL query (GHL passed it).'
+          : locationSource === 'token'
+            ? 'Location from GHL token response (installed location).'
+            : locationSource === 'jwt'
+              ? 'Location from JWT payload (token body had no locationId).'
+              : 'Location from /locations/ API fallback.';
     const html = htmlSuccess(
       locationId,
       (data.access_token ?? '').length,
