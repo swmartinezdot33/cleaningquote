@@ -140,23 +140,27 @@ export async function GET(request: NextRequest) {
   let redirectTo = '/dashboard';
   let orgId: string | null = null;
   if (stateRaw) {
+    // Authorize sends state as base64(JSON) — try that first so we get locationId from iframe flow
     try {
-      const state = new URLSearchParams(stateRaw);
-      orgId = state.get('orgId');
-      const r = state.get('redirect');
-      if (r) redirectTo = r;
-      locationIdFromState = state.get('locationId') ?? state.get('location_id') ?? null;
+      const decoded = Buffer.from(stateRaw, 'base64').toString('utf-8');
+      const parsed = JSON.parse(decoded);
+      locationIdFromState = parsed.locationId ?? parsed.location_id ?? null;
+      if (parsed.redirect) redirectTo = parsed.redirect;
+      orgId = parsed.orgId ?? null;
+      if (locationIdFromState) console.log(LOG, 'State parsed (base64+JSON)', { locationIdPreview: locationIdFromState.slice(0, 8) + '..' + locationIdFromState.slice(-4) });
     } catch {
       try {
         const parsed = JSON.parse(stateRaw);
         locationIdFromState = parsed.locationId ?? parsed.location_id ?? null;
         if (parsed.redirect) redirectTo = parsed.redirect;
+        orgId = parsed.orgId ?? null;
       } catch {
         try {
-          const decoded = Buffer.from(stateRaw, 'base64').toString('utf-8');
-          const parsed = JSON.parse(decoded);
-          locationIdFromState = parsed.locationId ?? parsed.location_id ?? null;
-          if (parsed.redirect) redirectTo = parsed.redirect;
+          const state = new URLSearchParams(stateRaw);
+          orgId = state.get('orgId');
+          const r = state.get('redirect');
+          if (r) redirectTo = r;
+          locationIdFromState = state.get('locationId') ?? state.get('location_id') ?? null;
         } catch {
           /* ignore */
         }
@@ -165,6 +169,9 @@ export async function GET(request: NextRequest) {
   }
 
   let locationId = locationIdFromState ?? locationIdFromQuery ?? null;
+  if (locationIdFromState && locationIdFromQuery && locationIdFromState !== locationIdFromQuery) {
+    console.log(LOG, 'Using locationId from state (iframe) over query', { state: locationIdFromState.slice(0, 8) + '..', query: locationIdFromQuery.slice(0, 8) + '..' });
+  }
 
   if (error) {
     const msg = searchParams.get('error_description') || error;
@@ -256,7 +263,8 @@ export async function GET(request: NextRequest) {
     }
 
     locationId = locationId.trim();
-    console.log(LOG, 'locationId resolved', { locationId: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
+    const source = locationIdFromState ? 'state (iframe)' : locationIdFromQuery ? 'query' : 'token_or_api';
+    console.log(LOG, 'locationId resolved for KV storage', { locationId: locationId.slice(0, 8) + '..' + locationId.slice(-4), source });
 
     const expiresAt = Date.now() + (data.expires_in ?? 86400) * 1000;
 

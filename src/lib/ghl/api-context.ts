@@ -66,6 +66,7 @@ export async function resolveGHLContext(request: NextRequest): Promise<GHLContex
   }
 
   // Primary lookup only: locationId → KV (find location in storage) → return token for calls. No fallback.
+  console.log('[CQ api-context] Checking KV storage for locationId (page/API load)', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
   const token = await getTokenForLocation(locationId);
   // #region agent log
   debugLog('after getTokenForLocation (KV only)', {

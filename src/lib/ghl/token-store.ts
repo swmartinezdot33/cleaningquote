@@ -53,9 +53,11 @@ function debugLog(message: string, data: Record<string, unknown>) {
  */
 export async function getInstallation(locationId: string): Promise<GHLInstallation | null> {
   const kvKey = key(locationId);
+  console.log('[CQ token-store] KV check (page load): getInstallation', { kvKeyPreview: kvKey.slice(0, 20) + '..', locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
   try {
     const kv = getKV();
     const data = await kv.get<GHLInstallation>(kvKey);
+    console.log('[CQ token-store] KV check result:', data ? 'found (token in KV)' : 'not found');
     // #region agent log
     debugLog('getInstallation result', {
       keyPreview: `${kvKey.slice(0, 18)}..${kvKey.slice(-8)}`,
@@ -68,9 +70,6 @@ export async function getInstallation(locationId: string): Promise<GHLInstallati
       hypothesisId: 'H1-H2-H4',
     });
     // #endregion
-    if (!data) {
-      console.log('[CQ token-store] getInstallation: no data in KV for', { key: key(locationId).slice(0, 25) + '...', locationIdPreview: locationId.slice(0, 12) + '...' });
-    }
     return data ?? null;
   } catch (err) {
     // #region agent log
