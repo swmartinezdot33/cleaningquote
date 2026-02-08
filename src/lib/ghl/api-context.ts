@@ -14,6 +14,16 @@ export type GHLContextResult =
   | { needsConnect: true }
   | null;
 
+// #region agent log
+function debugLog(message: string, data: Record<string, unknown>) {
+  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ location: 'api-context.ts', message, data, timestamp: Date.now() }),
+  }).catch(() => {});
+}
+// #endregion
+
 /**
  * Resolve locationId + token from:
  * 1. Request (query locationId or x-ghl-location-id header) — client passes from decrypted GHL context
@@ -24,6 +34,17 @@ export async function resolveGHLContext(request: NextRequest): Promise<GHLContex
   const requestLocationId = getLocationIdFromRequest(request);
   const session = await getSession();
 
+  // #region agent log
+  debugLog('resolveGHLContext entry', {
+    requestLocationIdLength: requestLocationId?.length ?? 0,
+    requestLocationIdPreview: requestLocationId ? `${requestLocationId.slice(0, 8)}..${requestLocationId.slice(-4)}` : null,
+    hasSession: !!session,
+    sessionLocationIdPreview: session?.locationId ? `${session.locationId.slice(0, 8)}..${session.locationId.slice(-4)}` : null,
+    sessionMatchesRequest: !!(requestLocationId && session?.locationId === requestLocationId),
+    hypothesisId: 'H1-H4',
+  });
+  // #endregion
+
   console.log('[CQ api-context] resolveGHLContext', {
     requestLocationId: requestLocationId ?? null,
     hasSession: !!session,
@@ -32,6 +53,13 @@ export async function resolveGHLContext(request: NextRequest): Promise<GHLContex
 
   if (requestLocationId) {
     const token = await getOrFetchTokenForLocation(requestLocationId);
+    // #region agent log
+    debugLog('after getOrFetchTokenForLocation', {
+      requestLocationIdPreview: `${requestLocationId.slice(0, 8)}..${requestLocationId.slice(-4)}`,
+      gotToken: !!token,
+      hypothesisId: 'H2-H3',
+    });
+    // #endregion
     if (token) {
       console.log('[CQ api-context] resolved from request locationId + KV token');
       return { locationId: requestLocationId, token };
@@ -44,6 +72,14 @@ export async function resolveGHLContext(request: NextRequest): Promise<GHLContex
         return { locationId: creds.locationId, token: creds.token };
       }
     }
+    // #region agent log
+    debugLog('needsConnect: no token from KV, no session fallback', {
+      requestLocationIdPreview: `${requestLocationId.slice(0, 8)}..${requestLocationId.slice(-4)}`,
+      hadSession: !!session,
+      sessionLocationIdPreview: session?.locationId ? `${session.locationId.slice(0, 8)}..${session.locationId.slice(-4)}` : null,
+      hypothesisId: 'H1-H2-H4',
+    });
+    // #endregion
     console.log('[CQ api-context] needsConnect: locationId present but no token in KV and no session fallback');
     return { needsConnect: true };
   }

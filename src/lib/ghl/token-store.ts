@@ -36,18 +36,47 @@ export async function storeInstallation(data: GHLInstallation): Promise<void> {
   console.log('[CQ token-store] stored OK', { locationId: data.locationId.slice(0, 12) + '...' });
 }
 
+// #region agent log
+function debugLog(message: string, data: Record<string, unknown>) {
+  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ location: 'token-store.ts', message, data, timestamp: Date.now() }),
+  }).catch(() => {});
+}
+// #endregion
+
 /**
  * Get installation data for a location (raw, no refresh).
  */
 export async function getInstallation(locationId: string): Promise<GHLInstallation | null> {
+  const kvKey = key(locationId);
   try {
     const kv = getKV();
-    const data = await kv.get<GHLInstallation>(key(locationId));
+    const data = await kv.get<GHLInstallation>(kvKey);
+    // #region agent log
+    debugLog('getInstallation result', {
+      keyPreview: `${kvKey.slice(0, 18)}..${kvKey.slice(-8)}`,
+      locationIdLength: locationId.length,
+      locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`,
+      hasData: !!data,
+      hasAccessToken: !!(data?.accessToken),
+      hypothesisId: 'H1-H2',
+    });
+    // #endregion
     if (!data) {
       console.log('[CQ token-store] getInstallation: no data in KV for', { key: key(locationId).slice(0, 25) + '...', locationIdPreview: locationId.slice(0, 12) + '...' });
     }
     return data ?? null;
   } catch (err) {
+    // #region agent log
+    debugLog('getInstallation error', {
+      keyPreview: `${kvKey.slice(0, 18)}..`,
+      locationIdPreview: locationId?.slice(0, 8) + '..',
+      err: err instanceof Error ? err.message : String(err),
+      hypothesisId: 'H2',
+    });
+    // #endregion
     console.warn('[CQ token-store] getInstallation error', { locationIdPreview: locationId?.slice(0, 12) + '...', err: err instanceof Error ? err.message : String(err) });
     return null;
   }
@@ -84,7 +113,12 @@ export async function getOrFetchTokenForLocation(locationId: string): Promise<st
  */
 export async function getTokenForLocation(locationId: string): Promise<string | null> {
   const install = await getInstallation(locationId);
-  if (!install) return null;
+  if (!install) {
+    // #region agent log
+    debugLog('getTokenForLocation: no install', { locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`, hypothesisId: 'H2' });
+    // #endregion
+    return null;
+  }
 
   const now = Date.now();
   const needsRefresh = install.expiresAt - REFRESH_BUFFER_MS <= now;
@@ -95,6 +129,14 @@ export async function getTokenForLocation(locationId: string): Promise<string | 
 
   // Refresh the token
   const refreshed = await refreshAccessToken(locationId, install);
+  // #region agent log
+  debugLog('getTokenForLocation after refresh', {
+    locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`,
+    needsRefresh,
+    refreshOk: !!refreshed,
+    hypothesisId: 'H3',
+  });
+  // #endregion
   if (!refreshed) return null;
 
   return refreshed.accessToken;

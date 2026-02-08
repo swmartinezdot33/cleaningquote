@@ -24,6 +24,15 @@ export function getAppBaseUrl(): string {
   return `http://localhost:${port}`;
 }
 
+/** Canonical app URL for post-OAuth redirect (e.g. new window lands here). Use CANONICAL_APP_URL or POST_OAUTH_REDIRECT_BASE env to override. */
+const CANONICAL_APP_URL_DEFAULT = 'https://my.cleanquote.io';
+
+export function getPostOAuthRedirectBase(): string {
+  const env = process.env.CANONICAL_APP_URL?.trim() || process.env.POST_OAUTH_REDIRECT_BASE?.trim();
+  if (env) return env.replace(/\/$/, '');
+  return CANONICAL_APP_URL_DEFAULT;
+}
+
 /**
  * Redirect URI for OAuth — must match GHL Marketplace config.
  * Normalizes connect/callback → oauth/callback so both work.

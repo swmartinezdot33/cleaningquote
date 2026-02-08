@@ -29,6 +29,26 @@ export async function GET(request: NextRequest) {
 
     const requestHost = request.headers.get('host') ?? 'unknown';
     const referer = request.headers.get('referer') ?? '';
+    const secFetchDest = request.headers.get('sec-fetch-dest') ?? '';
+    const secFetchMode = request.headers.get('sec-fetch-mode') ?? '';
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'oauth/authorize/route.ts',
+        message: 'Authorize entry: referer and fetch metadata',
+        data: {
+          hasReferer: !!referer,
+          refererHost: referer ? (() => { try { return new URL(referer).host; } catch { return 'parse-fail'; } })() : null,
+          secFetchDest,
+          secFetchMode,
+          hypothesisId: 'H1-H2-H4-H5',
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     console.log('[CQ Authorize] redirecting to GHL chooselocation', { host: requestHost, hasLocationId: !!locationId, hasRedirect: !!redirect });
     console.log('[OAuth Authorize] Client ID:', clientId ? `${clientId.substring(0, 10)}...${clientId.substring(clientId.length - 4)}` : 'MISSING');
     console.log('[OAuth Authorize] Redirect URI:', redirectUri);

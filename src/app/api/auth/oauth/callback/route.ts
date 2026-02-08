@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { storeInstallation, getInstallation } from '@/lib/ghl/token-store';
 import { createSessionToken } from '@/lib/ghl/session';
 import { setOrgGHLOAuth } from '@/lib/config/store';
-import { getAppBaseUrl, getRedirectUri } from '@/lib/ghl/oauth-utils';
+import { getAppBaseUrl, getRedirectUri, getPostOAuthRedirectBase } from '@/lib/ghl/oauth-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -78,6 +78,7 @@ export async function GET(request: NextRequest) {
       ),
     });
 
+    const callbackReferer = request.headers.get('referer') ?? '';
     // #region agent log
     debugLog('OAuth callback hit', {
       hasCode: !!code,
@@ -85,6 +86,9 @@ export async function GET(request: NextRequest) {
       locationIdParam: locationId ?? null,
       error: error ?? null,
       paramKeys: Object.keys(allParams),
+      hasReferer: !!callbackReferer,
+      refererHost: callbackReferer ? (() => { try { return new URL(callbackReferer).host; } catch { return 'parse-fail'; } })() : null,
+      hypothesisId: 'H2-H3-H4-H5',
     });
     // #endregion
 
@@ -341,16 +345,18 @@ export async function GET(request: NextRequest) {
     const sessionToken = await createSessionToken({ locationId: finalLocationId, companyId, userId });
     console.log('[CQ Callback] STEP 7c — session token created', { sessionTokenLength: sessionToken?.length ?? 0 });
 
+    // Always send user to canonical app URL (e.g. my.cleanquote.io) so new-window callback lands in the right place
+    const postAuthBase = getPostOAuthRedirectBase();
     let targetUrl: string;
     if (redirectTo === '/oauth-success') {
-      console.log('[CQ Callback] STEP 8 — redirect branch: oauth-success');
-      const u = new URL('/oauth-success', APP_BASE);
+      console.log('[CQ Callback] STEP 8 — redirect branch: oauth-success', { postAuthBase });
+      const u = new URL('/oauth-success', postAuthBase);
       u.searchParams.set('success', 'oauth_installed');
       u.searchParams.set('locationId', finalLocationId);
       targetUrl = u.toString();
     } else {
-      console.log('[CQ Callback] STEP 8 — redirect branch: state.redirect', { redirectTo });
-      const u = new URL(redirectTo, APP_BASE);
+      console.log('[CQ Callback] STEP 8 — redirect branch: state.redirect', { redirectTo, postAuthBase });
+      const u = new URL(redirectTo, postAuthBase);
       u.searchParams.set('locationId', finalLocationId);
       targetUrl = u.toString();
     }

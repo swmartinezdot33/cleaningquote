@@ -75,6 +75,8 @@ export function MetaPixel() {
       const s = b.getElementsByTagName(e)[0];
       s.parentNode?.insertBefore(t, s);
       t.onload = trackPageView;
+      // When blocked by ad blocker, script fails to load; browser may log ERR_BLOCKED_BY_CLIENT (we can't suppress that).
+      t.onerror = () => { /* fail silently; do not call trackPageView */ };
     }
   }, [pathname]);
 
