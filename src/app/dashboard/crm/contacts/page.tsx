@@ -47,6 +47,7 @@ export default function CRMContactsPage() {
     api(`/api/dashboard/crm/contacts?${params}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status === 401 ? 'Unauthorized' : 'Failed to load'))))
       .then((d) => {
+        setError(null); // clear any previous "Failed to load" from a prior request
         setContacts(d.contacts ?? []);
         setTotal(d.total ?? 0);
         setNeedsConnect(!!d.needsConnect);
@@ -96,7 +97,10 @@ export default function CRMContactsPage() {
         <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-6 text-amber-800 dark:text-amber-200">
           <p className="font-medium">Could not load contacts</p>
           <p className="mt-2 text-sm">
-            {connectReason ?? 'Token for this location could not be resolved. New installations store token and location in KV; dashboard uses KV first, then Agency.'}
+            {connectReason ?? 'Token for this location could not be resolved.'}
+          </p>
+          <p className="mt-2 text-xs opacity-90">
+            Server needs GHL_COMPANY_ID and GHL_AGENCY_ACCESS_TOKEN. Dashboard uses Agency token only; user context (postMessage) supplies location.
           </p>
         </div>
       )}
