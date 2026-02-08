@@ -19,7 +19,7 @@ function debugLog(message: string, data: Record<string, unknown>) {
 // #endregion
 
 function parseState(state: string | null): { redirect: string; orgId?: string } {
-  const fallback = { redirect: '/oauth-success' };
+  const fallback = { redirect: '/dashboard' };
   if (!state) return fallback;
   try {
     const params = new URLSearchParams(state);
@@ -33,12 +33,12 @@ function parseState(state: string | null): { redirect: string; orgId?: string } 
     const decoded = Buffer.from(state, 'base64').toString('utf-8');
     const parsed = JSON.parse(decoded);
     const r = parsed?.redirect;
-    return { redirect: typeof r === 'string' && r.startsWith('/') ? r : '/oauth-success', orgId: parsed?.orgId };
+    return { redirect: typeof r === 'string' && r.startsWith('/') ? r : '/dashboard', orgId: parsed?.orgId };
   } catch {
     try {
       const parsed = JSON.parse(state);
       const r = parsed?.redirect;
-      return { redirect: typeof r === 'string' && r.startsWith('/') ? r : '/oauth-success', orgId: parsed?.orgId };
+      return { redirect: typeof r === 'string' && r.startsWith('/') ? r : '/dashboard', orgId: parsed?.orgId };
     } catch {
       return fallback;
     }

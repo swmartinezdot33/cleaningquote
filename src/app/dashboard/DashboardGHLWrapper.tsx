@@ -1,31 +1,27 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { GHLIframeProvider } from '@/lib/ghl-iframe-context';
 
 /**
- * Wraps dashboard content with GHL iframe context.
- * Dashboard only loads when inside a GHL iframe — otherwise redirects to /open-from-ghl.
+ * Wraps dashboard content with GHL iframe context when in iframe.
+ * When user has session (we only render when layout had session), show dashboard in both iframe and normal tab — same as working GHL marketplace apps. No redirect loop.
  */
 export function DashboardGHLWrapper({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
   const [inIframe, setInIframe] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const isInIframe = window.self !== window.top;
-    if (!isInIframe) {
-      console.log('[CQ OAuth]', `[${Date.now()}] DashboardGHLWrapper: not in iframe → replace /open-from-ghl`);
-      router.replace('/open-from-ghl');
-      return;
-    }
-    console.log('[CQ OAuth]', `[${Date.now()}] DashboardGHLWrapper: in iframe → show dashboard`);
-    setInIframe(true);
-  }, [router]);
+    const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
+    setInIframe(isInIframe);
+    console.log('[CQ OAuth]', `[${Date.now()}] DashboardGHLWrapper: inIframe=${isInIframe}, showing dashboard`);
+  }, []);
 
-  if (inIframe !== true) {
-    return null;
+  // Session already valid (layout checked). Show dashboard; wrap with iframe context only when in iframe so locationId/postMessage available.
+  if (inIframe === true) {
+    return <GHLIframeProvider>{children}</GHLIframeProvider>;
   }
-
-  return <GHLIframeProvider>{children}</GHLIframeProvider>;
+  if (inIframe === false) {
+    return <>{children}</>;
+  }
+  return null;
 }

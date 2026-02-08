@@ -35,7 +35,7 @@ No UI here; redirect only. Same idea as template “after install redirect” bu
   - `scope` = required scopes (e.g. locations, contacts, calendars, opportunities), `+` separated.
   - **`state`** = base64(JSON) with at least:
     - `locationId` (if from iframe/setup)
-    - `redirect` (e.g. `/oauth-success` or `/dashboard`) so callback knows where to send user.
+    - `redirect` (e.g. `/dashboard`; default in callback is `/dashboard`) so callback knows where to send user.
 - Responds with **302** to that GHL URL. No UI; redirect only.
 
 ## 4. Callback (`GET /api/auth/oauth/callback`)
@@ -59,8 +59,8 @@ No UI here; redirect only. Same idea as template “after install redirect” bu
   - Create JWT with `locationId`, `companyId`, `userId`.
   - Set cookie: `ghl_session`, httpOnly, secure, sameSite=none, path=/, domain=app host (for production).
 - **Redirect** from **state**:
-  - Parse state → `redirect` (default `/oauth-success`).
-  - Redirect to `APP_BASE + redirect` with `locationId` in query if needed; on success add `success=oauth_installed` for `/oauth-success`. The oauth-success page then auto-redirects to `/dashboard` after a short delay (same idea as template redirecting user into the app).
+  - Parse state → `redirect` (default **`/dashboard`** so user lands in the app in same tab, same as working GHL marketplace apps).
+  - Redirect to `APP_BASE + redirect` with `locationId` in query if needed; on success add `success=oauth_installed` when redirect is `/oauth-success`. If redirect is `/dashboard`, user goes straight into the app (no redirect loop).
 
 No UI in callback; redirect only.
 
@@ -89,13 +89,13 @@ No UI in callback; redirect only.
   - **/dashboard/setup** → always allow (no session required) so iframe can load and show “Install via OAuth”.
   - No session + from GHL (referrer or `?ghl=1`) → redirect to **/api/auth/oauth/authorize** with current path as `redirect` and `locationId` when present (e.g. from referrer path or query).
   - No session + not from GHL → redirect to **/open-from-ghl**.
-- **Dashboard UI** (our UI): show app content when session exists; show “Connect location” or setup when no token for current location.
+- **Dashboard UI** (our UI): show app content when session exists (in iframe or same tab — no redirect to open-from-ghl when session is valid; matches working GHL apps). Show “Connect location” or setup when no token for current location.
 
 ## 8. Setup page (iframe)
 
 - Uses **GHLIframeProvider** so **ghlData.locationId** is set.
-- “Install via OAuth” → **same-window** navigate to `/api/auth/oauth/authorize?locationId={locationId}&redirect=/oauth-success` so callback and oauth-success run in same tab and cookie is sent.
-- After return, “Go to Dashboard” → same-origin `/dashboard` so session cookie is used.
+- “Install via OAuth” → **same-window** navigate to `/api/auth/oauth/authorize?locationId={locationId}&redirect=/dashboard` so callback redirects into the app in same tab and cookie is sent (same as working GHL marketplace apps).
+- After return, user is on `/dashboard`; session cookie is used.
 
 ## 9. Summary
 

@@ -45,7 +45,7 @@ export default function SetupPage() {
     const base = typeof window !== 'undefined' ? window.location.origin : '';
     const authUrl = new URL('/api/auth/oauth/authorize', base);
     if (ghlData?.locationId) authUrl.searchParams.set('locationId', ghlData.locationId);
-    authUrl.searchParams.set('redirect', '/oauth-success');
+    authUrl.searchParams.set('redirect', '/dashboard');
     console.log('[CQ OAuth]', 'setup: starting OAuth install', { locationId: ghlData?.locationId ? `${ghlData.locationId.slice(0, 8)}...` : null });
     // Same-window redirect so callback and oauth-success run in same tab — session cookie then works for dashboard
     window.location.href = authUrl.toString();
