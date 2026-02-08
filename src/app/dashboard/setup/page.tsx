@@ -48,7 +48,8 @@ export default function SetupPage() {
     if (effectiveLocationId) authUrl.searchParams.set('locationId', effectiveLocationId);
     authUrl.searchParams.set('redirect', '/dashboard');
     console.log('[CQ OAuth]', 'setup: starting OAuth in same tab', { locationId: effectiveLocationId ? `${effectiveLocationId.slice(0, 8)}...` : null });
-    window.location.href = authUrl.toString();
+    const target = (typeof window !== 'undefined' && window.self !== window.top) ? (window.top ?? window) : window;
+    target.location.href = authUrl.toString();
   };
 
   if (loading || (effectiveLocationId && loadingOAuth)) {

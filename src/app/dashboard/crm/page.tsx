@@ -7,6 +7,16 @@ import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 import { useDashboardApi } from '@/lib/dashboard-api';
 import { getGHLMarketplaceAppUrl } from '@/lib/ghl/oauth-utils';
 
+/** Build OAuth authorize URL with locationId in state so callback stores under the same id the iframe sends. */
+function getConnectOAuthUrl(locationId: string | null): string {
+  if (!locationId || typeof window === 'undefined') return getGHLMarketplaceAppUrl();
+  const base = window.location.origin;
+  const url = new URL('/api/auth/oauth/authorize', base);
+  url.searchParams.set('locationId', locationId);
+  url.searchParams.set('redirect', '/dashboard');
+  return url.toString();
+}
+
 interface Contact {
   id: string;
   first_name: string | null;
@@ -187,7 +197,9 @@ export default function CRMDashboardPage() {
           )}
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <a
-              href={getGHLMarketplaceAppUrl()}
+              href={getConnectOAuthUrl(effectiveLocationId)}
+              target="_top"
+              rel="noopener noreferrer"
               className="inline-block rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
             >
               Connect via OAuth

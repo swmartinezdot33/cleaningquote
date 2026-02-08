@@ -6,6 +6,15 @@ import { Loader2, Search, Filter } from 'lucide-react';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 import { getGHLMarketplaceAppUrl } from '@/lib/ghl/oauth-utils';
 
+function getConnectOAuthUrl(locationId: string | null): string {
+  if (!locationId || typeof window === 'undefined') return getGHLMarketplaceAppUrl();
+  const base = window.location.origin;
+  const url = new URL('/api/auth/oauth/authorize', base);
+  url.searchParams.set('locationId', locationId);
+  url.searchParams.set('redirect', '/dashboard');
+  return url.toString();
+}
+
 interface Contact {
   id: string;
   first_name: string | null;
@@ -90,7 +99,9 @@ export default function CRMContactsPage() {
             This location needs a one-time connection. Click below to authorize CleanQuote to access your CRM data. After connecting, your contacts will load here.
           </p>
           <a
-            href={getGHLMarketplaceAppUrl()}
+            href={getConnectOAuthUrl(effectiveLocationId)}
+            target="_top"
+            rel="noopener noreferrer"
             className="mt-4 inline-block rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
           >
             Connect via OAuth

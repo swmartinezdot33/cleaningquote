@@ -10,7 +10,7 @@ import { getLocationIdFromRequest } from '@/lib/request-utils';
 
 export type GHLContextResult =
   | { locationId: string; token: string }
-  | { needsConnect: true }
+  | { needsConnect: true; locationId: string }
   | null;
 
 // #region agent log
@@ -30,19 +30,27 @@ function debugLog(message: string, data: Record<string, unknown>) {
  * Token is always from KV (stored at OAuth callback); no Agency or other fallback.
  */
 export async function resolveGHLContext(request: NextRequest): Promise<GHLContextResult> {
-  const requestLocationId = getLocationIdFromRequest(request);
+  const queryLocationId = request.nextUrl.searchParams.get('locationId');
+  const headerLocationId = request.headers.get('x-ghl-location-id');
+  const requestLocationId = queryLocationId ?? headerLocationId ?? undefined;
   const session = await getSession();
 
-  // Resolve which locationId to use: request first, else session (e.g. same-tab after OAuth).
-  const locationId = requestLocationId ?? session?.locationId ?? null;
+  // Resolve which locationId to use: request first, else session (e.g. same-tab after OAuth). Normalize so KV lookup matches callback storage.
+  const rawLocationId = requestLocationId ?? session?.locationId ?? null;
+  const locationId = rawLocationId ? rawLocationId.trim() : null;
 
   // #region agent log
+  const trimDiff = requestLocationId != null && requestLocationId !== requestLocationId.trim();
   debugLog('resolveGHLContext entry', {
+    source: queryLocationId != null ? 'query' : headerLocationId != null ? 'header' : 'none',
     requestLocationIdLength: requestLocationId?.length ?? 0,
     requestLocationIdPreview: requestLocationId ? `${requestLocationId.slice(0, 8)}..${requestLocationId.slice(-4)}` : null,
+    trimDiff,
+    locationIdSource: requestLocationId != null ? 'request' : session?.locationId != null ? 'session' : 'none',
     hasSession: !!session,
+    sessionLocationIdPreview: session?.locationId ? `${session.locationId.slice(0, 8)}..${session.locationId.slice(-4)}` : null,
     locationIdPreview: locationId ? `${locationId.slice(0, 8)}..${locationId.slice(-4)}` : null,
-    hypothesisId: 'H1-H4',
+    hypothesisId: 'H1-H5',
   });
   // #endregion
 
@@ -74,5 +82,5 @@ export async function resolveGHLContext(request: NextRequest): Promise<GHLContex
 
   // No token in KV for this location → needs one-time OAuth (callback will store to KV).
   console.log('[CQ api-context] needsConnect: no token in KV for this location');
-  return { needsConnect: true };
+  return { needsConnect: true, locationId };
 }

@@ -23,7 +23,7 @@ export interface GHLInstallation {
 }
 
 function key(locationId: string): string {
-  return `${PREFIX}${locationId}`;
+  return `${PREFIX}${locationId.trim()}`;
 }
 
 /**
@@ -63,7 +63,9 @@ export async function getInstallation(locationId: string): Promise<GHLInstallati
       locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`,
       hasData: !!data,
       hasAccessToken: !!(data?.accessToken),
-      hypothesisId: 'H1-H2',
+      storedVsRequested: data?.locationId === locationId,
+      storedLocationIdPreview: data?.locationId ? `${data.locationId.slice(0, 8)}..${data.locationId.slice(-4)}` : null,
+      hypothesisId: 'H1-H2-H4',
     });
     // #endregion
     if (!data) {

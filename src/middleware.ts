@@ -56,6 +56,15 @@ export async function middleware(request: NextRequest) {
         { status: 401 }
       );
     }
+    // Local dev: allow /dashboard with ?locationId=... so you can test user context without a real GHL iframe
+    const host = request.headers.get('host') ?? '';
+    const isLocalhost = host.startsWith('localhost') || host.startsWith('127.0.0.1');
+    const hasLocationIdInQuery = request.nextUrl.searchParams.has('locationId') || request.nextUrl.searchParams.has('location_id');
+    if (isLocalhost && hasLocationIdInQuery && (pathname.startsWith('/dashboard') || pathname === '/dashboard')) {
+      console.log('[CQ Middleware] → ALLOW (localhost + locationId in query, dev test)');
+      return NextResponse.next();
+    }
+
     const referer = request.headers.get('referer') || '';
     const hasGhlParam = request.nextUrl.searchParams.get('ghl') === '1';
     const isFromGHL = hasGhlParam || /gohighlevel|leadconnectorhq|cleanquote\.io|ricochetbusinesssolutions/i.test(referer);

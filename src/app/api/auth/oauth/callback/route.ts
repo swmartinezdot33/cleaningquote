@@ -238,9 +238,10 @@ export async function GET(request: NextRequest) {
       console.log('[CQ Callback] STEP 5d — no state param');
     }
     const locationIdFromToken = tokenData.locationId || tokenData.location_id || tokenData.location?.id;
+    // Prefer state (iframe flow): user opened OAuth from a specific location, so store under that id so KV lookup matches what the iframe sends.
     let finalLocationId: string | null =
-      locationIdFromToken ||
       locationIdFromState ||
+      locationIdFromToken ||
       locationId ||
       null;
 
@@ -295,6 +296,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(errorUrl.toString());
     }
 
+    finalLocationId = finalLocationId.trim();
     console.log('[CQ Callback] STEP 6 — locationId resolved', { finalLocationId: finalLocationId?.slice(0, 12) + '...' });
 
     const expiresAt = tokenData.expires_in ? Date.now() + tokenData.expires_in * 1000 : Date.now() + 86400 * 1000;
@@ -310,6 +312,14 @@ export async function GET(request: NextRequest) {
       userId: (tokenData.userId ?? tokenData.user_id ?? '').slice(0, 8) + '...',
       companyName: companyName ?? null,
     });
+    // #region agent log
+    debugLog('OAuth callback before storeInstallation', {
+      finalLocationIdLength: finalLocationId?.length ?? 0,
+      finalLocationIdPreview: finalLocationId ? `${finalLocationId.slice(0, 8)}..${finalLocationId.slice(-4)}` : null,
+      kvKeyPreview: finalLocationId ? `ghl:install:${finalLocationId.slice(0, 8)}..${finalLocationId.slice(-4)}` : null,
+      hypothesisId: 'H1-H4',
+    });
+    // #endregion
     try {
       await storeInstallation({
         locationId: finalLocationId,
