@@ -27,7 +27,7 @@ export default function GHLCustomMenuLinkHelpPage() {
 
       <h1 className="text-2xl font-bold text-foreground">Add CleanQuote as a Custom Menu Link</h1>
       <p className="text-muted-foreground">
-        If CleanQuote doesn&apos;t detect your location when opened from a Custom Menu Link, configure the link URL to pass the location ID.
+        CleanQuote receives the <strong className="text-foreground">location ID from GHL user context</strong> (postMessage) when the app is embedded in a Custom Menu Link. No need to pass locationId in the URL.
       </p>
 
       <h2 className="text-lg font-semibold text-foreground mt-8">Steps</h2>
@@ -41,14 +41,14 @@ export default function GHLCustomMenuLinkHelpPage() {
         <li>
           Set the <strong className="text-foreground">URL</strong> to:
           <pre className="mt-2 rounded-lg bg-muted p-3 text-sm overflow-x-auto">
-{`https://www.cleanquote.io/dashboard?locationId={{location.id}}&sessionKey`}
+{`https://www.cleanquote.io/dashboard`}
           </pre>
           <p className="mt-2 text-sm text-muted-foreground">
-            GHL replaces <code className="bg-muted px-1 rounded">{'{{location.id}}'}</code> with the current sub-account&apos;s location ID. The <code className="bg-muted px-1 rounded">sessionKey</code> parameter tells GHL to pass session details to the iframe for a seamless white-label experience.
+            For white-label (my.cleanquote.io, etc.), append <code className="bg-muted px-1 rounded">&amp;sessionKey</code> so GHL passes user context to the iframe.
           </p>
         </li>
         <li>
-          Set <strong className="text-foreground">Sidebar Preference</strong> to <strong className="text-foreground">Sub-Account&apos;s sidebar</strong> (or both). The <code className="bg-muted px-1 rounded">{'{{location.id}}'}</code> variable only works when the user is inside a sub-account.
+          Set <strong className="text-foreground">Sidebar Preference</strong> to <strong className="text-foreground">Sub-Account&apos;s sidebar</strong> (or both).
         </li>
         <li>
           Choose <strong className="text-foreground">Open in an Embedded Page (iFrame)</strong> so CleanQuote runs inside GHL.
@@ -58,15 +58,15 @@ export default function GHLCustomMenuLinkHelpPage() {
         </li>
       </ol>
 
-      <h2 className="text-lg font-semibold text-foreground mt-8">White-label / sessionKey</h2>
+      <h2 className="text-lg font-semibold text-foreground mt-8">How it works</h2>
       <p className="text-muted-foreground">
-        For white-label agencies (e.g. my.cleanquote.io, my.ricochetbusinesssolutions.com), append <code className="bg-muted px-1 rounded">sessionKey</code> to the Custom Menu Link URL. This ensures GHL passes session details directly to the iframe, keeping users in your branded environment instead of redirecting to app.gohighlevel.com.
+        CleanQuote requests user context from GHL via postMessage. GHL responds with encrypted session data; we decrypt it on our backend using your Shared Secret (GHL_APP_SSO_KEY). The decrypted data includes <code className="bg-muted px-1 rounded">activeLocation</code> (location ID). Ensure your Marketplace App Shared Secret matches GHL_APP_SSO_KEY in Vercel.
       </p>
 
       <div className="mt-6 rounded-lg border border-amber-500/50 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-200">
         <p className="font-medium">Important</p>
         <p className="mt-1 text-sm">
-          Users must open CleanQuote from inside a sub-account (location), not from the Agency view. The location ID is only available when viewing a specific location.
+          Users must open CleanQuote from inside a sub-account (location), not from the Agency view. User context with location ID is only sent when viewing a specific location.
         </p>
       </div>
 

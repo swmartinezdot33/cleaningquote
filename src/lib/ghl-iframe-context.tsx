@@ -295,8 +295,8 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
         if (!hasLocationIdRef.current) {
           console.error('[GHL Iframe] ❌ TIMEOUT: No locationId after 6s. Check logs above for which step failed.');
           setError(
-            'No GHL context received. Try: (1) Open from a sub-account/location dashboard, not Agency view. ' +
-            '(2) If using Custom Menu Link, set the URL to https://www.cleanquote.io/dashboard?locationId={{location.id}} and use the Sub-Account sidebar. ' +
+            'No GHL user context received. (1) Open from a sub-account/location dashboard, not Agency view. ' +
+            '(2) If using Custom Menu Link, add sessionKey to the URL for white-label. ' +
             '(3) Ensure GHL_APP_SSO_KEY matches your CleanQuote Shared Secret in Marketplace App → Auth.'
           );
           setLoading(false);

@@ -1,7 +1,7 @@
-import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/ghl/session';
 import { DashboardHeader } from '@/app/dashboard/DashboardHeader';
 import { DashboardGHLWrapper } from '@/app/dashboard/DashboardGHLWrapper';
+import { DashboardGate } from '@/app/dashboard/DashboardGate';
 
 export default async function DashboardLayout({
   children,
@@ -28,6 +28,10 @@ export default async function DashboardLayout({
     );
   }
 
-  // GHL-only: no session → redirect
-  redirect('/open-from-ghl');
+  // GHL-only: no session → allow only /dashboard/setup (with iframe context); else gate redirects to open-from-ghl
+  return (
+    <div className="min-h-screen bg-muted/30">
+      <DashboardGate>{children}</DashboardGate>
+    </div>
+  );
 }

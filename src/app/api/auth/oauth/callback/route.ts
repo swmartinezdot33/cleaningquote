@@ -117,25 +117,29 @@ export async function GET(request: NextRequest) {
     const tokenData = await tokenRes.json();
     console.log('[OAuth Callback] Token exchange successful. Keys:', Object.keys(tokenData));
 
-    let finalLocationId =
-      locationIdParam ||
-      tokenData.locationId ||
-      tokenData.location_id ||
-      tokenData.location?.id;
-
-    if (!finalLocationId && state) {
+    // CRITICAL (Culture Index / MaidCentral): Use iframe locationId from state as storage key first.
+    // This ensures when the app loads in iframe with that locationId, it finds the token.
+    let locationIdFromState: string | null = null;
+    if (state) {
       try {
         const decoded = Buffer.from(state, 'base64').toString('utf-8');
         const parsed = JSON.parse(decoded);
-        finalLocationId = parsed.locationId || parsed.location_id;
+        locationIdFromState = parsed.locationId || parsed.location_id || null;
       } catch {
         try {
-          finalLocationId = JSON.parse(state).locationId;
+          locationIdFromState = JSON.parse(state).locationId || null;
         } catch {
           /* ignore */
         }
       }
     }
+
+    let finalLocationId =
+      locationIdFromState ||
+      locationIdParam ||
+      tokenData.locationId ||
+      tokenData.location_id ||
+      tokenData.location?.id;
 
     if (!finalLocationId) {
       const accessToken = tokenData.access_token;
