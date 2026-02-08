@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { Users, Loader2, TrendingUp, CheckCircle, RefreshCw } from 'lucide-react';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
@@ -50,6 +50,7 @@ export default function CRMDashboardPage() {
   const [needsConnect, setNeedsConnect] = useState(false);
   const [verify, setVerify] = useState<VerifyResult | null>(null);
   const [testingConnection, setTestingConnection] = useState(false);
+  const statusRef = useRef<HTMLParagraphElement | null>(null);
 
   const runVerify = useCallback(async () => {
     setTestingConnection(true);
@@ -60,6 +61,7 @@ export default function CRMDashboardPage() {
       const r = await fetch(url);
       const data = await r.json();
       setVerify(data);
+      requestAnimationFrame(() => statusRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
     } catch (e) {
       setVerify({ ok: false, message: e instanceof Error ? e.message : 'Verify request failed' });
     } finally {
@@ -132,9 +134,12 @@ export default function CRMDashboardPage() {
             Open CleanQuote from your GoHighLevel dashboard (sub-account) or complete OAuth so we have your location and can call the GHL API.
           </p>
           {verify && !verify.ok && (
-            <p className="mt-2 text-xs font-mono text-amber-700 dark:text-amber-300">
-              {verify.reason ?? 'unknown'} — {verify.message ?? ''}
-            </p>
+            <div ref={statusRef} className="mt-3 rounded border border-amber-600/50 bg-amber-500/10 px-3 py-2">
+              <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">
+                {testingConnection ? 'Testing…' : `Status: ${verify.reason ?? 'unknown'}`}
+              </p>
+              <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">{verify.message ?? ''}</p>
+            </div>
           )}
           <button
             type="button"
@@ -160,9 +165,14 @@ export default function CRMDashboardPage() {
             This location needs a one-time connection. Click below to authorize CleanQuote to access your CRM data.
           </p>
           {verify && (
-            <p className="mt-2 text-xs font-mono text-amber-700 dark:text-amber-300">
-              Status: {verify.reason ?? 'unknown'} — {verify.message ?? ''}
-            </p>
+            <div ref={statusRef} className="mt-3 rounded border border-amber-600/50 bg-amber-500/10 px-3 py-2">
+              <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">
+                {testingConnection ? 'Testing…' : `Status: ${verify.reason ?? 'unknown'}`}
+              </p>
+              <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">
+                {verify.message ?? ''}
+              </p>
+            </div>
           )}
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <a

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAppBaseUrl, getRedirectUri } from '@/lib/ghl/oauth-utils';
+import { getAppBaseUrl, getRedirectUri, GHL_MARKETPLACE_APP_URL_DEFAULT } from '@/lib/ghl/oauth-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,15 +58,17 @@ export async function GET(request: NextRequest) {
     console.log('[OAuth Authorize] ============================================');
 
     // GHL OAuth authorization URL — chooselocation endpoint to force location selection
-    const authUrl = new URL('https://marketplace.gohighlevel.com/oauth/chooselocation');
+    const authUrl = new URL('https://marketplace.leadconnectorhq.com/oauth/chooselocation');
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('redirect_uri', redirectUri);
     authUrl.searchParams.set('version_id', versionId);
     authUrl.searchParams.set('prompt', 'consent');
 
-    // Scopes must match exactly what's configured in GHL Marketplace app settings. GHL expects + signs.
-    const encodedScopes = [
+    // Use scope from default install URL so we match GHL Marketplace app settings (full scope list).
+    const defaultInstallUrl = new URL(GHL_MARKETPLACE_APP_URL_DEFAULT);
+    const scopeParam = defaultInstallUrl.searchParams.get('scope');
+    const encodedScopes = scopeParam ?? [
       'locations.readonly',
       'contacts.readonly',
       'contacts.write',
