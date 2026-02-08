@@ -1,7 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useGHLIframe } from '@/lib/ghl-iframe-context';
 import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface LocationGuardProps {
   children: React.ReactNode;
@@ -45,9 +47,17 @@ export function LocationGuard({ children, fallback, allowWithoutLocation }: Loca
               {error ?? 'This app must be loaded within GoHighLevel to access location-specific data.'}
             </p>
             {isInIframe && (
-              <p className="mt-3 text-left text-sm text-muted-foreground">
-                <strong>Setup:</strong> Open from a sub-account dashboard (not Agency view). Configure Shared Secret in GHL Marketplace App → Advanced Settings → Auth.
-              </p>
+              <>
+                <p className="mt-3 text-left text-sm text-muted-foreground">
+                  <strong>Setup:</strong> Open from a sub-account dashboard (not Agency view). Ensure{' '}
+                  <code className="rounded bg-muted px-1">GHL_APP_SSO_KEY</code> matches your CleanQuote app Shared Secret in Marketplace App → Advanced Settings → Auth.
+                </p>
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+                  <Link href="/dashboard/setup">
+                    <Button variant="default">Install via OAuth</Button>
+                  </Link>
+                </div>
+              </>
             )}
           </div>
         </div>

@@ -52,6 +52,10 @@ async function fetchContactsFromGHL(locationId: string, token: string, searchPar
   return { contacts: paginated, total: mapped.length, page, perPage };
 }
 
+function emptyContacts() {
+  return NextResponse.json({ contacts: [], total: 0, page: 1, perPage: 25 });
+}
+
 /** GET /api/dashboard/crm/contacts - list contacts for selected org or GHL location */
 export async function GET(request: NextRequest) {
   try {
@@ -68,10 +72,16 @@ export async function GET(request: NextRequest) {
       } catch (err) {
         console.warn('CRM contacts: GHL token/fetch error for locationId', requestLocationId, err);
       }
-      return NextResponse.json({ contacts: [], total: 0 });
+      return emptyContacts();
     }
 
-    const session = await getSession();
+    let session;
+    try {
+      session = await getSession();
+    } catch (err) {
+      console.warn('CRM contacts: getSession error', err);
+      return emptyContacts();
+    }
     if (session) {
       try {
         const credentials = await getGHLCredentials({ session });
@@ -83,7 +93,7 @@ export async function GET(request: NextRequest) {
       } catch (err) {
         console.warn('CRM contacts: session/credentials error', err);
       }
-      return NextResponse.json({ contacts: [], total: 0 });
+      return emptyContacts();
     }
 
     let supabase;
@@ -91,12 +101,19 @@ export async function GET(request: NextRequest) {
       supabase = await createSupabaseServerSSR();
     } catch (err) {
       console.warn('CRM contacts: Supabase init error', err);
-      return NextResponse.json({ contacts: [], total: 0 });
+      return emptyContacts();
     }
-    const { data: { user } } = await supabase.auth.getUser();
+    let user;
+    try {
+      const { data } = await supabase.auth.getUser();
+      user = data.user;
+    } catch (err) {
+      console.warn('CRM contacts: getUser error', err);
+      return emptyContacts();
+    }
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return emptyContacts();
     }
 
     let orgs;
@@ -145,8 +162,8 @@ export async function GET(request: NextRequest) {
       if (msg.includes('does not exist')) {
         return NextResponse.json({ contacts: [], total: 0, page, perPage });
       }
-      console.error('CRM contacts fetch error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.warn('CRM contacts fetch error:', error);
+      return NextResponse.json({ contacts: [], total: 0, page, perPage });
     }
 
     return NextResponse.json({
@@ -156,11 +173,8 @@ export async function GET(request: NextRequest) {
       perPage,
     });
   } catch (err) {
-    console.error('CRM contacts error:', err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Failed to fetch contacts' },
-      { status: 500 }
-    );
+    console.warn('CRM contacts error:', err);
+    return emptyContacts();
   }
 }
 

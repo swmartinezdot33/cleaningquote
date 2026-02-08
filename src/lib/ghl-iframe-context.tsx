@@ -1,9 +1,8 @@
 'use client';
 
 /**
- * GHL Iframe Context
- * Listens for postMessage from GHL parent to get location ID and user data.
- * When CleanQuote runs inside GHL (iframe), GHL provides user/location via REQUEST_USER_DATA.
+ * GHL Iframe Context — matches MaidCentral (working) implementation.
+ * Gets locationId from: URL params, iframe path, referrer, session cache, postMessage + decrypt.
  */
 
 import { useEffect, useState, createContext, useContext, useRef } from 'react';
@@ -55,41 +54,59 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
     const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
     const apply = (ctx: GHLIframeData) => setGHLContext(ctx, setGhlData, setError, setLoading);
 
-    // 1. URL params — only when NOT in iframe (standalone dev). In GHL iframe, use user context.
-    if (!isInIframe) {
-      const urlParams = new URLSearchParams(window.location?.search ?? '');
-      const hashParams = new URLSearchParams((window.location?.hash ?? '').substring(1));
-      const urlLocationId =
-        urlParams.get('locationId') ||
-        urlParams.get('location_id') ||
-        urlParams.get('location') ||
-        hashParams.get('locationId') ||
-        hashParams.get('location_id');
-      if (urlLocationId) {
-        hasLocationIdRef.current = true;
-        apply({ locationId: urlLocationId, userId: urlParams.get('userId') || hashParams.get('user_id') || undefined });
+    // 1. URL params (query + hash)
+    const urlParams = new URLSearchParams(window.location?.search ?? '');
+    const hashParams = new URLSearchParams((window.location?.hash ?? '').substring(1));
+    const pathname = window.location?.pathname ?? '';
+
+    let urlLocationId =
+      urlParams.get('locationId') ||
+      urlParams.get('location_id') ||
+      urlParams.get('location') ||
+      urlParams.get('companyId') ||
+      urlParams.get('company_id') ||
+      hashParams.get('locationId') ||
+      hashParams.get('location_id') ||
+      hashParams.get('location');
+
+    // 2. From current URL path (/location/{id}/)
+    if (!urlLocationId) {
+      const pathMatch = pathname.match(/\/location\/([^/]+)/i);
+      if (pathMatch?.[1]) urlLocationId = pathMatch[1];
+    }
+
+    // 3. From iframe src path (when in iframe)
+    if (!urlLocationId && isInIframe) {
+      const iframePathMatch = pathname.match(/\/(?:v\d+\/)?location\/([^/]+)/i);
+      if (iframePathMatch?.[1]) urlLocationId = iframePathMatch[1];
+      if (!urlLocationId) {
+        const parts = pathname.split('/');
+        const id = parts.find((p) => p.length >= 15 && p.length <= 30 && /^[a-zA-Z0-9]+$/.test(p));
+        if (id) urlLocationId = id;
       }
     }
 
-    // 2. Referrer (GHL loads custom apps in iframe; referrer may contain /location/{id}/)
-    // Note: Referrer-Policy may strip path for cross-origin; URL params are more reliable.
-    if (!hasLocationIdRef.current && typeof document !== 'undefined' && document.referrer) {
+    // 4. Referrer (GHL parent URL)
+    if (!urlLocationId && typeof document !== 'undefined' && document.referrer) {
       try {
         const referrerUrl = new URL(document.referrer);
         if (/gohighlevel|leadconnector/i.test(referrerUrl.hostname)) {
-          const match = referrerUrl.pathname.match(/\/(?:v\d+\/)?location\/([A-Za-z0-9_-]{10,})/i);
-          const refLocationId = match?.[1] ?? referrerUrl.searchParams.get('locationId') ?? referrerUrl.searchParams.get('location_id');
-          if (refLocationId) {
-            hasLocationIdRef.current = true;
-            apply({ locationId: refLocationId });
-          }
+          const refMatch = referrerUrl.pathname.match(/\/(?:v\d+\/)?location\/([^/]+)/i);
+          urlLocationId = refMatch?.[1] ?? referrerUrl.searchParams.get('locationId') ?? referrerUrl.searchParams.get('location_id') ?? urlLocationId;
         }
       } catch {
         /* ignore */
       }
     }
 
-    // 3. Cached from sessionStorage
+    const urlUserId = urlParams.get('userId') || urlParams.get('user_id') || hashParams.get('userId') || hashParams.get('user_id');
+
+    if (urlLocationId) {
+      hasLocationIdRef.current = true;
+      apply({ locationId: urlLocationId, userId: urlUserId || undefined });
+    }
+
+    // 5. Session cache
     if (!hasLocationIdRef.current && typeof window !== 'undefined') {
       const cached = sessionStorage.getItem('ghl_iframeData');
       if (cached) {
@@ -98,6 +115,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
           if (parsed.locationId) {
             hasLocationIdRef.current = true;
             setGhlData(parsed);
+            setError(null);
             setLoading(false);
           }
         } catch {
@@ -111,7 +129,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // 4. postMessage from GHL
+    // 6. postMessage from GHL (REQUEST_USER_DATA) — matches GHL docs & MaidCentral
     const handleMessage = (event: MessageEvent) => {
       try {
         let data = event.data;
@@ -124,9 +142,11 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
         }
         if (!data || typeof data !== 'object') return;
 
-        if (data.message === 'REQUEST_USER_DATA_RESPONSE' && data.payload) {
+        if (data.message === 'REQUEST_USER_DATA_RESPONSE' && data.payload != null) {
+          // GHL sends encrypted string or array; extract raw encrypted data
           const rawPayload = Array.isArray(data.payload) ? data.payload[0] : data.payload;
           if (!rawPayload) return;
+
           fetch('/api/ghl/iframe-context/decrypt', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -144,9 +164,20 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
                   userName: result.userName,
                   userEmail: result.userEmail,
                 });
+              } else if (typeof data.payload === 'object' && data.payload?.locationId) {
+                hasLocationIdRef.current = true;
+                apply({ locationId: data.payload.locationId, ...data.payload });
+              } else if (result?.error && process.env.NODE_ENV === 'development') {
+                console.warn('[GHL Iframe] Decrypt failed:', result.error, result.hint);
               }
             })
-            .catch((err) => console.error('[GHL Iframe] Decrypt error:', err));
+            .catch((err) => {
+              console.error('[GHL Iframe] Decrypt error:', err);
+              if (typeof data.payload === 'object' && data.payload?.locationId) {
+                hasLocationIdRef.current = true;
+                apply({ locationId: data.payload.locationId, ...data.payload });
+              }
+            });
           return;
         }
 
@@ -156,18 +187,16 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
           data.activeLocation ??
           data.location?.id ??
           data.context?.locationId ??
-          data.context?.activeLocation ??
-          data.payload?.locationId ??
-          data.payload?.activeLocation;
+          data.payload?.locationId;
         if (locationId) {
           hasLocationIdRef.current = true;
           apply({
             locationId,
-            userId: data.userId ?? data.user_id ?? data.payload?.userId,
-            companyId: data.companyId ?? data.company_id ?? data.payload?.companyId,
-            locationName: data.locationName ?? data.location_name ?? data.payload?.locationName,
-            userName: data.userName ?? data.user_name ?? data.payload?.userName,
-            userEmail: data.userEmail ?? data.user_email ?? data.payload?.userEmail,
+            userId: data.userId ?? data.payload?.userId,
+            companyId: data.companyId ?? data.payload?.companyId,
+            locationName: data.locationName ?? data.payload?.locationName,
+            userName: data.userName ?? data.payload?.userName,
+            userEmail: data.userEmail ?? data.payload?.userEmail,
           });
         }
       } catch (err) {
@@ -176,21 +205,33 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
     };
 
     window.addEventListener('message', handleMessage);
+
     if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ message: 'REQUEST_USER_DATA' }, '*');
-      const t1 = setTimeout(() => window.parent.postMessage({ message: 'REQUEST_USER_DATA' }, '*'), 500);
-      const t2 = setTimeout(() => window.parent.postMessage({ message: 'REQUEST_USER_DATA' }, '*'), 1500);
-      const t3 = setTimeout(() => {
+      // Send REQUEST_USER_DATA per GHL docs; retry for slow-loading parent
+      const sendRequest = () => window.parent.postMessage({ message: 'REQUEST_USER_DATA' }, '*');
+      sendRequest();
+      const t1 = setTimeout(sendRequest, 100);
+      const t2 = setTimeout(sendRequest, 500);
+      const t3 = setTimeout(sendRequest, 1000);
+      const t4 = setTimeout(sendRequest, 2000);
+      const t5 = setTimeout(sendRequest, 4000);
+      const t6 = setTimeout(() => {
         if (!hasLocationIdRef.current) {
-          setError('No GHL context received. Open this app from within GoHighLevel.');
+          setError(
+            'No GHL context received. Open from a sub-account dashboard (not Agency view). ' +
+            'Ensure GHL_APP_SSO_KEY matches your CleanQuote app Shared Secret in Marketplace App → Auth.'
+          );
           setLoading(false);
         }
-      }, 5000);
+      }, 6000);
       return () => {
         window.removeEventListener('message', handleMessage);
         clearTimeout(t1);
         clearTimeout(t2);
         clearTimeout(t3);
+        clearTimeout(t4);
+        clearTimeout(t5);
+        clearTimeout(t6);
       };
     }
 

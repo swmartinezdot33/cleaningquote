@@ -33,7 +33,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ counts: {}, total: 0, recentActivities: [] });
     }
 
-    const session = await getSession();
+    let session;
+    try {
+      session = await getSession();
+    } catch (err) {
+      console.warn('CRM stats: getSession error', err);
+      return NextResponse.json({ counts: {}, total: 0, recentActivities: [] });
+    }
     if (session) {
       try {
         const credentials = await getGHLCredentials({ session });
@@ -63,14 +69,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ counts: {}, total: 0, recentActivities: [] });
     }
 
-    const supabase = await createSupabaseServerSSR();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    let supabase;
+    try {
+      supabase = await createSupabaseServerSSR();
+    } catch (err) {
+      console.warn('CRM stats: Supabase init error', err);
+      return NextResponse.json({ counts: {}, total: 0, recentActivities: [] });
+    }
+    let user;
+    try {
+      const { data } = await supabase.auth.getUser();
+      user = data.user;
+    } catch (err) {
+      console.warn('CRM stats: getUser error', err);
+      return NextResponse.json({ counts: {}, total: 0, recentActivities: [] });
     }
 
-    const orgs = await getOrgsForDashboard(user.id, user.email ?? undefined);
+    if (!user) {
+      return NextResponse.json({ counts: {}, total: 0, recentActivities: [] });
+    }
+
+    let orgs;
+    try {
+      orgs = await getOrgsForDashboard(user.id, user.email ?? undefined);
+    } catch (err) {
+      console.warn('CRM stats: getOrgsForDashboard error', err);
+      return NextResponse.json({ counts: {}, total: 0, recentActivities: [] });
+    }
     const cookieStore = await cookies();
     const selectedOrgId = cookieStore.get('selected_org_id')?.value ?? orgs[0]?.id;
 
@@ -109,10 +134,7 @@ export async function GET(request: NextRequest) {
       recentActivities: recentActivities ?? [],
     });
   } catch (err) {
-    console.error('CRM stats error:', err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Failed to fetch stats' },
-      { status: 500 }
-    );
+    console.warn('CRM stats error:', err);
+    return NextResponse.json({ counts: {}, total: 0, recentActivities: [] });
   }
 }
