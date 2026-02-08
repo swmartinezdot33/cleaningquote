@@ -47,7 +47,8 @@ function parseState(state: string | null): { redirect: string; orgId?: string } 
 
 /**
  * GET /api/auth/oauth/callback
- * Handles GHL OAuth callback, stores tokens. Matches MaidCentral app exactly.
+ * Handles GHL OAuth callback: exchange code for tokens, store by locationId, set session cookie, redirect.
+ * Flow matches GHL marketplace template + iframe app; see GHL_IFRAME_APP_AUTH.md.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -111,6 +112,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(errorUrl.toString());
     }
 
+    // Token exchange: same as GHL template (client_id, client_secret, grant_type, code) + redirect_uri per OAuth spec
     const tokenParams = new URLSearchParams({
       grant_type: 'authorization_code',
       client_id: clientId,
@@ -168,7 +170,7 @@ export async function GET(request: NextRequest) {
       companyId: tokenData.companyId || tokenData.company_id,
     });
 
-    // Validate token format (JWT) — matches MaidCentral
+    // Validate token format (JWT)
     if (tokenData.access_token) {
       const tokenParts = tokenData.access_token.split('.');
       console.log('[OAuth Callback] Token format check:', { isJWT: tokenParts.length === 3, parts: tokenParts.length });
@@ -188,7 +190,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(errorUrl.toString());
     }
 
-    // Get location ID — state first (iframe locationId from authorize?locationId=) so storage key matches when app loads in iframe; then query, token, API (MaidCentral fallbacks)
+    // Get location ID: state first (from authorize), then query, token response, then /locations/ API
     let locationIdFromState: string | null = null;
     if (state) {
       try {
@@ -210,7 +212,7 @@ export async function GET(request: NextRequest) {
       tokenData.location_id ||
       tokenData.location?.id;
 
-    // If still no locationId, fetch from GHL API — matches MaidCentral response parsing
+    // If still no locationId, fetch from GHL /locations/ API
     if (!finalLocationId) {
       console.log('[OAuth Callback] No locationId in response, fetching from GHL API...');
       try {

@@ -32,7 +32,7 @@ export default function SetupPage() {
     }
   }, [loading, ghlData?.locationId, fetchOAuthStatus]);
 
-  // Refetch when tab becomes visible (user closed OAuth popup, matches MaidCentral)
+  // Refetch when tab becomes visible (user returned from OAuth)
   useEffect(() => {
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') fetchOAuthStatus();

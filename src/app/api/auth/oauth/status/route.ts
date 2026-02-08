@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/auth/oauth/status
- * Check OAuth installation status for a location (matches MaidCentral).
+ * Check OAuth installation status for a location. See GHL_IFRAME_APP_AUTH.md.
  */
 export async function GET(request: NextRequest) {
   try {

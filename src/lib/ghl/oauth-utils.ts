@@ -1,6 +1,5 @@
 /**
- * Shared OAuth utilities — used by authorize, callback, and token-store.
- * Ensures redirect URI is consistent everywhere (matches MaidCentral).
+ * Shared OAuth utilities — used by authorize, callback, and token-store. See GHL_IFRAME_APP_AUTH.md.
  */
 
 /**

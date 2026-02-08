@@ -1,6 +1,6 @@
 # GHL Marketplace OAuth Setup
 
-The OAuth flow matches **MaidCentral** and uses the same pattern.
+The iframe app auth process (authorize → callback → storage → app launch → iframe context) is defined in **GHL_IFRAME_APP_AUTH.md** and matches the official GHL marketplace template + OAuth 2.0.
 
 **Note:** If `GHL_REDIRECT_URI` was previously set to `connect/callback`, the code now normalizes it to `oauth/callback` so both will work. GHL Marketplace must have `oauth/callback` registered.
 

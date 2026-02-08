@@ -11,6 +11,7 @@ function debugLog(message: string, data: Record<string, unknown>) {
 }
 // #endregion
 
+// Dashboard auth: GHL session or allow /dashboard/setup; else redirect to authorize or open-from-ghl. See GHL_IFRAME_APP_AUTH.md.
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 

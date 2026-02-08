@@ -1,7 +1,6 @@
 /**
  * POST /api/ghl/iframe-context
- * Store iframe context (location ID, user data) from GHL parent — matches MaidCentral.
- * Client calls this when context is resolved (URL, referrer, postMessage, etc.).
+ * Store iframe context (locationId, user data) from GHL parent. See GHL_IFRAME_APP_AUTH.md.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -21,9 +20,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Context is primarily used client-side (sessionStorage + passed to APIs).
-    // POST ack allows client behavior to match MaidCentral; we optionally
-    // store in KV for debugging/future use.
+    // Context is primarily used client-side (sessionStorage + passed to APIs); optionally store in KV.
     try {
       const { getKV } = await import('@/lib/kv');
       const kv = getKV();

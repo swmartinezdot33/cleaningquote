@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * GHL Iframe Context — matches MaidCentral (working) implementation.
- * Gets locationId from: URL params, iframe path, referrer, session cache, postMessage + decrypt.
+ * GHL Iframe Context — see GHL_IFRAME_APP_AUTH.md.
+ * Resolves locationId from URL, path, referrer, window.name, session cache, postMessage (REQUEST_USER_DATA) + decrypt.
  */
 
 import { useEffect, useState, createContext, useContext, useRef } from 'react';
@@ -40,7 +40,7 @@ function setGHLContext(
       sessionStorage.setItem('ghl_locationId', context.locationId);
       sessionStorage.setItem('ghl_iframeData', JSON.stringify(context));
       if (context.userId) sessionStorage.setItem('ghl_userId', context.userId);
-      // Store on backend (matches MaidCentral)
+      // Store on backend
       fetch('/api/ghl/iframe-context', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -60,7 +60,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
     const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
     const apply = (ctx: GHLIframeData) => setGHLContext(ctx, setGhlData, setError, setLoading);
 
-    // [GHL Debug] Entry — same logging as MaidCentral
+    // [GHL Iframe] Context resolution
     console.log('[GHL Iframe] ========== context resolution start ==========');
     console.log('[GHL Iframe] isInIframe:', isInIframe);
     console.log('[GHL Iframe] href:', typeof window !== 'undefined' ? window.location.href : 'N/A');
@@ -94,7 +94,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // 3. From iframe src path (when in iframe) — MaidCentral checks v1/v2/location/xxx
+    // 3. From iframe src path (v1/v2/location/xxx)
     if (!urlLocationId && isInIframe) {
       const iframePathMatch = pathname.match(/\/(?:v\d+\/)?location\/([^/]+)/i);
       if (iframePathMatch?.[1]) {
@@ -111,7 +111,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // 4. Referrer (GHL parent) — MOST RELIABLE for custom menu links per MaidCentral
+    // 4. Referrer (GHL parent) — reliable for custom menu links
     if (!urlLocationId && typeof document !== 'undefined' && document.referrer) {
       try {
         const referrerUrl = new URL(document.referrer);
@@ -130,7 +130,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
       console.log('[GHL Iframe] 4. document.referrer is empty (Referrer-Policy may block cross-origin)');
     }
 
-    // 4b. window.name (MaidCentral also checks this)
+    // 4b. window.name
     if (!urlLocationId && typeof window !== 'undefined' && window.name) {
       try {
         const nameData = JSON.parse(window.name) as Record<string, unknown>;
@@ -182,10 +182,9 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // 6. postMessage from GHL (REQUEST_USER_DATA) — matches GHL docs & MaidCentral
+    // 6. postMessage from GHL (REQUEST_USER_DATA) per GHL docs
     console.log('[GHL Iframe] In iframe, listening for postMessage. Sending REQUEST_USER_DATA…');
     const handleMessage = (event: MessageEvent) => {
-      // Log all postMessage for debugging (MaidCentral does this)
       if (event.data?.message === 'REQUEST_USER_DATA_RESPONSE' || event.data?.message) {
         console.log('[GHL Iframe] postMessage:', event.origin, event.data?.message, event.data);
       }

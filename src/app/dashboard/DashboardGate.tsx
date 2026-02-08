@@ -1,9 +1,7 @@
 'use client';
 
 /**
- * When there is no GHL session, allow only /dashboard/setup (with GHL iframe context)
- * so user can install OAuth from inside the iframe. All other paths redirect to open-from-ghl.
- * Matches MaidCentral: setup page gets locationId from iframe and links to authorize?locationId=xxx.
+ * When no GHL session: allow only /dashboard/setup (iframe gets locationId, then authorize?locationId=). See GHL_IFRAME_APP_AUTH.md.
  */
 import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';

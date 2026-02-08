@@ -1,7 +1,6 @@
 /**
- * App Launch URL — matches MaidCentral flow.
- * If session exists → dashboard. Otherwise redirect to oauth/authorize (GHL marketplace flow).
- * Set Live URL to https://www.cleanquote.io/dashboard so returning users go straight in.
+ * App Launch URL — see GHL_IFRAME_APP_AUTH.md.
+ * Session or token for location → dashboard; else redirect to authorize with locationId + redirect.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken, GHL_SESSION_COOKIE } from '@/lib/ghl/session';
@@ -49,7 +48,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // No session or token → start OAuth (MaidCentral flow)
+  // No session or token → start OAuth (see GHL_IFRAME_APP_AUTH.md)
   const authUrl = new URL('/api/auth/oauth/authorize', request.url);
   authUrl.searchParams.set('redirect', redirectTo);
   if (locationId) authUrl.searchParams.set('locationId', locationId);

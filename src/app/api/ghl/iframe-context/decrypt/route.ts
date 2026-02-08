@@ -6,9 +6,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/ghl/iframe-context/decrypt
- * Decrypt GHL encrypted user data using Shared Secret (SSO key).
- * Matches MaidCentral working implementation.
- * https://marketplace.gohighlevel.com/docs/other/user-context-marketplace-apps
+ * Decrypt GHL encrypted user data using GHL_APP_SSO_KEY (Shared Secret). See GHL_IFRAME_APP_AUTH.md.
  */
 export async function POST(request: NextRequest) {
   try {

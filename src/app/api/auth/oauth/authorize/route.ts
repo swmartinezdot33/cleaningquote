@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/auth/oauth/authorize
- * Initiates OAuth flow for marketplace app installation. Matches MaidCentral exactly.
+ * Redirects to GHL chooselocation with state (locationId + redirect). See GHL_IFRAME_APP_AUTH.md.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -23,8 +23,9 @@ export async function GET(request: NextRequest) {
     // Extract version_id from client_id (format: version_id-suffix) — required for marketplace apps
     const versionId = clientId.includes('-') ? clientId.split('-')[0] : clientId;
 
-    // Get locationId from query params (optional - GHL will provide it after location selection)
+    // Get locationId and redirect from query (optional). Pass through state so callback can store by locationId and redirect user (GHL template + iframe flow).
     const locationId = request.nextUrl.searchParams.get('locationId');
+    const redirect = request.nextUrl.searchParams.get('redirect');
 
     // Log OAuth initiation for debugging — all lines prefixed so you can search "OAuth Authorize" in Vercel logs
     const requestHost = request.headers.get('host') ?? 'unknown';
@@ -71,11 +72,10 @@ export async function GET(request: NextRequest) {
     console.log('[OAuth Authorize]   - redirect_uri:', redirectUri);
     console.log('[OAuth Authorize]   - scope: (encoded, + separated)');
 
-    // Store locationId in state (if provided) so callback can use it — matches MaidCentral; state = base64(JSON)
-    const stateData: { locationId?: string } = {};
-    if (locationId) {
-      stateData.locationId = locationId;
-    }
+    // Store locationId and redirect in state so callback can use them — same pattern as GHL template + iframe; state = base64(JSON)
+    const stateData: { locationId?: string; redirect?: string } = {};
+    if (locationId) stateData.locationId = locationId;
+    if (redirect && redirect.startsWith('/')) stateData.redirect = redirect;
     if (Object.keys(stateData).length > 0) {
       try {
         const stateString = JSON.stringify(stateData);
