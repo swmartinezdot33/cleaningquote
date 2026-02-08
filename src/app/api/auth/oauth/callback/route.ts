@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
-      let errorData: { error?: string; error_description?: string; message?: string };
+      let errorData: { error?: string; error_description?: string; message?: string; raw?: string };
       try {
         errorData = JSON.parse(errorText);
       } catch {

@@ -5,24 +5,13 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/auth/oauth/authorize
- * Initiates GHL OAuth flow — matches MaidCentral exactly.
+ * Initiates OAuth flow for marketplace app installation. Matches MaidCentral exactly.
  */
 export async function GET(request: NextRequest) {
   try {
     const clientId = process.env.GHL_CLIENT_ID;
-    const baseUrl = getAppBaseUrl();
-    const redirectUri = getRedirectUri(baseUrl); // Same logic as callback + token-store
-    const locationId = request.nextUrl.searchParams.get('locationId');
-
-    console.log('[OAuth Authorize] ============================================');
-    console.log('[OAuth Authorize] Initiating OAuth flow');
-    console.log('[OAuth Authorize] Client ID:', clientId ? `${clientId.substring(0, 10)}...${clientId.substring(clientId.length - 4)}` : 'MISSING');
-    console.log('[OAuth Authorize] Redirect URI:', redirectUri);
-    console.log('[OAuth Authorize] Base URL:', baseUrl);
-    console.log('[OAuth Authorize] Location ID (hint):', locationId || 'none');
-    console.log('[OAuth Authorize]   - APP_BASE_URL:', process.env.APP_BASE_URL || 'NOT SET');
-    console.log('[OAuth Authorize]   - GHL_REDIRECT_URI:', process.env.GHL_REDIRECT_URI || 'NOT SET');
-    console.log('[OAuth Authorize] ============================================');
+    const appBaseUrl = getAppBaseUrl();
+    const redirectUri = getRedirectUri(appBaseUrl);
 
     if (!clientId) {
       return NextResponse.json(
@@ -31,12 +20,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!redirectUri.includes('/api/auth/oauth/callback')) {
-      console.error('[OAuth Authorize] ⚠️  Redirect URI must use oauth/callback (matches MaidCentral)');
-    }
-
+    // Extract version_id from client_id (format: version_id-suffix) — required for marketplace apps
     const versionId = clientId.includes('-') ? clientId.split('-')[0] : clientId;
 
+    // Get locationId from query params (optional - GHL will provide it after location selection)
+    const locationId = request.nextUrl.searchParams.get('locationId');
+
+    // Log OAuth initiation for debugging — matches MaidCentral
+    console.log('[OAuth Authorize] ============================================');
+    console.log('[OAuth Authorize] Initiating OAuth flow');
+    console.log('[OAuth Authorize] Client ID:', clientId ? `${clientId.substring(0, 10)}...${clientId.substring(clientId.length - 4)}` : 'MISSING');
+    console.log('[OAuth Authorize] Redirect URI:', redirectUri);
+    console.log('[OAuth Authorize] Base URL:', appBaseUrl);
+    console.log('[OAuth Authorize] Location ID (hint):', locationId || 'none');
+    console.log('[OAuth Authorize] Environment check:');
+    console.log('[OAuth Authorize]   - APP_BASE_URL:', process.env.APP_BASE_URL || 'NOT SET');
+    console.log('[OAuth Authorize]   - GHL_REDIRECT_URI:', process.env.GHL_REDIRECT_URI || 'NOT SET (using computed)');
+    console.log('[OAuth Authorize] ============================================');
+
+    // GHL OAuth authorization URL — chooselocation endpoint to force location selection
     const authUrl = new URL('https://marketplace.gohighlevel.com/oauth/chooselocation');
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('client_id', clientId);
@@ -44,7 +46,8 @@ export async function GET(request: NextRequest) {
     authUrl.searchParams.set('version_id', versionId);
     authUrl.searchParams.set('prompt', 'consent');
 
-    const scopes = [
+    // Scopes must match exactly what's configured in GHL Marketplace app settings. GHL expects + signs.
+    const encodedScopes = [
       'locations.readonly',
       'contacts.readonly',
       'contacts.write',
@@ -58,15 +61,33 @@ export async function GET(request: NextRequest) {
       'calendars/resources.readonly',
       'opportunities.readonly',
       'opportunities.write',
-    ];
-    const encodedScopes = scopes.map((s) => encodeURIComponent(s)).join('+');
+    ].map((scope) => encodeURIComponent(scope)).join('+');
 
-    const redirect = request.nextUrl.searchParams.get('redirect') ?? '/oauth-success';
-    const orgId = request.nextUrl.searchParams.get('orgId');
-    const stateData: { locationId?: string; redirect?: string; orgId?: string } = { redirect };
-    if (locationId) stateData.locationId = locationId;
-    if (orgId) stateData.orgId = orgId;
+    console.log('[OAuth Authorize] OAuth URL Parameters:');
+    console.log('[OAuth Authorize]   - response_type: code');
+    console.log('[OAuth Authorize]   - client_id:', clientId ? `${clientId.substring(0, 10)}...` : 'MISSING');
+    console.log('[OAuth Authorize]   - version_id:', versionId);
+    console.log('[OAuth Authorize]   - redirect_uri:', redirectUri);
+    console.log('[OAuth Authorize]   - scope: (encoded, + separated)');
 
+    // Store locationId in state (if provided) so callback can use it — matches MaidCentral; state = base64(JSON)
+    const stateData: { locationId?: string } = {};
+    if (locationId) {
+      stateData.locationId = locationId;
+    }
+    if (Object.keys(stateData).length > 0) {
+      try {
+        const stateString = JSON.stringify(stateData);
+        const stateBase64 = Buffer.from(stateString).toString('base64');
+        authUrl.searchParams.set('state', stateBase64);
+      } catch (e) {
+        console.warn('[OAuth Authorize] Failed to encode state as base64, using JSON string:', e);
+        authUrl.searchParams.set('state', JSON.stringify(stateData));
+      }
+    }
+
+    // Build final URL with scope appended (preserve + in scope; URLSearchParams would encode as %2B)
+    const oauthBaseUrl = authUrl.origin + authUrl.pathname;
     const params = new URLSearchParams();
     params.set('response_type', 'code');
     params.set('client_id', clientId);
@@ -75,18 +96,27 @@ export async function GET(request: NextRequest) {
     params.set('prompt', 'consent');
     if (Object.keys(stateData).length > 0) {
       try {
-        params.set('state', Buffer.from(JSON.stringify(stateData)).toString('base64'));
-      } catch {
+        const stateString = JSON.stringify(stateData);
+        const stateBase64 = Buffer.from(stateString).toString('base64');
+        params.set('state', stateBase64);
+      } catch (e) {
         params.set('state', JSON.stringify(stateData));
       }
     }
+    const finalAuthUrl = `${oauthBaseUrl}?${params.toString()}&scope=${encodedScopes}`;
 
-    const finalAuthUrl = `${authUrl.origin}${authUrl.pathname}?${params.toString()}&scope=${encodedScopes}`;
+    if (!redirectUri.includes('/api/auth/oauth/callback')) {
+      console.error('[OAuth Authorize] ⚠️  WARNING: Redirect URI does not contain /api/auth/oauth/callback');
+      console.error('[OAuth Authorize] Make sure GHL_REDIRECT_URI matches your GHL marketplace app settings');
+    }
+
+    console.log('[OAuth Authorize] State data:', stateData);
+    console.log('[OAuth Authorize] Final OAuth URL (sanitized):', finalAuthUrl.replace(clientId, 'CLIENT_ID_HIDDEN'));
     console.log('[OAuth Authorize] Redirecting to GHL OAuth...');
 
     return NextResponse.redirect(finalAuthUrl);
   } catch (error) {
-    console.error('[OAuth Authorize] Error:', error);
+    console.error('Error initiating GHL OAuth:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to initiate OAuth' },
       { status: 500 }
