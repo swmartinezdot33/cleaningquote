@@ -11,7 +11,7 @@ function getConnectOAuthUrl(locationId: string | null): string {
   const base = window.location.origin;
   const url = new URL('/api/auth/oauth/authorize', base);
   url.searchParams.set('locationId', locationId);
-  url.searchParams.set('redirect', '/dashboard');
+  url.searchParams.set('redirect', '/oauth-success');
   return url.toString();
 }
 
@@ -100,7 +100,7 @@ export default function CRMContactsPage() {
           </p>
           <a
             href={getConnectOAuthUrl(effectiveLocationId)}
-            target="_top"
+            target="_blank"
             rel="noopener noreferrer"
             className="mt-4 inline-block rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
           >

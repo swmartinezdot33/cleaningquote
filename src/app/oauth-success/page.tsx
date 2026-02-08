@@ -9,6 +9,14 @@ import { Button } from '@/components/ui/button';
 const LOG = '[CQ OAuth]';
 const AUTO_REDIRECT_SEC = 3;
 
+type KvCheckResult = {
+  tokenExistsInKV?: boolean;
+  hasAccessToken?: boolean;
+  hasRefreshToken?: boolean;
+  locationIdLookedUp?: string;
+  error?: string;
+} | null;
+
 function OAuthSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -19,11 +27,38 @@ function OAuthSuccessContent() {
 
   const isSuccess = success === 'oauth_installed' && locationId;
   const [countdown, setCountdown] = useState(AUTO_REDIRECT_SEC);
+  const [kvCheck, setKvCheck] = useState<KvCheckResult>(null);
 
   useEffect(() => {
     const t = Date.now();
     console.log(LOG, `[${t}] oauth-success: page load`, { success: success ?? null, locationId: locationId ? `${locationId.slice(0, 8)}...` : null, error: error ?? null, isSuccess });
   }, [success, locationId, error, isSuccess]);
+
+  // Verify KV storage when we have a successful install + locationId (feedback that data was stored)
+  useEffect(() => {
+    if (!isSuccess || !locationId) return;
+    const url = `/api/dashboard/ghl/kv-check?locationId=${encodeURIComponent(locationId)}`;
+    fetch(url, { credentials: 'include' })
+      .then((res) => res.json())
+      .then((data) => {
+        setKvCheck(data);
+        const stored = data.tokenExistsInKV === true && data.hasAccessToken && data.hasRefreshToken;
+        console.log(LOG, '[CQ OAuth] KV storage verification:', {
+          message: stored ? 'Data was stored in KV for this location.' : 'KV check result:',
+          locationIdLookedUp: data.locationIdLookedUp,
+          tokenExistsInKV: data.tokenExistsInKV,
+          hasAccessToken: data.hasAccessToken,
+          hasRefreshToken: data.hasRefreshToken,
+        });
+        if (stored) {
+          console.log(LOG, '[CQ OAuth] Installation data stored successfully. LocationId:', locationId.slice(0, 8) + '..' + locationId.slice(-4));
+        }
+      })
+      .catch((err) => {
+        console.warn(LOG, '[CQ OAuth] KV check request failed:', err);
+        setKvCheck({ error: err instanceof Error ? err.message : 'Request failed' });
+      });
+  }, [isSuccess, locationId]);
 
   // Same as GHL template / Maid Central: after callback success, send user into the app (auto-redirect to dashboard)
   useEffect(() => {
@@ -50,6 +85,18 @@ function OAuthSuccessContent() {
             <p className="mt-2 text-sm text-muted-foreground">
               The app is now connected to your CRM location. Opening your dashboard…
             </p>
+            {kvCheck !== null && (
+              <div className="mt-3 rounded-md border border-border bg-muted/50 px-3 py-2 text-left text-sm">
+                <p className="font-medium text-foreground">Storage</p>
+                {kvCheck.error ? (
+                  <p className="mt-1 text-amber-600 dark:text-amber-400">Could not verify: {kvCheck.error}</p>
+                ) : kvCheck.tokenExistsInKV && kvCheck.hasAccessToken && kvCheck.hasRefreshToken ? (
+                  <p className="mt-1 text-green-600 dark:text-green-400">KV storage: verified — tokens stored for this location.</p>
+                ) : (
+                  <p className="mt-1 text-muted-foreground">KV lookup: {kvCheck.locationIdLookedUp ?? '—'} — token in KV: {kvCheck.tokenExistsInKV ? 'Yes' : 'No'}</p>
+                )}
+              </div>
+            )}
             <p className="mt-1 text-xs text-muted-foreground">
               Redirecting in {countdown}s — or go now:
             </p>
