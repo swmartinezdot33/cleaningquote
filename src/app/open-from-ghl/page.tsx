@@ -1,15 +1,27 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/ghl/session';
+import { RedirectToDashboard } from './RedirectToDashboard';
 
 /**
  * Shown when user tries to access the dashboard without a valid session.
- * If they have a session (e.g. just completed OAuth in another tab), send them to dashboard.
+ * If they have a session, we client-side redirect to dashboard to avoid a server-redirect loop (flicker / navigation throttle).
  */
 export default async function OpenFromGHLPage() {
   const session = await getSession();
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      location: 'open-from-ghl/page.tsx',
+      message: session ? 'open-from-ghl has session, client redirect to dashboard' : 'open-from-ghl no session, rendering',
+      data: { hasSession: !!session, hypothesisId: 'H1' },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
   if (session) {
-    redirect('/dashboard');
+    return <RedirectToDashboard />;
   }
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">

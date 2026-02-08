@@ -9,7 +9,18 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const ghlSession = await getSession();
-
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      location: 'dashboard/layout.tsx',
+      message: ghlSession ? 'dashboard layout has session' : 'dashboard layout no session, rendering Gate',
+      data: { hasSession: !!ghlSession, hypothesisId: 'H1' },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
   if (ghlSession) {
     return (
       <div className="min-h-screen bg-muted/30">

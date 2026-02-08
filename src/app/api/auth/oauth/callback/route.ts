@@ -47,8 +47,9 @@ function parseState(state: string | null): { redirect: string; orgId?: string } 
 
 /**
  * GET /api/auth/oauth/callback
- * Handles GHL OAuth callback: exchange code for tokens, store by locationId, set session cookie, redirect.
- * Flow matches GHL marketplace template + iframe app; see GHL_IFRAME_APP_AUTH.md.
+ * Same flow as GHL marketplace template (Maid Central style): 1) get code 2) exchange for tokens
+ * 3) store installation by resource id (locationId or companyId from response; we add state/query/API for iframe)
+ * 4) redirect. We also set session cookie and redirect to state.redirect. See GHL_IFRAME_APP_AUTH.md.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -190,7 +191,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(errorUrl.toString());
     }
 
-    // Get location ID: state first (from authorize), then query, token response, then /locations/ API
+    // Resource id for storage — same as GHL template: prefer token response (locationId then companyId), then state/query for iframe, then /locations/ API
     let locationIdFromState: string | null = null;
     if (state) {
       try {
@@ -205,12 +206,12 @@ export async function GET(request: NextRequest) {
         }
       }
     }
+    const locationIdFromToken = tokenData.locationId || tokenData.location_id || tokenData.location?.id;
     let finalLocationId: string | null =
+      locationIdFromToken ||
       locationIdFromState ||
       locationId ||
-      tokenData.locationId ||
-      tokenData.location_id ||
-      tokenData.location?.id;
+      null;
 
     // If still no locationId, fetch from GHL /locations/ API
     if (!finalLocationId) {

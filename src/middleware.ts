@@ -67,6 +67,20 @@ export async function middleware(request: NextRequest) {
     if (isFromGHL) {
       const oauthUrl = new URL('/api/auth/oauth/authorize', request.url);
       oauthUrl.searchParams.set('redirect', pathname + search || '/dashboard');
+      // Pass locationId when available (e.g. from referrer when in iframe) so state carries it per GHL_IFRAME_APP_AUTH.md §2/§3
+      const locationIdFromReferrer = (() => {
+        if (!referer) return null;
+        try {
+          const url = new URL(referer);
+          const fromPath = url.pathname.match(/\/(?:v\d+\/)?location\/([^/]+)/i);
+          if (fromPath?.[1]) return fromPath[1];
+          return url.searchParams.get('locationId') ?? url.searchParams.get('location_id') ?? null;
+        } catch {
+          return null;
+        }
+      })();
+      const locationId = request.nextUrl.searchParams.get('locationId') ?? request.nextUrl.searchParams.get('location_id') ?? locationIdFromReferrer;
+      if (locationId) oauthUrl.searchParams.set('locationId', locationId);
       return NextResponse.redirect(oauthUrl);
     }
     return NextResponse.redirect(new URL('/open-from-ghl', request.url));

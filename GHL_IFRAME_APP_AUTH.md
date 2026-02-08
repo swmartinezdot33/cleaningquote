@@ -47,10 +47,10 @@ No UI here; redirect only. Same idea as template “after install redirect” bu
   - `POST https://services.leadconnectorhq.com/oauth/token`
   - Body (form): `grant_type=authorization_code`, `client_id`, `client_secret`, `code`, **`redirect_uri`** (must match authorize).
   - Parse JSON: `access_token`, `refresh_token`, `expires_in`, `locationId`/`location_id`, `companyId`/`company_id`, `userId`/`user_id`.
-- **Location ID** (order matches template + iframe need):
-  1. From **state** (decoded JSON) → `locationId` / `location_id`.
-  2. From **query** → `locationId`.
-  3. From **token response** → `locationId` / `location_id` / `location.id`.
+- **Location ID** (same as GHL template: prefer token response; then state/query for iframe; then API):
+  1. From **token response** → `locationId` / `location_id` / `location.id`.
+  2. From **state** (decoded JSON) → `locationId` / `location_id`.
+  3. From **query** → `locationId`.
   4. If still missing → GET `https://services.leadconnectorhq.com/locations/` with Bearer token, take first location id.
 - **Store installation** by **locationId** (template stores by locationId or companyId; we key by locationId for iframe):
   - Persist in KV: `ghl:install:{locationId}` with access_token, refresh_token, expires_at, companyId, userId, locationId.
@@ -60,14 +60,14 @@ No UI here; redirect only. Same idea as template “after install redirect” bu
   - Set cookie: `ghl_session`, httpOnly, secure, sameSite=none, path=/, domain=app host (for production).
 - **Redirect** from **state**:
   - Parse state → `redirect` (default `/oauth-success`).
-  - Redirect to `APP_BASE + redirect` with `locationId` in query if needed; on success add `success=oauth_installed` for `/oauth-success`.
+  - Redirect to `APP_BASE + redirect` with `locationId` in query if needed; on success add `success=oauth_installed` for `/oauth-success`. The oauth-success page then auto-redirects to `/dashboard` after a short delay (same idea as template redirecting user into the app).
 
 No UI in callback; redirect only.
 
 ## 5. Iframe context (client)
 
 - **GHLIframeProvider** (or equivalent) runs when app is loaded in iframe.
-- **locationId** resolution order (same as MaidCentral-style reference):
+- **locationId** resolution order (per reference below):
   1. URL params/hash: `locationId`, `location_id`, etc.
   2. URL path: `/location/{id}` or `/(v1|v2)/location/{id}`.
   3. Referrer (GHL parent) path or query.
@@ -87,7 +87,7 @@ No UI in callback; redirect only.
 - **Middleware** (dashboard routes):
   - Valid **ghl_session** → allow request.
   - **/dashboard/setup** → always allow (no session required) so iframe can load and show “Install via OAuth”.
-  - No session + from GHL (referrer or `?ghl=1`) → redirect to **/api/auth/oauth/authorize** with current path as `redirect`.
+  - No session + from GHL (referrer or `?ghl=1`) → redirect to **/api/auth/oauth/authorize** with current path as `redirect` and `locationId` when present (e.g. from referrer path or query).
   - No session + not from GHL → redirect to **/open-from-ghl**.
 - **Dashboard UI** (our UI): show app content when session exists; show “Connect location” or setup when no token for current location.
 
