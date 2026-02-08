@@ -14,11 +14,22 @@ import { fetchLocationName } from '@/lib/ghl/location-info';
 
 const LOG = '[CQ Connect Callback]';
 
-function htmlSuccess(locationId: string, accessTokenLength: number, refreshTokenLength: number, companyName?: string, source?: string) {
+// #region agent log
+function debugIngest(message: string, data: Record<string, unknown>) {
+  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ location: 'connect/callback/route.ts', message, data, timestamp: Date.now() }),
+  }).catch(() => {});
+}
+// #endregion
+
+function htmlSuccess(locationId: string, accessTokenLength: number, refreshTokenLength: number, companyName?: string, source?: string, stateDebug?: string) {
   const safeLocationId = locationId.replace(/[<>"']/g, '');
   const safeCompany = (companyName ?? '').replace(/[<>"']/g, '');
   const sourceNote = source ? ` <span class="source">(${source})</span>` : '';
   const multiLocationWarning = source === 'token_or_api' ? '<p class="row warn">You have multiple locations. This was stored under the location returned by GHL. To connect a specific location, open that location in GHL and use Connect from the app there.</p>' : '';
+  const stateDebugRow = stateDebug ? `<div class="row debug">${stateDebug}</div>` : '';
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -33,6 +44,7 @@ function htmlSuccess(locationId: string, accessTokenLength: number, refreshToken
   .ok { color: #15803d; }
   .source { font-size: 0.9em; color: #6b7280; font-weight: normal; }
   .warn { color: #b45309; }
+  .debug { font-size: 0.85em; color: #6b7280; margin-top: 0.75rem; }
 </style>
 </head>
 <body>
@@ -42,6 +54,7 @@ function htmlSuccess(locationId: string, accessTokenLength: number, refreshToken
     <div class="row"><span class="label">Location ID:</span> <span class="value">${safeLocationId}</span>${sourceNote}</div>
     <div class="row"><span class="label">Token in KV:</span> <span class="ok">stored</span> (access length: ${accessTokenLength}, refresh length: ${refreshTokenLength})</div>
     ${safeCompany ? `<div class="row"><span class="label">Company:</span> ${safeCompany}</div>` : ''}
+    ${stateDebugRow}
     ${multiLocationWarning}
   </div>
   <script>
@@ -134,6 +147,16 @@ export async function GET(request: NextRequest) {
   const stateRaw = searchParams.get('state');
 
   console.log(LOG, 'CALLBACK HIT', { hasCode: !!code, hasState: !!stateRaw, hasError: !!error, paramKeys: Array.from(searchParams.keys()) });
+  // #region agent log
+  debugIngest('callback hit', {
+    hasCode: !!code,
+    hasState: !!stateRaw,
+    stateLength: stateRaw?.length ?? 0,
+    statePreview: stateRaw ? stateRaw.slice(0, 80) + (stateRaw.length > 80 ? '...' : '') : null,
+    paramKeys: Array.from(searchParams.keys()),
+    hypothesisId: 'H1-H2-H3',
+  });
+  // #endregion
 
   const locationIdFromQuery =
     searchParams.get('locationId') ??
@@ -186,10 +209,28 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  const PENDING_LOCATION_COOKIE = 'ghl_pending_location_id';
   let locationId = locationIdFromState ?? locationIdFromQuery ?? null;
+  let usedPendingCookie = false;
+  if (!locationId) {
+    const fromCookie = request.cookies.get(PENDING_LOCATION_COOKIE)?.value?.trim();
+    if (fromCookie) {
+      locationId = fromCookie;
+      usedPendingCookie = true;
+      console.log(LOG, 'Using locationId from pending cookie (state was lost e.g. after GHL "Paid apps" Back + Install)', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
+    }
+  }
   if (locationIdFromState && locationIdFromQuery && locationIdFromState !== locationIdFromQuery) {
     console.log(LOG, 'Using locationId from state (iframe) over query', { state: locationIdFromState.slice(0, 8) + '..', query: locationIdFromQuery.slice(0, 8) + '..' });
   }
+  // #region agent log
+  debugIngest('after state parse', {
+    locationIdFromState: locationIdFromState ? locationIdFromState.slice(0, 8) + '..' + locationIdFromState.slice(-4) : null,
+    locationIdFromQuery: locationIdFromQuery ? locationIdFromQuery.slice(0, 8) + '..' : null,
+    locationIdResolved: locationId ? locationId.slice(0, 8) + '..' : null,
+    hypothesisId: 'H1-H2-H4',
+  });
+  // #endregion
 
   if (error) {
     const msg = searchParams.get('error_description') || error;
@@ -281,7 +322,13 @@ export async function GET(request: NextRequest) {
     }
 
     locationId = locationId.trim();
-    const source = locationIdFromState ? 'state (iframe — this location)' : locationIdFromQuery ? 'query' : 'token_or_api';
+    const source = locationIdFromState
+      ? 'state (iframe — this location)'
+      : locationIdFromQuery
+        ? 'query'
+        : usedPendingCookie
+          ? 'pending cookie (state was lost — install via marketplace)'
+          : 'token_or_api';
     if (source === 'token_or_api') {
       console.warn(LOG, 'Using locationId from token/API — user may have multiple locations; iframe location was not in state. Always use Connect from the specific location dashboard.');
     }
@@ -308,12 +355,20 @@ export async function GET(request: NextRequest) {
     }
 
     const sessionToken = await createSessionToken({ locationId, companyId, userId });
+    const stateDebug = usedPendingCookie
+      ? 'State in callback: not received (e.g. installed via marketplace after Back). Location came from pending cookie set when you clicked Connect.'
+      : !stateRaw
+        ? 'State in callback: not received — location came from GHL token. Open the app from the specific location in GHL and click Connect there.'
+        : !locationIdFromState
+          ? `State in callback: received (length ${stateRaw.length}) but no locationId parsed. Preview: ${stateRaw.slice(0, 50).replace(/[<>"']/g, '')}...`
+          : 'State in callback: received, locationId from state (this location).';
     const html = htmlSuccess(
       locationId,
       (data.access_token ?? '').length,
       (data.refresh_token ?? '').length,
       companyName ?? undefined,
-      source
+      source,
+      stateDebug
     );
     const response = new NextResponse(html, {
       status: 200,
@@ -345,6 +400,9 @@ export async function GET(request: NextRequest) {
       /* ignore */
     }
     response.cookies.set('ghl_session', sessionToken, cookieOptions);
+    if (usedPendingCookie) {
+      response.cookies.set(PENDING_LOCATION_COOKIE, '', { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 0, path: '/' });
+    }
     return response;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
