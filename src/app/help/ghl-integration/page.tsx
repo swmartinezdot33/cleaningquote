@@ -28,7 +28,7 @@ export default function GHLIntegrationHelpPage() {
       <h2 className="text-lg font-semibold text-foreground mt-8">1. Where to get the PIT token</h2>
       <ol className="list-decimal list-inside space-y-2 text-foreground">
         <li>
-          Log in to your <a href="https://app.gohighlevel.com/" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:no-underline">HighLevel dashboard</a>.
+          Log in to your <a href="https://my.cleanquote.io/" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:no-underline">HighLevel dashboard</a>.
         </li>
         <li>
           <strong className="text-foreground">For a Location-level PIT</strong> (recommended for security):
@@ -59,7 +59,7 @@ export default function GHLIntegrationHelpPage() {
           Open the sub-account (location) in your HighLevel dashboard.
         </li>
         <li>
-          Look at the browser URL. The Location ID is the string after <code className="bg-muted px-1 rounded">/location/</code>, for example: <code className="bg-muted px-1 rounded">https://app.gohighlevel.com/v2/location/ve9EPM428h8vShlRW1KT/...</code> → <strong className="text-foreground">ve9EPM428h8vShlRW1KT</strong>.
+          Look at the browser URL. The Location ID is the string after <code className="bg-muted px-1 rounded">/location/</code>, for example: <code className="bg-muted px-1 rounded">https://my.cleanquote.io/v2/location/ve9EPM428h8vShlRW1KT/...</code> → <strong className="text-foreground">ve9EPM428h8vShlRW1KT</strong>.
         </li>
         <li>
           You can also find it under <strong className="text-foreground">Settings</strong> → <strong className="text-foreground">Business Profile</strong> or <strong className="text-foreground">Integrations</strong> → <strong className="text-foreground">API</strong> on the location.

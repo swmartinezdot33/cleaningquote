@@ -116,7 +116,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
       try {
         const referrerUrl = new URL(document.referrer);
         console.log('[GHL Iframe] 4. Referrer hostname:', referrerUrl.hostname, 'pathname:', referrerUrl.pathname);
-        if (/gohighlevel|leadconnector/i.test(referrerUrl.hostname)) {
+        if (/gohighlevel|leadconnector|cleanquote\.io|ricochetbusinesssolutions/i.test(referrerUrl.hostname)) {
           const refMatch = referrerUrl.pathname.match(/\/(?:v\d+\/)?location\/([^/]+)/i);
           urlLocationId = refMatch?.[1] ?? referrerUrl.searchParams.get('locationId') ?? referrerUrl.searchParams.get('location_id') ?? urlLocationId;
           if (urlLocationId) console.log('[GHL Iframe] ✅ 4. From referrer:', urlLocationId);

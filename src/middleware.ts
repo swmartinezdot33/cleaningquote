@@ -40,7 +40,7 @@ export async function middleware(request: NextRequest) {
       }
       const referer = request.headers.get('referer') || '';
       const hasGhlParam = request.nextUrl.searchParams.get('ghl') === '1';
-      if (hasGhlParam || /gohighlevel|leadconnectorhq/i.test(referer)) {
+      if (hasGhlParam || /gohighlevel|leadconnectorhq|cleanquote\.io|ricochetbusinesssolutions/i.test(referer)) {
         const oauthUrl = new URL('/api/auth/oauth/authorize', request.url);
         oauthUrl.searchParams.set('redirect', pathname + search || '/dashboard');
         return NextResponse.redirect(oauthUrl);
@@ -83,7 +83,7 @@ export async function middleware(request: NextRequest) {
       // GHL-only: coming from GHL (iframe or ?ghl=1) without session → OAuth install
       const referer = request.headers.get('referer') || '';
       const hasGhlParam = request.nextUrl.searchParams.get('ghl') === '1';
-      const isFromGHL = hasGhlParam || /gohighlevel|leadconnectorhq/i.test(referer);
+      const isFromGHL = hasGhlParam || /gohighlevel|leadconnectorhq|cleanquote\.io|ricochetbusinesssolutions/i.test(referer);
       if (isFromGHL) {
         const oauthUrl = new URL('/api/auth/oauth/authorize', request.url);
         oauthUrl.searchParams.set('redirect', pathname + search || '/dashboard');
