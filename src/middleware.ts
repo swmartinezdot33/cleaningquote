@@ -1,6 +1,16 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { verifySessionToken, GHL_SESSION_COOKIE } from '@/lib/ghl/session';
 
+// #region agent log
+function debugLog(message: string, data: Record<string, unknown>) {
+  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ location: 'middleware.ts', message, data, timestamp: Date.now() }),
+  }).catch(() => {});
+}
+// #endregion
+
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -41,6 +51,14 @@ export async function middleware(request: NextRequest) {
     const referer = request.headers.get('referer') || '';
     const hasGhlParam = request.nextUrl.searchParams.get('ghl') === '1';
     const isFromGHL = hasGhlParam || /gohighlevel|leadconnectorhq|cleanquote\.io|ricochetbusinesssolutions/i.test(referer);
+    // #region agent log
+    debugLog('Redirect to open-from-ghl or authorize', {
+      pathname,
+      hasSessionCookie: !!sessionToken,
+      isFromGHL,
+      referer: referer ? referer.slice(0, 80) : null,
+    });
+    // #endregion
     if (isFromGHL) {
       const oauthUrl = new URL('/api/auth/oauth/authorize', request.url);
       oauthUrl.searchParams.set('redirect', pathname + search || '/dashboard');
