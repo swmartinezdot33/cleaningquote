@@ -23,12 +23,14 @@ export async function middleware(request: NextRequest) {
     if (sessionToken) {
       const session = await verifySessionToken(sessionToken);
       if (session) {
+        console.log('[OAuth Middleware] SESSION OK → allowing. pathname=', pathname, '| locationId=', session.locationId?.slice(0, 8) + '...');
         const reqHeaders = new Headers(request.headers);
         reqHeaders.set('x-ghl-session', '1');
         return NextResponse.next({
           request: { headers: reqHeaders },
         });
       }
+      console.log('[OAuth Middleware] Cookie present but INVALID → will redirect. pathname=', pathname);
     }
 
     // GHL-only: allow API requests with locationId (client passes from decrypted GHL context)
@@ -51,6 +53,8 @@ export async function middleware(request: NextRequest) {
     const referer = request.headers.get('referer') || '';
     const hasGhlParam = request.nextUrl.searchParams.get('ghl') === '1';
     const isFromGHL = hasGhlParam || /gohighlevel|leadconnectorhq|cleanquote\.io|ricochetbusinesssolutions/i.test(referer);
+    const requestHost = request.headers.get('host') ?? 'unknown';
+    console.log('[OAuth Middleware] NO SESSION → redirecting. pathname=', pathname, '| host=', requestHost, '| hasCookie=', !!sessionToken, '| isFromGHL=', isFromGHL, '| referer=', referer ? referer.slice(0, 60) : '(none)');
     // #region agent log
     debugLog('Redirect to open-from-ghl or authorize', {
       pathname,

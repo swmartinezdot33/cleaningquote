@@ -37,7 +37,11 @@ function OAuthSuccessContent() {
             <XCircle className="mx-auto h-16 w-16 text-destructive" />
             <h1 className="mt-4 text-xl font-semibold">OAuth Error</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              {error ? `${error}${errorDescription ? `: ${errorDescription}` : ''}` : 'An error occurred during OAuth installation.'}
+              {error === 'storage_failed'
+                ? `Tokens could not be saved. ${errorDescription || 'Check server logs.'} Ensure Vercel KV (or KV_REST_API_URL and KV_REST_API_TOKEN) is configured.`
+                : error
+                  ? `${error}${errorDescription ? `: ${errorDescription}` : ''}`
+                  : 'An error occurred during OAuth installation.'}
             </p>
             <Link href="/dashboard/setup" className="mt-6 block">
               <Button variant="outline" className="w-full">

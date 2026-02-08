@@ -26,16 +26,17 @@ export async function GET(request: NextRequest) {
     // Get locationId from query params (optional - GHL will provide it after location selection)
     const locationId = request.nextUrl.searchParams.get('locationId');
 
-    // Log OAuth initiation for debugging — matches MaidCentral
+    // Log OAuth initiation for debugging — all lines prefixed so you can search "OAuth Authorize" in Vercel logs
+    const requestHost = request.headers.get('host') ?? 'unknown';
+    const referer = request.headers.get('referer') ?? '';
     console.log('[OAuth Authorize] ============================================');
     console.log('[OAuth Authorize] Initiating OAuth flow');
+    console.log('[OAuth Authorize] request host:', requestHost, '| referer:', referer ? referer.slice(0, 80) : '(none)');
     console.log('[OAuth Authorize] Client ID:', clientId ? `${clientId.substring(0, 10)}...${clientId.substring(clientId.length - 4)}` : 'MISSING');
     console.log('[OAuth Authorize] Redirect URI:', redirectUri);
-    console.log('[OAuth Authorize] Base URL:', appBaseUrl);
+    console.log('[OAuth Authorize] Base URL (callback will redirect here):', appBaseUrl);
     console.log('[OAuth Authorize] Location ID (hint):', locationId || 'none');
-    console.log('[OAuth Authorize] Environment check:');
-    console.log('[OAuth Authorize]   - APP_BASE_URL:', process.env.APP_BASE_URL || 'NOT SET');
-    console.log('[OAuth Authorize]   - GHL_REDIRECT_URI:', process.env.GHL_REDIRECT_URI || 'NOT SET (using computed)');
+    console.log('[OAuth Authorize] Environment: APP_BASE_URL=', process.env.APP_BASE_URL || 'NOT SET', '| GHL_REDIRECT_URI=', process.env.GHL_REDIRECT_URI ? 'SET' : 'NOT SET');
     console.log('[OAuth Authorize] ============================================');
 
     // GHL OAuth authorization URL — chooselocation endpoint to force location selection

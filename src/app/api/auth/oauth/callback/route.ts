@@ -52,7 +52,10 @@ function parseState(state: string | null): { redirect: string; orgId?: string } 
 export async function GET(request: NextRequest) {
   try {
     const allParams = Object.fromEntries(request.nextUrl.searchParams.entries());
-    console.log('[OAuth Callback] Received callback with params:', allParams);
+    const callbackHost = request.headers.get('host') ?? 'unknown';
+    console.log('[OAuth Callback] ========== CALLBACK HIT ==========');
+    console.log('[OAuth Callback] request host:', callbackHost, '| param keys:', Object.keys(allParams).join(', '));
+    console.log('[OAuth Callback] hasCode:', !!allParams.code, '| hasState:', !!allParams.state, '| hasError:', !!allParams.error);
 
     const code = request.nextUrl.searchParams.get('code');
     const state = request.nextUrl.searchParams.get('state');
@@ -92,7 +95,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!code) {
-      console.error('[OAuth Callback] No authorization code received. All params:', allParams);
+      console.error('[OAuth Callback] ❌ NO CODE — GHL did not return code. Params:', JSON.stringify(allParams));
       const errorUrl = new URL('/oauth-success', APP_BASE);
       errorUrl.searchParams.set('error', `no_code: ${JSON.stringify(allParams)}`);
       return NextResponse.redirect(errorUrl.toString());
@@ -244,7 +247,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!finalLocationId) {
-      console.error('[OAuth Callback] No locationId found after all attempts. Code:', code, 'State:', state);
+      console.error('[OAuth Callback] ❌ NO LOCATION ID after state/token/API. locationIdFromState=', locationIdFromState, 'query=', locationId, 'tokenKeys=', Object.keys(tokenData).join(', '));
       debugLog('OAuth callback no locationId', { locationId, tokenKeys: Object.keys(tokenData) });
       const errorUrl = new URL('/oauth-success', APP_BASE);
       errorUrl.searchParams.set('error', 'no_location_id: Unable to determine location ID from OAuth response or API call');
@@ -256,14 +259,23 @@ export async function GET(request: NextRequest) {
     const expiresAt = tokenData.expires_in ? Date.now() + tokenData.expires_in * 1000 : Date.now() + 86400 * 1000;
 
     debugLog('OAuth callback storing installation', { finalLocationId, hasAccessToken: !!accessToken });
-    await storeInstallation({
-      locationId: finalLocationId,
-      accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token ?? '',
-      expiresAt,
-      companyId: tokenData.companyId ?? tokenData.company_id ?? '',
-      userId: tokenData.userId ?? tokenData.user_id ?? '',
-    });
+    try {
+      await storeInstallation({
+        locationId: finalLocationId,
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token ?? '',
+        expiresAt,
+        companyId: tokenData.companyId ?? tokenData.company_id ?? '',
+        userId: tokenData.userId ?? tokenData.user_id ?? '',
+      });
+    } catch (storeErr) {
+      console.error('[OAuth Callback] ❌ STORAGE FAILED — tokens were NOT saved. Check KV (Vercel KV or KV_REST_API_* env vars).', storeErr);
+      debugLog('OAuth callback storeInstallation failed', { error: storeErr instanceof Error ? storeErr.message : String(storeErr) });
+      const errorUrl = new URL('/oauth-success', APP_BASE);
+      errorUrl.searchParams.set('error', 'storage_failed');
+      errorUrl.searchParams.set('error_description', storeErr instanceof Error ? storeErr.message : 'Failed to save OAuth tokens. Check server logs and KV configuration.');
+      return NextResponse.redirect(errorUrl.toString());
+    }
 
     const { redirect: redirectTo, orgId } = parseState(state);
     const companyId = tokenData.companyId ?? tokenData.company_id ?? '';
@@ -287,8 +299,9 @@ export async function GET(request: NextRequest) {
 
     console.log('[OAuth Callback] ============================================');
     console.log('[OAuth Callback] ✅ OAuth INSTALLATION SUCCESSFUL!');
-    console.log('[OAuth Callback] Location ID:', finalLocationId);
-    console.log('[OAuth Callback] Redirecting to:', targetUrl);
+    console.log('[OAuth Callback] finalLocationId:', finalLocationId);
+    console.log('[OAuth Callback] REDIRECT TARGET (user will land here):', targetUrl);
+    console.log('[OAuth Callback] APP_BASE used for redirect:', APP_BASE);
     console.log('[OAuth Callback] ============================================');
 
     debugLog('OAuth callback success redirect', { targetUrl, cookieSet: true });
@@ -300,7 +313,6 @@ export async function GET(request: NextRequest) {
       maxAge: 7 * 24 * 60 * 60,
       path: '/',
     };
-    // Set domain for production so cookie is sent when app is loaded in GHL iframe (same site)
     try {
       const baseHost = new URL(APP_BASE).hostname;
       if (baseHost && baseHost !== 'localhost' && !baseHost.startsWith('127.')) {
@@ -310,12 +322,15 @@ export async function GET(request: NextRequest) {
       /* ignore */
     }
     res.cookies.set('ghl_session', sessionToken, cookieOptions);
+    console.log('[OAuth Callback] COOKIE SET: ghl_session (httpOnly, sameSite=none, secure) domain=', (cookieOptions as { domain?: string }).domain ?? '(default)');
     return res;
   } catch (error) {
     console.error('[OAuth Callback] Error in OAuth callback:', error);
     debugLog('OAuth callback exception', { error: error instanceof Error ? error.message : String(error) });
     const errorUrl = new URL('/oauth-success', APP_BASE);
-    errorUrl.searchParams.set('error', error instanceof Error ? error.message : 'oauth_callback_failed');
+    const msg = error instanceof Error ? error.message : 'oauth_callback_failed';
+    errorUrl.searchParams.set('error', msg.includes('KV') || msg.includes('store') ? 'storage_failed' : 'oauth_callback_failed');
+    errorUrl.searchParams.set('error_description', msg);
     return NextResponse.redirect(errorUrl.toString());
   }
 }
