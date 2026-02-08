@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { FileDown, ExternalLink, Loader2, ArrowRightLeft, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User } from 'lucide-react';
-import { useGHLIframe } from '@/lib/ghl-iframe-context';
+import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 
 interface QuoteRow {
   id: string;
@@ -91,7 +91,7 @@ interface ToolOption {
 }
 
 export default function DashboardQuotesPage() {
-  const { ghlData } = useGHLIframe();
+  const effectiveLocationId = useEffectiveLocationId();
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -122,8 +122,8 @@ export default function DashboardQuotesPage() {
   const [perPage, setPerPage] = useState(25);
 
   const loadQuotes = () => {
-    const quotesUrl = ghlData?.locationId
-      ? `/api/dashboard/quotes?locationId=${ghlData.locationId}`
+    const quotesUrl = effectiveLocationId
+      ? `/api/dashboard/quotes?locationId=${effectiveLocationId}`
       : '/api/dashboard/quotes';
     Promise.all([
       fetch(quotesUrl),
@@ -150,7 +150,7 @@ export default function DashboardQuotesPage() {
 
   useEffect(() => {
     loadQuotes();
-  }, [ghlData?.locationId]);
+  }, [effectiveLocationId]);
 
   const openReassign = (q: QuoteRow) => {
     setReassignQuote(q);

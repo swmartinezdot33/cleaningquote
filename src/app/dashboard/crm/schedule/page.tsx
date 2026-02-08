@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Loader2, Calendar } from 'lucide-react';
+import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 
 interface Schedule {
   id: string;
@@ -30,26 +31,34 @@ interface Contact {
 }
 
 export default function CRMSchedulePage() {
+  const effectiveLocationId = useEffectiveLocationId();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [propertyMap, setPropertyMap] = useState<Record<string, Property>>({});
   const [contactMap, setContactMap] = useState<Record<string, Contact>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const contactsUrl = effectiveLocationId
+    ? `/api/dashboard/crm/contacts?perPage=500&locationId=${effectiveLocationId}`
+    : '/api/dashboard/crm/contacts?perPage=500';
+  const contactDetailUrl = (id: string) =>
+    effectiveLocationId
+      ? `/api/dashboard/crm/contacts/${id}?locationId=${effectiveLocationId}`
+      : `/api/dashboard/crm/contacts/${id}`;
+
   useEffect(() => {
-    fetch('/api/dashboard/crm/contacts?perPage=500')
+    fetch(contactsUrl)
       .then((r) => (r.ok ? r.json() : { contacts: [] }))
       .then(async (contactsRes) => {
         const contacts = contactsRes.contacts ?? [];
         const contactMap: Record<string, Contact> = {};
         contacts.forEach((c: Contact) => { contactMap[c.id] = c; });
 
-        const contactIds = contacts.map((c: Contact) => c.id);
         const scheduleList: Schedule[] = [];
         const propMap: Record<string, Property> = {};
 
         for (const c of contacts) {
-          const detailRes = await fetch(`/api/dashboard/crm/contacts/${c.id}`);
+          const detailRes = await fetch(contactDetailUrl(c.id));
           if (!detailRes.ok) continue;
           const detail = await detailRes.json();
           for (const p of detail.properties ?? []) {
@@ -68,7 +77,7 @@ export default function CRMSchedulePage() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [effectiveLocationId]);
 
   if (loading) {
     return (

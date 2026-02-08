@@ -76,6 +76,7 @@ No UI in callback; redirect only.
   5. Session cache (e.g. sessionStorage).
   6. **postMessage**: send `REQUEST_USER_DATA` to parent; on `REQUEST_USER_DATA_RESPONSE`, decrypt payload with **GHL_APP_SSO_KEY** (Shared Secret) and use `activeLocation` / `locationId` etc.
 - Store resolved context (e.g. POST `/api/ghl/iframe-context`) and in sessionStorage so dashboard/setup use the same locationId.
+- **App-wide user context**: The provider also fetches **GET /api/dashboard/session** when iframe has no locationId (e.g. same-tab after OAuth). It exposes **effectiveLocationId** (iframe or session) and **userContext: { locationId }** so the **entire app** uses one resolved location for all API calls. Use **useEffectiveLocationId()** or **useGHLUserContext()** in any dashboard page; never rely only on ghlData when making GHL-backed API requests.
 
 ## 6. Decrypt SSO / user context
 
@@ -94,7 +95,7 @@ No UI in callback; redirect only.
 
 ## 8. Setup page (iframe)
 
-- Uses **GHLIframeProvider** so **ghlData.locationId** is set.
+- Uses **GHLIframeProvider** and **useEffectiveLocationId()** so **effectiveLocationId** is set (from iframe or session).
 - “Install via OAuth” → **same-window** navigate to `/api/auth/oauth/authorize?locationId={locationId}&redirect=/dashboard` so callback redirects into the app in same tab and cookie is sent (same as working GHL marketplace apps).
 - After return, user is on `/dashboard`; session cookie is used.
 

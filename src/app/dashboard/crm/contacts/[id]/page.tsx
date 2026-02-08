@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Loader2, Mail, Phone, MapPin, FileText } from 'lucide-react';
-import { useGHLIframe } from '@/lib/ghl-iframe-context';
+import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 
 interface ContactDetail {
   contact: {
@@ -67,7 +67,7 @@ export default function ContactDetailPage({
 }: {
   params: { id: string } | Promise<{ id: string }>;
 }) {
-  const { ghlData } = useGHLIframe();
+  const effectiveLocationId = useEffectiveLocationId();
   const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(null);
   const [data, setData] = useState<ContactDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -86,24 +86,24 @@ export default function ContactDetailPage({
   useEffect(() => {
     if (!resolvedParams?.id) return;
 
-    const url = ghlData?.locationId
-      ? `/api/dashboard/crm/contacts/${resolvedParams.id}?locationId=${ghlData.locationId}`
+    const url = effectiveLocationId
+      ? `/api/dashboard/crm/contacts/${resolvedParams.id}?locationId=${effectiveLocationId}`
       : `/api/dashboard/crm/contacts/${resolvedParams.id}`;
     fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Not found'))))
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [resolvedParams?.id, ghlData?.locationId]);
+  }, [resolvedParams?.id, effectiveLocationId]);
 
   const addNote = () => {
     if (!noteContent.trim() || !resolvedParams?.id) return;
     setAddingNote(true);
-    const notesUrl = ghlData?.locationId
-      ? `/api/dashboard/crm/contacts/${resolvedParams.id}/notes?locationId=${ghlData.locationId}`
+    const notesUrl = effectiveLocationId
+      ? `/api/dashboard/crm/contacts/${resolvedParams.id}/notes?locationId=${effectiveLocationId}`
       : `/api/dashboard/crm/contacts/${resolvedParams.id}/notes`;
-    const body = ghlData?.locationId
-      ? { content: noteContent.trim(), locationId: ghlData.locationId }
+    const body = effectiveLocationId
+      ? { content: noteContent.trim(), locationId: effectiveLocationId }
       : { content: noteContent.trim() };
     fetch(notesUrl, {
       method: 'POST',
@@ -113,8 +113,8 @@ export default function ContactDetailPage({
       .then((r) => {
         if (r.ok) {
           setNoteContent('');
-          const detailUrl = ghlData?.locationId
-            ? `/api/dashboard/crm/contacts/${resolvedParams.id}?locationId=${ghlData.locationId}`
+          const detailUrl = effectiveLocationId
+            ? `/api/dashboard/crm/contacts/${resolvedParams.id}?locationId=${effectiveLocationId}`
             : `/api/dashboard/crm/contacts/${resolvedParams.id}`;
           return fetch(detailUrl).then((x) => x.json());
         }

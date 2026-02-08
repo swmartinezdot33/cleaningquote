@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Loader2, Search, Filter } from 'lucide-react';
-import { useGHLIframe } from '@/lib/ghl-iframe-context';
+import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 import { getGHLMarketplaceAppUrl } from '@/lib/ghl/oauth-utils';
 
 interface Contact {
@@ -17,7 +17,7 @@ interface Contact {
 }
 
 export default function CRMContactsPage() {
-  const { ghlData } = useGHLIframe();
+  const effectiveLocationId = useEffectiveLocationId();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -37,9 +37,8 @@ export default function CRMContactsPage() {
     if (search.trim()) params.set('search', search.trim());
     params.set('page', String(page));
     params.set('perPage', String(perPage));
-    if (ghlData?.locationId) params.set('locationId', ghlData.locationId);
+    if (effectiveLocationId) params.set('locationId', effectiveLocationId);
 
-    console.log('[CRM Contacts] loadContacts ghlData.locationId=', ghlData?.locationId, 'params=', params.toString());
     fetch(`/api/dashboard/crm/contacts?${params}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load'))))
       .then((d) => {
@@ -50,14 +49,14 @@ export default function CRMContactsPage() {
       })
       .catch((e) => {
         setError(e.message);
-        setNeedsConnect(!!ghlData?.locationId);
+        setNeedsConnect(!!effectiveLocationId);
       })
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     loadContacts();
-  }, [page, filterStage, ghlData?.locationId]);
+  }, [page, filterStage, effectiveLocationId]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,7 +83,7 @@ export default function CRMContactsPage() {
         </p>
       </div>
 
-      {needsConnect && ghlData?.locationId && (
+      {needsConnect && effectiveLocationId && (
         <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-6 text-amber-800 dark:text-amber-200">
           <p className="font-medium">Connect your location</p>
           <p className="mt-2 text-sm">
@@ -101,7 +100,7 @@ export default function CRMContactsPage() {
 
       {typeof window !== 'undefined' &&
         window.self !== window.top &&
-        !ghlData?.locationId &&
+        !effectiveLocationId &&
         !loading &&
         contacts.length === 0 &&
         !error &&
@@ -159,7 +158,7 @@ export default function CRMContactsPage() {
           <p>{error}</p>
           {typeof window !== 'undefined' &&
             window.self !== window.top &&
-            !ghlData?.locationId && (
+            !effectiveLocationId && (
               <p className="text-sm">
                 <Link href="/help/ghl-custom-menu-link" target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">
                   Custom Menu Link setup guide

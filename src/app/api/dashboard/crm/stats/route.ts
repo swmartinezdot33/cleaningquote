@@ -14,7 +14,9 @@ export async function GET(request: NextRequest) {
     if ('needsConnect' in ctx) return NextResponse.json({ counts: {}, total: 0, recentActivities: [], needsConnect: true });
 
     try {
+      console.log('[CQ CRM stats] calling listGHLContacts', { locationId: ctx.locationId?.slice(0, 12) + '...', hasToken: !!ctx.token });
       const { contacts } = await listGHLContacts(ctx.locationId, { limit: 1000 }, { token: ctx.token, locationId: ctx.locationId });
+      console.log('[CQ CRM stats] listGHLContacts OK', { count: contacts?.length ?? 0 });
       const counts: Record<string, number> = { lead: 0, quoted: 0, booked: 0, customer: 0, churned: 0 };
       for (const c of contacts) {
         const type = (c.type ?? c.stage ?? 'lead').toString().toLowerCase();
@@ -23,7 +25,7 @@ export async function GET(request: NextRequest) {
       }
       return NextResponse.json({ counts, total: contacts.length, recentActivities: [] });
     } catch (err) {
-      console.warn('CRM stats: GHL fetch error', ctx.locationId, err);
+      console.warn('[CQ CRM stats] listGHLContacts error', { locationId: ctx.locationId?.slice(0, 12) + '...', err: err instanceof Error ? err.message : String(err) });
       return NextResponse.json({ counts: {}, total: 0, recentActivities: [], needsConnect: true });
     }
   } catch (err) {

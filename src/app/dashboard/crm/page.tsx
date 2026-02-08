@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Users, Loader2, TrendingUp } from 'lucide-react';
-import { useGHLIframe } from '@/lib/ghl-iframe-context';
+import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 import { getGHLMarketplaceAppUrl } from '@/lib/ghl/oauth-utils';
 
 interface Contact {
@@ -31,18 +31,21 @@ interface Stats {
 const STAGES = ['lead', 'quoted', 'booked', 'customer', 'churned'] as const;
 
 export default function CRMDashboardPage() {
-  const { ghlData } = useGHLIframe();
+  const effectiveLocationId = useEffectiveLocationId();
   const [stats, setStats] = useState<Stats | null>(null);
   const [contactsByStage, setContactsByStage] = useState<Record<string, Contact[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [needsConnect, setNeedsConnect] = useState(false);
 
-  const locationSuffix = ghlData?.locationId ? `&locationId=${ghlData.locationId}` : '';
+  const locationSuffix = effectiveLocationId ? `&locationId=${effectiveLocationId}` : '';
 
   useEffect(() => {
+    const statsUrl = effectiveLocationId
+      ? `/api/dashboard/crm/stats?locationId=${effectiveLocationId}`
+      : '/api/dashboard/crm/stats';
     Promise.all([
-      fetch(`/api/dashboard/crm/stats${ghlData?.locationId ? `?locationId=${ghlData.locationId}` : ''}`).then((r) => (r.ok ? r.json() : null)),
+      fetch(statsUrl).then((r) => (r.ok ? r.json() : null)),
       ...STAGES.map((stage) =>
         fetch(`/api/dashboard/crm/contacts?stage=${stage}&perPage=20${locationSuffix}`).then((r) =>
           r.ok ? r.json() : { contacts: [] }
@@ -60,7 +63,7 @@ export default function CRMDashboardPage() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [ghlData?.locationId]);
+  }, [effectiveLocationId, locationSuffix]);
 
   if (loading) {
     return (
@@ -78,7 +81,7 @@ export default function CRMDashboardPage() {
     );
   }
 
-  if (needsConnect && ghlData?.locationId) {
+  if (needsConnect && effectiveLocationId) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-foreground">CRM Pipeline</h1>

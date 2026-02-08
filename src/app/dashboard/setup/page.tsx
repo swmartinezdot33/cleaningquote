@@ -1,14 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useGHLIframe } from '@/lib/ghl-iframe-context';
+import { useGHLIframe, useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function SetupPage() {
-  const { ghlData, loading } = useGHLIframe();
+  const { loading } = useGHLIframe();
+  const effectiveLocationId = useEffectiveLocationId();
   const [oauthStatus, setOauthStatus] = useState<{
     installed: boolean;
     locationId?: string;
@@ -16,21 +17,21 @@ export default function SetupPage() {
   const [loadingOAuth, setLoadingOAuth] = useState(true);
 
   const fetchOAuthStatus = useCallback(() => {
-    if (!ghlData?.locationId) return;
-    fetch(`/api/auth/oauth/status?locationId=${ghlData.locationId}`)
+    if (!effectiveLocationId) return;
+    fetch(`/api/auth/oauth/status?locationId=${effectiveLocationId}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setOauthStatus(d ?? { installed: false }))
       .catch(() => setOauthStatus({ installed: false }))
       .finally(() => setLoadingOAuth(false));
-  }, [ghlData?.locationId]);
+  }, [effectiveLocationId]);
 
   useEffect(() => {
-    if (!loading && ghlData?.locationId) {
+    if (!loading && effectiveLocationId) {
       fetchOAuthStatus();
     } else if (!loading) {
       setLoadingOAuth(false);
     }
-  }, [loading, ghlData?.locationId, fetchOAuthStatus]);
+  }, [loading, effectiveLocationId, fetchOAuthStatus]);
 
   // Refetch when tab becomes visible (user returned from OAuth)
   useEffect(() => {
@@ -44,13 +45,13 @@ export default function SetupPage() {
   const handleOAuthInstall = () => {
     const base = typeof window !== 'undefined' ? window.location.origin : '';
     const authUrl = new URL('/api/auth/oauth/authorize', base);
-    if (ghlData?.locationId) authUrl.searchParams.set('locationId', ghlData.locationId);
+    if (effectiveLocationId) authUrl.searchParams.set('locationId', effectiveLocationId);
     authUrl.searchParams.set('redirect', '/dashboard');
-    console.log('[CQ OAuth]', 'setup: starting OAuth in same tab', { locationId: ghlData?.locationId ? `${ghlData.locationId.slice(0, 8)}...` : null });
+    console.log('[CQ OAuth]', 'setup: starting OAuth in same tab', { locationId: effectiveLocationId ? `${effectiveLocationId.slice(0, 8)}...` : null });
     window.location.href = authUrl.toString();
   };
 
-  if (loading || (ghlData && loadingOAuth)) {
+  if (loading || (effectiveLocationId && loadingOAuth)) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -58,7 +59,7 @@ export default function SetupPage() {
     );
   }
 
-  if (!ghlData?.locationId) {
+  if (!effectiveLocationId) {
     return (
       <div className="mx-auto max-w-xl space-y-6 p-4">
         <Card>
@@ -89,7 +90,7 @@ export default function SetupPage() {
           {oauthStatus?.installed ? (
             <div className="flex items-center gap-2 text-green-600">
               <CheckCircle className="h-5 w-5" />
-              <span>App installed for location: {oauthStatus.locationId ?? ghlData.locationId}</span>
+              <span>App installed for location: {oauthStatus.locationId ?? effectiveLocationId}</span>
             </div>
           ) : (
             <div className="flex items-center gap-2 text-amber-600">

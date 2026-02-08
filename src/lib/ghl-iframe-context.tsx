@@ -10,20 +10,41 @@ import type { GHLIframeData } from './ghl-iframe-types';
 
 export type { GHLIframeData };
 
+/** User context: resolved locationId for API calls (iframe or session). */
+export interface GHLUserContext {
+  locationId: string;
+}
+
 interface GHLIframeContextType {
   ghlData: GHLIframeData | null;
   loading: boolean;
   error: string | null;
+  /** Resolved locationId from iframe or session — use for all API calls app-wide. */
+  effectiveLocationId: string | null;
+  /** User context for the whole app (locationId when available). */
+  userContext: GHLUserContext | null;
 }
 
 const GHLIframeContext = createContext<GHLIframeContextType>({
   ghlData: null,
   loading: true,
   error: null,
+  effectiveLocationId: null,
+  userContext: null,
 });
 
 export function useGHLIframe() {
   return useContext(GHLIframeContext);
+}
+
+/** Resolve locationId from iframe context or session. Use for all GHL API calls app-wide. */
+export function useEffectiveLocationId(): string | null {
+  return useContext(GHLIframeContext).effectiveLocationId;
+}
+
+/** Full user context (locationId) for the entire app. */
+export function useGHLUserContext(): GHLUserContext | null {
+  return useContext(GHLIframeContext).userContext;
 }
 
 function setGHLContext(
@@ -54,8 +75,23 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
   const [ghlData, setGhlData] = useState<GHLIframeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sessionLocationId, setSessionLocationId] = useState<string | null>(null);
   const hasLocationIdRef = useRef(false);
   const postMessageResponseHandledRef = useRef(false);
+
+  // App-wide user context: when not in iframe (or before iframe resolves), use session so same-tab OAuth works.
+  useEffect(() => {
+    if (ghlData?.locationId) return;
+    fetch('/api/dashboard/session')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.locationId) setSessionLocationId(data.locationId);
+      })
+      .catch(() => {});
+  }, [ghlData?.locationId]);
+
+  const effectiveLocationId = ghlData?.locationId ?? sessionLocationId;
+  const userContext: GHLUserContext | null = effectiveLocationId ? { locationId: effectiveLocationId } : null;
 
   useEffect(() => {
     const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
@@ -309,7 +345,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <GHLIframeContext.Provider value={{ ghlData, loading, error }}>
+    <GHLIframeContext.Provider value={{ ghlData, loading, error, effectiveLocationId, userContext }}>
       {children}
     </GHLIframeContext.Provider>
   );

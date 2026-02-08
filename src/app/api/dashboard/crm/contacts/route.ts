@@ -59,10 +59,12 @@ export async function GET(request: NextRequest) {
 
     try {
       const { searchParams } = new URL(request.url);
+      console.log('[CQ CRM contacts] calling fetchContactsFromGHL', { locationId: ctx.locationId?.slice(0, 12) + '...', hasToken: !!ctx.token, stage: searchParams.get('stage') });
       const result = await fetchContactsFromGHL(ctx.locationId, ctx.token, searchParams);
+      console.log('[CQ CRM contacts] fetchContactsFromGHL OK', { contactsCount: result.contacts?.length ?? 0 });
       return NextResponse.json(result);
     } catch (err) {
-      console.warn('CRM contacts: GHL fetch error', ctx.locationId, err);
+      console.warn('[CQ CRM contacts] fetchContactsFromGHL error', { locationId: ctx.locationId?.slice(0, 12) + '...', err: err instanceof Error ? err.message : String(err) });
       return NextResponse.json({ contacts: [], total: 0, page: 1, perPage: 25, needsConnect: true });
     }
   } catch (err) {
