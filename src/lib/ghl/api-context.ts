@@ -32,13 +32,40 @@ export async function resolveGHLContext(request: NextRequest): Promise<GHLContex
     }
 
     const companyId = process.env.GHL_COMPANY_ID?.trim();
+    const hasAgencyToken = !!(process.env.GHL_AGENCY_ACCESS_TOKEN?.trim());
+    console.log('[CQ api-context] env check', { hasCompanyId: !!companyId, hasAgencyToken });
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'api-context.ts',
+        message: 'resolveGHLContext before Agency',
+        data: { hasCompanyId: !!companyId, hasAgencyToken, hypothesisId: 'H2-H4' },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     if (!companyId) {
       return { needsConnect: true, locationId, reason: 'GHL_COMPANY_ID not set' };
     }
 
     const result = await getLocationTokenFromAgency(locationId, companyId, { skipStore: true });
     const token = result.success ? result.accessToken ?? null : null;
+    console.log('[CQ api-context] Agency result', { gotToken: !!token, errorPreview: result.error ? result.error.slice(0, 100) : null });
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'api-context.ts',
+        message: 'resolveGHLContext after Agency',
+        data: { gotToken: !!token, errorPreview: result.error ? result.error.slice(0, 80) : null, hypothesisId: 'H1-H3-H5' },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     if (token) {
       return { locationId, token };
     }

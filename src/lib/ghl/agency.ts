@@ -184,7 +184,7 @@ export async function getLocationTokenFromAgency(
 
     if (!res.ok) {
       const errMsg = data.error ?? data.message ?? `GHL API ${res.status}`;
-      agencyDebugLog('getLocationTokenFromAgency: GHL API error', { status: res.status, error: errMsg, hypothesisId: 'H2' });
+      agencyDebugLog('getLocationTokenFromAgency: GHL API error', { status: res.status, error: errMsg, endpoint: '/oauth/locationToken', hypothesisId: 'H2-H3-H5' });
       console.error('GHL locationToken failed:', res.status, data);
       if (res.status === 401 && (errMsg.includes('scope') || errMsg.includes('authorized'))) {
         console.error(

@@ -113,7 +113,7 @@ export async function makeGHLRequest<T>(
           body: JSON.stringify({
             location: 'client.ts:makeGHLRequest',
             message: 'GHL 401',
-            data: { endpoint, usedCredentials: !!credentials, hypothesisId: 'H1-H5' },
+            data: { endpoint: endpoint.slice(0, 60), errorPreview: (errorData?.message || errorData?.error || responseText?.slice(0, 80)) ?? null, usedCredentials: !!credentials, hypothesisId: 'H1-H5' },
             timestamp: Date.now(),
           }),
         }).catch(() => {});
