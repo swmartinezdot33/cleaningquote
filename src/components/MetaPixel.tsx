@@ -26,6 +26,8 @@ const ALLOWED_PREFIXES = [
 
 function isPathAllowed(pathname: string | null): boolean {
   if (!pathname) return false;
+  // Never load on dashboard (including /v2/location/.../dashboard) or app routes
+  if (pathname.includes('dashboard') || pathname.includes('/app')) return false;
   if (ALLOWED_PATHS.includes(pathname)) return true;
   return ALLOWED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix + '/'));
 }
@@ -42,7 +44,7 @@ export function MetaPixel() {
   useEffect(() => {
     if (!isPathAllowed(pathname)) return;
     if (typeof window === 'undefined') return;
-    // Skip in iframe (e.g. GHL embed) to avoid ad-blocker console spam and wrong attribution
+    // Skip in iframe (e.g. GHL embed) to avoid ad-blocker console spam (ERR_BLOCKED_BY_CLIENT for fbevents) and wrong attribution
     if (window.self !== window.top) return;
 
     const trackPageView = () => {
@@ -78,6 +80,7 @@ export function MetaPixel() {
       s.parentNode?.insertBefore(t, s);
       t.onload = trackPageView;
       // When blocked by ad blocker, script fails to load; browser may log ERR_BLOCKED_BY_CLIENT (we can't suppress that).
+      // If you see fbevents.js ERR_BLOCKED_BY_CLIENT while in GHL embed, it may be from the parent (GHL) page, not this iframe.
       t.onerror = () => { /* fail silently; do not call trackPageView */ };
     }
   }, [pathname]);
