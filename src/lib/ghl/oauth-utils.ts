@@ -29,8 +29,20 @@ const CANONICAL_APP_URL_DEFAULT = 'https://my.cleanquote.io';
 
 export function getPostOAuthRedirectBase(): string {
   const env = process.env.CANONICAL_APP_URL?.trim() || process.env.POST_OAUTH_REDIRECT_BASE?.trim();
-  if (env) return env.replace(/\/$/, '');
-  return CANONICAL_APP_URL_DEFAULT;
+  let base = env || CANONICAL_APP_URL_DEFAULT;
+  base = base.replace(/\/$/, '');
+  if (!/^https?:\/\//i.test(base)) base = `https://${base}`;
+  return base;
+}
+
+/** Build post-OAuth redirect path: /v2/location/{locationId}/dashboard or /oauth-success. */
+export function getPostOAuthRedirectPath(redirectTo: string, locationId: string): string {
+  if (redirectTo === '/oauth-success') return '/oauth-success';
+  if (redirectTo === '/dashboard' || !redirectTo || redirectTo === '/') {
+    return `/v2/location/${locationId}/dashboard`;
+  }
+  if (redirectTo.startsWith('/v2/location/')) return redirectTo;
+  return `/v2/location/${locationId}${redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`}`;
 }
 
 /**

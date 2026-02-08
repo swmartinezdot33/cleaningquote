@@ -1,14 +1,15 @@
 /**
- * OAuth callback for marketplace app install
- * Exchanges authorization code for tokens, stores by locationId for future iframe lookups.
- * When state contains orgId, links location to org (Supabase user flow).
- * Otherwise creates GHL session (standalone marketplace install).
+ * OAuth callback for marketplace app install.
+ * GHL is configured to use this URL (e.g. https://www.cleanquote.io/api/auth/connect/callback).
+ * Exchanges code for tokens, stores by locationId, sets session cookie, then redirects to
+ * canonical app URL (e.g. my.cleanquote.io) with shared cookie domain so the user lands in the right place.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { storeInstallation } from '@/lib/ghl/token-store';
-import { createSessionToken, setSessionCookie } from '@/lib/ghl/session';
+import { createSessionToken } from '@/lib/ghl/session';
 import { setOrgGHLOAuth } from '@/lib/config/store';
+import { getPostOAuthRedirectBase, getPostOAuthRedirectPath } from '@/lib/ghl/oauth-utils';
 
 const TOKEN_URL = 'https://services.leadconnectorhq.com/oauth/token';
 const API_BASE = 'https://services.leadconnectorhq.com';
@@ -194,12 +195,42 @@ export async function GET(request: NextRequest) {
 
     if (orgId) {
       await setOrgGHLOAuth(orgId, locationId);
-      return NextResponse.redirect(new URL(redirectTo, request.url));
     }
 
+    // Redirect to canonical app URL (e.g. my.cleanquote.io/v2/location/LOCATIONID/dashboard)
+    const postAuthBase = getPostOAuthRedirectBase();
+    const path = getPostOAuthRedirectPath(redirectTo, locationId);
+    const targetUrl = new URL(path, postAuthBase);
+    if (path === '/oauth-success') targetUrl.searchParams.set('locationId', locationId);
+
     const sessionToken = await createSessionToken({ locationId, companyId, userId });
-    await setSessionCookie(sessionToken);
-    return NextResponse.redirect(new URL(redirectTo, request.url));
+    const redirectResponse = NextResponse.redirect(targetUrl.toString());
+
+    const cookieOptions: { httpOnly: boolean; secure: boolean; sameSite: 'lax' | 'none'; maxAge: number; path: string; domain?: string } = {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      maxAge: 7 * 24 * 60 * 60,
+      path: '/',
+    };
+    try {
+      const redirectHost = new URL(postAuthBase).hostname;
+      const callbackHost = request.headers.get('host')?.split(':')[0] ?? '';
+      const parts = redirectHost.split('.');
+      if (parts.length >= 3 && redirectHost !== 'localhost' && !redirectHost.startsWith('127.')) {
+        const parentDomain = parts.slice(-2).join('.');
+        if (callbackHost.endsWith(parentDomain) || callbackHost === parentDomain) {
+          cookieOptions.domain = parentDomain;
+        }
+      }
+      if (!cookieOptions.domain && callbackHost && callbackHost !== 'localhost' && !callbackHost.startsWith('127.')) {
+        cookieOptions.domain = callbackHost;
+      }
+    } catch {
+      /* ignore */
+    }
+    redirectResponse.cookies.set('ghl_session', sessionToken, cookieOptions);
+    return redirectResponse;
   } catch (err) {
     console.error('OAuth callback error:', err);
     return NextResponse.redirect(

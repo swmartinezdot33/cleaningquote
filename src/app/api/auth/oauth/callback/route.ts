@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { storeInstallation, getInstallation } from '@/lib/ghl/token-store';
 import { createSessionToken } from '@/lib/ghl/session';
 import { setOrgGHLOAuth } from '@/lib/config/store';
-import { getAppBaseUrl, getRedirectUri, getPostOAuthRedirectBase } from '@/lib/ghl/oauth-utils';
+import { getAppBaseUrl, getRedirectUri, getPostOAuthRedirectBase, getPostOAuthRedirectPath } from '@/lib/ghl/oauth-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -345,25 +345,19 @@ export async function GET(request: NextRequest) {
     const sessionToken = await createSessionToken({ locationId: finalLocationId, companyId, userId });
     console.log('[CQ Callback] STEP 7c — session token created', { sessionTokenLength: sessionToken?.length ?? 0 });
 
-    // Always send user to canonical app URL (e.g. my.cleanquote.io) so new-window callback lands in the right place
+    // Always send user to canonical app URL (e.g. my.cleanquote.io/v2/location/LOCATIONID/dashboard)
     const postAuthBase = getPostOAuthRedirectBase();
-    let targetUrl: string;
-    if (redirectTo === '/oauth-success') {
-      console.log('[CQ Callback] STEP 8 — redirect branch: oauth-success', { postAuthBase });
-      const u = new URL('/oauth-success', postAuthBase);
+    const path = getPostOAuthRedirectPath(redirectTo, finalLocationId);
+    const u = new URL(path, postAuthBase);
+    if (path === '/oauth-success') {
+      u.searchParams.set('locationId', finalLocationId);
       u.searchParams.set('success', 'oauth_installed');
-      u.searchParams.set('locationId', finalLocationId);
-      targetUrl = u.toString();
-    } else {
-      console.log('[CQ Callback] STEP 8 — redirect branch: state.redirect', { redirectTo, postAuthBase });
-      const u = new URL(redirectTo, postAuthBase);
-      u.searchParams.set('locationId', finalLocationId);
-      targetUrl = u.toString();
     }
+    const targetUrl = u.toString();
 
     if (orgId) await setOrgGHLOAuth(orgId, finalLocationId);
 
-    console.log('[CQ Callback] STEP 8 — SUCCESS', { targetUrl, locationId: finalLocationId?.slice(0, 12) + '...' });
+    console.log('[CQ Callback] STEP 8 — SUCCESS redirect to canonical URL', { targetUrl, postAuthBase, locationId: finalLocationId?.slice(0, 12) + '...' });
 
     if (orgId) {
       console.log('[CQ Callback] STEP 8a — setOrgGHLOAuth', { orgId, locationId: finalLocationId?.slice(0, 12) + '...' });
@@ -378,9 +372,21 @@ export async function GET(request: NextRequest) {
       path: '/',
     };
     try {
-      const baseHost = new URL(APP_BASE).hostname;
-      if (baseHost && baseHost !== 'localhost' && !baseHost.startsWith('127.')) {
-        cookieOptions.domain = baseHost;
+      // Use shared parent domain so cookie works on both callback host (GHL subdomain) and redirect host (e.g. my.cleanquote.io)
+      const redirectHost = new URL(postAuthBase).hostname;
+      const callbackHost = request.headers.get('host')?.split(':')[0] ?? '';
+      const parts = redirectHost.split('.');
+      if (parts.length >= 3 && redirectHost !== 'localhost' && !redirectHost.startsWith('127.')) {
+        const parentDomain = parts.slice(-2).join('.');
+        if (callbackHost.endsWith(parentDomain) || callbackHost === parentDomain) {
+          cookieOptions.domain = parentDomain;
+        }
+      }
+      if (!cookieOptions.domain) {
+        const baseHost = new URL(APP_BASE).hostname;
+        if (baseHost && baseHost !== 'localhost' && !baseHost.startsWith('127.')) {
+          cookieOptions.domain = baseHost;
+        }
       }
     } catch {
       /* ignore */

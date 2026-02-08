@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Users, Loader2, TrendingUp } from 'lucide-react';
+import { Users, Loader2, TrendingUp, CheckCircle, RefreshCw } from 'lucide-react';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 import { getGHLMarketplaceAppUrl } from '@/lib/ghl/oauth-utils';
 
@@ -28,6 +28,17 @@ interface Stats {
   }>;
 }
 
+interface VerifyResult {
+  ok: boolean;
+  hasToken?: boolean;
+  hasLocationId?: boolean;
+  ghlCallOk?: boolean;
+  reason?: string;
+  message?: string;
+  locationId?: string;
+  contactsSample?: number;
+}
+
 const STAGES = ['lead', 'quoted', 'booked', 'customer', 'churned'] as const;
 
 export default function CRMDashboardPage() {
@@ -37,23 +48,49 @@ export default function CRMDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [needsConnect, setNeedsConnect] = useState(false);
+  const [verify, setVerify] = useState<VerifyResult | null>(null);
+  const [testingConnection, setTestingConnection] = useState(false);
+
+  const runVerify = useCallback(async () => {
+    setTestingConnection(true);
+    try {
+      const url = effectiveLocationId
+        ? `/api/dashboard/ghl/verify?locationId=${effectiveLocationId}`
+        : '/api/dashboard/ghl/verify';
+      const r = await fetch(url);
+      const data = await r.json();
+      setVerify(data);
+    } catch (e) {
+      setVerify({ ok: false, message: e instanceof Error ? e.message : 'Verify request failed' });
+    } finally {
+      setTestingConnection(false);
+    }
+  }, [effectiveLocationId]);
 
   const locationSuffix = effectiveLocationId ? `&locationId=${effectiveLocationId}` : '';
 
   useEffect(() => {
-    const statsUrl = effectiveLocationId
-      ? `/api/dashboard/crm/stats?locationId=${effectiveLocationId}`
-      : '/api/dashboard/crm/stats';
+    if (!effectiveLocationId) {
+      fetch('/api/dashboard/ghl/verify')
+        .then((res) => res.json())
+        .then(setVerify)
+        .catch(() => setVerify({ ok: false, message: 'No location ID' }))
+        .finally(() => setLoading(false));
+      return;
+    }
+    const statsUrl = `/api/dashboard/crm/stats?locationId=${effectiveLocationId}`;
     Promise.all([
       fetch(statsUrl).then((r) => (r.ok ? r.json() : null)),
+      fetch(`/api/dashboard/ghl/verify?locationId=${effectiveLocationId}`).then((res) => res.json()),
       ...STAGES.map((stage) =>
         fetch(`/api/dashboard/crm/contacts?stage=${stage}&perPage=20${locationSuffix}`).then((r) =>
           r.ok ? r.json() : { contacts: [] }
         )
       ),
     ])
-      .then(([statsRes, ...stageRes]) => {
+      .then(([statsRes, verifyRes, ...stageRes]) => {
         setStats(statsRes ?? { counts: {}, total: 0, recentActivities: [] });
+        setVerify(verifyRes);
         setNeedsConnect(!!(statsRes as { needsConnect?: boolean })?.needsConnect);
         const byStage: Record<string, Contact[]> = {};
         STAGES.forEach((s, i) => {
@@ -81,7 +118,39 @@ export default function CRMDashboardPage() {
     );
   }
 
-  if (needsConnect && effectiveLocationId) {
+  const connectionOk = verify?.ok === true;
+  const showConnectCTA = (needsConnect || !connectionOk) && effectiveLocationId;
+  const noLocation = !effectiveLocationId && !loading;
+
+  if (noLocation) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-foreground">CRM Pipeline</h1>
+        <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-6 text-amber-800 dark:text-amber-200">
+          <p className="font-medium">No location context</p>
+          <p className="mt-2 text-sm">
+            Open CleanQuote from your GoHighLevel dashboard (sub-account) or complete OAuth so we have your location and can call the GHL API.
+          </p>
+          {verify && !verify.ok && (
+            <p className="mt-2 text-xs font-mono text-amber-700 dark:text-amber-300">
+              {verify.reason ?? 'unknown'} — {verify.message ?? ''}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={runVerify}
+            disabled={testingConnection}
+            className="mt-4 inline-flex items-center gap-2 rounded-md border border-amber-600 px-4 py-2 text-sm font-medium hover:bg-amber-500/20 disabled:opacity-50"
+          >
+            {testingConnection ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Test connection
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (showConnectCTA) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-foreground">CRM Pipeline</h1>
@@ -90,12 +159,28 @@ export default function CRMDashboardPage() {
           <p className="mt-2 text-sm">
             This location needs a one-time connection. Click below to authorize CleanQuote to access your CRM data.
           </p>
-          <a
-            href={getGHLMarketplaceAppUrl()}
-            className="mt-4 inline-block rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
-          >
-            Connect via OAuth
-          </a>
+          {verify && (
+            <p className="mt-2 text-xs font-mono text-amber-700 dark:text-amber-300">
+              Status: {verify.reason ?? 'unknown'} — {verify.message ?? ''}
+            </p>
+          )}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <a
+              href={getGHLMarketplaceAppUrl()}
+              className="inline-block rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+            >
+              Connect via OAuth
+            </a>
+            <button
+              type="button"
+              onClick={runVerify}
+              disabled={testingConnection || !effectiveLocationId}
+              className="inline-flex items-center gap-2 rounded-md border border-amber-600 bg-transparent px-4 py-2 text-sm font-medium text-amber-800 dark:text-amber-200 hover:bg-amber-500/20 disabled:opacity-50"
+            >
+              {testingConnection ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Test connection
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -103,6 +188,25 @@ export default function CRMDashboardPage() {
 
   return (
     <div className="space-y-8">
+      {/* Connection status: we have locationId + token and GHL API works */}
+      {verify?.ok && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-800 dark:text-green-200">
+          <span className="inline-flex items-center gap-2 font-medium">
+            <CheckCircle className="h-5 w-5" />
+            Connected: location and token verified, GHL API OK
+          </span>
+          <button
+            type="button"
+            onClick={runVerify}
+            disabled={testingConnection}
+            className="inline-flex items-center gap-1.5 rounded border border-green-600/50 px-2.5 py-1 text-xs hover:bg-green-500/20 disabled:opacity-50"
+          >
+            {testingConnection ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            Test again
+          </button>
+        </div>
+      )}
+
       <div>
         <h1 className="text-2xl font-bold text-foreground">CRM Pipeline</h1>
         <p className="mt-1 text-sm text-muted-foreground">
