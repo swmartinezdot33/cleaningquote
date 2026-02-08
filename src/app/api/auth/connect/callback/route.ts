@@ -330,16 +330,26 @@ export async function GET(request: NextRequest) {
     const companyId = data.companyId ?? data.company_id ?? '';
     const userId = data.userId ?? data.user_id ?? '';
 
-    // 1) Token response (GHL returns locationId when sub-account user installs). 2) JWT payload. 3) State (iframe location when token is Company-level). 4) /locations/ API.
-    let locationId: string | null =
-      data.locationId ??
-      data.location_id ??
-      data.location?.id ??
-      data.resource_id ??
-      null;
-    let locationSource: 'token' | 'jwt' | 'state' | 'api' = 'token';
-    if (locationId) {
-      console.log(LOG, 'locationId from token response', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
+    // Prefer state (iframe location) when present — user clicked Connect from a specific location, so store under that id. Then token, JWT, API.
+    let locationId: string | null = null;
+    let locationSource: 'state' | 'token' | 'jwt' | 'api' = 'token';
+    if (locationIdFromState) {
+      locationId = locationIdFromState;
+      locationSource = 'state';
+      // #region agent log
+      debugIngest('using locationId from state (iframe)', { locationIdFromState: locationId, hypothesisId: 'H4' });
+      // #endregion
+      console.log(LOG, 'Using locationId from state (iframe where user clicked Connect)', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
+    }
+    if (!locationId) {
+      locationId =
+        data.locationId ??
+        data.location_id ??
+        data.location?.id ??
+        data.resource_id ??
+        null;
+      if (locationId) locationSource = 'token';
+      if (locationId) console.log(LOG, 'locationId from token response', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
     }
     if (!locationId && data.access_token) {
       const jwtLocationId = getLocationIdFromJwt(data.access_token);
@@ -348,14 +358,6 @@ export async function GET(request: NextRequest) {
         locationId = jwtLocationId;
         locationSource = 'jwt';
       }
-    }
-    if (!locationId && locationIdFromState) {
-      locationId = locationIdFromState;
-      locationSource = 'state';
-      // #region agent log
-      debugIngest('using locationId from state (H4)', { locationIdFromState: locationId, hypothesisId: 'H4' });
-      // #endregion
-      console.log(LOG, 'Using locationId from state (token had no locationId — likely Company-level install)', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
     }
     if (!locationId && data.access_token) {
       console.log(LOG, 'Fetching /locations/ API fallback (first location in list)');
