@@ -18,6 +18,8 @@ export interface GHLInstallation {
   companyId: string;
   userId: string;
   locationId: string;
+  /** Location/company display name (fetched from GHL after install). */
+  companyName?: string;
 }
 
 function key(locationId: string): string {
@@ -189,6 +191,7 @@ async function refreshAccessToken(
       companyId: data.companyId ?? install.companyId,
       userId: data.userId ?? install.userId,
       locationId: data.locationId ?? locationId,
+      companyName: install.companyName,
     };
 
     await storeInstallation(updated);

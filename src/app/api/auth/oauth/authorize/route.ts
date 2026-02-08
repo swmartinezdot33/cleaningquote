@@ -125,8 +125,8 @@ export async function GET(request: NextRequest) {
     }
     const finalAuthUrl = `${oauthBaseUrl}?${params.toString()}&scope=${encodedScopes}`;
 
-    if (!redirectUri.includes('/api/auth/oauth/callback')) {
-      console.error('[OAuth Authorize] ⚠️  WARNING: Redirect URI does not contain /api/auth/oauth/callback');
+    if (!redirectUri.includes('/api/auth/connect/callback') && !redirectUri.includes('/api/auth/oauth/callback')) {
+      console.error('[OAuth Authorize] ⚠️  WARNING: Redirect URI should be /api/auth/connect/callback (or oauth/callback)');
       console.error('[OAuth Authorize] Make sure GHL_REDIRECT_URI matches your GHL marketplace app settings');
     }
 

@@ -36,6 +36,7 @@ interface VerifyResult {
   reason?: string;
   message?: string;
   locationId?: string;
+  companyName?: string;
   contactsSample?: number;
 }
 
@@ -203,7 +204,11 @@ export default function CRMDashboardPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-800 dark:text-green-200">
           <span className="inline-flex items-center gap-2 font-medium">
             <CheckCircle className="h-5 w-5" />
-            Connected: location and token verified, GHL API OK
+            {verify.companyName ? (
+              <>Connected: {verify.companyName} — location and token verified, GHL API OK</>
+            ) : (
+              <>Connected: location and token verified, GHL API OK</>
+            )}
           </span>
           <button
             type="button"

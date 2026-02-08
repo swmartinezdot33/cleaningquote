@@ -9,7 +9,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { storeInstallation } from '@/lib/ghl/token-store';
 import { createSessionToken } from '@/lib/ghl/session';
 import { setOrgGHLOAuth } from '@/lib/config/store';
-import { getPostOAuthRedirectBase, getPostOAuthRedirectPath } from '@/lib/ghl/oauth-utils';
+import { getRedirectUri, getPostOAuthRedirectBase, getPostOAuthRedirectPath } from '@/lib/ghl/oauth-utils';
+import { fetchLocationName } from '@/lib/ghl/location-info';
 
 const TOKEN_URL = 'https://services.leadconnectorhq.com/oauth/token';
 const API_BASE = 'https://services.leadconnectorhq.com';
@@ -101,10 +102,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // redirect_uri must EXACTLY match GHL app config
-  const redirectUri = process.env.GHL_REDIRECT_URI?.trim();
-  if (!redirectUri) {
-    console.error('OAuth: GHL_REDIRECT_URI must be set to match GHL app Redirect URI exactly');
+  // redirect_uri must EXACTLY match GHL app config (use connect/callback)
+  const redirectUri = getRedirectUri();
+  if (!redirectUri || !redirectUri.includes('/api/auth/')) {
+    console.error('OAuth: GHL_REDIRECT_URI must be set to match GHL app Redirect URI (e.g. https://www.cleanquote.io/api/auth/connect/callback)');
     return NextResponse.redirect(
       new URL('/login?error=server_config&message=GHL_REDIRECT_URI+not+configured', request.url)
     );
@@ -184,6 +185,8 @@ export async function GET(request: NextRequest) {
 
     const expiresAt = Date.now() + (data.expires_in ?? 86400) * 1000;
 
+    const companyName = await fetchLocationName(data.access_token, locationId);
+
     await storeInstallation({
       accessToken: data.access_token,
       refreshToken: data.refresh_token ?? '',
@@ -191,6 +194,7 @@ export async function GET(request: NextRequest) {
       companyId,
       userId,
       locationId,
+      companyName: companyName ?? undefined,
     });
 
     if (orgId) {

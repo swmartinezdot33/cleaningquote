@@ -3,6 +3,7 @@ import { resolveGHLContext } from '@/lib/ghl/api-context';
 import { getSession } from '@/lib/ghl/session';
 import { getLocationIdFromRequest } from '@/lib/request-utils';
 import { listGHLContacts } from '@/lib/ghl/client';
+import { getInstallation } from '@/lib/ghl/token-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,19 +48,19 @@ export async function GET(request: NextRequest) {
         message,
       });
     }
-    // We have token + locationId; verify with a minimal GHL API call (same as CRM)
+    // We have token + locationId (from KV lookup by locationId); verify with a minimal GHL API call (same as CRM)
     try {
-      const { contacts } = await listGHLContacts(
-        ctx.locationId,
-        { limit: 1 },
-        { token: ctx.token, locationId: ctx.locationId }
-      );
+      const [install, { contacts }] = await Promise.all([
+        getInstallation(ctx.locationId),
+        listGHLContacts(ctx.locationId, { limit: 1 }, { token: ctx.token, locationId: ctx.locationId }),
+      ]);
       return NextResponse.json({
         ok: true,
         hasToken: true,
         hasLocationId: true,
         ghlCallOk: true,
         locationId: ctx.locationId,
+        companyName: install?.companyName ?? undefined,
         message: 'Token and GHL API OK. Connection verified.',
         contactsSample: Array.isArray(contacts) ? contacts.length : 0,
       });

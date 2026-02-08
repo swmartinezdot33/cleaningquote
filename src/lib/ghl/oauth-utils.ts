@@ -45,17 +45,16 @@ export function getPostOAuthRedirectPath(redirectTo: string, locationId: string)
   return `/v2/location/${locationId}${redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`}`;
 }
 
+/** Canonical GHL OAuth callback URL — must match GHL Marketplace App → Redirect URI exactly. */
+export const GHL_CALLBACK_URL_CANONICAL = 'https://www.cleanquote.io/api/auth/connect/callback';
+
 /**
  * Redirect URI for OAuth — must match GHL Marketplace config.
- * Normalizes connect/callback → oauth/callback so both work.
- * Use this in authorize, callback, AND token refresh.
+ * Use connect/callback; set GHL_REDIRECT_URI to this URL in env and in GHL Marketplace.
+ * Used in authorize, connect/callback, oauth/callback, and token refresh.
  */
 export function getRedirectUri(baseUrl?: string): string {
-  const base = baseUrl ?? getAppBaseUrl();
   const env = process.env.GHL_REDIRECT_URI?.trim();
-  if (env && env.includes('/api/auth/')) {
-    const normalized = env.replace(/\/api\/auth\/connect\/callback\/?$/i, '/api/auth/oauth/callback');
-    return normalized.startsWith('http') ? normalized : `${base}${normalized.startsWith('/') ? '' : '/'}${normalized}`;
-  }
-  return env || `${base}/api/auth/oauth/callback`;
+  if (env) return env.startsWith('http') ? env : `${baseUrl ?? getAppBaseUrl()}${env.startsWith('/') ? '' : '/'}${env}`;
+  return GHL_CALLBACK_URL_CANONICAL;
 }

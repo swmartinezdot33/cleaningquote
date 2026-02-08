@@ -38,7 +38,7 @@ No UI here; redirect only. Same idea as template “after install redirect” bu
     - `redirect` (e.g. `/dashboard`; default in callback is `/dashboard`) so callback knows where to send user.
 - Responds with **302** to that GHL URL. No UI; redirect only.
 
-## 4. Callback (`GET /api/auth/oauth/callback`)
+## 4. Callback (`GET /api/auth/connect/callback` — canonical; `/api/auth/oauth/callback` also supported)
 
 - Query params from GHL: `code`, `state`; optional `error`, `locationId`.
 - If `error` → redirect to `/oauth-success?error=...&error_description=...`.
@@ -53,7 +53,8 @@ No UI here; redirect only. Same idea as template “after install redirect” bu
   3. From **query** → `locationId`.
   4. If still missing → GET `https://services.leadconnectorhq.com/locations/` with Bearer token, take first location id.
 - **Store installation** by **locationId** (template stores by locationId or companyId; we key by locationId for iframe):
-  - Persist in KV: `ghl:install:{locationId}` with access_token, refresh_token, expires_at, companyId, userId, locationId. This is the source of truth for future lookup: session verification, `getTokenForLocation`, and token refresh all read from KV.
+  - Fetch location/company name from GHL (`GET /locations/:locationId`) for display in the UI.
+  - Persist in KV: `ghl:install:{locationId}` with access_token, refresh_token, expires_at, companyId, userId, locationId, companyName. This is the source of truth for future lookup: **every time a user loads with a locationId**, the app uses this KV lookup to get the token (and optional companyName) for GHL API calls (contacts, stats, etc.). Session verification, `getTokenForLocation`, and token refresh all read from KV.
   - On failure → redirect to `/oauth-success?error=storage_failed&error_description=...` (no cookie, no success).
   - Callback verifies read-back from KV after write and logs `[CQ Callback] STEP 7a — KV verify OK` when tokens are readable.
 - **Session cookie**:

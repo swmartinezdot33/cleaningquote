@@ -3,6 +3,7 @@ import { storeInstallation, getInstallation } from '@/lib/ghl/token-store';
 import { createSessionToken } from '@/lib/ghl/session';
 import { setOrgGHLOAuth } from '@/lib/config/store';
 import { getAppBaseUrl, getRedirectUri, getPostOAuthRedirectBase, getPostOAuthRedirectPath } from '@/lib/ghl/oauth-utils';
+import { fetchLocationName } from '@/lib/ghl/location-info';
 
 export const dynamic = 'force-dynamic';
 
@@ -298,6 +299,8 @@ export async function GET(request: NextRequest) {
 
     const expiresAt = tokenData.expires_in ? Date.now() + tokenData.expires_in * 1000 : Date.now() + 86400 * 1000;
 
+    const companyName = await fetchLocationName(tokenData.access_token, finalLocationId);
+
     console.log('[CQ Callback] STEP 7 — storing to KV', {
       locationId: finalLocationId?.slice(0, 12) + '...',
       hasAccessToken: !!tokenData.access_token,
@@ -305,6 +308,7 @@ export async function GET(request: NextRequest) {
       expiresAt: new Date(expiresAt).toISOString(),
       companyId: (tokenData.companyId ?? tokenData.company_id ?? '').slice(0, 8) + '...',
       userId: (tokenData.userId ?? tokenData.user_id ?? '').slice(0, 8) + '...',
+      companyName: companyName ?? null,
     });
     try {
       await storeInstallation({
@@ -314,6 +318,7 @@ export async function GET(request: NextRequest) {
         expiresAt,
         companyId: tokenData.companyId ?? tokenData.company_id ?? '',
         userId: tokenData.userId ?? tokenData.user_id ?? '',
+        companyName: companyName ?? undefined,
       });
       console.log('[CQ Callback] STEP 7 — storeInstallation() returned (no throw)');
     } catch (storeErr) {

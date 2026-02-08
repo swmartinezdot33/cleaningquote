@@ -2,16 +2,16 @@
 
 The iframe app auth process (authorize → callback → storage → app launch → iframe context) is defined in **GHL_IFRAME_APP_AUTH.md** and matches the official GHL marketplace template + OAuth 2.0.
 
-**Note:** If `GHL_REDIRECT_URI` was previously set to `connect/callback`, the code now normalizes it to `oauth/callback` so both will work. GHL Marketplace must have `oauth/callback` registered.
+**Callback URL:** Use `https://www.cleanquote.io/api/auth/connect/callback` everywhere (GHL Marketplace, `GHL_REDIRECT_URI`, and install links).
 
 ## Required: GHL Marketplace App Config
 
 1. Go to GHL Marketplace → Your App → Settings
 2. Set **Redirect URI** to exactly:
    ```
-   https://www.cleanquote.io/api/auth/oauth/callback
+   https://www.cleanquote.io/api/auth/connect/callback
    ```
-   (Use your production domain; must match `GHL_REDIRECT_URI` in env.)
+   (Must match `GHL_REDIRECT_URI` in env.)
 
 3. Get your **Client ID**, **Client Secret**, and **Shared Secret** (SSO key).
 
@@ -20,7 +20,7 @@ The iframe app auth process (authorize → callback → storage → app launch �
 ```bash
 GHL_CLIENT_ID=your_client_id
 GHL_CLIENT_SECRET=your_client_secret
-GHL_REDIRECT_URI=https://www.cleanquote.io/api/auth/oauth/callback
+GHL_REDIRECT_URI=https://www.cleanquote.io/api/auth/connect/callback
 GHL_APP_SSO_KEY=your_shared_secret
 APP_BASE_URL=https://www.cleanquote.io
 ```
