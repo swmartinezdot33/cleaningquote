@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Users, Loader2, TrendingUp } from 'lucide-react';
+import { useGHLIframe } from '@/lib/ghl-iframe-context';
 
 interface Contact {
   id: string;
@@ -29,16 +30,19 @@ interface Stats {
 const STAGES = ['lead', 'quoted', 'booked', 'customer', 'churned'] as const;
 
 export default function CRMDashboardPage() {
+  const { ghlData } = useGHLIframe();
   const [stats, setStats] = useState<Stats | null>(null);
   const [contactsByStage, setContactsByStage] = useState<Record<string, Contact[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const locationSuffix = ghlData?.locationId ? `&locationId=${ghlData.locationId}` : '';
+
   useEffect(() => {
     Promise.all([
-      fetch('/api/dashboard/crm/stats').then((r) => (r.ok ? r.json() : null)),
+      fetch(`/api/dashboard/crm/stats${ghlData?.locationId ? `?locationId=${ghlData.locationId}` : ''}`).then((r) => (r.ok ? r.json() : null)),
       ...STAGES.map((stage) =>
-        fetch(`/api/dashboard/crm/contacts?stage=${stage}&perPage=20`).then((r) =>
+        fetch(`/api/dashboard/crm/contacts?stage=${stage}&perPage=20${locationSuffix}`).then((r) =>
           r.ok ? r.json() : { contacts: [] }
         )
       ),
@@ -53,7 +57,7 @@ export default function CRMDashboardPage() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [ghlData?.locationId]);
 
   if (loading) {
     return (

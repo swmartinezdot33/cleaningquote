@@ -4,6 +4,8 @@ import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { getOrgsForDashboard } from '@/lib/org-auth';
 import { getSession } from '@/lib/ghl/session';
 import { getGHLCredentials } from '@/lib/ghl/credentials';
+import { getTokenForLocation } from '@/lib/ghl/token-store';
+import { getLocationIdFromRequest } from '@/lib/request-utils';
 import { listGHLContacts } from '@/lib/ghl/client';
 
 export const dynamic = 'force-dynamic';
@@ -23,46 +25,57 @@ function mapGHLContactToCRM(ghl: any): { id: string; first_name: string | null; 
   };
 }
 
+async function fetchContactsFromGHL(locationId: string, token: string, searchParams: URLSearchParams) {
+  const stage = searchParams.get('stage');
+  const search = searchParams.get('search')?.trim();
+  const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
+  const perPage = Math.min(100, Math.max(1, parseInt(searchParams.get('perPage') ?? '25', 10)));
+  const fetchLimit = (stage || search) ? 500 : perPage * 3;
+  const { contacts: ghlContacts } = await listGHLContacts(
+    locationId,
+    { limit: fetchLimit },
+    { token, locationId }
+  );
+  let mapped = ghlContacts.map(mapGHLContactToCRM);
+  if (stage && ['lead', 'quoted', 'booked', 'customer', 'churned'].includes(stage)) {
+    mapped = mapped.filter((c) => c.stage === stage);
+  }
+  if (search) {
+    const term = search.toLowerCase();
+    mapped = mapped.filter((c) => {
+      const s = [c.first_name, c.last_name, c.email, c.phone].filter(Boolean).join(' ').toLowerCase();
+      return s.includes(term);
+    });
+  }
+  const start = (page - 1) * perPage;
+  const paginated = mapped.slice(start, start + perPage);
+  return { contacts: paginated, total: mapped.length, page, perPage };
+}
+
 /** GET /api/dashboard/crm/contacts - list contacts for selected org or GHL location */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
+    // 1) locationId from query/header (GHL iframe flow - client passes from GHL context)
+    const requestLocationId = getLocationIdFromRequest(request);
+    if (requestLocationId) {
+      const token = await getTokenForLocation(requestLocationId);
+      if (token) {
+        const { searchParams } = new URL(request.url);
+        const result = await fetchContactsFromGHL(requestLocationId, token, searchParams);
+        return NextResponse.json(result);
+      }
+      return NextResponse.json({ contacts: [], total: 0 });
+    }
 
+    const session = await getSession();
     if (session) {
       const credentials = await getGHLCredentials({ session });
       if (!credentials.token || !credentials.locationId) {
         return NextResponse.json({ contacts: [], total: 0 });
       }
       const { searchParams } = new URL(request.url);
-      const stage = searchParams.get('stage');
-      const search = searchParams.get('search')?.trim();
-      const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
-      const perPage = Math.min(100, Math.max(1, parseInt(searchParams.get('perPage') ?? '25', 10)));
-      const fetchLimit = (stage || search) ? 500 : perPage * 3;
-      const { contacts: ghlContacts } = await listGHLContacts(
-        credentials.locationId,
-        { limit: fetchLimit },
-        credentials
-      );
-      let mapped = ghlContacts.map(mapGHLContactToCRM);
-      if (stage && ['lead', 'quoted', 'booked', 'customer', 'churned'].includes(stage)) {
-        mapped = mapped.filter((c) => c.stage === stage);
-      }
-      if (search) {
-        const term = search.toLowerCase();
-        mapped = mapped.filter((c) => {
-          const s = [c.first_name, c.last_name, c.email, c.phone].filter(Boolean).join(' ').toLowerCase();
-          return s.includes(term);
-        });
-      }
-      const start = (page - 1) * perPage;
-      const paginated = mapped.slice(start, start + perPage);
-      return NextResponse.json({
-        contacts: paginated,
-        total: mapped.length,
-        page,
-        perPage,
-      });
+      const result = await fetchContactsFromGHL(credentials.locationId, credentials.token, searchParams);
+      return NextResponse.json(result);
     }
 
     const supabase = await createSupabaseServerSSR();

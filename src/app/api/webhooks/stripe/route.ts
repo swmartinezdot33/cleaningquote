@@ -425,14 +425,14 @@ export async function POST(request: NextRequest) {
         // Create GHL sub-account when agency credentials are configured (Stripe purchase → GHL)
         const ghlResult = await createGHLSubAccount({
           name: orgName || fullName || email.split('@')[0],
-          email: emailNorm,
+          email,
           phone: undefined,
           firstName: fullName?.split(/\s+/)[0],
           lastName: fullName?.split(/\s+/).slice(1).join(' '),
           stripeCustomerId: customerId,
         });
         if (ghlResult.success && ghlResult.locationId) {
-          console.log('Stripe webhook: GHL sub-account created', { email: emailNorm, locationId: ghlResult.locationId });
+          console.log('Stripe webhook: GHL sub-account created', { email, locationId: ghlResult.locationId });
           try {
             const { getKV } = await import('@/lib/kv');
             const kv = getKV();
@@ -441,7 +441,7 @@ export async function POST(request: NextRequest) {
             console.warn('Stripe webhook: could not store GHL location mapping in KV', kvErr);
           }
         } else if (process.env.GHL_AGENCY_ACCESS_TOKEN) {
-          console.warn('Stripe webhook: GHL sub-account creation failed', { email: emailNorm, error: ghlResult.error });
+          console.warn('Stripe webhook: GHL sub-account creation failed', { email, error: ghlResult.error });
         }
 
         console.log('Stripe webhook: creating user and org', { email, customerId, subscriptionId, subscriptionStatus });

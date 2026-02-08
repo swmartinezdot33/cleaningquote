@@ -4,6 +4,7 @@ import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { getOrgsForDashboard, isSuperAdminEmail, orgHasActiveAccess } from '@/lib/org-auth';
 import { getSession } from '@/lib/ghl/session';
 import { DashboardHeader } from '@/app/dashboard/DashboardHeader';
+import { DashboardGHLWrapper } from '@/app/dashboard/DashboardGHLWrapper';
 
 export default async function DashboardLayout({
   children,
@@ -17,7 +18,7 @@ export default async function DashboardLayout({
   const ghlSession = await getSession();
 
   if (ghlSession) {
-    // Marketplace session (OAuth install) — minimal layout for location-scoped access
+    // Marketplace session (OAuth install) — GHL iframe context provides locationId for API calls
     return (
       <div className="min-h-screen bg-muted/30">
         <DashboardHeader
@@ -28,7 +29,9 @@ export default async function DashboardLayout({
           isSuperAdmin={false}
           ghlSession={ghlSession}
         />
-        <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 overflow-x-hidden">{children}</main>
+        <DashboardGHLWrapper>
+          <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 overflow-x-hidden">{children}</main>
+        </DashboardGHLWrapper>
       </div>
     );
   }
@@ -92,7 +95,9 @@ export default async function DashboardLayout({
         userDisplayName={userDisplayName}
         isSuperAdmin={isSuperAdminEmail(user.email ?? undefined)}
       />
-      <main key={selectedOrgId ?? 'none'} className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 overflow-x-hidden">{children}</main>
+      <DashboardGHLWrapper>
+        <main key={selectedOrgId ?? 'none'} className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 overflow-x-hidden">{children}</main>
+      </DashboardGHLWrapper>
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Loader2, Search, Filter } from 'lucide-react';
+import { useGHLIframe } from '@/lib/ghl-iframe-context';
 
 interface Contact {
   id: string;
@@ -15,6 +16,7 @@ interface Contact {
 }
 
 export default function CRMContactsPage() {
+  const { ghlData } = useGHLIframe();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -31,6 +33,7 @@ export default function CRMContactsPage() {
     if (search.trim()) params.set('search', search.trim());
     params.set('page', String(page));
     params.set('perPage', String(perPage));
+    if (ghlData?.locationId) params.set('locationId', ghlData.locationId);
 
     fetch(`/api/dashboard/crm/contacts?${params}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load'))))
@@ -44,7 +47,7 @@ export default function CRMContactsPage() {
 
   useEffect(() => {
     loadContacts();
-  }, [page, filterStage]);
+  }, [page, filterStage, ghlData?.locationId]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
