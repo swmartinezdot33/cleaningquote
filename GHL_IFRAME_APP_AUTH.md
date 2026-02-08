@@ -8,6 +8,14 @@ This document defines the **exact** auth flow for the CleanQuote marketplace app
 - [GHL OAuth 2.0](https://marketplace.gohighlevel.com/docs/Authorization/OAuth2.0): Authorization code flow; token endpoint requires `client_id`, `client_secret`, `grant_type`, `code`, `redirect_uri`.
 - Our iframe flow adds: **chooselocation** (so user picks location), **state** (carries `locationId` + `redirect`), persistent storage (KV), and session cookie so the app works inside the GHL iframe.
 
+### LocationId: same as template / Maid Central
+
+We do it **exactly like the [GHL template](https://github.com/GoHighLevel/ghl-marketplace-app-template)** and Maid Central:
+
+- **Only one locationId** — the one for the app that was just installed. That comes from **GHL’s token response** when we exchange the authorization code.
+- Callback uses **token response first**: `locationId` / `location_id` / `location.id` / `resource_id` from the token JSON. If missing, we fall back to `GET /locations/` with the Bearer token (same as template pattern).
+- We **do not** use state or cookie for locationId. State is only used for `redirect` and `orgId`. There is no “iframe location” override — the location where the app was installed is the one GHL returns in the token.
+
 ---
 
 ## 1. Entry points (who starts the flow)
@@ -47,11 +55,10 @@ No UI here; redirect only. Same idea as template “after install redirect” bu
   - `POST https://services.leadconnectorhq.com/oauth/token`
   - Body (form): `grant_type=authorization_code`, `client_id`, `client_secret`, `code`, **`redirect_uri`** (must match authorize).
   - Parse JSON: `access_token`, `refresh_token`, `expires_in`, `locationId`/`location_id`, `companyId`/`company_id`, `userId`/`user_id`.
-- **Location ID** (same as GHL template: prefer token response; then state/query for iframe; then API):
-  1. From **token response** → `locationId` / `location_id` / `location.id`.
-  2. From **state** (decoded JSON) → `locationId` / `location_id`.
-  3. From **query** → `locationId`.
-  4. If still missing → GET `https://services.leadconnectorhq.com/locations/` with Bearer token, take first location id.
+- **Location ID** (same as GHL template / Maid Central — only the app that was installed):
+  1. From **token response** → `locationId` / `location_id` / `location.id` / `resource_id`. This is the single source of truth.
+  2. If still missing → GET `https://services.leadconnectorhq.com/locations/` with Bearer token, take first location id.
+  - State and query are **not** used for locationId (only for `redirect` and `orgId`).
 - **Store installation** by **locationId** (template stores by locationId or companyId; we key by locationId for iframe):
   - Fetch location/company name from GHL (`GET /locations/:locationId`) for display in the UI.
   - Persist in KV: `ghl:install:{locationId}` with access_token, refresh_token, expires_at, companyId, userId, locationId, companyName. This is the source of truth for future lookup: **every time a user loads with a locationId**, the app uses this KV lookup to get the token (and optional companyName) for GHL API calls (contacts, stats, etc.). Session verification, `getTokenForLocation`, and token refresh all read from KV.

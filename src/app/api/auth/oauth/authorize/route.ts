@@ -131,18 +131,7 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('[CQ Authorize] redirect URL built, redirecting to GHL', { stateKeys: Object.keys(stateData) });
-    const res = NextResponse.redirect(finalAuthUrl);
-    // When GHL shows "Paid apps can only be installed within the platform", user may click Back and install from marketplace — that flow often drops state. Set a short-lived cookie so the callback can still use this locationId.
-    if (locationId) {
-      res.cookies.set('ghl_pending_location_id', locationId, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'lax',
-        maxAge: 600,
-        path: '/',
-      });
-    }
-    return res;
+    return NextResponse.redirect(finalAuthUrl);
   } catch (error) {
     console.error('Error initiating GHL OAuth:', error);
     return NextResponse.json(

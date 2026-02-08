@@ -217,7 +217,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(errorUrl.toString());
     }
 
-    // Resource id for storage — same as GHL template: prefer token response (locationId then companyId), then state/query for iframe, then /locations/ API
+    // Resource id for storage — same as GHL template / Maid Central: token response first (locationId from installed app), then state/query, then /locations/ API
     let locationIdFromState: string | null = null;
     if (state) {
       try {
@@ -238,14 +238,14 @@ export async function GET(request: NextRequest) {
       console.log('[CQ Callback] STEP 5d — no state param');
     }
     const locationIdFromToken = tokenData.locationId || tokenData.location_id || tokenData.location?.id;
-    // Prefer state (iframe flow): user opened OAuth from a specific location, so store under that id so KV lookup matches what the iframe sends.
+    // Same as GHL template / Maid Central: use only locationId from token response (the app that was installed). Then state/query, then /locations/ API.
     let finalLocationId: string | null =
-      locationIdFromState ||
       locationIdFromToken ||
+      locationIdFromState ||
       locationId ||
       null;
 
-    console.log('[CQ Callback] STEP 5e — locationId sources', {
+    console.log('[CQ Callback] STEP 5e — locationId (token first, like template)', {
       locationIdFromToken: locationIdFromToken ?? null,
       locationIdFromState: locationIdFromState ?? null,
       locationIdFromQuery: locationId ?? null,

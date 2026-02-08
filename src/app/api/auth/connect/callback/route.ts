@@ -159,78 +159,40 @@ export async function GET(request: NextRequest) {
   });
   // #endregion
 
-  const locationIdFromQuery =
-    searchParams.get('locationId') ??
-    searchParams.get('location_id') ??
-    searchParams.get('location') ??
-    null;
-
-  let locationIdFromState: string | null = null;
+  // Parse state only for redirect and orgId (template/Maid Central: locationId comes from token response only)
   let redirectTo = '/dashboard';
   let orgId: string | null = null;
-  console.log(LOG, 'State param', { stateLength: stateRaw?.length ?? 0, statePreview: stateRaw ? stateRaw.slice(0, 60) + (stateRaw.length > 60 ? '...' : '') : null });
   if (stateRaw) {
-    const tryParse = (decoded: string): string | null => {
+    const tryParse = (decoded: string): void => {
       try {
         const parsed = JSON.parse(decoded);
-        const id = parsed.locationId ?? parsed.location_id ?? null;
-        if (id) locationIdFromState = id;
         if (parsed.redirect) redirectTo = parsed.redirect;
         if (parsed.orgId) orgId = parsed.orgId;
-        return typeof id === 'string' ? id : null;
       } catch {
-        return null;
+        /* ignore */
       }
     };
-    // Authorize sends state as base64(JSON). GHL may return base64url — try both so we get iframe location for multi-location users
     const base64Standard = stateRaw.replace(/-/g, '+').replace(/_/g, '/');
     try {
-      const decoded = Buffer.from(base64Standard, 'base64').toString('utf-8');
-      const parsedId = tryParse(decoded);
-      if (parsedId) {
-        console.log(LOG, 'State parsed (base64/base64url+JSON)', { locationIdPreview: parsedId.slice(0, 8) + '..' + parsedId.slice(-4) });
-      }
+      tryParse(Buffer.from(base64Standard, 'base64').toString('utf-8'));
     } catch {
-      /* ignore */
-    }
-    if (!locationIdFromState) {
       try {
-        if (tryParse(stateRaw) != null) console.log(LOG, 'State parsed (raw JSON)');
+        tryParse(stateRaw);
       } catch {
         try {
           const state = new URLSearchParams(stateRaw);
-          locationIdFromState = state.get('locationId') ?? state.get('location_id') ?? null;
           const r = state.get('redirect');
           if (r) redirectTo = r;
-          orgId = state.get('orgId');
+          const o = state.get('orgId');
+          if (o) orgId = o;
         } catch {
           /* ignore */
         }
       }
     }
   }
-
-  const PENDING_LOCATION_COOKIE = 'ghl_pending_location_id';
-  let locationId = locationIdFromState ?? locationIdFromQuery ?? null;
-  let usedPendingCookie = false;
-  if (!locationId) {
-    const fromCookie = request.cookies.get(PENDING_LOCATION_COOKIE)?.value?.trim();
-    if (fromCookie) {
-      locationId = fromCookie;
-      usedPendingCookie = true;
-      console.log(LOG, 'Using locationId from pending cookie (state was lost e.g. after GHL "Paid apps" Back + Install)', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
-    }
-  }
-  if (locationIdFromState && locationIdFromQuery && locationIdFromState !== locationIdFromQuery) {
-    console.log(LOG, 'Using locationId from state (iframe) over query', { state: locationIdFromState.slice(0, 8) + '..', query: locationIdFromQuery.slice(0, 8) + '..' });
-  }
   // #region agent log
-  debugIngest('after state parse', {
-    locationIdFromState: locationIdFromState ? locationIdFromState.slice(0, 8) + '..' + locationIdFromState.slice(-4) : null,
-    locationIdFromQuery: locationIdFromQuery ? locationIdFromQuery.slice(0, 8) + '..' : null,
-    locationIdResolved: locationId ? locationId.slice(0, 8) + '..' : null,
-    hypothesisId: 'H1-H2-H4',
-  });
+  debugIngest('after state parse', { redirectTo, hasOrgId: !!orgId, hypothesisId: 'H1-H2-H4' });
   // #endregion
 
   if (error) {
@@ -301,17 +263,17 @@ export async function GET(request: NextRequest) {
     const companyId = data.companyId ?? data.company_id ?? '';
     const userId = data.userId ?? data.user_id ?? '';
 
-    if (!locationId) {
-      locationId =
-        data.locationId ??
-        data.location_id ??
-        data.location?.id ??
-        data.resource_id ??
-        null;
-    }
-
+    // Template/Maid Central: use only locationId from token response (the app that was installed). Fallback: /locations/ API.
+    let locationId: string | null =
+      data.locationId ??
+      data.location_id ??
+      data.location?.id ??
+      data.resource_id ??
+      null;
+    let locationSource: 'token' | 'api' = 'token';
     if (!locationId && data.access_token) {
       locationId = await fetchLocationFromToken(data.access_token, companyId);
+      locationSource = 'api';
     }
 
     if (!locationId) {
@@ -323,17 +285,7 @@ export async function GET(request: NextRequest) {
     }
 
     locationId = locationId.trim();
-    const source = locationIdFromState
-      ? 'state (iframe — this location)'
-      : locationIdFromQuery
-        ? 'query'
-        : usedPendingCookie
-          ? 'pending cookie (state was lost — install via marketplace)'
-          : 'token_or_api';
-    if (source === 'token_or_api') {
-      console.warn(LOG, 'Using locationId from token/API — user may have multiple locations; iframe location was not in state. Always use Connect from the specific location dashboard.');
-    }
-    console.log(LOG, 'locationId resolved for KV storage', { locationId: locationId.slice(0, 8) + '..' + locationId.slice(-4), source });
+    console.log(LOG, 'locationId for KV (from token response, like GHL template)', { locationId: locationId.slice(0, 8) + '..' + locationId.slice(-4), source: locationSource });
 
     const expiresAt = Date.now() + (data.expires_in ?? 86400) * 1000;
 
@@ -356,19 +308,13 @@ export async function GET(request: NextRequest) {
     }
 
     const sessionToken = await createSessionToken({ locationId, companyId, userId });
-    const stateDebug = usedPendingCookie
-      ? 'State in callback: not received (e.g. installed via marketplace after Back). Location came from pending cookie set when you clicked Connect.'
-      : !stateRaw
-        ? 'State in callback: not received — location came from GHL token. Open the app from the specific location in GHL and click Connect there.'
-        : !locationIdFromState
-          ? `State in callback: received (length ${stateRaw.length}) but no locationId parsed. Preview: ${stateRaw.slice(0, 50).replace(/[<>"']/g, '')}...`
-          : 'State in callback: received, locationId from state (this location).';
+    const stateDebug = `Location from GHL token response (${locationSource}), same as template/Maid Central.`;
     const html = htmlSuccess(
       locationId,
       (data.access_token ?? '').length,
       (data.refresh_token ?? '').length,
       companyName ?? undefined,
-      source,
+      locationSource,
       stateDebug
     );
     const response = new NextResponse(html, {
@@ -401,9 +347,6 @@ export async function GET(request: NextRequest) {
       /* ignore */
     }
     response.cookies.set('ghl_session', sessionToken, cookieOptions);
-    if (usedPendingCookie) {
-      response.cookies.set(PENDING_LOCATION_COOKIE, '', { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 0, path: '/' });
-    }
     return response;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
