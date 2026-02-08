@@ -5,16 +5,12 @@ import Link from 'next/link';
 import { Users, Loader2, TrendingUp, CheckCircle, RefreshCw } from 'lucide-react';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 import { useDashboardApi } from '@/lib/dashboard-api';
-import { getGHLMarketplaceAppUrl } from '@/lib/ghl/oauth-utils';
+import { getInstallUrlWithLocation } from '@/lib/ghl/oauth-utils';
 
-/** Build OAuth authorize URL with locationId in state so callback stores under the same id the iframe sends. */
-function getConnectOAuthUrl(locationId: string | null): string {
-  if (!locationId || typeof window === 'undefined') return getGHLMarketplaceAppUrl();
-  const base = window.location.origin;
-  const url = new URL('/api/auth/oauth/authorize', base);
-  url.searchParams.set('locationId', locationId);
-  url.searchParams.set('redirect', '/oauth-success');
-  return url.toString();
+/** Install URL (opens in new tab): sets cookie then redirects to GHL install so callback gets correct locationId. */
+function getConnectInstallUrl(locationId: string | null): string {
+  if (typeof window === 'undefined') return '#';
+  return getInstallUrlWithLocation(window.location.origin, locationId);
 }
 
 interface Contact {
@@ -197,10 +193,12 @@ export default function CRMDashboardPage() {
           )}
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <a
-              href={getConnectOAuthUrl(effectiveLocationId)}
+              href={getConnectInstallUrl(effectiveLocationId)}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-block rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
             >
-              Connect via OAuth
+              Connect via OAuth (opens in new tab)
             </a>
             <button
               type="button"

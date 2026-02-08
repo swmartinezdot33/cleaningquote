@@ -5,6 +5,7 @@ import { useGHLIframe, useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { getInstallUrlWithLocation } from '@/lib/ghl/oauth-utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function SetupPage() {
@@ -44,11 +45,9 @@ export default function SetupPage() {
 
   const handleOAuthInstall = () => {
     const base = typeof window !== 'undefined' ? window.location.origin : '';
-    const authUrl = new URL('/api/auth/oauth/authorize', base);
-    if (effectiveLocationId) authUrl.searchParams.set('locationId', effectiveLocationId);
-    authUrl.searchParams.set('redirect', '/oauth-success');
-    console.log('[CQ OAuth]', 'setup: starting OAuth in current frame (iframe when embedded)', { locationId: effectiveLocationId ? `${effectiveLocationId.slice(0, 8)}...` : null });
-    window.location.href = authUrl.toString();
+    const installUrl = getInstallUrlWithLocation(base, effectiveLocationId ?? null);
+    console.log('[CQ OAuth]', 'setup: opening install in new tab (cookie set there, OAuth runs in same tab)', { locationId: effectiveLocationId ? `${effectiveLocationId.slice(0, 8)}...` : null });
+    window.open(installUrl, '_blank', 'noopener,noreferrer');
   };
 
   if (loading || (effectiveLocationId && loadingOAuth)) {
@@ -99,7 +98,7 @@ export default function SetupPage() {
             </div>
           )}
           <Button onClick={handleOAuthInstall} variant={oauthStatus?.installed ? 'secondary' : 'default'}>
-            {oauthStatus?.installed ? 'Reinstall OAuth' : 'Install via OAuth'}
+            {oauthStatus?.installed ? 'Reinstall OAuth' : 'Install via OAuth (opens in new tab)'}
           </Button>
         </CardContent>
       </Card>

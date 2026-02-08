@@ -4,15 +4,11 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Loader2, Search, Filter } from 'lucide-react';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
-import { getGHLMarketplaceAppUrl } from '@/lib/ghl/oauth-utils';
+import { getInstallUrlWithLocation } from '@/lib/ghl/oauth-utils';
 
-function getConnectOAuthUrl(locationId: string | null): string {
-  if (!locationId || typeof window === 'undefined') return getGHLMarketplaceAppUrl();
-  const base = window.location.origin;
-  const url = new URL('/api/auth/oauth/authorize', base);
-  url.searchParams.set('locationId', locationId);
-  url.searchParams.set('redirect', '/oauth-success');
-  return url.toString();
+function getConnectInstallUrl(locationId: string | null): string {
+  if (typeof window === 'undefined') return '#';
+  return getInstallUrlWithLocation(window.location.origin, locationId);
 }
 
 interface Contact {
@@ -99,10 +95,12 @@ export default function CRMContactsPage() {
             This location needs a one-time connection. Click below to authorize CleanQuote to access your CRM data. After connecting, your contacts will load here.
           </p>
           <a
-            href={getConnectOAuthUrl(effectiveLocationId)}
+            href={getConnectInstallUrl(effectiveLocationId)}
+            target="_blank"
+            rel="noopener noreferrer"
             className="mt-4 inline-block rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
           >
-            Connect via OAuth
+            Connect via OAuth (opens in new tab)
           </a>
         </div>
       )}

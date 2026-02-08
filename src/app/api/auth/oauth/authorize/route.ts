@@ -135,7 +135,11 @@ export async function GET(request: NextRequest) {
       stateLocationIdPreview: locationId ? locationId.slice(0, 8) + '..' + locationId.slice(-4) : null,
       redirect: stateData.redirect ?? null,
     });
-    return NextResponse.redirect(finalAuthUrl);
+    const res = NextResponse.redirect(finalAuthUrl);
+    if (locationId) {
+      res.cookies.set('ghl_pending_location_id', locationId, { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 600, path: '/' });
+    }
+    return res;
   } catch (error) {
     console.error('Error initiating GHL OAuth:', error);
     return NextResponse.json(

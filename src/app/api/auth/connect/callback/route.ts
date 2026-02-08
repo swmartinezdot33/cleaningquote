@@ -240,9 +240,11 @@ export async function GET(request: NextRequest) {
     const q = searchParams.get('locationId') ?? searchParams.get('location_id') ?? searchParams.get('location') ?? null;
     return typeof q === 'string' && q.trim() ? q.trim() : null;
   })();
-  console.log(LOG, 'State parsed', { redirectTo, hasOrgId: !!orgId, locationIdFromState: locationIdFromState ? locationIdFromState.slice(0, 8) + '..' + locationIdFromState.slice(-4) : null, locationIdFromQuery: locationIdFromQuery ? locationIdFromQuery.slice(0, 8) + '..' : null, stateRawLength: stateRaw?.length ?? 0 });
+  const PENDING_COOKIE = 'ghl_pending_location_id';
+  const locationIdFromCookie = request.cookies.get(PENDING_COOKIE)?.value?.trim() || null;
+  console.log(LOG, 'State parsed', { redirectTo, hasOrgId: !!orgId, locationIdFromState: locationIdFromState ? locationIdFromState.slice(0, 8) + '..' : null, locationIdFromQuery: locationIdFromQuery ? locationIdFromQuery.slice(0, 8) + '..' : null, locationIdFromCookie: locationIdFromCookie ? locationIdFromCookie.slice(0, 8) + '..' : null, stateRawLength: stateRaw?.length ?? 0 });
   // #region agent log
-  debugIngest('after state parse (H4)', { redirectTo, hasOrgId: !!orgId, locationIdFromStateFull: locationIdFromState ?? null, locationIdFromQueryFull: locationIdFromQuery ?? null, hypothesisId: 'H4' });
+  debugIngest('after state parse (H4)', { redirectTo, hasOrgId: !!orgId, locationIdFromStateFull: locationIdFromState ?? null, locationIdFromQueryFull: locationIdFromQuery ?? null, locationIdFromCookiePreview: locationIdFromCookie ? locationIdFromCookie.slice(0, 8) + '..' : null, hypothesisId: 'H4' });
   // #endregion
 
   if (error) {
@@ -334,9 +336,10 @@ export async function GET(request: NextRequest) {
     const companyId = data.companyId ?? data.company_id ?? '';
     const userId = data.userId ?? data.user_id ?? '';
 
-    // Match MaidCentral / Culture Index: state (iframe) first, then query (GHL may pass locationId in callback URL), then token, JWT, API.
+    // State (iframe) first, then query, then cookie (when state lost e.g. Back + marketplace install), then token, JWT, API.
     let locationId: string | null = null;
-    let locationSource: 'state' | 'query' | 'token' | 'jwt' | 'api' = 'token';
+    let locationSource: 'state' | 'query' | 'cookie' | 'token' | 'jwt' | 'api' = 'token';
+    let usedPendingCookie = false;
     if (locationIdFromState) {
       locationId = locationIdFromState;
       locationSource = 'state';
@@ -349,6 +352,12 @@ export async function GET(request: NextRequest) {
       locationId = locationIdFromQuery;
       locationSource = 'query';
       console.log(LOG, 'Using locationId from callback URL query (GHL may pass it)', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
+    }
+    if (!locationId && locationIdFromCookie) {
+      locationId = locationIdFromCookie;
+      locationSource = 'cookie';
+      usedPendingCookie = true;
+      console.log(LOG, 'Using locationId from pending cookie (state/query lost — e.g. install via marketplace after Back)', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
     }
     if (!locationId) {
       locationId =
@@ -421,11 +430,13 @@ export async function GET(request: NextRequest) {
         ? 'Location from state (iframe where you clicked Connect).'
         : locationSource === 'query'
           ? 'Location from callback URL query (GHL passed it).'
-          : locationSource === 'token'
-            ? 'Location from GHL token response (installed location).'
-            : locationSource === 'jwt'
-              ? 'Location from JWT payload (token body had no locationId).'
-              : 'Location from /locations/ API fallback.';
+          : locationSource === 'cookie'
+            ? 'Location from pending cookie (state was lost; you started Connect from this location).'
+            : locationSource === 'token'
+              ? 'Location from GHL token response (installed location).'
+              : locationSource === 'jwt'
+                ? 'Location from JWT payload (token body had no locationId).'
+                : 'Location from /locations/ API fallback.';
     const html = htmlSuccess(
       locationId,
       (data.access_token ?? '').length,
@@ -472,6 +483,9 @@ export async function GET(request: NextRequest) {
       /* ignore */
     }
     response.cookies.set('ghl_session', sessionToken, cookieOptions);
+    if (usedPendingCookie) {
+      response.cookies.set(PENDING_COOKIE, '', { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 0, path: '/' });
+    }
     return response;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

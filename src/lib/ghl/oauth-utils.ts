@@ -14,6 +14,20 @@ export function getGHLMarketplaceAppUrl(): string {
   return process.env.GHL_MARKETPLACE_APP_URL?.trim() || process.env.NEXT_PUBLIC_GHL_MARKETPLACE_APP_URL?.trim() || GHL_MARKETPLACE_APP_URL_DEFAULT;
 }
 
+/** Direct GHL app install URL (opens in new tab; OAuth runs in that tab so cookie is preserved). Override with GHL_INSTALL_URL env. */
+export const GHL_INSTALL_URL_DEFAULT = 'https://app.leadconnectorhq.com/integration/6983957514ceb0bb033c8aa1/versions/6983957514ceb0bb033c8aa1';
+
+export function getGHLInstallUrl(): string {
+  return process.env.GHL_INSTALL_URL?.trim() || GHL_INSTALL_URL_DEFAULT;
+}
+
+/** Build our /install?locationId= URL so opening it in a new tab sets cookie then redirects to GHL install. */
+export function getInstallUrlWithLocation(baseUrl: string, locationId: string | null): string {
+  if (!locationId?.trim()) return getGHLInstallUrl();
+  const base = baseUrl.replace(/\/$/, '');
+  return `${base}/install?locationId=${encodeURIComponent(locationId.trim())}`;
+}
+
 /**
  * Base URL for OAuth redirects (APP_BASE_URL or Vercel/localhost)
  */

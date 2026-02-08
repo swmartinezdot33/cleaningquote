@@ -7,7 +7,7 @@ You can test the “user context → KV” flow locally **without** being inside
 With the dev server running (`npm run dev`), open:
 
 ```text
-http://localhost:3000/dashboard?locationId=YOUR_LOCATION_ID
+http://localhost:3000/dashboard?locationId=1uDcMtL7LgPvpYwaQtdq
 ```
 
 Replace `YOUR_LOCATION_ID` with a real GHL location id (e.g. from your sub-account URL in GHL: `.../location/ve9EPM428h8vShlRW1KT/...`).
