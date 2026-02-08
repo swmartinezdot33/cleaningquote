@@ -41,10 +41,10 @@ export default function GHLCustomMenuLinkHelpPage() {
         <li>
           Set the <strong className="text-foreground">URL</strong> to:
           <pre className="mt-2 rounded-lg bg-muted p-3 text-sm overflow-x-auto">
-{`https://www.cleanquote.io/dashboard?locationId={{location.id}}`}
+{`https://www.cleanquote.io/dashboard?locationId={{location.id}}&sessionKey`}
           </pre>
           <p className="mt-2 text-sm text-muted-foreground">
-            GHL replaces <code className="bg-muted px-1 rounded">{'{{location.id}}'}</code> with the current sub-account&apos;s location ID when the user clicks the link.
+            GHL replaces <code className="bg-muted px-1 rounded">{'{{location.id}}'}</code> with the current sub-account&apos;s location ID. The <code className="bg-muted px-1 rounded">sessionKey</code> parameter tells GHL to pass session details to the iframe for a seamless white-label experience.
           </p>
         </li>
         <li>
@@ -57,6 +57,11 @@ export default function GHLCustomMenuLinkHelpPage() {
           Save the link.
         </li>
       </ol>
+
+      <h2 className="text-lg font-semibold text-foreground mt-8">White-label / sessionKey</h2>
+      <p className="text-muted-foreground">
+        For white-label agencies (e.g. my.cleanquote.io, my.ricochetbusinesssolutions.com), append <code className="bg-muted px-1 rounded">sessionKey</code> to the Custom Menu Link URL. This ensures GHL passes session details directly to the iframe, keeping users in your branded environment instead of redirecting to app.gohighlevel.com.
+      </p>
 
       <div className="mt-6 rounded-lg border border-amber-500/50 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-200">
         <p className="font-medium">Important</p>
