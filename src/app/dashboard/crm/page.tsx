@@ -35,6 +35,7 @@ export default function CRMDashboardPage() {
   const [contactsByStage, setContactsByStage] = useState<Record<string, Contact[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [needsConnect, setNeedsConnect] = useState(false);
 
   const locationSuffix = ghlData?.locationId ? `&locationId=${ghlData.locationId}` : '';
 
@@ -49,6 +50,7 @@ export default function CRMDashboardPage() {
     ])
       .then(([statsRes, ...stageRes]) => {
         setStats(statsRes ?? { counts: {}, total: 0, recentActivities: [] });
+        setNeedsConnect(!!(statsRes as { needsConnect?: boolean })?.needsConnect);
         const byStage: Record<string, Contact[]> = {};
         STAGES.forEach((s, i) => {
           byStage[s] = stageRes[i]?.contacts ?? [];
@@ -71,6 +73,26 @@ export default function CRMDashboardPage() {
     return (
       <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-destructive">
         <p>Could not load CRM: {error}</p>
+      </div>
+    );
+  }
+
+  if (needsConnect && ghlData?.locationId) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-foreground">CRM Pipeline</h1>
+        <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-6 text-amber-800 dark:text-amber-200">
+          <p className="font-medium">Connect your location</p>
+          <p className="mt-2 text-sm">
+            This location needs a one-time connection. Click below to authorize CleanQuote to access your CRM data.
+          </p>
+          <a
+            href={`/api/auth/connect?redirect=${encodeURIComponent('/dashboard/crm')}`}
+            className="mt-4 inline-block rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+          >
+            Connect via OAuth
+          </a>
+        </div>
       </div>
     );
   }

@@ -69,10 +69,11 @@ export async function GET(request: NextRequest) {
           const result = await fetchContactsFromGHL(requestLocationId, token, searchParams);
           return NextResponse.json(result);
         }
+        return NextResponse.json({ contacts: [], total: 0, page: 1, perPage: 25, needsConnect: true });
       } catch (err) {
         console.warn('CRM contacts: GHL token/fetch error for locationId', requestLocationId, err);
+        return NextResponse.json({ contacts: [], total: 0, page: 1, perPage: 25, needsConnect: true });
       }
-      return emptyContacts();
     }
 
     let session;

@@ -26,8 +26,11 @@ export default function CRMContactsPage() {
   const [page, setPage] = useState(1);
   const perPage = 25;
 
+  const [needsConnect, setNeedsConnect] = useState(false);
+
   const loadContacts = () => {
     setLoading(true);
+    setNeedsConnect(false);
     const params = new URLSearchParams();
     if (filterStage) params.set('stage', filterStage);
     if (search.trim()) params.set('search', search.trim());
@@ -40,8 +43,12 @@ export default function CRMContactsPage() {
       .then((d) => {
         setContacts(d.contacts ?? []);
         setTotal(d.total ?? 0);
+        setNeedsConnect(!!d.needsConnect);
       })
-      .catch((e) => setError(e.message))
+      .catch((e) => {
+        setError(e.message);
+        setNeedsConnect(!!ghlData?.locationId);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -74,12 +81,28 @@ export default function CRMContactsPage() {
         </p>
       </div>
 
+      {needsConnect && ghlData?.locationId && (
+        <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-6 text-amber-800 dark:text-amber-200">
+          <p className="font-medium">Connect your location</p>
+          <p className="mt-2 text-sm">
+            This location needs a one-time connection. Click below to authorize CleanQuote to access your CRM data. After connecting, your contacts will load here.
+          </p>
+          <a
+            href={`/api/auth/connect?redirect=${encodeURIComponent('/dashboard/crm')}`}
+            className="mt-4 inline-block rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+          >
+            Connect via OAuth
+          </a>
+        </div>
+      )}
+
       {typeof window !== 'undefined' &&
         window.self !== window.top &&
         !ghlData?.locationId &&
         !loading &&
         contacts.length === 0 &&
-        !error && (
+        !error &&
+        !needsConnect && (
           <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-200">
             <p className="font-medium">Location context required</p>
             <p className="mt-1 text-sm">

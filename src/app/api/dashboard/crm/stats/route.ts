@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       } catch (err) {
         console.warn('CRM stats: GHL token/fetch error for locationId', requestLocationId, err);
       }
-      return NextResponse.json({ counts: {}, total: 0, recentActivities: [] });
+      return NextResponse.json({ counts: {}, total: 0, recentActivities: [], needsConnect: true });
     }
 
     let session;
