@@ -34,6 +34,13 @@ export async function middleware(request: NextRequest) {
           { status: 401 }
         );
       }
+      const referer = request.headers.get('referer') || '';
+      const hasGhlParam = request.nextUrl.searchParams.get('ghl') === '1';
+      if (hasGhlParam || /gohighlevel|leadconnectorhq/i.test(referer)) {
+        const oauthUrl = new URL('/api/auth/connect', request.url);
+        oauthUrl.searchParams.set('redirect', pathname + search || '/dashboard');
+        return NextResponse.redirect(oauthUrl);
+      }
       const redirectTo = pathname + search;
       const redirect = new URL('/login', request.url);
       redirect.searchParams.set('redirect', redirectTo);
@@ -71,6 +78,15 @@ export async function middleware(request: NextRequest) {
           { error: 'Unauthorized', message: 'Please sign in.' },
           { status: 401 }
         );
+      }
+      // Coming from GHL (iframe, app launch, or ?ghl=1) without session → send to OAuth install instead of login
+      const referer = request.headers.get('referer') || '';
+      const hasGhlParam = request.nextUrl.searchParams.get('ghl') === '1';
+      const isFromGHL = hasGhlParam || /gohighlevel|leadconnectorhq/i.test(referer);
+      if (isFromGHL) {
+        const oauthUrl = new URL('/api/auth/connect', request.url);
+        oauthUrl.searchParams.set('redirect', pathname + search || '/dashboard');
+        return NextResponse.redirect(oauthUrl);
       }
       const redirectTo = pathname + search;
       const redirect = new URL('/login', request.url);
