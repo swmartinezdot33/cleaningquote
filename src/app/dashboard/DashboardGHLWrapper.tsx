@@ -15,9 +15,11 @@ export function DashboardGHLWrapper({ children }: { children: React.ReactNode })
   useEffect(() => {
     const isInIframe = window.self !== window.top;
     if (!isInIframe) {
+      console.log('[CQ OAuth]', `[${Date.now()}] DashboardGHLWrapper: not in iframe → replace /open-from-ghl`);
       router.replace('/open-from-ghl');
       return;
     }
+    console.log('[CQ OAuth]', `[${Date.now()}] DashboardGHLWrapper: in iframe → show dashboard`);
     setInIframe(true);
   }, [router]);
 

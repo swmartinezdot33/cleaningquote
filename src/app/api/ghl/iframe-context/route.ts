@@ -14,12 +14,14 @@ export async function POST(request: NextRequest) {
     const { locationId } = body;
 
     if (!locationId) {
+      console.log('[CQ iframe-context] store: no locationId');
       return NextResponse.json(
         { error: 'Location ID is required' },
         { status: 400 }
       );
     }
 
+    console.log('[CQ iframe-context] store', { locationId: locationId.slice(0, 12) + '...' });
     // Context is primarily used client-side (sessionStorage + passed to APIs); optionally store in KV.
     try {
       const { getKV } = await import('@/lib/kv');
@@ -29,13 +31,14 @@ export async function POST(request: NextRequest) {
       // KV optional; don't fail the request
     }
 
+    console.log('[CQ iframe-context] stored OK');
     return NextResponse.json({
       success: true,
       locationId,
       message: 'Iframe context stored successfully',
     });
   } catch (error) {
-    console.error('Error storing iframe context:', error);
+    console.error('[CQ iframe-context] error', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to store iframe context' },
       { status: 500 }

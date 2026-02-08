@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+const LOG = '[CQ OAuth]';
 const AUTO_REDIRECT_SEC = 3;
 
 function OAuthSuccessContent() {
@@ -19,12 +20,21 @@ function OAuthSuccessContent() {
   const isSuccess = success === 'oauth_installed' && locationId;
   const [countdown, setCountdown] = useState(AUTO_REDIRECT_SEC);
 
+  useEffect(() => {
+    const t = Date.now();
+    console.log(LOG, `[${t}] oauth-success: page load`, { success: success ?? null, locationId: locationId ? `${locationId.slice(0, 8)}...` : null, error: error ?? null, isSuccess });
+  }, [success, locationId, error, isSuccess]);
+
   // Same as GHL template / Maid Central: after callback success, send user into the app (auto-redirect to dashboard)
   useEffect(() => {
     if (!isSuccess) return;
     if (countdown <= 0) {
+      console.log(LOG, `[${Date.now()}] oauth-success: auto-redirect to /dashboard`);
       router.replace('/dashboard');
       return;
+    }
+    if (countdown === AUTO_REDIRECT_SEC) {
+      console.log(LOG, `[${Date.now()}] oauth-success: countdown started ${AUTO_REDIRECT_SEC}s`);
     }
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
     return () => clearTimeout(t);

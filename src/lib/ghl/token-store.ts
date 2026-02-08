@@ -30,10 +30,10 @@ function key(locationId: string): string {
  */
 export async function storeInstallation(data: GHLInstallation): Promise<void> {
   const storageKey = key(data.locationId);
-  console.log('[GHL token-store] Storing installation key=', storageKey, 'locationId=', data.locationId, 'hasAccessToken=', !!data.accessToken, 'hasRefreshToken=', !!data.refreshToken);
+  console.log('[CQ token-store] storing', { key: storageKey.slice(0, 30) + '...', hasAccessToken: !!data.accessToken, hasRefreshToken: !!data.refreshToken });
   const kv = getKV();
   await kv.set(storageKey, data, { ex: 365 * 24 * 60 * 60 }); // 1 year (refresh token lifespan)
-  console.log('[GHL token-store] ✅ Stored successfully for locationId=', data.locationId);
+  console.log('[CQ token-store] stored OK', { locationId: data.locationId.slice(0, 12) + '...' });
 }
 
 /**

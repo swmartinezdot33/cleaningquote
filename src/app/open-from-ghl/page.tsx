@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getSession } from '@/lib/ghl/session';
 import { RedirectToDashboard } from './RedirectToDashboard';
+import { OpenFromGHLLogger } from './OpenFromGHLLogger';
 
 /**
  * Shown when user tries to access the dashboard without a valid session.
@@ -8,6 +9,7 @@ import { RedirectToDashboard } from './RedirectToDashboard';
  */
 export default async function OpenFromGHLPage() {
   const session = await getSession();
+  console.log('[CQ open-from-ghl] getSession result', { hasSession: !!session, willRedirect: !!session });
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
     method: 'POST',
@@ -25,6 +27,7 @@ export default async function OpenFromGHLPage() {
   }
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
+      <OpenFromGHLLogger />
       <div className="max-w-md w-full rounded-xl border border-border bg-card p-8 text-center shadow-sm">
         <h1 className="text-xl font-semibold text-foreground">Open from GoHighLevel</h1>
         <p className="mt-3 text-sm text-muted-foreground">

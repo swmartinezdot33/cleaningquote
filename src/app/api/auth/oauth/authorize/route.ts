@@ -27,12 +27,9 @@ export async function GET(request: NextRequest) {
     const locationId = request.nextUrl.searchParams.get('locationId');
     const redirect = request.nextUrl.searchParams.get('redirect');
 
-    // Log OAuth initiation for debugging — all lines prefixed so you can search "OAuth Authorize" in Vercel logs
     const requestHost = request.headers.get('host') ?? 'unknown';
     const referer = request.headers.get('referer') ?? '';
-    console.log('[OAuth Authorize] ============================================');
-    console.log('[OAuth Authorize] Initiating OAuth flow');
-    console.log('[OAuth Authorize] request host:', requestHost, '| referer:', referer ? referer.slice(0, 80) : '(none)');
+    console.log('[CQ Authorize] redirecting to GHL chooselocation', { host: requestHost, hasLocationId: !!locationId, hasRedirect: !!redirect });
     console.log('[OAuth Authorize] Client ID:', clientId ? `${clientId.substring(0, 10)}...${clientId.substring(clientId.length - 4)}` : 'MISSING');
     console.log('[OAuth Authorize] Redirect URI:', redirectUri);
     console.log('[OAuth Authorize] Base URL (callback will redirect here):', appBaseUrl);
@@ -111,10 +108,7 @@ export async function GET(request: NextRequest) {
       console.error('[OAuth Authorize] Make sure GHL_REDIRECT_URI matches your GHL marketplace app settings');
     }
 
-    console.log('[OAuth Authorize] State data:', stateData);
-    console.log('[OAuth Authorize] Final OAuth URL (sanitized):', finalAuthUrl.replace(clientId, 'CLIENT_ID_HIDDEN'));
-    console.log('[OAuth Authorize] Redirecting to GHL OAuth...');
-
+    console.log('[CQ Authorize] redirect URL built, redirecting to GHL', { stateKeys: Object.keys(stateData) });
     return NextResponse.redirect(finalAuthUrl);
   } catch (error) {
     console.error('Error initiating GHL OAuth:', error);

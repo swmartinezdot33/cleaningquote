@@ -12,7 +12,11 @@ export function DashboardGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    if (pathname === '/dashboard/setup') return;
+    if (pathname === '/dashboard/setup') {
+      console.log('[CQ OAuth]', `[${Date.now()}] DashboardGate: path=/dashboard/setup → allow`);
+      return;
+    }
+    console.log('[CQ OAuth]', `[${Date.now()}] DashboardGate: no session → replace /open-from-ghl`, { pathname });
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
       method: 'POST',

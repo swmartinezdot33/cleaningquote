@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     let encryptedData = body.encryptedData ?? body.key;
 
-    console.log('[Decrypt] Request: encryptedData type=', typeof encryptedData, Array.isArray(encryptedData) ? `array[${encryptedData?.length}]` : '', 'hasValue=', !!encryptedData);
+    console.log('[CQ Decrypt] request', { type: typeof encryptedData, isArray: Array.isArray(encryptedData), hasValue: !!encryptedData });
 
     if (!encryptedData) {
       return NextResponse.json(
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     const ssoKey = process.env.GHL_APP_SSO_KEY?.trim();
-    console.log('[Decrypt] GHL_APP_SSO_KEY set=', !!ssoKey, 'len=', ssoKey?.length ?? 0);
+    console.log('[CQ Decrypt] GHL_APP_SSO_KEY', { set: !!ssoKey });
 
     if (!ssoKey) {
       return NextResponse.json(
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
           }
         } else {
           userData = JSON.parse(decrypted) as Record<string, unknown>;
-          console.log('[Decrypt] ✅ Decrypted OK, locationId=', (userData as any)?.activeLocation ?? (userData as any)?.locationId);
+          console.log('[CQ Decrypt] success', { locationId: (userData as any)?.activeLocation ?? (userData as any)?.locationId });
         }
       } catch (decryptError) {
         console.warn('[Decrypt] Decrypt error:', decryptError);
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    console.log('[Decrypt] Success locationId=', locationId);
+    console.log('[CQ Decrypt] returning context', { locationId: locationId?.slice(0, 12) + '...' });
 
     // GHL Location context uses activeLocation, userName, email per docs
     const ghlContext: GHLIframeData = {
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
       message: 'User data decrypted successfully',
     });
   } catch (error) {
-    console.error('[Decrypt] Error:', error);
+    console.error('[CQ Decrypt] error', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to decrypt user data' },
       { status: 500 }

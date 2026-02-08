@@ -60,13 +60,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
     const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
     const apply = (ctx: GHLIframeData) => setGHLContext(ctx, setGhlData, setError, setLoading);
 
-    // [GHL Iframe] Context resolution
-    console.log('[GHL Iframe] ========== context resolution start ==========');
-    console.log('[GHL Iframe] isInIframe:', isInIframe);
-    console.log('[GHL Iframe] href:', typeof window !== 'undefined' ? window.location.href : 'N/A');
-    console.log('[GHL Iframe] pathname:', typeof window !== 'undefined' ? window.location.pathname : 'N/A');
-    console.log('[GHL Iframe] search:', typeof window !== 'undefined' ? window.location.search : 'N/A');
-    console.log('[GHL Iframe] document.referrer:', typeof document !== 'undefined' ? document.referrer || '(empty)' : 'N/A');
+    console.log('[CQ Iframe] context resolution start', { isInIframe, pathname: typeof window !== 'undefined' ? window.location.pathname : '', hasReferrer: !!(typeof document !== 'undefined' && document.referrer) });
 
     // 1. URL params (query + hash)
     const urlParams = new URLSearchParams(window.location?.search ?? '');
@@ -151,7 +145,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
 
     if (urlLocationId) {
       hasLocationIdRef.current = true;
-      console.log('[GHL Iframe] ✅ APPLY from URL/path/referrer:', urlLocationId);
+      console.log('[CQ Iframe] locationId resolved (URL/path/referrer)', { locationId: urlLocationId.slice(0, 12) + '...' });
       apply({ locationId: urlLocationId, userId: urlUserId || undefined });
     }
 
@@ -163,7 +157,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
           const parsed = JSON.parse(cached) as GHLIframeData;
           if (parsed.locationId) {
             hasLocationIdRef.current = true;
-            console.log('[GHL Iframe] ✅ 5. From sessionStorage cache:', parsed.locationId);
+            console.log('[CQ Iframe] locationId from sessionStorage cache');
             setGhlData(parsed);
             setError(null);
             setLoading(false);
@@ -176,14 +170,13 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
 
     if (!isInIframe) {
       if (!hasLocationIdRef.current) {
-        console.log('[GHL Iframe] Not in iframe, no locationId — setLoading(false)');
+        console.log('[CQ Iframe] not in iframe, no locationId');
         setLoading(false);
       }
       return;
     }
 
-    // 6. postMessage from GHL (REQUEST_USER_DATA) per GHL docs
-    console.log('[GHL Iframe] In iframe, listening for postMessage. Sending REQUEST_USER_DATA…');
+    console.log('[CQ Iframe] in iframe: sending REQUEST_USER_DATA, waiting for postMessage');
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.message === 'REQUEST_USER_DATA_RESPONSE' || event.data?.message) {
         console.log('[GHL Iframe] postMessage:', event.origin, event.data?.message, event.data);
@@ -200,7 +193,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
         if (!data || typeof data !== 'object') return;
 
         if (data.message === 'REQUEST_USER_DATA_RESPONSE' && data.payload != null) {
-          console.log('[GHL Iframe] Received REQUEST_USER_DATA_RESPONSE, payload type:', typeof data.payload, Array.isArray(data.payload) ? `array[${data.payload.length}]` : '');
+          console.log('[CQ Iframe] REQUEST_USER_DATA_RESPONSE received');
           // GHL sends encrypted string or array; extract raw encrypted data
           const rawPayload = Array.isArray(data.payload) ? data.payload[0] : data.payload;
           if (!rawPayload) {
@@ -215,10 +208,9 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
           })
             .then((r) => (r.ok ? r.json() : null))
             .then((result) => {
-              console.log('[GHL Iframe] Decrypt response:', result?.success ? { success: true, locationId: result.locationId } : result);
               if (result?.success && result.locationId) {
                 hasLocationIdRef.current = true;
-                console.log('[GHL Iframe] ✅ 6. From decrypt (postMessage):', result.locationId);
+                console.log('[CQ Iframe] locationId from decrypt (postMessage)', { locationId: result.locationId?.slice(0, 12) + '...' });
                 apply({
                   locationId: result.locationId,
                   userId: result.userId,
@@ -292,7 +284,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
       const t5 = setTimeout(sendRequest, 4000);
       const t6 = setTimeout(() => {
         if (!hasLocationIdRef.current) {
-          console.error('[GHL Iframe] ❌ TIMEOUT: No locationId after 6s. Check logs above for which step failed.');
+          console.error('[CQ Iframe] TIMEOUT: no locationId after 6s');
           setError(
             'No GHL user context received. (1) Open from a sub-account/location dashboard, not Agency view. ' +
             '(2) If using Custom Menu Link, add sessionKey to the URL for white-label. ' +

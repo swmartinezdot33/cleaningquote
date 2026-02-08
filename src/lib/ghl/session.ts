@@ -38,13 +38,15 @@ export async function verifySessionToken(token: string): Promise<GHLSession | nu
     const secret = new TextEncoder().encode(JWT_SECRET);
     const { payload } = await jwtVerify(token, secret, { algorithms: [ALGORITHM] });
     const { locationId, companyId, userId } = payload;
-    if (typeof locationId !== 'string' || !locationId) return null;
-    return {
-      locationId,
-      companyId: typeof companyId === 'string' ? companyId : '',
-      userId: typeof userId === 'string' ? userId : '',
-    };
+    if (typeof locationId !== 'string' || !locationId) {
+      console.log('[CQ Session] verifySessionToken: invalid payload (no locationId)');
+      return null;
+    }
+    const session = { locationId, companyId: typeof companyId === 'string' ? companyId : '', userId: typeof userId === 'string' ? userId : '' };
+    console.log('[CQ Session] verifySessionToken: valid', { locationId: locationId.slice(0, 12) + '...' });
+    return session;
   } catch {
+    console.log('[CQ Session] verifySessionToken: invalid or expired');
     return null;
   }
 }
@@ -55,8 +57,13 @@ export async function verifySessionToken(token: string): Promise<GHLSession | nu
 export async function getSession(): Promise<GHLSession | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
-  if (!token) return null;
-  return verifySessionToken(token);
+  if (!token) {
+    console.log('[CQ Session] getSession: no cookie');
+    return null;
+  }
+  const session = await verifySessionToken(token);
+  if (!session) console.log('[CQ Session] getSession: cookie present but invalid');
+  return session;
 }
 
 /**
