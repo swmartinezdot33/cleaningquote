@@ -5,7 +5,9 @@ import { getSiteUrl } from '@/lib/canonical-url';
 export const dynamic = 'force-dynamic';
 
 const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim();
-const priceId = process.env.STRIPE_PRICE_ID?.trim();
+const priceIdMonthly = process.env.STRIPE_PRICE_ID_MONTHLY?.trim();
+const priceIdAnnual = process.env.STRIPE_PRICE_ID_ANNUAL?.trim();
+const priceIdLegacy = process.env.STRIPE_PRICE_ID?.trim();
 
 /**
  * Create Stripe customer and redirect to checkout or payment link.
@@ -19,12 +21,23 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { firstName, lastName, email, phone, businessName } = body;
+    const { firstName, lastName, email, phone, businessName, plan } = body;
 
     if (!email || !firstName || !lastName || !phone || !businessName) {
       return NextResponse.json(
         { error: 'Missing required fields: firstName, lastName, email, phone, businessName' },
         { status: 400 }
+      );
+    }
+
+    const priceId = plan === 'annual' && priceIdAnnual
+      ? priceIdAnnual
+      : (plan === 'monthly' && priceIdMonthly ? priceIdMonthly : priceIdLegacy || priceIdMonthly || priceIdAnnual);
+
+    if (!priceId) {
+      return NextResponse.json(
+        { error: 'Stripe price not configured. Set STRIPE_PRICE_ID_MONTHLY and/or STRIPE_PRICE_ID_ANNUAL.' },
+        { status: 500 }
       );
     }
 
@@ -73,48 +86,25 @@ export async function POST(request: NextRequest) {
     // Create a Checkout Session tied to this customer
     const baseUrl = getSiteUrl();
     
-    // Use price ID if configured, otherwise use payment link redirect
-    if (priceId) {
-      const session = await stripe.checkout.sessions.create({
-        customer: customer.id,
-        mode: 'subscription',
-        line_items: [{ price: priceId, quantity: 1 }],
-        subscription_data: {
-          trial_period_days: 14,
-        },
-        success_url: `${baseUrl}/subscribe/success`,
-        cancel_url: `${baseUrl}?checkout=cancelled`,
-        allow_promotion_codes: true,
-      });
+    const session = await stripe.checkout.sessions.create({
+      customer: customer.id,
+      mode: 'subscription',
+      line_items: [{ price: priceId, quantity: 1 }],
+      subscription_data: {
+        trial_period_days: 14,
+      },
+      success_url: `${baseUrl}/subscribe/success`,
+      cancel_url: `${baseUrl}?checkout=cancelled`,
+      allow_promotion_codes: true,
+    });
 
-      console.log('Stripe checkout session created:', { sessionId: session.id, url: session.url });
+    console.log('Stripe checkout session created:', { sessionId: session.id, url: session.url });
 
-      return NextResponse.json({
-        customerId: customer.id,
-        email: customer.email,
-        checkoutUrl: session.url,
-      });
-    } else {
-      // Fallback: redirect to payment link. User completes payment on Stripe; webhook creates account after subscription exists.
-      const paymentLinkUrl = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_URL?.trim();
-      if (paymentLinkUrl) {
-        const url = new URL(paymentLinkUrl);
-        url.searchParams.set('prefilled_email', email);
-        url.searchParams.set('client_reference_id', customer.id);
-
-        return NextResponse.json({
-          customerId: customer.id,
-          email: customer.email,
-          checkoutUrl: url.toString(),
-        });
-      }
-      
-      return NextResponse.json({
-        customerId: customer.id,
-        email: customer.email,
-        error: 'No checkout URL configured',
-      });
-    }
+    return NextResponse.json({
+      customerId: customer.id,
+      email: customer.email,
+      checkoutUrl: session.url,
+    });
   } catch (err) {
     console.error('Failed to create Stripe customer/session:', err);
     const message = err instanceof Error ? err.message : 'Failed to create customer';

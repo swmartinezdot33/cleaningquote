@@ -198,24 +198,37 @@ export async function getOrgIdFromToolId(toolId: string): Promise<string | null>
 }
 
 /** Read org-level GHL settings (one connection per org). */
-async function getOrgGHLRow(orgId: string): Promise<{ ghl_token: string | null; ghl_location_id: string | null } | null> {
+async function getOrgGHLRow(
+  orgId: string
+): Promise<{ ghl_token: string | null; ghl_location_id: string | null; ghl_use_oauth: boolean } | null> {
   if (!isSupabaseConfigured() || !orgId) return null;
   const supabase = createSupabaseServer();
   const { data, error } = await supabase
     .from('org_ghl_settings')
-    .select('ghl_token, ghl_location_id')
+    .select('ghl_token, ghl_location_id, ghl_use_oauth')
     .eq('org_id', orgId)
     .maybeSingle();
   if (error) {
     console.error('org_ghl_settings getOrgGHLRow:', error);
     return null;
   }
-  return data as { ghl_token: string | null; ghl_location_id: string | null } | null;
+  const row = data as { ghl_token?: string | null; ghl_location_id?: string | null; ghl_use_oauth?: boolean } | null;
+  if (!row) return null;
+  return {
+    ghl_token: row.ghl_token ?? null,
+    ghl_location_id: row.ghl_location_id ?? null,
+    ghl_use_oauth: row.ghl_use_oauth === true,
+  };
 }
 
 export async function getGHLTokenForOrg(orgId: string): Promise<string | null> {
   const row = await getOrgGHLRow(orgId);
-  const t = row?.ghl_token;
+  if (!row) return null;
+  if (row.ghl_use_oauth && row.ghl_location_id) {
+    const { getTokenForLocation } = await import('@/lib/ghl/token-store');
+    return await getTokenForLocation(row.ghl_location_id);
+  }
+  const t = row.ghl_token;
   return typeof t === 'string' ? t : null;
 }
 
@@ -225,17 +238,48 @@ export async function getGHLLocationIdForOrg(orgId: string): Promise<string | nu
   return typeof id === 'string' ? id : null;
 }
 
+export async function getOrgGHLUseOAuth(orgId: string): Promise<boolean> {
+  const row = await getOrgGHLRow(orgId);
+  return row?.ghl_use_oauth === true;
+}
+
 export async function setOrgGHL(orgId: string, token: string, locationId: string): Promise<void> {
   if (!isSupabaseConfigured()) return;
   const supabase = createSupabaseServer();
   const updated_at = new Date().toISOString();
   // org_ghl_settings may not be in generated Supabase types
   const { error } = await (supabase as any).from('org_ghl_settings').upsert(
-    { org_id: orgId, ghl_token: token, ghl_location_id: locationId, updated_at },
+    { org_id: orgId, ghl_token: token, ghl_location_id: locationId, ghl_use_oauth: false, updated_at },
     { onConflict: 'org_id' }
   );
   if (error) {
     console.error('org_ghl_settings upsert:', error);
+    throw error;
+  }
+}
+
+/** Link org to GHL via OAuth (token from token store by locationId). */
+export async function setOrgGHLOAuth(orgId: string, locationId: string): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  const supabase = createSupabaseServer();
+  const updated_at = new Date().toISOString();
+  const { error } = await (supabase as any).from('org_ghl_settings').upsert(
+    { org_id: orgId, ghl_token: null, ghl_location_id: locationId, ghl_use_oauth: true, updated_at },
+    { onConflict: 'org_id' }
+  );
+  if (error) {
+    console.error('org_ghl_settings setOrgGHLOAuth:', error);
+    throw error;
+  }
+}
+
+/** Clear org GHL connection. */
+export async function clearOrgGHL(orgId: string): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  const supabase = createSupabaseServer();
+  const { error } = await (supabase as any).from('org_ghl_settings').delete().eq('org_id', orgId);
+  if (error) {
+    console.error('org_ghl_settings clearOrgGHL:', error);
     throw error;
   }
 }

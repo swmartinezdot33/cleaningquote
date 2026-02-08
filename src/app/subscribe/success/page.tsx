@@ -24,13 +24,13 @@ export default function SubscribeSuccessPage() {
             <div className="space-y-2">
               <h1 className="text-lg font-semibold text-foreground">Payment successful</h1>
               <p className="text-sm text-muted-foreground">
-                Your account is being set up. <strong>Check your email</strong> for an account confirmation from <strong>team@cleanquote.io</strong>.
+                Your CleanQuote account and HighLevel sub-account are being set up. <strong>Check your email</strong> for a confirmation from <strong>team@cleanquote.io</strong>.
               </p>
               <p className="text-sm text-muted-foreground">
-                That email contains a link to set your password and sign in. Use it to access your dashboard.
+                That email contains a link to set your password and sign in. After signing in, connect your HighLevel sub-account in Settings to access your dashboard.
               </p>
               <p className="text-sm text-muted-foreground">
-                If you don&apos;t see it, check your spam folder and make sure you're looking at the inbox for the <strong>email you used at checkout</strong>.
+                If you don&apos;t see it, check your spam folder and make sure you&apos;re looking at the inbox for the <strong>email you used at checkout</strong>.
               </p>
             </div>
           </div>

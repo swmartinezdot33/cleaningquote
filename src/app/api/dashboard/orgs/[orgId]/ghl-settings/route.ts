@@ -4,7 +4,9 @@ import { canManageOrg } from '@/lib/org-auth';
 import {
   getGHLTokenForOrg,
   getGHLLocationIdForOrg,
+  getOrgGHLUseOAuth,
   setOrgGHL,
+  clearOrgGHL,
 } from '@/lib/config/store';
 import { testGHLConnection } from '@/lib/ghl/client';
 
@@ -28,20 +30,22 @@ export async function GET(
   }
 
   try {
-    const [token, locationId] = await Promise.all([
+    const [token, locationId, useOauth] = await Promise.all([
       getGHLTokenForOrg(orgId),
       getGHLLocationIdForOrg(orgId),
+      getOrgGHLUseOAuth(orgId),
     ]);
     if (!token || !locationId) {
       return NextResponse.json({
         configured: false,
-        message: 'HighLevel API token and Location ID not configured. Set them below.',
+        message: 'Connect with HighLevel to link your sub-account.',
       });
     }
     const testResult = await testGHLConnection(token, { locationId }).catch(() => ({ success: false }));
     return NextResponse.json({
       configured: true,
       connected: testResult.success,
+      useOauth,
       maskedToken: token ? `****${token.slice(-4)}` : 'Unknown',
       locationId,
       status: testResult.success ? 'Connected' : 'Not Connected',
@@ -167,6 +171,35 @@ export async function PUT(
     console.error('PUT org ghl-settings (test):', e);
     return NextResponse.json(
       { success: false, error: e instanceof Error ? e.message : 'Failed to test connection' },
+      { status: 500 }
+    );
+  }
+}
+
+/** DELETE - Disconnect org from HighLevel. */
+export async function DELETE(
+  _request: NextRequest,
+  context: { params: Promise<{ orgId: string }> }
+) {
+  const { orgId } = await context.params;
+  const supabase = await createSupabaseServerSSR();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const canManage = await canManageOrg(user.id, user.email ?? undefined, orgId);
+  if (!canManage) {
+    return NextResponse.json({ error: 'Only org admins can disconnect HighLevel' }, { status: 403 });
+  }
+
+  try {
+    await clearOrgGHL(orgId);
+    return NextResponse.json({ success: true, message: 'HighLevel disconnected.' });
+  } catch (e) {
+    console.error('DELETE org ghl-settings:', e);
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : 'Failed to disconnect' },
       { status: 500 }
     );
   }

@@ -17,6 +17,7 @@ type LoadingState = 'idle' | 'creating' | 'redirecting';
 export function SignupModal({ open, onOpenChange }: SignupModalProps) {
   const [loadingState, setLoadingState] = useState<LoadingState>('idle');
   const [error, setError] = useState('');
+  const [plan, setPlan] = useState<'monthly' | 'annual'>('annual');
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -35,7 +36,7 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
       const response = await fetch('/api/stripe/create-customer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, plan }),
       });
 
       const data = await response.json();
@@ -129,6 +130,35 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          <div className="space-y-2">
+            <Label>Billing Plan</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setPlan('monthly')}
+                className={`rounded-lg border-2 px-4 py-3 text-left transition-colors ${
+                  plan === 'monthly'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/50'
+                }`}
+              >
+                <span className="font-medium">Monthly</span>
+                <span className="block text-sm text-muted-foreground">Billed monthly</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPlan('annual')}
+                className={`rounded-lg border-2 px-4 py-3 text-left transition-colors ${
+                  plan === 'annual'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/50'
+                }`}
+              >
+                <span className="font-medium">Annual</span>
+                <span className="block text-sm text-green-600 dark:text-green-500">Save with yearly billing</span>
+              </button>
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="firstName">First Name *</Label>

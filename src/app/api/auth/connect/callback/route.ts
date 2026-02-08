@@ -1,11 +1,14 @@
 /**
  * OAuth callback for marketplace app install
- * Exchanges authorization code for tokens, stores them, and creates session.
+ * Exchanges authorization code for tokens, stores them.
+ * When state contains orgId, links location to org (Supabase user flow).
+ * Otherwise creates GHL session (standalone marketplace install).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { storeInstallation } from '@/lib/ghl/token-store';
 import { createSessionToken, setSessionCookie } from '@/lib/ghl/session';
+import { setOrgGHLOAuth } from '@/lib/config/store';
 
 const TOKEN_URL = 'https://services.leadconnectorhq.com/oauth/token';
 
@@ -13,7 +16,20 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const error = searchParams.get('error');
-  const redirectTo = searchParams.get('redirect') || '/dashboard';
+  const stateRaw = searchParams.get('state');
+
+  let redirectTo = '/dashboard';
+  let orgId: string | null = null;
+  if (stateRaw) {
+    try {
+      const state = new URLSearchParams(stateRaw);
+      orgId = state.get('orgId');
+      const r = state.get('redirect');
+      if (r) redirectTo = r;
+    } catch {
+      // ignore parse errors
+    }
+  }
 
   if (error) {
     console.error('OAuth callback error:', error, searchParams.get('error_description'));
@@ -84,9 +100,13 @@ export async function GET(request: NextRequest) {
       locationId,
     });
 
+    if (orgId) {
+      await setOrgGHLOAuth(orgId, locationId);
+      return NextResponse.redirect(new URL(redirectTo, request.url));
+    }
+
     const sessionToken = await createSessionToken({ locationId, companyId, userId });
     await setSessionCookie(sessionToken);
-
     return NextResponse.redirect(new URL(redirectTo, request.url));
   } catch (err) {
     console.error('OAuth callback error:', err);

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Trash2, Send, Loader2, Save, BookOpen, Sparkles } from 'lucide-react';
+import { Trash2, Send, Loader2, BookOpen, Sparkles } from 'lucide-react';
 import { CANONICAL_SITE_URL } from '@/lib/canonical-url';
 
 interface Member {
@@ -51,10 +51,8 @@ export default function SettingsPage() {
   const [orgOfficeAddress, setOrgOfficeAddress] = useState('');
   const [orgSaving, setOrgSaving] = useState(false);
   const [orgMessage, setOrgMessage] = useState<string | null>(null);
-  const [ghlStatus, setGhlStatus] = useState<{ configured: boolean; connected?: boolean; locationId?: string } | null>(null);
-  const [ghlToken, setGhlToken] = useState('');
-  const [ghlLocationId, setGhlLocationId] = useState('');
-  const [ghlSaving, setGhlSaving] = useState(false);
+  const [ghlStatus, setGhlStatus] = useState<{ configured: boolean; connected?: boolean; locationId?: string; useOauth?: boolean } | null>(null);
+  const [ghlDisconnecting, setGhlDisconnecting] = useState(false);
   const [ghlMessage, setGhlMessage] = useState<string | null>(null);
 
   const refreshMembers = () => {
@@ -129,8 +127,7 @@ export default function SettingsPage() {
       .then((r) => r.json())
       .then((d) => {
         if (d.configured) {
-          setGhlStatus({ configured: true, connected: d.connected, locationId: d.locationId });
-          if (d.locationId) setGhlLocationId(d.locationId);
+          setGhlStatus({ configured: true, connected: d.connected, locationId: d.locationId, useOauth: d.useOauth });
         } else {
           setGhlStatus({ configured: false });
         }
@@ -164,33 +161,21 @@ export default function SettingsPage() {
     }
   };
 
-  const saveGhl = async () => {
+  const disconnectGhl = async () => {
     if (!orgId) return;
-    setGhlSaving(true);
+    setGhlDisconnecting(true);
     setGhlMessage(null);
-    const payload = { token: ghlToken.trim(), locationId: ghlLocationId.trim() };
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'settings/page.tsx:saveGhl',message:'saveGhl called',data:{orgId,hasToken:!!payload.token,tokenLen:payload.token.length,hasLocationId:!!payload.locationId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
     try {
-      const res = await fetch(`/api/dashboard/orgs/${orgId}/ghl-settings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch(`/api/dashboard/orgs/${orgId}/ghl-settings`, { method: 'DELETE' });
       const data = await res.json();
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'settings/page.tsx:saveGhl',message:'saveGhl response',data:{ok:res.ok,status:res.status,error:data.error},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
       if (res.ok) {
-        setGhlStatus({ configured: true, connected: data.connected, locationId: data.locationId ?? ghlLocationId.trim() });
-        if (data.locationId) setGhlLocationId(data.locationId);
-        setGhlMessage('HighLevel connection saved.');
+        setGhlStatus({ configured: false });
+        setGhlMessage('HighLevel disconnected.');
       } else {
-        setGhlMessage(data.error ?? 'Failed to save.');
+        setGhlMessage(data.error ?? 'Failed to disconnect.');
       }
     } finally {
-      setGhlSaving(false);
+      setGhlDisconnecting(false);
     }
   };
 
@@ -325,10 +310,10 @@ export default function SettingsPage() {
           HighLevel Integration
         </h2>
         <p className="text-sm text-muted-foreground mb-2">
-          One connection per organization. All tools in this org use this HighLevel location. Configure pipelines, calendars, and CRM behavior per tool in each tool&apos;s Settings.
+          One connection per organization. Connect your GHL sub-account to sync quotes, contacts, and appointments. Configure pipelines, calendars, and CRM behavior per tool in each tool&apos;s Settings.
         </p>
         <div className="space-y-3 rounded-lg border p-4">
-          {ghlStatus?.configured && (
+          {ghlStatus?.configured ? (
             <>
               <p className="text-sm text-muted-foreground">
                 {ghlStatus.connected ? (
@@ -336,53 +321,54 @@ export default function SettingsPage() {
                 ) : (
                   <span className="text-amber-600 dark:text-amber-400">Configured; connection could not be verified</span>
                 )}
+                {ghlStatus.useOauth && <span className="text-muted-foreground"> · OAuth</span>}
                 {ghlStatus.locationId && ` · Location ID: ${ghlStatus.locationId}`}
               </p>
               {ghlStatus.locationId && (
                 <div className="rounded-lg border border-border bg-muted/30 p-3">
                   <p className="text-xs font-medium text-muted-foreground mb-2">GHL Quoter Button – paste in GHL → Settings → Company → Custom JS:</p>
                   <code className="text-xs block break-all bg-background p-2 rounded border">
-                    {`<script src="${typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || CANONICAL_SITE_URL)}/api/script/cleanquote.js" data-location-id="${ghlStatus.locationId}"></script>`}
+                    {`<script src="${typeof window !== 'undefined' ? window.location.origin : CANONICAL_SITE_URL}/api/script/cleanquote.js" data-location-id="${ghlStatus.locationId}"></script>`}
                   </code>
                 </div>
               )}
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href={`/api/auth/connect?orgId=${encodeURIComponent(orgId)}&redirect=${encodeURIComponent('/dashboard/settings')}`}
+                  className="inline-flex items-center gap-2 rounded border border-primary px-4 py-2 text-sm text-primary hover:bg-primary/5"
+                >
+                  Reconnect with HighLevel
+                </a>
+                <button
+                  type="button"
+                  onClick={disconnectGhl}
+                  disabled={ghlDisconnecting}
+                  className="inline-flex items-center gap-2 rounded border border-destructive/50 px-4 py-2 text-sm text-destructive hover:bg-destructive/5 disabled:opacity-50"
+                >
+                  {ghlDisconnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Disconnect
+                </button>
+                <Link href="/help/ghl-integration" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 self-center text-sm text-primary hover:underline">
+                  <BookOpen className="h-3.5 w-3.5" />
+                  Help
+                </Link>
+              </div>
             </>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              <a
+                href={`/api/auth/connect?orgId=${encodeURIComponent(orgId)}&redirect=${encodeURIComponent('/dashboard/settings')}`}
+                className="inline-flex items-center gap-2 rounded bg-primary px-4 py-2 text-sm text-primary-foreground hover:opacity-90"
+              >
+                <Sparkles className="h-4 w-4" />
+                Connect with HighLevel
+              </a>
+              <Link href="/help/ghl-integration" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+                <BookOpen className="h-3.5 w-3.5" />
+                Help
+              </Link>
+            </div>
           )}
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground">API token</label>
-            <input
-              type="password"
-              value={ghlToken}
-              onChange={(e) => setGhlToken(e.target.value)}
-              className="mt-1 w-full rounded border px-3 py-2 text-sm"
-              placeholder="HighLevel API token"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground">Location ID</label>
-            <input
-              type="text"
-              value={ghlLocationId}
-              onChange={(e) => setGhlLocationId(e.target.value)}
-              className="mt-1 w-full rounded border px-3 py-2 text-sm"
-              placeholder="HighLevel Location ID"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={saveGhl}
-              disabled={ghlSaving || !ghlToken.trim() || !ghlLocationId.trim()}
-              className="inline-flex items-center gap-2 rounded bg-primary px-4 py-2 text-sm text-primary-foreground hover:opacity-90 disabled:opacity-50"
-            >
-              {ghlSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {ghlSaving ? 'Saving…' : 'Save HighLevel connection'}
-            </button>
-            <Link href="/help/ghl-integration" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
-              <BookOpen className="h-3.5 w-3.5" />
-              Help
-            </Link>
-          </div>
           {ghlMessage && <p className="text-sm text-muted-foreground">{ghlMessage}</p>}
         </div>
       </section>
