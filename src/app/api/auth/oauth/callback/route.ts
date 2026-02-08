@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storeInstallation } from '@/lib/ghl/token-store';
+import { createSessionToken, setSessionCookie } from '@/lib/ghl/session';
+import { setOrgGHLOAuth } from '@/lib/config/store';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +12,45 @@ function getAppBaseUrl(): string {
   return `http://localhost:${port}`;
 }
 const APP_BASE = getAppBaseUrl();
+
+function parseState(state: string | null): { redirect: string; orgId?: string } {
+  const fallback = { redirect: '/oauth-success' };
+  if (!state) return fallback;
+
+  // Connect flow: state = "orgId=xxx&redirect=/dashboard"
+  try {
+    const params = new URLSearchParams(state);
+    const redirect = params.get('redirect');
+    const orgId = params.get('orgId');
+    if (redirect && redirect.startsWith('/')) {
+      return { redirect, orgId: orgId ?? undefined };
+    }
+  } catch {
+    /* not URLSearchParams */
+  }
+
+  // OAuth flow: state = base64(JSON) or JSON
+  try {
+    const decoded = Buffer.from(state, 'base64').toString('utf-8');
+    const parsed = JSON.parse(decoded);
+    const r = parsed?.redirect;
+    return {
+      redirect: typeof r === 'string' && r.startsWith('/') ? r : '/oauth-success',
+      orgId: parsed?.orgId,
+    };
+  } catch {
+    try {
+      const parsed = JSON.parse(state);
+      const r = parsed?.redirect;
+      return {
+        redirect: typeof r === 'string' && r.startsWith('/') ? r : '/oauth-success',
+        orgId: parsed?.orgId,
+      };
+    } catch {
+      return fallback;
+    }
+  }
+}
 
 /**
  * GET /api/auth/oauth/callback
@@ -134,10 +175,40 @@ export async function GET(request: NextRequest) {
       userId: tokenData.userId ?? tokenData.user_id ?? '',
     });
 
-    const successUrl = new URL('/oauth-success', APP_BASE);
-    successUrl.searchParams.set('success', 'oauth_installed');
-    successUrl.searchParams.set('locationId', finalLocationId);
-    return NextResponse.redirect(successUrl.toString());
+    const { redirect: redirectTo, orgId } = parseState(state);
+    const companyId = tokenData.companyId ?? tokenData.company_id ?? '';
+    const userId = tokenData.userId ?? tokenData.user_id ?? '';
+
+    // Set session cookie so dashboard works (matches connect flow)
+    const sessionToken = await createSessionToken({
+      locationId: finalLocationId,
+      companyId,
+      userId,
+    });
+
+    let targetUrl: string;
+    if (redirectTo === '/oauth-success') {
+      const u = new URL('/oauth-success', APP_BASE);
+      u.searchParams.set('success', 'oauth_installed');
+      u.searchParams.set('locationId', finalLocationId);
+      targetUrl = u.toString();
+    } else {
+      targetUrl = new URL(redirectTo, APP_BASE).toString();
+    }
+
+    if (orgId) {
+      await setOrgGHLOAuth(orgId, finalLocationId);
+    }
+
+    const res = NextResponse.redirect(targetUrl);
+    res.cookies.set('ghl_session', sessionToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      maxAge: 7 * 24 * 60 * 60,
+      path: '/',
+    });
+    return res;
   } catch (error) {
     console.error('[OAuth Callback] Error:', error);
     const url = new URL('/oauth-success', APP_BASE);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useGHLIframe } from '@/lib/ghl-iframe-context';
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -15,23 +15,39 @@ export default function SetupPage() {
   } | null>(null);
   const [loadingOAuth, setLoadingOAuth] = useState(true);
 
+  const fetchOAuthStatus = useCallback(() => {
+    if (!ghlData?.locationId) return;
+    fetch(`/api/auth/oauth/status?locationId=${ghlData.locationId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setOauthStatus(d ?? { installed: false }))
+      .catch(() => setOauthStatus({ installed: false }))
+      .finally(() => setLoadingOAuth(false));
+  }, [ghlData?.locationId]);
+
   useEffect(() => {
     if (!loading && ghlData?.locationId) {
-      fetch(`/api/auth/oauth/status?locationId=${ghlData.locationId}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((d) => setOauthStatus(d ?? { installed: false }))
-        .catch(() => setOauthStatus({ installed: false }))
-        .finally(() => setLoadingOAuth(false));
+      fetchOAuthStatus();
     } else if (!loading) {
       setLoadingOAuth(false);
     }
-  }, [loading, ghlData?.locationId]);
+  }, [loading, ghlData?.locationId, fetchOAuthStatus]);
+
+  // Refetch when tab becomes visible (user closed OAuth popup, matches MaidCentral)
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') fetchOAuthStatus();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [fetchOAuthStatus]);
 
   const handleOAuthInstall = () => {
     const base = typeof window !== 'undefined' ? window.location.origin : '';
     const authUrl = new URL('/api/auth/oauth/authorize', base);
     if (ghlData?.locationId) authUrl.searchParams.set('locationId', ghlData.locationId);
-    window.location.href = authUrl.toString();
+    authUrl.searchParams.set('redirect', '/oauth-success');
+    // Open in new tab like MaidCentral — keeps iframe on setup, avoids redirect in iframe
+    window.open(authUrl.toString(), '_blank');
   };
 
   if (loading || (ghlData && loadingOAuth)) {
