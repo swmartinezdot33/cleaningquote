@@ -38,9 +38,11 @@ export default function CRMContactsPage() {
     params.set('perPage', String(perPage));
     if (ghlData?.locationId) params.set('locationId', ghlData.locationId);
 
+    console.log('[CRM Contacts] loadContacts ghlData.locationId=', ghlData?.locationId, 'params=', params.toString());
     fetch(`/api/dashboard/crm/contacts?${params}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load'))))
       .then((d) => {
+        console.log('[CRM Contacts] API response: contacts=', d.contacts?.length ?? 0, 'needsConnect=', d.needsConnect);
         setContacts(d.contacts ?? []);
         setTotal(d.total ?? 0);
         setNeedsConnect(!!d.needsConnect);
@@ -104,10 +106,9 @@ export default function CRMContactsPage() {
         !error &&
         !needsConnect && (
           <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-200">
-            <p className="font-medium">Location context required</p>
+            <p className="font-medium">Couldn&apos;t detect your CRM location</p>
             <p className="mt-1 text-sm">
-              Open CleanQuote from a sub-account dashboard (not Agency view). GHL provides location via user context.
-              Ensure your app has Shared Secret configured in Marketplace App → Advanced Settings → Auth.
+              Try refreshing, or open CleanQuote from your sub-account sidebar (not Agency view).
             </p>
           </div>
         )}

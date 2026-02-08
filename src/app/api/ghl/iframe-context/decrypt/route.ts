@@ -15,6 +15,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     let encryptedData = body.encryptedData ?? body.key;
 
+    console.log('[Decrypt] Request: encryptedData type=', typeof encryptedData, Array.isArray(encryptedData) ? `array[${encryptedData?.length}]` : '', 'hasValue=', !!encryptedData);
+
     if (!encryptedData) {
       return NextResponse.json(
         { error: 'Encrypted data is required (encryptedData or key)' },
@@ -27,6 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     const ssoKey = process.env.GHL_APP_SSO_KEY?.trim();
+    console.log('[Decrypt] GHL_APP_SSO_KEY set=', !!ssoKey, 'len=', ssoKey?.length ?? 0);
 
     if (!ssoKey) {
       return NextResponse.json(
@@ -58,8 +61,10 @@ export async function POST(request: NextRequest) {
           }
         } else {
           userData = JSON.parse(decrypted) as Record<string, unknown>;
+          console.log('[Decrypt] ✅ Decrypted OK, locationId=', (userData as any)?.activeLocation ?? (userData as any)?.locationId);
         }
       } catch (decryptError) {
+        console.warn('[Decrypt] Decrypt error:', decryptError);
         try {
           userData = JSON.parse(encryptedData) as Record<string, unknown>;
         } catch {
@@ -96,6 +101,7 @@ export async function POST(request: NextRequest) {
       (userData.context as { locationId?: string })?.locationId;
 
     if (!locationId) {
+      console.warn('[Decrypt] No locationId in decrypted data. Keys:', Object.keys(userData ?? {}));
       return NextResponse.json(
         {
           error: 'Location ID not found. Open from a sub-account dashboard (not Agency view).',
@@ -104,6 +110,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    console.log('[Decrypt] Success locationId=', locationId);
 
     // GHL Location context uses activeLocation, userName, email per docs
     const ghlContext: GHLIframeData = {

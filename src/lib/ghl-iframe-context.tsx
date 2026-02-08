@@ -60,6 +60,14 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
     const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
     const apply = (ctx: GHLIframeData) => setGHLContext(ctx, setGhlData, setError, setLoading);
 
+    // [GHL Debug] Entry — same logging as MaidCentral
+    console.log('[GHL Iframe] ========== context resolution start ==========');
+    console.log('[GHL Iframe] isInIframe:', isInIframe);
+    console.log('[GHL Iframe] href:', typeof window !== 'undefined' ? window.location.href : 'N/A');
+    console.log('[GHL Iframe] pathname:', typeof window !== 'undefined' ? window.location.pathname : 'N/A');
+    console.log('[GHL Iframe] search:', typeof window !== 'undefined' ? window.location.search : 'N/A');
+    console.log('[GHL Iframe] document.referrer:', typeof document !== 'undefined' ? document.referrer || '(empty)' : 'N/A');
+
     // 1. URL params (query + hash)
     const urlParams = new URLSearchParams(window.location?.search ?? '');
     const hashParams = new URLSearchParams((window.location?.hash ?? '').substring(1));
@@ -75,33 +83,67 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
       hashParams.get('location_id') ||
       hashParams.get('location');
 
+    if (urlLocationId) console.log('[GHL Iframe] ✅ 1. From URL params/hash:', urlLocationId);
+
     // 2. From current URL path (/location/{id}/)
     if (!urlLocationId) {
       const pathMatch = pathname.match(/\/location\/([^/]+)/i);
-      if (pathMatch?.[1]) urlLocationId = pathMatch[1];
-    }
-
-    // 3. From iframe src path (when in iframe)
-    if (!urlLocationId && isInIframe) {
-      const iframePathMatch = pathname.match(/\/(?:v\d+\/)?location\/([^/]+)/i);
-      if (iframePathMatch?.[1]) urlLocationId = iframePathMatch[1];
-      if (!urlLocationId) {
-        const parts = pathname.split('/');
-        const id = parts.find((p) => p.length >= 15 && p.length <= 30 && /^[a-zA-Z0-9]+$/.test(p));
-        if (id) urlLocationId = id;
+      if (pathMatch?.[1]) {
+        urlLocationId = pathMatch[1];
+        console.log('[GHL Iframe] ✅ 2. From path:', urlLocationId);
       }
     }
 
-    // 4. Referrer (GHL parent URL)
+    // 3. From iframe src path (when in iframe) — MaidCentral checks v1/v2/location/xxx
+    if (!urlLocationId && isInIframe) {
+      const iframePathMatch = pathname.match(/\/(?:v\d+\/)?location\/([^/]+)/i);
+      if (iframePathMatch?.[1]) {
+        urlLocationId = iframePathMatch[1];
+        console.log('[GHL Iframe] ✅ 3a. From iframe path (vN/location/xxx):', urlLocationId);
+      }
+      if (!urlLocationId) {
+        const parts = pathname.split('/');
+        const id = parts.find((p) => p.length >= 15 && p.length <= 30 && /^[a-zA-Z0-9]+$/.test(p));
+        if (id) {
+          urlLocationId = id;
+          console.log('[GHL Iframe] ✅ 3b. From path parts (potential id):', urlLocationId);
+        }
+      }
+    }
+
+    // 4. Referrer (GHL parent) — MOST RELIABLE for custom menu links per MaidCentral
     if (!urlLocationId && typeof document !== 'undefined' && document.referrer) {
       try {
         const referrerUrl = new URL(document.referrer);
+        console.log('[GHL Iframe] 4. Referrer hostname:', referrerUrl.hostname, 'pathname:', referrerUrl.pathname);
         if (/gohighlevel|leadconnector/i.test(referrerUrl.hostname)) {
           const refMatch = referrerUrl.pathname.match(/\/(?:v\d+\/)?location\/([^/]+)/i);
           urlLocationId = refMatch?.[1] ?? referrerUrl.searchParams.get('locationId') ?? referrerUrl.searchParams.get('location_id') ?? urlLocationId;
+          if (urlLocationId) console.log('[GHL Iframe] ✅ 4. From referrer:', urlLocationId);
+        } else {
+          console.log('[GHL Iframe] 4. Referrer not GHL hostname, skipping');
+        }
+      } catch (e) {
+        console.warn('[GHL Iframe] 4. Referrer parse error:', e);
+      }
+    } else if (!urlLocationId && typeof document !== 'undefined') {
+      console.log('[GHL Iframe] 4. document.referrer is empty (Referrer-Policy may block cross-origin)');
+    }
+
+    // 4b. window.name (MaidCentral also checks this)
+    if (!urlLocationId && typeof window !== 'undefined' && window.name) {
+      try {
+        const nameData = JSON.parse(window.name) as Record<string, unknown>;
+        const nid = nameData?.locationId ?? nameData?.location_id ?? nameData?.location;
+        if (nid && typeof nid === 'string') {
+          urlLocationId = nid;
+          console.log('[GHL Iframe] ✅ 4b. From window.name:', urlLocationId);
         }
       } catch {
-        /* ignore */
+        if (typeof window.name === 'string' && window.name.length >= 15 && window.name.length <= 30 && /^[a-zA-Z0-9]+$/.test(window.name)) {
+          urlLocationId = window.name;
+          console.log('[GHL Iframe] ✅ 4b. window.name as plain locationId:', urlLocationId);
+        }
       }
     }
 
@@ -109,6 +151,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
 
     if (urlLocationId) {
       hasLocationIdRef.current = true;
+      console.log('[GHL Iframe] ✅ APPLY from URL/path/referrer:', urlLocationId);
       apply({ locationId: urlLocationId, userId: urlUserId || undefined });
     }
 
@@ -120,6 +163,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
           const parsed = JSON.parse(cached) as GHLIframeData;
           if (parsed.locationId) {
             hasLocationIdRef.current = true;
+            console.log('[GHL Iframe] ✅ 5. From sessionStorage cache:', parsed.locationId);
             setGhlData(parsed);
             setError(null);
             setLoading(false);
@@ -131,12 +175,20 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (!isInIframe) {
-      if (!hasLocationIdRef.current) setLoading(false);
+      if (!hasLocationIdRef.current) {
+        console.log('[GHL Iframe] Not in iframe, no locationId — setLoading(false)');
+        setLoading(false);
+      }
       return;
     }
 
     // 6. postMessage from GHL (REQUEST_USER_DATA) — matches GHL docs & MaidCentral
+    console.log('[GHL Iframe] In iframe, listening for postMessage. Sending REQUEST_USER_DATA…');
     const handleMessage = (event: MessageEvent) => {
+      // Log all postMessage for debugging (MaidCentral does this)
+      if (event.data?.message === 'REQUEST_USER_DATA_RESPONSE' || event.data?.message) {
+        console.log('[GHL Iframe] postMessage:', event.origin, event.data?.message, event.data);
+      }
       try {
         let data = event.data;
         if (typeof data === 'string') {
@@ -149,9 +201,13 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
         if (!data || typeof data !== 'object') return;
 
         if (data.message === 'REQUEST_USER_DATA_RESPONSE' && data.payload != null) {
+          console.log('[GHL Iframe] Received REQUEST_USER_DATA_RESPONSE, payload type:', typeof data.payload, Array.isArray(data.payload) ? `array[${data.payload.length}]` : '');
           // GHL sends encrypted string or array; extract raw encrypted data
           const rawPayload = Array.isArray(data.payload) ? data.payload[0] : data.payload;
-          if (!rawPayload) return;
+          if (!rawPayload) {
+            console.warn('[GHL Iframe] REQUEST_USER_DATA_RESPONSE has empty payload');
+            return;
+          }
 
           fetch('/api/ghl/iframe-context/decrypt', {
             method: 'POST',
@@ -160,8 +216,10 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
           })
             .then((r) => (r.ok ? r.json() : null))
             .then((result) => {
+              console.log('[GHL Iframe] Decrypt response:', result?.success ? { success: true, locationId: result.locationId } : result);
               if (result?.success && result.locationId) {
                 hasLocationIdRef.current = true;
+                console.log('[GHL Iframe] ✅ 6. From decrypt (postMessage):', result.locationId);
                 apply({
                   locationId: result.locationId,
                   userId: result.userId,
@@ -172,13 +230,14 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
                 });
               } else if (typeof data.payload === 'object' && data.payload?.locationId) {
                 hasLocationIdRef.current = true;
+                console.log('[GHL Iframe] ✅ 6b. From payload.locationId (unencrypted):', data.payload.locationId);
                 apply({ locationId: data.payload.locationId, ...data.payload });
-              } else if (result?.error && process.env.NODE_ENV === 'development') {
-                console.warn('[GHL Iframe] Decrypt failed:', result.error, result.hint);
+              } else if (result?.error || result?.hint) {
+                console.warn('[GHL Iframe] Decrypt failed:', result?.error, result?.hint);
               }
             })
             .catch((err) => {
-              console.error('[GHL Iframe] Decrypt error:', err);
+              console.error('[GHL Iframe] Decrypt fetch error:', err);
               if (typeof data.payload === 'object' && data.payload?.locationId) {
                 hasLocationIdRef.current = true;
                 apply({ locationId: data.payload.locationId, ...data.payload });
@@ -196,6 +255,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
           data.payload?.locationId;
         if (locationId) {
           hasLocationIdRef.current = true;
+          console.log('[GHL Iframe] ✅ 6c. From other postMessage:', locationId, 'keys:', Object.keys(data));
           apply({
             locationId,
             userId: data.userId ?? data.payload?.userId,
@@ -223,6 +283,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
       const t5 = setTimeout(sendRequest, 4000);
       const t6 = setTimeout(() => {
         if (!hasLocationIdRef.current) {
+          console.error('[GHL Iframe] ❌ TIMEOUT: No locationId after 6s. Check logs above for which step failed.');
           setError(
             'No GHL context received. Open from a sub-account dashboard (not Agency view). ' +
             'Ensure GHL_APP_SSO_KEY matches your CleanQuote app Shared Secret in Marketplace App → Auth.'

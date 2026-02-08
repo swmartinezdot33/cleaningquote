@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
-import { getOrgsForDashboard } from '@/lib/org-auth';
-import { getSession } from '@/lib/ghl/session';
-import { getGHLCredentials } from '@/lib/ghl/credentials';
-import { getOrFetchTokenForLocation } from '@/lib/ghl/token-store';
-import { getLocationIdFromRequest } from '@/lib/request-utils';
+import { resolveGHLContext } from '@/lib/ghl/api-context';
 import { listGHLContacts } from '@/lib/ghl/client';
 
 export const dynamic = 'force-dynamic';
@@ -56,170 +50,59 @@ function emptyContacts() {
   return NextResponse.json({ contacts: [], total: 0, page: 1, perPage: 25 });
 }
 
-/** GET /api/dashboard/crm/contacts - list contacts for selected org or GHL location */
+/** GET /api/dashboard/crm/contacts - GHL only: decrypt context → locationId → token → GHL API */
 export async function GET(request: NextRequest) {
   try {
-    // 1) locationId from query/header (GHL iframe flow - client passes from GHL context)
-    const requestLocationId = getLocationIdFromRequest(request);
-    if (requestLocationId) {
-      try {
-        const token = await getOrFetchTokenForLocation(requestLocationId);
-        if (token) {
-          const { searchParams } = new URL(request.url);
-          const result = await fetchContactsFromGHL(requestLocationId, token, searchParams);
-          return NextResponse.json(result);
-        }
-        return NextResponse.json({ contacts: [], total: 0, page: 1, perPage: 25, needsConnect: true });
-      } catch (err) {
-        console.warn('CRM contacts: GHL token/fetch error for locationId', requestLocationId, err);
-        return NextResponse.json({ contacts: [], total: 0, page: 1, perPage: 25, needsConnect: true });
-      }
-    }
+    const ctx = await resolveGHLContext(request);
+    if (!ctx) return NextResponse.json({ contacts: [], total: 0, page: 1, perPage: 25, locationIdRequired: true });
+    if ('needsConnect' in ctx) return NextResponse.json({ contacts: [], total: 0, page: 1, perPage: 25, needsConnect: true });
 
-    let session;
     try {
-      session = await getSession();
+      const { searchParams } = new URL(request.url);
+      const result = await fetchContactsFromGHL(ctx.locationId, ctx.token, searchParams);
+      return NextResponse.json(result);
     } catch (err) {
-      console.warn('CRM contacts: getSession error', err);
-      return emptyContacts();
+      console.warn('CRM contacts: GHL fetch error', ctx.locationId, err);
+      return NextResponse.json({ contacts: [], total: 0, page: 1, perPage: 25, needsConnect: true });
     }
-    if (session) {
-      try {
-        const credentials = await getGHLCredentials({ session });
-        if (credentials.token && credentials.locationId) {
-          const { searchParams } = new URL(request.url);
-          const result = await fetchContactsFromGHL(credentials.locationId, credentials.token, searchParams);
-          return NextResponse.json(result);
-        }
-      } catch (err) {
-        console.warn('CRM contacts: session/credentials error', err);
-      }
-      return emptyContacts();
-    }
-
-    let supabase;
-    try {
-      supabase = await createSupabaseServerSSR();
-    } catch (err) {
-      console.warn('CRM contacts: Supabase init error', err);
-      return emptyContacts();
-    }
-    let user;
-    try {
-      const { data } = await supabase.auth.getUser();
-      user = data.user;
-    } catch (err) {
-      console.warn('CRM contacts: getUser error', err);
-      return emptyContacts();
-    }
-
-    if (!user) {
-      return emptyContacts();
-    }
-
-    let orgs;
-    try {
-      orgs = await getOrgsForDashboard(user.id, user.email ?? undefined);
-    } catch (err) {
-      console.warn('CRM contacts: getOrgsForDashboard error', err);
-      return NextResponse.json({ contacts: [], total: 0 });
-    }
-    const cookieStore = await cookies();
-    let selectedOrgId = cookieStore.get('selected_org_id')?.value ?? orgs[0]?.id;
-    if (selectedOrgId && !orgs.some((o: { id: string }) => o.id === selectedOrgId)) {
-      selectedOrgId = orgs[0]?.id;
-    }
-
-    if (!selectedOrgId) {
-      return NextResponse.json({ contacts: [], total: 0 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const stage = searchParams.get('stage');
-    const search = searchParams.get('search')?.trim();
-    const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
-    const perPage = Math.min(100, Math.max(1, parseInt(searchParams.get('perPage') ?? '25', 10)));
-    const offset = (page - 1) * perPage;
-
-    let query = supabase
-      .from('contacts')
-      .select('id, first_name, last_name, email, phone, stage, source, tags, created_at', { count: 'exact' })
-      .eq('org_id', selectedOrgId)
-      .order('created_at', { ascending: false });
-
-    if (stage && ['lead', 'quoted', 'booked', 'customer', 'churned'].includes(stage)) {
-      query = query.eq('stage', stage);
-    }
-
-    if (search) {
-      const term = `%${search}%`;
-      query = query.or(`first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term},phone.ilike.${term}`);
-    }
-
-    const { data: contacts, error, count } = await query.range(offset, offset + perPage - 1);
-
-    if (error) {
-      const msg = String(error?.message ?? '');
-      if (msg.includes('does not exist')) {
-        return NextResponse.json({ contacts: [], total: 0, page, perPage });
-      }
-      console.warn('CRM contacts fetch error:', error);
-      return NextResponse.json({ contacts: [], total: 0, page, perPage });
-    }
-
-    return NextResponse.json({
-      contacts: contacts ?? [],
-      total: count ?? 0,
-      page,
-      perPage,
-    });
   } catch (err) {
     console.warn('CRM contacts error:', err);
     return emptyContacts();
   }
 }
 
-/** POST /api/dashboard/crm/contacts - create contact */
+/** POST /api/dashboard/crm/contacts - GHL only: create contact in GHL */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createSupabaseServerSSR();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const orgs = await getOrgsForDashboard(user.id, user.email ?? undefined);
-    const cookieStore = await cookies();
-    const selectedOrgId = cookieStore.get('selected_org_id')?.value ?? orgs[0]?.id;
-
-    if (!selectedOrgId) {
-      return NextResponse.json({ error: 'No organization selected' }, { status: 400 });
+    const ctx = await resolveGHLContext(request);
+    if (!ctx || 'needsConnect' in ctx) {
+      return NextResponse.json({ error: 'Connect your location first', needsConnect: true }, { status: 400 });
     }
 
     const body = await request.json();
-    const { first_name, last_name, email, phone, source } = body;
-
-    const { data: contact, error } = await (supabase as any)
-      .from('contacts')
-      .insert({
-        org_id: selectedOrgId,
-        first_name: first_name ?? null,
-        last_name: last_name ?? null,
-        email: email?.trim() || null,
-        phone: phone?.trim() || null,
-        source: source ?? 'Manual Entry',
+    const { first_name, last_name, email, phone } = body;
+    const { createOrUpdateContact } = await import('@/lib/ghl/client');
+    const contact = await createOrUpdateContact(
+      {
+        firstName: first_name ?? '',
+        lastName: last_name ?? '',
+        email: email?.trim() || undefined,
+        phone: phone?.trim() || undefined,
+      },
+      ctx.token,
+      ctx.locationId
+    );
+    return NextResponse.json({
+      contact: {
+        id: contact.id,
+        first_name: contact.firstName ?? first_name,
+        last_name: contact.lastName ?? last_name,
+        email: contact.email ?? email,
+        phone: contact.phone ?? phone,
         stage: 'lead',
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('CRM contact create error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ contact });
+        created_at: (contact as { dateAdded?: string }).dateAdded ?? new Date().toISOString(),
+      },
+    });
   } catch (err) {
     console.error('CRM contact create error:', err);
     return NextResponse.json(

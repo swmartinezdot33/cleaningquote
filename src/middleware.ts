@@ -14,7 +14,6 @@ export async function middleware(request: NextRequest) {
     if (sessionToken) {
       const session = await verifySessionToken(sessionToken);
       if (session) {
-        // Valid marketplace session — allow through, mark for layout
         const reqHeaders = new Headers(request.headers);
         reqHeaders.set('x-ghl-session', '1');
         return NextResponse.next({
@@ -23,14 +22,19 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Fall back to Supabase auth
+    // GHL-only: allow API requests with locationId (client passes from decrypted GHL context)
+    if (pathname.startsWith('/api/') && request.nextUrl.searchParams.has('locationId')) {
+      return NextResponse.next();
+    }
+
+    // Fall back to Supabase auth (for /dashboard pages when Supabase configured)
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseAnonKey) {
       if (pathname.startsWith('/api/')) {
         return NextResponse.json(
-          { error: 'Unauthorized', message: 'Please sign in.' },
+          { error: 'Unauthorized', message: 'Open CleanQuote from your GoHighLevel dashboard.' },
           { status: 401 }
         );
       }
@@ -41,10 +45,7 @@ export async function middleware(request: NextRequest) {
         oauthUrl.searchParams.set('redirect', pathname + search || '/dashboard');
         return NextResponse.redirect(oauthUrl);
       }
-      const redirectTo = pathname + search;
-      const redirect = new URL('/login', request.url);
-      redirect.searchParams.set('redirect', redirectTo);
-      return NextResponse.redirect(redirect);
+      return NextResponse.redirect(new URL('/open-from-ghl', request.url));
     }
 
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -75,11 +76,11 @@ export async function middleware(request: NextRequest) {
     if (!user) {
       if (pathname.startsWith('/api/')) {
         return NextResponse.json(
-          { error: 'Unauthorized', message: 'Please sign in.' },
+          { error: 'Unauthorized', message: 'Open CleanQuote from your GoHighLevel dashboard.' },
           { status: 401 }
         );
       }
-      // Coming from GHL (iframe, app launch, or ?ghl=1) without session → send to OAuth install instead of login
+      // GHL-only: coming from GHL (iframe or ?ghl=1) without session → OAuth install
       const referer = request.headers.get('referer') || '';
       const hasGhlParam = request.nextUrl.searchParams.get('ghl') === '1';
       const isFromGHL = hasGhlParam || /gohighlevel|leadconnectorhq/i.test(referer);
@@ -88,10 +89,8 @@ export async function middleware(request: NextRequest) {
         oauthUrl.searchParams.set('redirect', pathname + search || '/dashboard');
         return NextResponse.redirect(oauthUrl);
       }
-      const redirectTo = pathname + search;
-      const redirect = new URL('/login', request.url);
-      redirect.searchParams.set('redirect', redirectTo);
-      return NextResponse.redirect(redirect);
+      // GHL-only: not from GHL → show "Open from GHL" page instead of login
+      return NextResponse.redirect(new URL('/open-from-ghl', request.url));
     }
     // Pass checkout=success to layout so we can show a message or avoid redirecting to /subscribe
     if (pathname.startsWith('/dashboard') && !pathname.startsWith('/api/') && request.nextUrl.searchParams.get('checkout') === 'success') {

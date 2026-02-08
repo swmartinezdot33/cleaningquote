@@ -4,6 +4,7 @@ import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { getOrgsForDashboard, isSuperAdminEmail } from '@/lib/org-auth';
 import { getSession } from '@/lib/ghl/session';
+import { getOrFetchTokenForLocation } from '@/lib/ghl/token-store';
 import { ToolCardActions } from '@/components/ToolCardActions';
 import type { Tool } from '@/lib/supabase/types';
 import { CheckCircle } from 'lucide-react';
@@ -17,25 +18,42 @@ export default async function DashboardPage({
   const checkoutSuccess = params?.checkout === 'success';
   const ghlSession = await getSession();
 
+  // Only show "connected" when we actually have a valid token (user may have uninstalled)
   if (ghlSession) {
+    const token = await getOrFetchTokenForLocation(ghlSession.locationId);
+    if (token) {
+      return (
+        <div className="space-y-8">
+          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground">You&apos;re connected to your location.</p>
+          <div className="flex flex-wrap gap-4">
+            <Link
+              href="/dashboard/quotes"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+            >
+              Quotes
+            </Link>
+            <Link
+              href="/dashboard/crm"
+              className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-muted/50"
+            >
+              CRM
+            </Link>
+          </div>
+        </div>
+      );
+    }
+    // Session exists but token invalid (uninstalled or revoked) — show reconnect
     return (
       <div className="space-y-8">
         <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground">You&apos;re connected to your location.</p>
-        <div className="flex flex-wrap gap-4">
-          <Link
-            href="/dashboard/quotes"
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
-            Quotes
-          </Link>
-          <Link
-            href="/dashboard/crm"
-            className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-muted/50"
-          >
-            CRM
-          </Link>
-        </div>
+        <p className="text-muted-foreground">Reconnect to load your CRM data.</p>
+        <Link
+          href="/dashboard/setup"
+          className="inline-block rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+        >
+          Connect location
+        </Link>
       </div>
     );
   }
