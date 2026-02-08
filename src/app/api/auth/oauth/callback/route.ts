@@ -350,7 +350,7 @@ export async function GET(request: NextRequest) {
     const sessionToken = await createSessionToken({ locationId: finalLocationId, companyId, userId });
     console.log('[CQ Callback] STEP 7c — session token created', { sessionTokenLength: sessionToken?.length ?? 0 });
 
-    // Always send user to canonical app URL (e.g. my.cleanquote.io/v2/location/LOCATIONID/dashboard)
+    // Always send user to canonical app URL (e.g. www.cleanquote.io/v2/location/LOCATIONID/dashboard)
     const postAuthBase = getPostOAuthRedirectBase();
     const path = getPostOAuthRedirectPath(redirectTo, finalLocationId);
     const u = new URL(path, postAuthBase);
@@ -377,7 +377,7 @@ export async function GET(request: NextRequest) {
       path: '/',
     };
     try {
-      // Use shared parent domain so cookie works on both callback host (GHL subdomain) and redirect host (e.g. my.cleanquote.io)
+      // Use shared parent domain so cookie works on both callback host (GHL subdomain) and redirect host (e.g. www.cleanquote.io)
       const redirectHost = new URL(postAuthBase).hostname;
       const callbackHost = request.headers.get('host')?.split(':')[0] ?? '';
       const parts = redirectHost.split('.');

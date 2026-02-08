@@ -227,10 +227,10 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
         if (!data || typeof data !== 'object') return;
 
         if (data.message === 'REQUEST_USER_DATA_RESPONSE' && data.payload != null) {
-          // Only handle the first valid response per resolution run to avoid duplicate logs and apply() calls
-          if (hasLocationIdRef.current || postMessageResponseHandledRef.current) return;
+          // Only process once per resolution run; always apply so current page context wins over stale sessionStorage
+          if (postMessageResponseHandledRef.current) return;
           postMessageResponseHandledRef.current = true;
-          console.log('[CQ Iframe] REQUEST_USER_DATA_RESPONSE received (first only)');
+          console.log('[CQ Iframe] REQUEST_USER_DATA_RESPONSE received');
           // GHL sends encrypted string or array; extract raw encrypted data
           const rawPayload = Array.isArray(data.payload) ? data.payload[0] : data.payload;
           if (!rawPayload) {

@@ -56,7 +56,7 @@ function OAuthSuccessContent() {
             <Link href="/dashboard" className="mt-4 block">
               <Button className="w-full">Go to Dashboard now</Button>
             </Link>
-            <a href="https://my.cleanquote.io" target="_blank" rel="noopener noreferrer" className="mt-3 block">
+            <a href="https://www.cleanquote.io" target="_blank" rel="noopener noreferrer" className="mt-3 block">
               <Button variant="outline" className="w-full">Go to GoHighLevel</Button>
             </a>
           </>

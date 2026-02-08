@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { Users, Loader2, TrendingUp, CheckCircle, RefreshCw } from 'lucide-react';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
+import { useDashboardApi } from '@/lib/dashboard-api';
 import { getGHLMarketplaceAppUrl } from '@/lib/ghl/oauth-utils';
 
 interface Contact {
@@ -44,6 +45,7 @@ const STAGES = ['lead', 'quoted', 'booked', 'customer', 'churned'] as const;
 
 export default function CRMDashboardPage() {
   const effectiveLocationId = useEffectiveLocationId();
+  const { api } = useDashboardApi();
   const [stats, setStats] = useState<Stats | null>(null);
   const [contactsByStage, setContactsByStage] = useState<Record<string, Contact[]>>({});
   const [loading, setLoading] = useState(true);
@@ -56,10 +58,7 @@ export default function CRMDashboardPage() {
   const runVerify = useCallback(async () => {
     setTestingConnection(true);
     try {
-      const url = effectiveLocationId
-        ? `/api/dashboard/ghl/verify?locationId=${effectiveLocationId}`
-        : '/api/dashboard/ghl/verify';
-      const r = await fetch(url);
+      const r = await api('/api/dashboard/ghl/verify');
       const data = await r.json();
       setVerify(data);
       requestAnimationFrame(() => statusRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
@@ -68,25 +67,22 @@ export default function CRMDashboardPage() {
     } finally {
       setTestingConnection(false);
     }
-  }, [effectiveLocationId]);
-
-  const locationSuffix = effectiveLocationId ? `&locationId=${effectiveLocationId}` : '';
+  }, [api]);
 
   useEffect(() => {
     if (!effectiveLocationId) {
-      fetch('/api/dashboard/ghl/verify')
+      fetch('/api/dashboard/ghl/verify', { credentials: 'include' })
         .then((res) => res.json())
         .then(setVerify)
         .catch(() => setVerify({ ok: false, message: 'No location ID' }))
         .finally(() => setLoading(false));
       return;
     }
-    const statsUrl = `/api/dashboard/crm/stats?locationId=${effectiveLocationId}`;
     Promise.all([
-      fetch(statsUrl).then((r) => (r.ok ? r.json() : null)),
-      fetch(`/api/dashboard/ghl/verify?locationId=${effectiveLocationId}`).then((res) => res.json()),
+      api('/api/dashboard/crm/stats').then((r) => (r.ok ? r.json() : null)),
+      api('/api/dashboard/ghl/verify').then((res) => res.json()),
       ...STAGES.map((stage) =>
-        fetch(`/api/dashboard/crm/contacts?stage=${stage}&perPage=20${locationSuffix}`).then((r) =>
+        api(`/api/dashboard/crm/contacts?stage=${stage}&perPage=20`).then((r) =>
           r.ok ? r.json() : { contacts: [] }
         )
       ),
@@ -103,7 +99,7 @@ export default function CRMDashboardPage() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [effectiveLocationId, locationSuffix]);
+  }, [effectiveLocationId, api]);
 
   if (loading) {
     return (

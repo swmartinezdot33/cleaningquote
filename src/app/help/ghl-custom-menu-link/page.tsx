@@ -41,10 +41,10 @@ export default function GHLCustomMenuLinkHelpPage() {
         <li>
           Set the <strong className="text-foreground">URL</strong> to:
           <pre className="mt-2 rounded-lg bg-muted p-3 text-sm overflow-x-auto">
-{`https://my.cleanquote.io/dashboard`}
+{`https://www.cleanquote.io/dashboard`}
           </pre>
           <p className="mt-2 text-sm text-muted-foreground">
-            The app is at <strong className="text-foreground">my.cleanquote.io</strong>. For white-label or other subdomains, append <code className="bg-muted px-1 rounded">&amp;sessionKey</code> so GHL passes user context to the iframe.
+            Our pages run on <strong className="text-foreground">www.cleanquote.io</strong>; the GHL whitelabel app is my.cleanquote.io. For white-label or other subdomains, append <code className="bg-muted px-1 rounded">&amp;sessionKey</code> so GHL passes user context to the iframe.
           </p>
         </li>
         <li>
@@ -75,7 +75,7 @@ export default function GHLCustomMenuLinkHelpPage() {
         CleanQuote works in <strong className="text-foreground">both</strong> cases: (1) when GHL responds to the iframe via postMessage (<code className="bg-muted px-1 rounded">event.source.postMessage(response, event.origin)</code>), and (2) when no postMessage response is received — we fall back to <strong className="text-foreground">URL</strong> (<code className="bg-muted px-1 rounded">?locationId=...</code>) and <strong className="text-foreground">sessionStorage</strong> (from a previous load). So the app can work even if GHL&apos;s handler has a bug.
       </p>
       <p className="text-muted-foreground mt-2">
-        If you see <strong className="text-foreground">Failed to execute &apos;postMessage&apos;… target origin … does not match the recipient window&apos;s origin</strong> in the console, that is a bug in GHL&apos;s handler: they must reply to the <strong className="text-foreground">iframe</strong> with <code className="bg-muted px-1 rounded">event.source.postMessage(response, event.origin)</code>. We send <code className="bg-muted px-1 rounded">origin</code> in the request (e.g. <code className="bg-muted px-1 rounded">https://my.cleanquote.io</code>) so GHL can use it. Until they fix it, location still comes from URL or sessionStorage when available.
+        If you see <strong className="text-foreground">Failed to execute &apos;postMessage&apos;… target origin … does not match the recipient window&apos;s origin</strong> in the console, that is a bug in GHL&apos;s handler: they must reply to the <strong className="text-foreground">iframe</strong> with <code className="bg-muted px-1 rounded">event.source.postMessage(response, event.origin)</code>. We send <code className="bg-muted px-1 rounded">origin</code> in the request (e.g. <code className="bg-muted px-1 rounded">https://www.cleanquote.io</code>) so GHL can use it. Until they fix it, location still comes from URL or sessionStorage when available.
       </p>
 
       <p className="mt-6">

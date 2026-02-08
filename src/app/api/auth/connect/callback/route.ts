@@ -2,7 +2,7 @@
  * OAuth callback for marketplace app install.
  * GHL is configured to use this URL (e.g. https://www.cleanquote.io/api/auth/connect/callback).
  * Exchanges code for tokens, stores by locationId, sets session cookie, then redirects to
- * canonical app URL (e.g. my.cleanquote.io) with shared cookie domain so the user lands in the right place.
+ * canonical app URL (e.g. www.cleanquote.io, where our pages run) with shared cookie domain so the user lands in the right place.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -201,7 +201,7 @@ export async function GET(request: NextRequest) {
       await setOrgGHLOAuth(orgId, locationId);
     }
 
-    // Redirect to canonical app URL (e.g. my.cleanquote.io/v2/location/LOCATIONID/dashboard)
+    // Redirect to canonical app URL (e.g. www.cleanquote.io/v2/location/LOCATIONID/dashboard)
     const postAuthBase = getPostOAuthRedirectBase();
     const path = getPostOAuthRedirectPath(redirectTo, locationId);
     const targetUrl = new URL(path, postAuthBase);

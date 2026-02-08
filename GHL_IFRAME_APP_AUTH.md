@@ -68,7 +68,7 @@ No UI in callback; redirect only.
 
 ## 5. Iframe context (client)
 
-- **App host:** The app runs at **my.cleanquote.io** (canonical). The OAuth **callback** URL is typically **www.cleanquote.io** (one fixed URL in GHL Marketplace). After OAuth, users are redirected to my.cleanquote.io. PostMessage requests include `origin: window.location.origin` so GHL receives `https://my.cleanquote.io` when the iframe is loaded there (works with both www and my).
+- **App host:** Our **pages run on www.cleanquote.io** (OAuth callback, dashboard, setup). The **GHL whitelabel app** (parent/entry in GHL) is **my.cleanquote.io**. After OAuth, users are redirected to www.cleanquote.io. PostMessage requests include `origin: window.location.origin`, so when the iframe loads from www we send `https://www.cleanquote.io`; GHL must reply to that origin.
 - **GHLIframeProvider** (or equivalent) runs when app is loaded in iframe.
 - **locationId** resolution order (per reference below):
   1. URL params/hash: `locationId`, `location_id`, etc.
@@ -79,6 +79,17 @@ No UI in callback; redirect only.
   6. **postMessage**: send `REQUEST_USER_DATA` to parent; on `REQUEST_USER_DATA_RESPONSE`, decrypt payload with **GHL_APP_SSO_KEY** (Shared Secret) and use `activeLocation` / `locationId` etc.
 - Store resolved context (e.g. POST `/api/ghl/iframe-context`) and in sessionStorage so dashboard/setup use the same locationId.
 - **App-wide user context**: The provider also fetches **GET /api/dashboard/session** when iframe has no locationId (e.g. same-tab after OAuth). It exposes **effectiveLocationId** (iframe or session) and **userContext: { locationId }** so the **entire app** uses one resolved location for all API calls. Use **useEffectiveLocationId()** or **useGHLUserContext()** in any dashboard page; never rely only on ghlData when making GHL-backed API requests.
+
+## 5b. UI ↔ GHL data flow (locationId + token → fill UI)
+
+Communication between the UI and the GHL location (id + token) works as follows so the UI can be filled with GHL data (contacts, stats, etc.):
+
+1. **UI has locationId**: **effectiveLocationId** is set by the iframe context (postMessage decrypt, URL, referrer, or sessionStorage) or by the session (same-tab after OAuth). Use **useEffectiveLocationId()** or **useDashboardApi()** in dashboard pages.
+2. **Every dashboard API request sends locationId**: Use **useDashboardApi()** from `@/lib/dashboard-api` so each request includes `?locationId=...` and the **x-ghl-location-id** header. This guarantees the backend can resolve the token for that location.
+3. **Backend resolves token**: **resolveGHLContext(request)** (in `api-context.ts`) reads locationId from the query or **x-ghl-location-id** header, then calls **getOrFetchTokenForLocation(locationId)** to get the access token from KV (stored at install). If token exists → returns `{ locationId, token }`; if not → returns `{ needsConnect: true }`.
+4. **Dashboard routes use context**: Routes such as **GET /api/dashboard/ghl/verify**, **GET /api/dashboard/crm/stats**, **GET /api/dashboard/crm/contacts** call **resolveGHLContext(request)** and then call the GHL API with the resolved token and locationId (e.g. **listGHLContacts(locationId, options, { token, locationId })**). The response fills the UI.
+
+**Requirements for data to load**: (a) **effectiveLocationId** must be set (iframe got locationId or session has it). (b) That location must have completed OAuth once so KV has the token. If (a) is missing, user must open the app from a GHL sub-account/location or add locationId to the URL. If (b) is missing, user must go to Setup and complete “Install via OAuth” for that location.
 
 ## 6. Decrypt SSO / user context
 
@@ -107,4 +118,5 @@ No UI in callback; redirect only.
 - **Callback**: exchange code → resolve locationId (state → query → token → API) → store by locationId in KV → set session cookie → redirect to state.redirect.
 - **App launch**: session or token for location → dashboard; else → authorize with locationId/redirect.
 - **Iframe**: resolve locationId (URL → referrer → postMessage/decrypt), then use for setup and API calls.
+- **UI ↔ data**: Dashboard pages use **useDashboardApi()** or pass **effectiveLocationId** on every API call; backend uses **resolveGHLContext** → **getOrFetchTokenForLocation** → GHL API so the UI is filled with location data.
 - **UI**: Our dashboard, setup, oauth-success, open-from-ghl; auth process above is shared and must not diverge without updating this doc.

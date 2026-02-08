@@ -24,8 +24,8 @@ export function getAppBaseUrl(): string {
   return `http://localhost:${port}`;
 }
 
-/** Canonical app URL for post-OAuth redirect (e.g. new window lands here). Use CANONICAL_APP_URL or POST_OAUTH_REDIRECT_BASE env to override. */
-const CANONICAL_APP_URL_DEFAULT = 'https://my.cleanquote.io';
+/** Canonical app URL for post-OAuth redirect — where our pages run. GHL whitelabel app is my.cleanquote.io; pages run on www. Use CANONICAL_APP_URL or POST_OAUTH_REDIRECT_BASE env to override. */
+const CANONICAL_APP_URL_DEFAULT = 'https://www.cleanquote.io';
 
 export function getPostOAuthRedirectBase(): string {
   const env = process.env.CANONICAL_APP_URL?.trim() || process.env.POST_OAUTH_REDIRECT_BASE?.trim();
