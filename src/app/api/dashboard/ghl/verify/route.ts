@@ -36,8 +36,10 @@ export async function GET(request: NextRequest) {
       });
     }
     if ('needsConnect' in ctx) {
-      // No token in KV for this location (primary lookup only). One reason, one message.
+      // No valid token from KV for this location. Prove what's in KV (existence only, no secrets).
       const requestLocationId = getLocationIdFromRequest(request);
+      const install = requestLocationId ? await getInstallation(requestLocationId) : null;
+      const tokenExistsInKV = !!install;
       const message =
         requestLocationId
           ? 'This location is not connected yet. Click below to authorize CleanQuote for this location.'
@@ -49,6 +51,8 @@ export async function GET(request: NextRequest) {
         ghlCallOk: false,
         reason: 'needs_connect',
         message,
+        tokenExistsInKV,
+        locationIdLookedUp: requestLocationId ? `${requestLocationId.slice(0, 8)}..${requestLocationId.slice(-4)}` : null,
       });
     }
     // We have token + locationId (from KV lookup by locationId); verify with a minimal GHL API call (same as CRM)

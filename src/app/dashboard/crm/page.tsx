@@ -39,6 +39,9 @@ interface VerifyResult {
   locationId?: string;
   companyName?: string;
   contactsSample?: number;
+  /** Proof from KV: do we have an installation record for the looked-up locationId? */
+  tokenExistsInKV?: boolean;
+  locationIdLookedUp?: string;
 }
 
 const STAGES = ['lead', 'quoted', 'booked', 'customer', 'churned'] as const;
@@ -130,6 +133,9 @@ export default function CRMDashboardPage() {
           <p className="mt-2 text-sm">
             Open CleanQuote from your GoHighLevel dashboard (sub-account) or complete OAuth so we have your location and can call the GHL API.
           </p>
+          <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+            User context: Location ID = None (not received from iframe/session)
+          </p>
           {verify && !verify.ok && (
             <div ref={statusRef} className="mt-3 rounded border border-amber-600/50 bg-amber-500/10 px-3 py-2">
               <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">
@@ -161,6 +167,9 @@ export default function CRMDashboardPage() {
           <p className="mt-2 text-sm">
             This location needs a one-time connection. Click below to authorize CleanQuote to access your CRM data.
           </p>
+          <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">
+            User context: Location ID = {effectiveLocationId ? `${effectiveLocationId.slice(0, 8)}..${effectiveLocationId.slice(-4)}` : 'None (not received)'}
+          </p>
           {verify && (
             <div ref={statusRef} className="mt-3 rounded border border-amber-600/50 bg-amber-500/10 px-3 py-2">
               <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">
@@ -169,6 +178,11 @@ export default function CRMDashboardPage() {
               <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">
                 {verify.message ?? ''}
               </p>
+              {(verify.tokenExistsInKV !== undefined || verify.locationIdLookedUp) && (
+                <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                  KV lookup: {verify.locationIdLookedUp ?? '—'} → token in KV: {verify.tokenExistsInKV === true ? 'Yes' : verify.tokenExistsInKV === false ? 'No' : '—'}
+                </p>
+              )}
             </div>
           )}
           <div className="mt-4 flex flex-wrap items-center gap-3">
