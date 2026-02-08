@@ -4,13 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Loader2, Search, Filter } from 'lucide-react';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
-import { getInstallUrlWithLocation } from '@/lib/ghl/oauth-utils';
 import { useDashboardApi } from '@/lib/dashboard-api';
-
-function getConnectInstallUrl(locationId: string | null): string {
-  if (typeof window === 'undefined') return '#';
-  return getInstallUrlWithLocation(window.location.origin, locationId);
-}
 
 interface Contact {
   id: string;
@@ -35,6 +29,7 @@ export default function CRMContactsPage() {
   const perPage = 25;
 
   const [needsConnect, setNeedsConnect] = useState(false);
+  const [connectReason, setConnectReason] = useState<string | null>(null);
 
   const loadContacts = useCallback(() => {
     if (!effectiveLocationId) {
@@ -55,8 +50,10 @@ export default function CRMContactsPage() {
         setContacts(d.contacts ?? []);
         setTotal(d.total ?? 0);
         setNeedsConnect(!!d.needsConnect);
-        if (d.needsConnect && (d as { _debug?: unknown })._debug) {
-          console.log('[CRM Contacts] needsConnect — server _debug:', (d as { _debug: unknown })._debug);
+        const debug = (d as { _debug?: { reason?: string } })._debug;
+        setConnectReason(debug?.reason ?? null);
+        if (d.needsConnect && debug) {
+          console.log('[CRM Contacts] needsConnect — server _debug:', debug);
         }
       })
       .catch((e) => {
@@ -97,18 +94,10 @@ export default function CRMContactsPage() {
 
       {needsConnect && effectiveLocationId && (
         <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-6 text-amber-800 dark:text-amber-200">
-          <p className="font-medium">Connect your location</p>
+          <p className="font-medium">Could not load contacts</p>
           <p className="mt-2 text-sm">
-            This location needs a one-time connection. Click below to authorize CleanQuote to access your CRM data. After connecting, your contacts will load here.
+            {connectReason ?? 'Token for this location could not be resolved. New installations store token and location in KV; dashboard uses KV first, then Agency.'}
           </p>
-          <a
-            href={getConnectInstallUrl(effectiveLocationId)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 inline-block rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
-          >
-            Connect via OAuth (opens in new tab)
-          </a>
         </div>
       )}
 

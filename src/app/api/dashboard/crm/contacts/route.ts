@@ -56,8 +56,9 @@ export async function GET(request: NextRequest) {
     const ctx = await resolveGHLContext(request);
     if (!ctx) return NextResponse.json({ contacts: [], total: 0, page: 1, perPage: 25, locationIdRequired: true });
     if ('needsConnect' in ctx) {
-      // #region agent log — debug why KV lookup failed (different host vs callback? key mismatch?)
       const requestHost = request.headers.get('host') ?? null;
+      const reason = ctx.reason ?? null;
+      // #region agent log
       fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
           data: {
             requestHost,
             locationIdPreview: ctx.locationId ? `${ctx.locationId.slice(0, 8)}..${ctx.locationId.slice(-4)}` : null,
-            locationIdLength: ctx.locationId?.length ?? 0,
+            reason,
             hypothesisId: 'H1-H3',
           },
           timestamp: Date.now(),
@@ -80,7 +81,12 @@ export async function GET(request: NextRequest) {
         page: 1,
         perPage: 25,
         needsConnect: true,
-        _debug: { requestHost, locationIdReceived: !!ctx.locationId, locationIdPreview: ctx.locationId ? `${ctx.locationId.slice(0, 8)}..${ctx.locationId.slice(-4)}` : null },
+        _debug: {
+          requestHost,
+          locationIdReceived: !!ctx.locationId,
+          locationIdPreview: ctx.locationId ? `${ctx.locationId.slice(0, 8)}..${ctx.locationId.slice(-4)}` : null,
+          reason,
+        },
       });
     }
 

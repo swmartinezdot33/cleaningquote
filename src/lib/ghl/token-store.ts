@@ -111,7 +111,8 @@ export async function getOrFetchTokenForLocation(locationId: string): Promise<st
 
   try {
     const { getLocationTokenFromAgency } = await import('./agency');
-    const result = await getLocationTokenFromAgency(locationId, companyId);
+    // skipStore: true so Agency fallback works even when KV is not configured; install callback stores to KV.
+    const result = await getLocationTokenFromAgency(locationId, companyId, { skipStore: true });
     if (result.success) {
       const out = result.accessToken ?? (await getTokenForLocation(locationId));
       // #region agent log

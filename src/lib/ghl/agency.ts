@@ -96,6 +96,16 @@ export interface LocationTokenResult {
  * and can exchange our Agency token for a Location token to make API calls.
  * @param options.skipStore - If true, do not persist to KV (e.g. when using agency-only for dashboard, no KV required).
  */
+// #region agent log
+function agencyDebugLog(message: string, data: Record<string, unknown>) {
+  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ location: 'agency.ts', message, data, timestamp: Date.now() }),
+  }).catch(() => {});
+}
+// #endregion
+
 export async function getLocationTokenFromAgency(
   locationId: string,
   companyId: string,
@@ -103,6 +113,7 @@ export async function getLocationTokenFromAgency(
 ): Promise<LocationTokenResult> {
   const token = process.env.GHL_AGENCY_ACCESS_TOKEN?.trim();
   if (!token) {
+    agencyDebugLog('getLocationTokenFromAgency: GHL_AGENCY_ACCESS_TOKEN not set', { hypothesisId: 'H1' });
     return { success: false, error: 'GHL_AGENCY_ACCESS_TOKEN not set' };
   }
 
@@ -136,6 +147,7 @@ export async function getLocationTokenFromAgency(
 
     if (!res.ok) {
       const errMsg = data.error ?? data.message ?? `GHL API ${res.status}`;
+      agencyDebugLog('getLocationTokenFromAgency: GHL API error', { status: res.status, error: errMsg, hypothesisId: 'H2' });
       console.error('GHL locationToken failed:', res.status, data);
       if (res.status === 401 && (errMsg.includes('scope') || errMsg.includes('authorized'))) {
         console.error(
