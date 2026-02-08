@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Loader2, Search, Filter } from 'lucide-react';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 import { getInstallUrlWithLocation } from '@/lib/ghl/oauth-utils';
+import { useDashboardApi } from '@/lib/dashboard-api';
 
 function getConnectInstallUrl(locationId: string | null): string {
   if (typeof window === 'undefined') return '#';
@@ -23,6 +24,7 @@ interface Contact {
 
 export default function CRMContactsPage() {
   const effectiveLocationId = useEffectiveLocationId();
+  const { api } = useDashboardApi();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -34,7 +36,11 @@ export default function CRMContactsPage() {
 
   const [needsConnect, setNeedsConnect] = useState(false);
 
-  const loadContacts = () => {
+  const loadContacts = useCallback(() => {
+    if (!effectiveLocationId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setNeedsConnect(false);
     const params = new URLSearchParams();
@@ -42,12 +48,10 @@ export default function CRMContactsPage() {
     if (search.trim()) params.set('search', search.trim());
     params.set('page', String(page));
     params.set('perPage', String(perPage));
-    if (effectiveLocationId) params.set('locationId', effectiveLocationId);
 
-    fetch(`/api/dashboard/crm/contacts?${params}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load'))))
+    api(`/api/dashboard/crm/contacts?${params}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status === 401 ? 'Unauthorized' : 'Failed to load'))))
       .then((d) => {
-        console.log('[CRM Contacts] API response: contacts=', d.contacts?.length ?? 0, 'needsConnect=', d.needsConnect);
         setContacts(d.contacts ?? []);
         setTotal(d.total ?? 0);
         setNeedsConnect(!!d.needsConnect);
@@ -57,11 +61,11 @@ export default function CRMContactsPage() {
         setNeedsConnect(!!effectiveLocationId);
       })
       .finally(() => setLoading(false));
-  };
+  }, [effectiveLocationId, api, page, filterStage, search]);
 
   useEffect(() => {
     loadContacts();
-  }, [page, filterStage, effectiveLocationId]);
+  }, [loadContacts]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

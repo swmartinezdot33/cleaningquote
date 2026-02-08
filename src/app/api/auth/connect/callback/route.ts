@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { storeInstallation } from '@/lib/ghl/token-store';
+import { storeInstallation, getInstallation } from '@/lib/ghl/token-store';
 import { createSessionToken } from '@/lib/ghl/session';
 import { setOrgGHLOAuth } from '@/lib/config/store';
 import { getRedirectUri, getPostOAuthRedirectBase } from '@/lib/ghl/oauth-utils';
@@ -332,8 +332,7 @@ export async function GET(request: NextRequest) {
 
     const companyName = await fetchLocationName(data.access_token, locationId);
 
-    console.log(LOG, 'Storing in KV', { locationId: locationId.slice(0, 8) + '..', hasAccess: !!data.access_token, hasRefresh: !!data.refresh_token });
-    await storeInstallation({
+    const installationPayload = {
       accessToken: data.access_token,
       refreshToken: data.refresh_token ?? '',
       expiresAt,
@@ -341,8 +340,40 @@ export async function GET(request: NextRequest) {
       userId,
       locationId,
       companyName: companyName ?? undefined,
-    });
-    console.log(LOG, 'Stored in KV OK');
+    };
+
+    try {
+      console.log(LOG, 'Storing in KV', { locationId: locationId.slice(0, 8) + '..', hasAccess: !!data.access_token, hasRefresh: !!data.refresh_token });
+      await storeInstallation(installationPayload);
+    } catch (storeErr) {
+      const storeMsg = storeErr instanceof Error ? storeErr.message : String(storeErr);
+      console.error(LOG, 'KV store failed', storeErr);
+      return new NextResponse(
+        htmlError(
+          'Storage failed',
+          'Tokens could not be saved. ' +
+            (storeMsg.includes('KV_REST_API') || storeMsg.includes('required')
+              ? 'Set KV_REST_API_URL and KV_REST_API_TOKEN (Vercel KV) in your project environment.'
+              : storeMsg),
+          'storage_failed'
+        ),
+        { status: 500, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+      );
+    }
+
+    const readBack = await getInstallation(locationId);
+    if (!readBack?.accessToken) {
+      console.error(LOG, 'KV verify failed: read-back missing token', { locationId: locationId.slice(0, 8) + '..' });
+      return new NextResponse(
+        htmlError(
+          'Storage verification failed',
+          'Tokens were written but could not be read back. Ensure KV (Vercel KV: KV_REST_API_URL, KV_REST_API_TOKEN) is configured and the same store is used by all routes.',
+          'storage_verify_failed'
+        ),
+        { status: 500, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+      );
+    }
+    console.log(LOG, 'KV stored and verified OK', { locationId: locationId.slice(0, 8) + '..' });
 
     if (orgId) {
       await setOrgGHLOAuth(orgId, locationId);
