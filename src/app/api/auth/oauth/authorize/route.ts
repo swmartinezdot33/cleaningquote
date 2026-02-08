@@ -130,7 +130,11 @@ export async function GET(request: NextRequest) {
       console.error('[OAuth Authorize] Make sure GHL_REDIRECT_URI matches your GHL marketplace app settings');
     }
 
-    console.log('[CQ Authorize] redirect URL built, redirecting to GHL', { stateKeys: Object.keys(stateData) });
+    console.log('[CQ Authorize] redirect URL built, redirecting to GHL', {
+      stateKeys: Object.keys(stateData),
+      stateLocationIdPreview: locationId ? locationId.slice(0, 8) + '..' + locationId.slice(-4) : null,
+      redirect: stateData.redirect ?? null,
+    });
     return NextResponse.redirect(finalAuthUrl);
   } catch (error) {
     console.error('Error initiating GHL OAuth:', error);

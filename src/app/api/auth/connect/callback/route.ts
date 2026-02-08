@@ -24,12 +24,29 @@ function debugIngest(message: string, data: Record<string, unknown>) {
 }
 // #endregion
 
-function htmlSuccess(locationId: string, accessTokenLength: number, refreshTokenLength: number, companyName?: string, source?: string, stateDebug?: string) {
+function htmlSuccess(
+  locationId: string,
+  accessTokenLength: number,
+  refreshTokenLength: number,
+  companyName?: string,
+  source?: string,
+  stateDebug?: string,
+  debug?: { tokenResponseKeys: string; userType: string; locationIdInBody: boolean; stateHadLocationId: boolean; locationIdFromStatePreview: string; locationSource: string }
+) {
   const safeLocationId = locationId.replace(/[<>"']/g, '');
   const safeCompany = (companyName ?? '').replace(/[<>"']/g, '');
   const sourceNote = source ? ` <span class="source">(${source})</span>` : '';
   const multiLocationWarning = source === 'token_or_api' ? '<p class="row warn">You have multiple locations. This was stored under the location returned by GHL. To connect a specific location, open that location in GHL and use Connect from the app there.</p>' : '';
   const stateDebugRow = stateDebug ? `<div class="row debug">${stateDebug}</div>` : '';
+  const debugSection = debug
+    ? `<details class="row debug" style="margin-top:1rem;"><summary style="cursor:pointer;font-weight:600;">Debug — why this location</summary><pre style="font-size:0.75rem;overflow:auto;margin-top:0.5rem;padding:0.5rem;background:#f0f0f0;border-radius:4px;">${[
+        `Token response keys: ${debug.tokenResponseKeys}`,
+        `userType: ${debug.userType}`,
+        `locationId in token body: ${debug.locationIdInBody ? 'yes' : 'no'}`,
+        `State had locationId: ${debug.stateHadLocationId}${debug.locationIdFromStatePreview ? ` (${debug.locationIdFromStatePreview})` : ''}`,
+        `Source used: ${debug.locationSource}`,
+      ].join('\n')}</pre></details>`
+    : '';
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -56,6 +73,7 @@ function htmlSuccess(locationId: string, accessTokenLength: number, refreshToken
     ${safeCompany ? `<div class="row"><span class="label">Company:</span> ${safeCompany}</div>` : ''}
     ${stateDebugRow}
     ${multiLocationWarning}
+    ${debugSection}
     <p class="row"><a href="/dashboard" style="color:#166534;font-weight:600;">Continue to Dashboard</a></p>
   </div>
   <script>
@@ -102,6 +120,26 @@ function htmlError(title: string, message: string, errorCode?: string): string {
 
 const TOKEN_URL = 'https://services.leadconnectorhq.com/oauth/token';
 const API_BASE = 'https://services.leadconnectorhq.com';
+
+/** Try to get locationId from JWT payload (GHL Location tokens may have authClassId or locationId in claims). */
+function getLocationIdFromJwt(accessToken: string): string | null {
+  try {
+    const parts = accessToken.split('.');
+    if (parts.length !== 3) return null;
+    const payload = parts[1];
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = Buffer.from(base64, 'base64').toString('utf-8');
+    const parsed = JSON.parse(decoded) as Record<string, unknown>;
+    const id =
+      (parsed.locationId as string) ??
+      (parsed.location_id as string) ??
+      (parsed.authClassId as string) ??
+      (parsed.sub as string);
+    return typeof id === 'string' && id.length > 5 ? id : null;
+  } catch {
+    return null;
+  }
+}
 
 async function fetchLocationFromToken(accessToken: string, companyId: string): Promise<string | null> {
   const headers = {
@@ -159,15 +197,18 @@ export async function GET(request: NextRequest) {
   });
   // #endregion
 
-  // Parse state only for redirect and orgId (template/Maid Central: locationId comes from token response only)
+  // Parse state for redirect, orgId, and locationId (used when token response has no locationId — e.g. Company-level install)
   let redirectTo = '/dashboard';
   let orgId: string | null = null;
+  let locationIdFromState: string | null = null;
   if (stateRaw) {
     const tryParse = (decoded: string): void => {
       try {
         const parsed = JSON.parse(decoded);
         if (parsed.redirect) redirectTo = parsed.redirect;
         if (parsed.orgId) orgId = parsed.orgId;
+        const lid = parsed.locationId ?? parsed.location_id ?? null;
+        if (typeof lid === 'string' && lid.trim()) locationIdFromState = lid.trim();
       } catch {
         /* ignore */
       }
@@ -185,14 +226,17 @@ export async function GET(request: NextRequest) {
           if (r) redirectTo = r;
           const o = state.get('orgId');
           if (o) orgId = o;
+          const lid = state.get('locationId') ?? state.get('location_id');
+          if (lid && lid.trim()) locationIdFromState = lid.trim();
         } catch {
           /* ignore */
         }
       }
     }
   }
+  console.log(LOG, 'State parsed', { redirectTo, hasOrgId: !!orgId, locationIdFromState: locationIdFromState ? locationIdFromState.slice(0, 8) + '..' + locationIdFromState.slice(-4) : null, stateRawLength: stateRaw?.length ?? 0 });
   // #region agent log
-  debugIngest('after state parse', { redirectTo, hasOrgId: !!orgId, hypothesisId: 'H1-H2-H4' });
+  debugIngest('after state parse', { redirectTo, hasOrgId: !!orgId, locationIdFromState: locationIdFromState ? locationIdFromState.slice(0, 8) + '..' : null, hypothesisId: 'H1-H2-H4' });
   // #endregion
 
   if (error) {
@@ -258,34 +302,60 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.log(LOG, 'Token exchanged', { hasAccessToken: !!data.access_token, hasRefreshToken: !!data.refresh_token });
+    const tokenKeys = Object.keys(data);
+    const userType = (data as Record<string, unknown>).userType ?? (data as Record<string, unknown>).user_type ?? null;
+    console.log(LOG, 'Token exchanged', {
+      hasAccessToken: !!data.access_token,
+      hasRefreshToken: !!data.refresh_token,
+      tokenResponseKeys: tokenKeys.join(', '),
+      userType,
+      locationIdInBody: !!(data.locationId ?? data.location_id ?? data.location?.id ?? data.resource_id),
+    });
 
     const companyId = data.companyId ?? data.company_id ?? '';
     const userId = data.userId ?? data.user_id ?? '';
 
-    // Template/Maid Central: use only locationId from token response (the app that was installed). Fallback: /locations/ API.
+    // 1) Token response (GHL returns locationId when sub-account user installs). 2) JWT payload. 3) State (iframe location when token is Company-level). 4) /locations/ API.
     let locationId: string | null =
       data.locationId ??
       data.location_id ??
       data.location?.id ??
       data.resource_id ??
       null;
-    let locationSource: 'token' | 'api' = 'token';
+    let locationSource: 'token' | 'jwt' | 'state' | 'api' = 'token';
+    if (locationId) {
+      console.log(LOG, 'locationId from token response', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
+    }
     if (!locationId && data.access_token) {
+      const jwtLocationId = getLocationIdFromJwt(data.access_token);
+      console.log(LOG, 'JWT decode attempt', { found: !!jwtLocationId, locationIdPreview: jwtLocationId ? jwtLocationId.slice(0, 8) + '..' : null });
+      if (jwtLocationId) {
+        locationId = jwtLocationId;
+        locationSource = 'jwt';
+      }
+    }
+    if (!locationId && locationIdFromState) {
+      locationId = locationIdFromState;
+      locationSource = 'state';
+      console.log(LOG, 'Using locationId from state (token had no locationId — likely Company-level install)', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
+    }
+    if (!locationId && data.access_token) {
+      console.log(LOG, 'Fetching /locations/ API fallback (first location in list)');
       locationId = await fetchLocationFromToken(data.access_token, companyId);
       locationSource = 'api';
+      if (locationId) console.log(LOG, 'locationId from API fallback', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
     }
 
     if (!locationId) {
-      console.error(LOG, 'No locationId', { tokenKeys: Object.keys(data).join(', ') });
-      return new NextResponse(htmlError('No location', 'Installation did not return a location ID. Token keys: ' + Object.keys(data).join(', '), 'no_location'), {
+      console.error(LOG, 'No locationId', { tokenKeys: tokenKeys.join(', ') });
+      return new NextResponse(htmlError('No location', 'Installation did not return a location ID. Token keys: ' + tokenKeys.join(', '), 'no_location'), {
         status: 400,
         headers: { 'Content-Type': 'text/html; charset=utf-8' },
       });
     }
 
     locationId = locationId.trim();
-    console.log(LOG, 'locationId for KV (from token response, like GHL template)', { locationId: locationId.slice(0, 8) + '..' + locationId.slice(-4), source: locationSource });
+    console.log(LOG, 'locationId for KV', { locationId: locationId.slice(0, 8) + '..' + locationId.slice(-4), source: locationSource });
 
     const expiresAt = Date.now() + (data.expires_in ?? 86400) * 1000;
 
@@ -308,14 +378,29 @@ export async function GET(request: NextRequest) {
     }
 
     const sessionToken = await createSessionToken({ locationId, companyId, userId });
-    const stateDebug = `Location from GHL token response (${locationSource}), same as template/Maid Central.`;
+    const stateDebug =
+      locationSource === 'token'
+        ? 'Location from GHL token response (installed location).'
+        : locationSource === 'jwt'
+          ? 'Location from JWT payload (token body had no locationId).'
+          : locationSource === 'state'
+            ? 'Location from state (iframe); token was Company-level so no locationId in response.'
+            : 'Location from /locations/ API fallback.';
     const html = htmlSuccess(
       locationId,
       (data.access_token ?? '').length,
       (data.refresh_token ?? '').length,
       companyName ?? undefined,
       locationSource,
-      stateDebug
+      stateDebug,
+      {
+        tokenResponseKeys: tokenKeys.join(', '),
+        userType: String(userType ?? ''),
+        locationIdInBody: !!(data.locationId ?? data.location_id ?? data.location?.id ?? data.resource_id),
+        stateHadLocationId: !!locationIdFromState,
+        locationIdFromStatePreview: locationIdFromState ? locationIdFromState.slice(0, 8) + '..' + locationIdFromState.slice(-4) : '',
+        locationSource,
+      }
     );
     const response = new NextResponse(html, {
       status: 200,
