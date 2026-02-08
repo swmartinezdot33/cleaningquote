@@ -121,7 +121,7 @@ function htmlError(title: string, message: string, errorCode?: string): string {
 const TOKEN_URL = 'https://services.leadconnectorhq.com/oauth/token';
 const API_BASE = 'https://services.leadconnectorhq.com';
 
-/** Try to get locationId from JWT payload (GHL Location tokens may have authClassId or locationId in claims). */
+/** Try to get locationId from JWT payload (GHL Location tokens may have authClassId or locationId in claims). Do NOT use sub — it is typically user id. */
 function getLocationIdFromJwt(accessToken: string): string | null {
   try {
     const parts = accessToken.split('.');
@@ -130,11 +130,13 @@ function getLocationIdFromJwt(accessToken: string): string | null {
     const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
     const decoded = Buffer.from(base64, 'base64').toString('utf-8');
     const parsed = JSON.parse(decoded) as Record<string, unknown>;
-    const id =
-      (parsed.locationId as string) ??
-      (parsed.location_id as string) ??
-      (parsed.authClassId as string) ??
-      (parsed.sub as string);
+    const locationId = (parsed.locationId as string) ?? (parsed.location_id as string) ?? null;
+    const authClassId = parsed.authClassId as string;
+    const sub = parsed.sub as string;
+    // #region agent log
+    debugIngest('JWT claims (H1)', { locationId: locationId ?? null, authClassId: authClassId ?? null, sub: sub ?? null, hypothesisId: 'H1' });
+    // #endregion
+    const id = locationId ?? authClassId ?? null;
     return typeof id === 'string' && id.length > 5 ? id : null;
   } catch {
     return null;
@@ -236,7 +238,7 @@ export async function GET(request: NextRequest) {
   }
   console.log(LOG, 'State parsed', { redirectTo, hasOrgId: !!orgId, locationIdFromState: locationIdFromState ? locationIdFromState.slice(0, 8) + '..' + locationIdFromState.slice(-4) : null, stateRawLength: stateRaw?.length ?? 0 });
   // #region agent log
-  debugIngest('after state parse', { redirectTo, hasOrgId: !!orgId, locationIdFromState: locationIdFromState ? locationIdFromState.slice(0, 8) + '..' : null, hypothesisId: 'H1-H2-H4' });
+  debugIngest('after state parse (H4)', { redirectTo, hasOrgId: !!orgId, locationIdFromStateFull: locationIdFromState ?? null, hypothesisId: 'H4' });
   // #endregion
 
   if (error) {
@@ -304,6 +306,19 @@ export async function GET(request: NextRequest) {
 
     const tokenKeys = Object.keys(data);
     const userType = (data as Record<string, unknown>).userType ?? (data as Record<string, unknown>).user_type ?? null;
+    // #region agent log
+    const tokenIdFields = {
+      location_id: (data as Record<string, unknown>).location_id ?? null,
+      locationId: (data as Record<string, unknown>).locationId ?? null,
+      company_id: (data as Record<string, unknown>).company_id ?? null,
+      companyId: (data as Record<string, unknown>).companyId ?? null,
+      user_id: (data as Record<string, unknown>).user_id ?? null,
+      userId: (data as Record<string, unknown>).userId ?? null,
+      resource_id: (data as Record<string, unknown>).resource_id ?? null,
+      userType,
+    };
+    debugIngest('token response id fields (H2,H3)', { ...tokenIdFields, hypothesisId: 'H2-H3' });
+    // #endregion
     console.log(LOG, 'Token exchanged', {
       hasAccessToken: !!data.access_token,
       hasRefreshToken: !!data.refresh_token,
@@ -337,12 +352,18 @@ export async function GET(request: NextRequest) {
     if (!locationId && locationIdFromState) {
       locationId = locationIdFromState;
       locationSource = 'state';
+      // #region agent log
+      debugIngest('using locationId from state (H4)', { locationIdFromState: locationId, hypothesisId: 'H4' });
+      // #endregion
       console.log(LOG, 'Using locationId from state (token had no locationId — likely Company-level install)', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
     }
     if (!locationId && data.access_token) {
       console.log(LOG, 'Fetching /locations/ API fallback (first location in list)');
       locationId = await fetchLocationFromToken(data.access_token, companyId);
       locationSource = 'api';
+      // #region agent log
+      if (locationId) debugIngest('locationId from API fallback (H5)', { apiFirstLocationId: locationId, hypothesisId: 'H5' });
+      // #endregion
       if (locationId) console.log(LOG, 'locationId from API fallback', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
     }
 
@@ -355,6 +376,9 @@ export async function GET(request: NextRequest) {
     }
 
     locationId = locationId.trim();
+    // #region agent log
+    debugIngest('final locationId resolution (H1-H5)', { source: locationSource, locationIdFull: locationId, hypothesisId: 'H1-H5' });
+    // #endregion
     console.log(LOG, 'locationId for KV', { locationId: locationId.slice(0, 8) + '..' + locationId.slice(-4), source: locationSource });
 
     const expiresAt = Date.now() + (data.expires_in ?? 86400) * 1000;
