@@ -30,29 +30,27 @@ export async function GET(request: NextRequest) {
 
   const clientId = process.env.GHL_CLIENT_ID;
   const clientSecret = process.env.GHL_CLIENT_SECRET;
-  const redirectUri = process.env.GHL_REDIRECT_URI;
 
-  if (!clientId || !clientSecret || !redirectUri) {
-    console.error('OAuth: Missing env vars (GHL_CLIENT_ID, GHL_CLIENT_SECRET, GHL_REDIRECT_URI)');
+  if (!clientId || !clientSecret) {
+    console.error('OAuth: Missing env vars (GHL_CLIENT_ID, GHL_CLIENT_SECRET)');
     return NextResponse.redirect(
       new URL('/login?error=server_config', request.url)
     );
   }
 
   try {
-    const body = {
+    // Marketplace install flow: only client_id, client_secret, grant_type, code (per ghl-marketplace-app-template)
+    const body = new URLSearchParams({
       client_id: clientId,
       client_secret: clientSecret,
       grant_type: 'authorization_code',
       code,
-      user_type: 'Location',
-      redirect_uri: redirectUri,
-    };
+    });
 
     const res = await fetch(TOKEN_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+      body: body.toString(),
     });
 
     const data = await res.json();
