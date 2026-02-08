@@ -59,7 +59,24 @@ export async function GET(request: NextRequest) {
     const state = request.nextUrl.searchParams.get('state');
     const locationId = request.nextUrl.searchParams.get('locationId');
     const error = request.nextUrl.searchParams.get('error');
-    console.log('[CQ Callback] STEP 1 — callback hit', { host: callbackHost, hasCode: !!code, hasState: !!state, hasError: !!error, paramKeys: Object.keys(allParams) });
+
+    console.log('[CQ Callback] ========== CALLBACK INVOKED ==========');
+    console.log('[CQ Callback] STEP 1 — request', {
+      host: callbackHost,
+      pathname: request.nextUrl.pathname,
+      hasCode: !!code,
+      codeLength: code?.length ?? 0,
+      hasState: !!state,
+      stateLength: state?.length ?? 0,
+      locationIdParam: locationId ?? null,
+      hasError: !!error,
+      paramKeys: Object.keys(allParams),
+    });
+    console.log('[CQ Callback] STEP 1 — query params (no secrets)', {
+      ...Object.fromEntries(
+        Object.entries(allParams).map(([k, v]) => [k, k === 'code' ? (v ? `${v.slice(0, 8)}...` : null) : v])
+      ),
+    });
 
     // #region agent log
     debugLog('OAuth callback hit', {
@@ -74,7 +91,8 @@ export async function GET(request: NextRequest) {
     if (error) {
       const errorDescription = request.nextUrl.searchParams.get('error_description') || 'No description provided';
       const errorUri = request.nextUrl.searchParams.get('error_uri');
-      console.error('[CQ Callback] STEP 2 — GHL returned error', { error, errorDescription });
+      console.log('[CQ Callback] STEP 2 — GHL error branch');
+      console.error('[CQ Callback] STEP 2 — GHL returned error', { error, errorDescription, errorUri, state: state ?? null });
       console.error('[OAuth Callback] Error Code:', error);
       console.error('[OAuth Callback] Error Description:', errorDescription);
       console.error('[OAuth Callback] Error URI:', errorUri);
@@ -93,7 +111,8 @@ export async function GET(request: NextRequest) {
     }
 
     if (!code) {
-      console.error('[CQ Callback] STEP 2 — no code from GHL', { paramKeys: Object.keys(allParams) });
+      console.log('[CQ Callback] STEP 2 — no-code branch (redirecting to oauth-success with error)');
+      console.error('[CQ Callback] STEP 2 — no code from GHL', { paramKeys: Object.keys(allParams), allParams });
       const errorUrl = new URL('/oauth-success', APP_BASE);
       errorUrl.searchParams.set('error', `no_code: ${JSON.stringify(allParams)}`);
       return NextResponse.redirect(errorUrl.toString());
@@ -103,7 +122,10 @@ export async function GET(request: NextRequest) {
     const clientSecret = process.env.GHL_CLIENT_SECRET;
     const redirectUri = getRedirectUri(APP_BASE);
 
+    console.log('[CQ Callback] STEP 2b — env check', { hasClientId: !!clientId, hasClientSecret: !!clientSecret, redirectUri, APP_BASE });
+
     if (!clientId || !clientSecret) {
+      console.log('[CQ Callback] STEP 2b — oauth_not_configured branch');
       const errorUrl = new URL('/oauth-success', APP_BASE);
       errorUrl.searchParams.set('error', 'oauth_not_configured');
       return NextResponse.redirect(errorUrl.toString());
@@ -119,12 +141,12 @@ export async function GET(request: NextRequest) {
     });
 
     console.log('[CQ Callback] STEP 3 — exchanging code for token');
-    console.log('[OAuth Callback] Using form-urlencoded content type');
-    console.log('[OAuth Callback] Token exchange request params:', {
+    console.log('[CQ Callback] STEP 3 — token request', {
       grant_type: tokenParams.get('grant_type'),
-      code: tokenParams.get('code') ? `${tokenParams.get('code')?.substring(0, 20)}...` : 'MISSING',
-      client_id: tokenParams.get('client_id') ? `${clientId.substring(0, 10)}...` : 'MISSING',
+      codePreview: code ? `${code.slice(0, 12)}...` : 'MISSING',
+      client_idPreview: clientId ? `${clientId.slice(0, 12)}...` : 'MISSING',
       redirect_uri: redirectUri,
+      url: 'https://services.leadconnectorhq.com/oauth/token',
     });
 
     const tokenResponse = await fetch('https://services.leadconnectorhq.com/oauth/token', {
@@ -133,10 +155,16 @@ export async function GET(request: NextRequest) {
       body: tokenParams.toString(),
     });
 
-    console.log('[CQ Callback] STEP 4 — token response', { status: tokenResponse.status, ok: tokenResponse.ok });
+    console.log('[CQ Callback] STEP 4 — token response', {
+      status: tokenResponse.status,
+      ok: tokenResponse.ok,
+      statusText: tokenResponse.statusText,
+      headersContentType: tokenResponse.headers.get('content-type'),
+    });
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
+      console.log('[CQ Callback] STEP 4 — token exchange FAILED, body length:', errorText?.length ?? 0);
       let errorData: { error?: string; error_description?: string; message?: string; raw?: string };
       try {
         errorData = JSON.parse(errorText);
@@ -154,9 +182,15 @@ export async function GET(request: NextRequest) {
 
     const tokenData = await tokenResponse.json();
     console.log('[CQ Callback] STEP 5 — token received', {
-      hasAccessToken: !!tokenData.access_token,
-      hasLocationId: !!(tokenData.locationId || tokenData.location_id),
       keys: Object.keys(tokenData),
+      hasAccessToken: !!tokenData.access_token,
+      accessTokenLength: tokenData.access_token?.length ?? 0,
+      hasRefreshToken: !!tokenData.refresh_token,
+      hasLocationId: !!(tokenData.locationId || tokenData.location_id),
+      locationIdFromToken: tokenData.locationId ?? tokenData.location_id ?? null,
+      expires_in: tokenData.expires_in ?? null,
+      companyId: tokenData.companyId ?? tokenData.company_id ?? null,
+      userId: tokenData.userId ?? tokenData.user_id ?? null,
     });
 
     // Validate token format (JWT)
@@ -185,13 +219,18 @@ export async function GET(request: NextRequest) {
         const decoded = Buffer.from(state, 'base64').toString('utf-8');
         const parsed = JSON.parse(decoded);
         locationIdFromState = parsed.locationId || parsed.location_id || null;
+        console.log('[CQ Callback] STEP 5d — state parsed (base64+JSON)', { locationIdFromState, redirect: parsed?.redirect });
       } catch {
         try {
           locationIdFromState = JSON.parse(state).locationId || null;
+          console.log('[CQ Callback] STEP 5d — state parsed (JSON only)', { locationIdFromState });
         } catch {
           locationIdFromState = state.length > 20 ? null : state;
+          console.log('[CQ Callback] STEP 5d — state fallback (raw or null)', { locationIdFromState });
         }
       }
+    } else {
+      console.log('[CQ Callback] STEP 5d — no state param');
     }
     const locationIdFromToken = tokenData.locationId || tokenData.location_id || tokenData.location?.id;
     let finalLocationId: string | null =
@@ -200,9 +239,16 @@ export async function GET(request: NextRequest) {
       locationId ||
       null;
 
+    console.log('[CQ Callback] STEP 5e — locationId sources', {
+      locationIdFromToken: locationIdFromToken ?? null,
+      locationIdFromState: locationIdFromState ?? null,
+      locationIdFromQuery: locationId ?? null,
+      finalLocationId: finalLocationId ?? null,
+    });
+
     // If still no locationId, fetch from GHL /locations/ API
     if (!finalLocationId) {
-      console.log('[OAuth Callback] No locationId in response, fetching from GHL API...');
+      console.log('[CQ Callback] STEP 5f — no locationId yet, calling GHL /locations/ API');
       try {
         const locationsResponse = await fetch('https://services.leadconnectorhq.com/locations/', {
           method: 'GET',
@@ -248,7 +294,14 @@ export async function GET(request: NextRequest) {
 
     const expiresAt = tokenData.expires_in ? Date.now() + tokenData.expires_in * 1000 : Date.now() + 86400 * 1000;
 
-    console.log('[CQ Callback] STEP 7 — storing to KV', { locationId: finalLocationId?.slice(0, 12) + '...' });
+    console.log('[CQ Callback] STEP 7 — storing to KV', {
+      locationId: finalLocationId?.slice(0, 12) + '...',
+      hasAccessToken: !!tokenData.access_token,
+      hasRefreshToken: !!tokenData.refresh_token,
+      expiresAt: new Date(expiresAt).toISOString(),
+      companyId: (tokenData.companyId ?? tokenData.company_id ?? '').slice(0, 8) + '...',
+      userId: (tokenData.userId ?? tokenData.user_id ?? '').slice(0, 8) + '...',
+    });
     try {
       await storeInstallation({
         locationId: finalLocationId,
@@ -258,6 +311,7 @@ export async function GET(request: NextRequest) {
         companyId: tokenData.companyId ?? tokenData.company_id ?? '',
         userId: tokenData.userId ?? tokenData.user_id ?? '',
       });
+      console.log('[CQ Callback] STEP 7 — storeInstallation() returned (no throw)');
     } catch (storeErr) {
       console.error('[OAuth Callback] ❌ STORAGE FAILED — tokens were NOT saved. Check KV (Vercel KV or KV_REST_API_* env vars).', storeErr);
       debugLog('OAuth callback storeInstallation failed', { error: storeErr instanceof Error ? storeErr.message : String(storeErr) });
@@ -280,19 +334,22 @@ export async function GET(request: NextRequest) {
     }
 
     const { redirect: redirectTo, orgId } = parseState(state);
-    console.log('[CQ Callback] STEP 7b — parseState', { redirectTo, hasOrgId: !!orgId });
+    console.log('[CQ Callback] STEP 7b — parseState', { rawStateLength: state?.length ?? 0, redirectTo, orgId: orgId ?? null });
     const companyId = tokenData.companyId ?? tokenData.company_id ?? '';
     const userId = tokenData.userId ?? tokenData.user_id ?? '';
 
     const sessionToken = await createSessionToken({ locationId: finalLocationId, companyId, userId });
+    console.log('[CQ Callback] STEP 7c — session token created', { sessionTokenLength: sessionToken?.length ?? 0 });
 
     let targetUrl: string;
     if (redirectTo === '/oauth-success') {
+      console.log('[CQ Callback] STEP 8 — redirect branch: oauth-success');
       const u = new URL('/oauth-success', APP_BASE);
       u.searchParams.set('success', 'oauth_installed');
       u.searchParams.set('locationId', finalLocationId);
       targetUrl = u.toString();
     } else {
+      console.log('[CQ Callback] STEP 8 — redirect branch: state.redirect', { redirectTo });
       const u = new URL(redirectTo, APP_BASE);
       u.searchParams.set('locationId', finalLocationId);
       targetUrl = u.toString();
@@ -302,6 +359,9 @@ export async function GET(request: NextRequest) {
 
     console.log('[CQ Callback] STEP 8 — SUCCESS', { targetUrl, locationId: finalLocationId?.slice(0, 12) + '...' });
 
+    if (orgId) {
+      console.log('[CQ Callback] STEP 8a — setOrgGHLOAuth', { orgId, locationId: finalLocationId?.slice(0, 12) + '...' });
+    }
     debugLog('OAuth callback success redirect', { targetUrl, cookieSet: true });
     const res = NextResponse.redirect(targetUrl);
     const cookieOptions: { httpOnly: boolean; secure: boolean; sameSite: 'none'; maxAge: number; path: string; domain?: string } = {
@@ -320,10 +380,12 @@ export async function GET(request: NextRequest) {
       /* ignore */
     }
     res.cookies.set('ghl_session', sessionToken, cookieOptions);
-    console.log('[CQ Callback] STEP 9 — cookie set', { domain: (cookieOptions as { domain?: string }).domain ?? '(default)', path: '/' });
+    console.log('[CQ Callback] STEP 9 — cookie set', { domain: (cookieOptions as { domain?: string }).domain ?? '(default)', path: '/', maxAge: cookieOptions.maxAge });
+    console.log('[CQ Callback] ========== CALLBACK COMPLETE (redirecting to app) ==========');
     return res;
   } catch (error) {
-    console.error('[OAuth Callback] Error in OAuth callback:', error);
+    console.log('[CQ Callback] ========== CALLBACK EXCEPTION ==========');
+    console.error('[CQ Callback] Error in OAuth callback:', error);
     debugLog('OAuth callback exception', { error: error instanceof Error ? error.message : String(error) });
     const errorUrl = new URL('/oauth-success', APP_BASE);
     const msg = error instanceof Error ? error.message : 'oauth_callback_failed';

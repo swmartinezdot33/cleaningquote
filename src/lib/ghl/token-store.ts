@@ -43,8 +43,12 @@ export async function getInstallation(locationId: string): Promise<GHLInstallati
   try {
     const kv = getKV();
     const data = await kv.get<GHLInstallation>(key(locationId));
+    if (!data) {
+      console.log('[CQ token-store] getInstallation: no data in KV for', { key: key(locationId).slice(0, 25) + '...', locationIdPreview: locationId.slice(0, 12) + '...' });
+    }
     return data ?? null;
-  } catch {
+  } catch (err) {
+    console.warn('[CQ token-store] getInstallation error', { locationIdPreview: locationId?.slice(0, 12) + '...', err: err instanceof Error ? err.message : String(err) });
     return null;
   }
 }

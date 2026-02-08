@@ -22,15 +22,41 @@ export type GHLContextResult =
  */
 export async function resolveGHLContext(request: NextRequest): Promise<GHLContextResult> {
   const requestLocationId = getLocationIdFromRequest(request);
+  const session = await getSession();
+
+  console.log('[CQ api-context] resolveGHLContext', {
+    requestLocationId: requestLocationId ?? null,
+    hasSession: !!session,
+    sessionLocationId: session?.locationId ? session.locationId.slice(0, 12) + '...' : null,
+  });
+
   if (requestLocationId) {
     const token = await getOrFetchTokenForLocation(requestLocationId);
-    if (token) return { locationId: requestLocationId, token };
+    if (token) {
+      console.log('[CQ api-context] resolved from request locationId + KV token');
+      return { locationId: requestLocationId, token };
+    }
+    // Client sent locationId but KV has no token — try session path (same locationId, cookie may have been set by callback)
+    if (session?.locationId && session.locationId === requestLocationId) {
+      const creds = await getGHLCredentials({ session });
+      if (creds.token && creds.locationId) {
+        console.log('[CQ api-context] resolved from session fallback (same locationId)');
+        return { locationId: creds.locationId, token: creds.token };
+      }
+    }
+    console.log('[CQ api-context] needsConnect: locationId present but no token in KV and no session fallback');
     return { needsConnect: true };
   }
-  const session = await getSession();
+
   if (session) {
     const creds = await getGHLCredentials({ session });
-    if (creds.token && creds.locationId) return { locationId: creds.locationId, token: creds.token };
+    if (creds.token && creds.locationId) {
+      console.log('[CQ api-context] resolved from session cookie');
+      return { locationId: creds.locationId, token: creds.token };
+    }
+    console.log('[CQ api-context] session present but getGHLCredentials returned no token');
+  } else {
+    console.log('[CQ api-context] no request locationId and no session');
   }
   return null;
 }
