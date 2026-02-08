@@ -46,8 +46,8 @@ export default function SetupPage() {
     const authUrl = new URL('/api/auth/oauth/authorize', base);
     if (ghlData?.locationId) authUrl.searchParams.set('locationId', ghlData.locationId);
     authUrl.searchParams.set('redirect', '/oauth-success');
-    // Open in new tab like MaidCentral — keeps iframe on setup, avoids redirect in iframe
-    window.open(authUrl.toString(), '_blank');
+    // Same-window redirect so callback and oauth-success run in same tab — session cookie then works for dashboard
+    window.location.href = authUrl.toString();
   };
 
   if (loading || (ghlData && loadingOAuth)) {

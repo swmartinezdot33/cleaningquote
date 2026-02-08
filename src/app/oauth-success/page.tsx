@@ -23,10 +23,13 @@ function OAuthSuccessContent() {
             <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
             <h1 className="mt-4 text-xl font-semibold">OAuth Installation Successful</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              The app is now connected to your CRM location. Open CleanQuote from your GHL sidebar or app launcher to use the dashboard.
+              The app is now connected to your CRM location. Go to your dashboard below (same tab so your session is kept), then you can open CleanQuote from your GHL sidebar anytime.
             </p>
-            <a href="https://my.cleanquote.io" target="_blank" rel="noopener noreferrer" className="mt-6 block">
-              <Button className="w-full">Go to GoHighLevel</Button>
+            <Link href="/dashboard" className="mt-6 block">
+              <Button className="w-full">Go to Dashboard</Button>
+            </Link>
+            <a href="https://my.cleanquote.io" target="_blank" rel="noopener noreferrer" className="mt-3 block">
+              <Button variant="outline" className="w-full">Go to GoHighLevel</Button>
             </a>
           </>
         ) : (

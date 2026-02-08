@@ -293,13 +293,23 @@ export async function GET(request: NextRequest) {
 
     debugLog('OAuth callback success redirect', { targetUrl, cookieSet: true });
     const res = NextResponse.redirect(targetUrl);
-    res.cookies.set('ghl_session', sessionToken, {
+    const cookieOptions: { httpOnly: boolean; secure: boolean; sameSite: 'none'; maxAge: number; path: string; domain?: string } = {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
       maxAge: 7 * 24 * 60 * 60,
       path: '/',
-    });
+    };
+    // Set domain for production so cookie is sent when app is loaded in GHL iframe (same site)
+    try {
+      const baseHost = new URL(APP_BASE).hostname;
+      if (baseHost && baseHost !== 'localhost' && !baseHost.startsWith('127.')) {
+        cookieOptions.domain = baseHost;
+      }
+    } catch {
+      /* ignore */
+    }
+    res.cookies.set('ghl_session', sessionToken, cookieOptions);
     return res;
   } catch (error) {
     console.error('[OAuth Callback] Error in OAuth callback:', error);
