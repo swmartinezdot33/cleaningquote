@@ -273,8 +273,18 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener('message', handleMessage);
 
     if (window.parent && window.parent !== window) {
-      // Send REQUEST_USER_DATA per GHL docs; retry for slow-loading parent
-      const sendRequest = () => window.parent.postMessage({ message: 'REQUEST_USER_DATA' }, '*');
+      // Send REQUEST_USER_DATA per GHL docs; retry for slow-loading parent.
+      // Post to both parent and top — GHL may use nested iframes (sidebar > iframe).
+      const sendRequest = () => {
+        window.parent.postMessage({ message: 'REQUEST_USER_DATA' }, '*');
+        if (window.top && window.top !== window) {
+          try {
+            window.top.postMessage({ message: 'REQUEST_USER_DATA' }, '*');
+          } catch {
+            /* same-origin only */
+          }
+        }
+      };
       sendRequest();
       const t1 = setTimeout(sendRequest, 100);
       const t2 = setTimeout(sendRequest, 500);
@@ -285,8 +295,9 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
         if (!hasLocationIdRef.current) {
           console.error('[GHL Iframe] ❌ TIMEOUT: No locationId after 6s. Check logs above for which step failed.');
           setError(
-            'No GHL context received. Open from a sub-account dashboard (not Agency view). ' +
-            'Ensure GHL_APP_SSO_KEY matches your CleanQuote app Shared Secret in Marketplace App → Auth.'
+            'No GHL context received. Try: (1) Open from a sub-account/location dashboard, not Agency view. ' +
+            '(2) If using Custom Menu Link, set the URL to https://www.cleanquote.io/dashboard?locationId={{location.id}} and use the Sub-Account sidebar. ' +
+            '(3) Ensure GHL_APP_SSO_KEY matches your CleanQuote Shared Secret in Marketplace App → Auth.'
           );
           setLoading(false);
         }

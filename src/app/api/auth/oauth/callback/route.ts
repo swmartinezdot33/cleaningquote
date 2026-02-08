@@ -202,7 +202,9 @@ export async function GET(request: NextRequest) {
       u.searchParams.set('locationId', finalLocationId);
       targetUrl = u.toString();
     } else {
-      targetUrl = new URL(redirectTo, APP_BASE).toString();
+      const u = new URL(redirectTo, APP_BASE);
+      u.searchParams.set('locationId', finalLocationId);
+      targetUrl = u.toString();
     }
 
     if (orgId) {

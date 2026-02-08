@@ -160,7 +160,9 @@ export default function CRMContactsPage() {
             window.self !== window.top &&
             !ghlData?.locationId && (
               <p className="text-sm">
-                Open from a sub-account dashboard. Check Shared Secret in GHL Marketplace App → Auth.
+                <Link href="/help/ghl-custom-menu-link" target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">
+                  Custom Menu Link setup guide
+                </Link>
               </p>
             )}
         </div>
