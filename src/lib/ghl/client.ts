@@ -92,7 +92,7 @@ export async function makeGHLRequest<T>(
       // Try to get error message from response
       let errorMessage = `GHL API Error (${response.status})`;
       let errorData: any = null;
-      
+
       if (responseText && responseText.trim().length > 0) {
         try {
           errorData = JSON.parse(responseText) as GHLAPIError;
@@ -104,7 +104,22 @@ export async function makeGHLRequest<T>(
       } else {
         errorMessage = `${errorMessage}: Empty response from GHL API`;
       }
-      
+
+      // #region agent log
+      if (response.status === 401) {
+        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'client.ts:makeGHLRequest',
+            message: 'GHL 401',
+            data: { endpoint, usedCredentials: !!credentials, hypothesisId: 'H1-H5' },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+      }
+      // #endregion
+
       // Enhanced error logging for 400/404 errors to help debug
       if (response.status === 400 || response.status === 404) {
         console.error(`GHL API ${response.status} Error Details:`, {

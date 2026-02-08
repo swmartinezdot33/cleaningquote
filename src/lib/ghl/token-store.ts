@@ -92,7 +92,15 @@ export async function getInstallation(locationId: string): Promise<GHLInstallati
  */
 export async function getOrFetchTokenForLocation(locationId: string): Promise<string | null> {
   let token = await getTokenForLocation(locationId);
-  if (token) return token;
+  if (token) {
+    // #region agent log
+    debugLog('getOrFetchTokenForLocation: returning token from KV', {
+      locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`,
+      hypothesisId: 'H2-H3-H4',
+    });
+    // #endregion
+    return token;
+  }
 
   const companyId = process.env.GHL_COMPANY_ID?.trim();
   if (!companyId) return null;
@@ -101,7 +109,15 @@ export async function getOrFetchTokenForLocation(locationId: string): Promise<st
     const { getLocationTokenFromAgency } = await import('./agency');
     const result = await getLocationTokenFromAgency(locationId, companyId);
     if (result.success) {
-      return result.accessToken ?? (await getTokenForLocation(locationId));
+      const out = result.accessToken ?? (await getTokenForLocation(locationId));
+      // #region agent log
+      debugLog('getOrFetchTokenForLocation: returning token from Agency', {
+        locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`,
+        hadAccessToken: !!result.accessToken,
+        hypothesisId: 'H1',
+      });
+      // #endregion
+      return out;
     }
   } catch {
     // Fall through to return null
