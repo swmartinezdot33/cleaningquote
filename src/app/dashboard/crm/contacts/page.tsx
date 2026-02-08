@@ -74,6 +74,24 @@ export default function CRMContactsPage() {
         </p>
       </div>
 
+      {typeof window !== 'undefined' &&
+        window.self !== window.top &&
+        !ghlData?.locationId &&
+        !loading &&
+        contacts.length === 0 &&
+        !error && (
+          <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-200">
+            <p className="font-medium">GHL contacts require location context</p>
+            <p className="mt-1 text-sm">
+              In GHL SaaS Configurator → Marketplace Apps → CleanQuote.io → Edit (pencil icon), set the App URL to:
+            </p>
+            <code className="mt-2 block overflow-x-auto rounded bg-black/10 px-3 py-2 text-sm">
+              https://www.cleanquote.io/dashboard?locationId={'{{'}location.id{'}}'}
+            </code>
+            <p className="mt-2 text-sm opacity-90">Save, then reload this page.</p>
+          </div>
+        )}
+
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
         <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <Filter className="h-4 w-4" />
@@ -115,8 +133,16 @@ export default function CRMContactsPage() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive">
-          {error}
+        <div className="space-y-2 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive">
+          <p>{error}</p>
+          {typeof window !== 'undefined' &&
+            window.self !== window.top &&
+            !ghlData?.locationId && (
+              <p className="text-sm">
+                Configure the app URL in GHL to include{' '}
+                <code className="rounded bg-muted/50 px-1.5 py-0.5 text-xs">?locationId={'{{'}location.id{'}}'}</code>
+              </p>
+            )}
         </div>
       )}
 

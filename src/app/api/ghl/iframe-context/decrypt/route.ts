@@ -1,56 +1,78 @@
 import { NextRequest, NextResponse } from 'next/server';
-import CryptoJS from 'crypto-js';
+import { createDecipheriv, createHash } from 'node:crypto';
 import type { GHLIframeData } from '@/lib/ghl-iframe-types';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Decrypt GHL SSO payload using EVP_BytesToKey-style key derivation.
+ * Matches the algorithm used in the GHL marketplace app template:
+ * https://github.com/GoHighLevel/ghl-marketplace-app-template
+ */
+function decryptGHLSSO(keyBase64: string, ssoKey: string): Record<string, unknown> {
+  const blockSize = 16;
+  const keySize = 32;
+  const ivSize = 16;
+  const saltSize = 8;
+
+  const rawEncryptedData = Buffer.from(keyBase64, 'base64');
+  const salt = rawEncryptedData.subarray(saltSize, blockSize);
+  const cipherText = rawEncryptedData.subarray(blockSize);
+
+  let result = Buffer.alloc(0);
+  while (result.length < keySize + ivSize) {
+    const hasher = createHash('md5');
+    const chunk = hasher
+      .update(Buffer.concat([result.subarray(-ivSize), Buffer.from(ssoKey, 'utf-8'), salt]))
+      .digest();
+    result = Buffer.concat([result, chunk]);
+  }
+
+  const decipher = createDecipheriv(
+    'aes-256-cbc',
+    result.subarray(0, keySize),
+    result.subarray(keySize, keySize + ivSize)
+  );
+  const decrypted = Buffer.concat([decipher.update(cipherText), decipher.final()]);
+  return JSON.parse(decrypted.toString()) as Record<string, unknown>;
+}
 
 /**
  * POST /api/ghl/iframe-context/decrypt
  * Decrypt GHL encrypted user data using SSO key.
  * GHL sends encrypted user data via postMessage (REQUEST_USER_DATA_RESPONSE) that
  * must be decrypted using GHL_APP_SSO_KEY from marketplace app settings.
+ * Supports both 'encryptedData' and 'key' body params (GHL template uses 'key').
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { encryptedData } = body;
+    let encryptedData = body.encryptedData ?? body.key;
 
     if (!encryptedData) {
       return NextResponse.json(
-        { error: 'Encrypted data is required' },
+        { error: 'Encrypted data is required (encryptedData or key)' },
         { status: 400 }
       );
+    }
+    if (Array.isArray(encryptedData)) {
+      encryptedData = encryptedData[0];
     }
 
     const ssoKey = process.env.GHL_APP_SSO_KEY;
     let userData: Record<string, unknown>;
 
-    if (ssoKey && typeof encryptedData === 'string' && CryptoJS) {
+    if (ssoKey && typeof encryptedData === 'string') {
       try {
-        const decrypted = CryptoJS.AES.decrypt(encryptedData, ssoKey).toString(CryptoJS.enc.Utf8);
-        if (!decrypted || decrypted.trim() === '') {
-          try {
-            userData = JSON.parse(encryptedData) as Record<string, unknown>;
-          } catch {
-            return NextResponse.json(
-              {
-                error: 'Decryption failed. Ensure GHL_APP_SSO_KEY matches your marketplace app SSO key.',
-                hint: 'Get SSO key from: Marketplace App → Settings → SSO Key',
-              },
-              { status: 400 }
-            );
-          }
-        } else {
-          userData = JSON.parse(decrypted) as Record<string, unknown>;
-        }
-      } catch {
+        userData = decryptGHLSSO(encryptedData, ssoKey);
+      } catch (decryptErr) {
         try {
           userData = JSON.parse(encryptedData) as Record<string, unknown>;
         } catch {
           return NextResponse.json(
             {
-              error: 'Failed to decrypt or parse user data.',
-              hint: 'Set GHL_APP_SSO_KEY in environment variables.',
+              error: 'Decryption failed. Ensure GHL_APP_SSO_KEY matches your marketplace app SSO key.',
+              hint: 'Get SSO key from: Marketplace App → Settings → SSO Key',
             },
             { status: 400 }
           );
@@ -80,11 +102,15 @@ export async function POST(request: NextRequest) {
       (userData.location_id as string) ??
       (userData.location as { id?: string })?.id ??
       (userData.location as { locationId?: string })?.locationId ??
-      (userData.context as { locationId?: string })?.locationId;
+      (userData.context as { locationId?: string })?.locationId ??
+      (userData.context as { activeLocation?: string })?.activeLocation;
 
     if (!locationId) {
       return NextResponse.json(
-        { error: 'Location ID not found in user data' },
+        {
+          error: 'Location ID not found in user data',
+          hint: 'GHL Location context includes activeLocation. Ensure the app is opened from a sub-account dashboard, or configure the app URL with ?locationId={{location.id}}',
+        },
         { status: 400 }
       );
     }

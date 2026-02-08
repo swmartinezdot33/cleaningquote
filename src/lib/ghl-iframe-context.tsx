@@ -71,14 +71,17 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
     }
 
     // 2. Referrer (GHL loads custom apps in iframe; referrer often has /location/{id}/)
-    if (!urlLocationId && typeof document !== 'undefined' && document.referrer) {
+    // Note: Referrer-Policy may strip path for cross-origin; URL params are more reliable.
+    if (!hasLocationIdRef.current && typeof document !== 'undefined' && document.referrer) {
       try {
         const referrerUrl = new URL(document.referrer);
-        const match = referrerUrl.pathname.match(/\/(?:v\d+\/)?location\/([^/]+)/i);
-        const refLocationId = match?.[1] ?? referrerUrl.searchParams.get('locationId') ?? referrerUrl.searchParams.get('location_id');
-        if (refLocationId) {
-          hasLocationIdRef.current = true;
-          apply({ locationId: refLocationId });
+        if (/gohighlevel|leadconnector/i.test(referrerUrl.hostname)) {
+          const match = referrerUrl.pathname.match(/\/(?:v\d+\/)?location\/([A-Za-z0-9_-]{10,})/i);
+          const refLocationId = match?.[1] ?? referrerUrl.searchParams.get('locationId') ?? referrerUrl.searchParams.get('location_id');
+          if (refLocationId) {
+            hasLocationIdRef.current = true;
+            apply({ locationId: refLocationId });
+          }
         }
       } catch {
         /* ignore */
@@ -121,10 +124,12 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
         if (!data || typeof data !== 'object') return;
 
         if (data.message === 'REQUEST_USER_DATA_RESPONSE' && data.payload) {
+          const rawPayload = Array.isArray(data.payload) ? data.payload[0] : data.payload;
+          if (!rawPayload) return;
           fetch('/api/ghl/iframe-context/decrypt', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ encryptedData: data.payload }),
+            body: JSON.stringify({ encryptedData: rawPayload }),
           })
             .then((r) => (r.ok ? r.json() : null))
             .then((result) => {
@@ -147,9 +152,12 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
         const locationId =
           data.locationId ??
           data.location_id ??
+          data.activeLocation ??
           data.location?.id ??
           data.context?.locationId ??
-          data.payload?.locationId;
+          data.context?.activeLocation ??
+          data.payload?.locationId ??
+          data.payload?.activeLocation;
         if (locationId) {
           hasLocationIdRef.current = true;
           apply({

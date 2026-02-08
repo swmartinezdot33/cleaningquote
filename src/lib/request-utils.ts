@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
 
 /**
- * Extract location ID from request (query param or header)
- * Used when app is loaded in GHL iframe - client passes locationId from GHL context
+ * Extract location ID from request (query param or header).
+ * Used when app is loaded in GHL iframe - client passes locationId from GHL context.
  */
 export function getLocationIdFromRequest(request: NextRequest): string | undefined {
   const queryLocationId = request.nextUrl.searchParams.get('locationId');
