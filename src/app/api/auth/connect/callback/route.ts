@@ -121,7 +121,7 @@ function htmlError(title: string, message: string, errorCode?: string): string {
 const TOKEN_URL = 'https://services.leadconnectorhq.com/oauth/token';
 const API_BASE = 'https://services.leadconnectorhq.com';
 
-/** Try to get locationId from JWT payload (GHL Location tokens may have authClassId or locationId in claims). Do NOT use sub — it is typically user id. */
+/** Try to get locationId from JWT payload. Use only explicit locationId/location_id — do NOT use authClassId (can be company id for Company-scoped tokens). */
 function getLocationIdFromJwt(accessToken: string): string | null {
   try {
     const parts = accessToken.split('.');
@@ -132,11 +132,11 @@ function getLocationIdFromJwt(accessToken: string): string | null {
     const parsed = JSON.parse(decoded) as Record<string, unknown>;
     const locationId = (parsed.locationId as string) ?? (parsed.location_id as string) ?? null;
     const authClassId = parsed.authClassId as string;
-    const sub = parsed.sub as string;
     // #region agent log
-    debugIngest('JWT claims (H1)', { locationId: locationId ?? null, authClassId: authClassId ?? null, sub: sub ?? null, hypothesisId: 'H1' });
+    debugIngest('JWT claims (H1,H3,H4)', { jwtLocationId: locationId ?? null, authClassId: authClassId ?? null, usingAuthClassId: !locationId && !!authClassId, hypothesisId: 'H1-H3-H4' });
     // #endregion
-    const id = locationId ?? authClassId ?? null;
+    // Only use explicit locationId/location_id from JWT. Do NOT use authClassId — for Company tokens it can be company/parent id (e.g. "CleanQuote.io") not the sub-account location ("CleanQuote.io Snapshot").
+    const id = locationId ?? null;
     return typeof id === 'string' && id.length > 5 ? id : null;
   } catch {
     return null;
@@ -361,8 +361,11 @@ export async function GET(request: NextRequest) {
       if (locationId) console.log(LOG, 'locationId from token response', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
     }
     if (!locationId && data.access_token) {
+      // #region agent log
+      debugIngest('trying JWT (H2,H3)', { stateHadLocationId: !!locationIdFromState, queryHadLocationId: !!locationIdFromQuery, userType, hypothesisId: 'H2-H3' });
+      // #endregion
       const jwtLocationId = getLocationIdFromJwt(data.access_token);
-      console.log(LOG, 'JWT decode attempt', { found: !!jwtLocationId, locationIdPreview: jwtLocationId ? jwtLocationId.slice(0, 8) + '..' : null });
+      console.log(LOG, 'JWT decode attempt', { found: !!jwtLocationId, userType, locationIdPreview: jwtLocationId ? jwtLocationId.slice(0, 8) + '..' : null });
       if (jwtLocationId) {
         locationId = jwtLocationId;
         locationSource = 'jwt';
