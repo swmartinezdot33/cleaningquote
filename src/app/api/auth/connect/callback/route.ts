@@ -56,6 +56,7 @@ function htmlSuccess(locationId: string, accessTokenLength: number, refreshToken
     ${safeCompany ? `<div class="row"><span class="label">Company:</span> ${safeCompany}</div>` : ''}
     ${stateDebugRow}
     ${multiLocationWarning}
+    <p class="row"><a href="/dashboard" style="color:#166534;font-weight:600;">Continue to Dashboard</a></p>
   </div>
   <script>
     (function(){

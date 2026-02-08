@@ -47,9 +47,8 @@ export default function SetupPage() {
     const authUrl = new URL('/api/auth/oauth/authorize', base);
     if (effectiveLocationId) authUrl.searchParams.set('locationId', effectiveLocationId);
     authUrl.searchParams.set('redirect', '/oauth-success');
-    console.log('[CQ OAuth]', 'setup: starting OAuth in same tab', { locationId: effectiveLocationId ? `${effectiveLocationId.slice(0, 8)}...` : null });
-    const target = (typeof window !== 'undefined' && window.self !== window.top) ? (window.top ?? window) : window;
-    target.location.href = authUrl.toString();
+    console.log('[CQ OAuth]', 'setup: starting OAuth in current frame (iframe when embedded)', { locationId: effectiveLocationId ? `${effectiveLocationId.slice(0, 8)}...` : null });
+    window.location.href = authUrl.toString();
   };
 
   if (loading || (effectiveLocationId && loadingOAuth)) {
