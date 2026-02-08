@@ -11,9 +11,9 @@ const DEFAULT_SCOPE =
 
 export async function GET(request: NextRequest) {
   const clientId = process.env.GHL_CLIENT_ID;
-  const redirectUri = process.env.GHL_REDIRECT_URI;
+  const redirectUri = process.env.GHL_REDIRECT_URI?.trim();
   const scope = process.env.GHL_SCOPE || DEFAULT_SCOPE;
-  const versionId = process.env.GHL_VERSION_ID;
+  const versionId = process.env.GHL_VERSION_ID || (clientId?.includes('-') ? clientId.split('-')[0] : undefined);
   const redirectTo = request.nextUrl.searchParams.get('redirect') || '/dashboard';
 
   if (!clientId || !redirectUri) {

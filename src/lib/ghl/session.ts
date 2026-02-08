@@ -61,13 +61,14 @@ export async function getSession(): Promise<GHLSession | null> {
 
 /**
  * Set session cookie with the given token.
+ * SameSite=None + Secure so cookie is sent when app loads in GHL iframe (cross-site).
  */
 export async function setSessionCookie(token: string): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure: true, // Required when SameSite=None
+    sameSite: 'none', // Required for iframe embed in GHL
     maxAge: 7 * 24 * 60 * 60, // 7 days
     path: '/',
   });
