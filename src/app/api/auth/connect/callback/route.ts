@@ -332,6 +332,7 @@ export async function GET(request: NextRequest) {
 
     const companyName = await fetchLocationName(data.access_token, locationId);
 
+    const userTypeVal = String(userType ?? '').toLowerCase();
     const installationPayload = {
       accessToken: data.access_token,
       refreshToken: data.refresh_token ?? '',
@@ -340,6 +341,7 @@ export async function GET(request: NextRequest) {
       userId,
       locationId,
       companyName: companyName ?? undefined,
+      userType: userTypeVal === 'company' ? 'Company' : userTypeVal === 'location' ? 'Location' : undefined,
     };
 
     try {

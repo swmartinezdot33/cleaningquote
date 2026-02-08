@@ -28,6 +28,8 @@ export interface GHLInstallation {
   locationId: string;
   /** Location/company display name (fetched from GHL after install). */
   companyName?: string;
+  /** From token response: Location = location-scoped token (use for contacts); Company = company-scoped (need POST /oauth/locationToken with oauth.write). */
+  userType?: 'Location' | 'Company';
 }
 
 function key(locationId: string): string {
@@ -193,12 +195,22 @@ export async function getOrFetchTokenForLocation(locationId: string): Promise<st
         });
         return result.accessToken;
       }
+      // 401 "not authorized for this scope" = token lacks oauth.write. If this location has a Company install,
+      // the KV token is company-scoped — do not use it for contacts (would get "authClass type not allowed").
+      const isScopeError = result.error && /scope|authorized/i.test(result.error);
+      if (isScopeError) {
+        const install = await getInstallation(locationId);
+        if (install?.userType === 'Company') {
+          console.warn('[CQ token-store] POST /oauth/locationToken returned 401 scope; Company install token cannot be used for contacts. Add oauth.write scope or connect as Location user.');
+          return null;
+        }
+      }
     } catch {
       // Fall through to KV
     }
   }
 
-  // No agency path: use token from KV (Location user install — that token is already location-scoped).
+  // No agency path, or locationToken succeeded: use token from KV (Location user install = location-scoped).
   const token = await getTokenForLocation(locationId);
   if (token) {
     debugLog('getOrFetchTokenForLocation: returning token from KV', {

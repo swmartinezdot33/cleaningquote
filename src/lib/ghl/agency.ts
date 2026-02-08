@@ -157,14 +157,14 @@ function agencyDebugLog(message: string, data: Record<string, unknown>) {
 // #endregion
 
 /**
- * Resolve the Agency token: env first, then KV (from OAuth install when a Company user installed).
- * The token from the OAuth app install (Company user) has oauth.write and can call POST /oauth/locationToken.
+ * Resolve the token to use for POST /oauth/locationToken. Prefer KV (OAuth install token) over env.
+ * The token from the OAuth flow was requested with oauth.write in scope; env token may be a PIT without it.
  */
 async function getAgencyTokenForLocationToken(): Promise<string | null> {
-  const fromEnv = process.env.GHL_AGENCY_ACCESS_TOKEN?.trim();
-  if (fromEnv) return fromEnv;
   const { getAgencyToken } = await import('./token-store');
-  return getAgencyToken();
+  const fromKV = await getAgencyToken();
+  if (fromKV) return fromKV;
+  return process.env.GHL_AGENCY_ACCESS_TOKEN?.trim() ?? null;
 }
 
 export async function getLocationTokenFromAgency(
@@ -204,6 +204,7 @@ export async function getLocationTokenFromAgency(
       userId?: string;
       error?: string;
       message?: string;
+      statusCode?: number;
     };
 
     if (!res.ok) {

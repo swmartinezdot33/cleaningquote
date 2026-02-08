@@ -36,8 +36,12 @@ export async function GET(request: NextRequest) {
     authUrl.searchParams.set('prompt', 'consent');
 
     // Use scope from default install URL so we match GHL Marketplace app settings (full scope list).
+    // Must include oauth.write + oauth.readonly so we can call POST /oauth/locationToken to get location token (required for contacts when Company user installs).
     const defaultInstallUrl = new URL(GHL_MARKETPLACE_APP_URL_DEFAULT);
-    const scopeParam = defaultInstallUrl.searchParams.get('scope');
+    let scopeParam = defaultInstallUrl.searchParams.get('scope');
+    if (scopeParam && !/oauth\.(write|readonly)/i.test(scopeParam)) {
+      scopeParam = [scopeParam, 'oauth.write', 'oauth.readonly'].filter(Boolean).join('+');
+    }
     const encodedScopes = scopeParam ?? [
       'locations.readonly',
       'contacts.readonly',
@@ -52,6 +56,8 @@ export async function GET(request: NextRequest) {
       'calendars/resources.readonly',
       'opportunities.readonly',
       'opportunities.write',
+      'oauth.write',
+      'oauth.readonly',
     ].map((scope) => encodeURIComponent(scope)).join('+');
 
     // Store locationId and redirect in state so callback can use them — same pattern as GHL template + iframe; state = base64(JSON)
