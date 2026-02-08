@@ -101,10 +101,8 @@ export interface InstalledLocation {
 }
 
 /**
- * Get locations where the app is installed. Uses Agency/Company OAuth token.
- * API: GET /oauth/installedLocations — companyId and appId are required (highlevel-api-docs apps/oauth.json).
- * @see https://marketplace.gohighlevel.com/docs/ghl/oauth/get-installed-location
- * @see https://github.com/GoHighLevel/ghl-marketplace-app-template (example-api-call-location: get location token then contacts)
+ * Step 2: Use the access token to see which location(s) the app was installed in.
+ * GET /oauth/installedLocations (companyId and appId required). Uses the OAuth access token as Bearer.
  */
 export async function getInstalledLocations(options?: { companyId?: string; appId?: string }): Promise<{ success: boolean; locations?: InstalledLocation[]; error?: string }> {
   const token = await getAgencyTokenForLocationToken();
@@ -167,6 +165,10 @@ async function getAgencyTokenForLocationToken(): Promise<string | null> {
   return process.env.GHL_AGENCY_ACCESS_TOKEN?.trim() ?? null;
 }
 
+/**
+ * Step 3: Get location access token from the (agency/company) access token.
+ * Uses the token we got from OAuth; that token must have oauth.write scope (request it in authorize URL and in GHL Marketplace app scopes).
+ */
 export async function getLocationTokenFromAgency(
   locationId: string,
   companyId: string,

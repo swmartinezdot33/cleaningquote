@@ -170,9 +170,9 @@ export async function getInstallation(locationId: string): Promise<GHLInstallati
 }
 
 /**
- * Get a valid access token for a location (must be location-scoped for Contacts etc.).
- * Prefer Location Access Token from POST /oauth/locationToken when we have an agency token,
- * so we never use a Company-scoped install token for location APIs (GHL 401 "authClass type not allowed").
+ * Get the location access token to use for contacts and all location-scoped GHL calls.
+ * Flow: we have the access token from OAuth → use it to get location token (POST /oauth/locationToken) → return that.
+ * We never use the company/agency token for contacts; only the location token.
  */
 export async function getOrFetchTokenForLocation(locationId: string): Promise<string | null> {
   const companyId = process.env.GHL_COMPANY_ID?.trim();
@@ -182,8 +182,7 @@ export async function getOrFetchTokenForLocation(locationId: string): Promise<st
     return !!at;
   })();
 
-  // When we have agency token + companyId, use Location Access Token (POST /oauth/locationToken).
-  // That token is location-scoped; the token in KV from callback may be Company-scoped and 401 on contacts.
+  // Use our access token to get location access token (POST /oauth/locationToken); then use that for contacts etc.
   if (hasAgencyToken && companyId) {
     try {
       const { getLocationTokenFromAgency } = await import('./agency');

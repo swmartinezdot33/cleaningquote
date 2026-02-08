@@ -1,6 +1,11 @@
 /**
- * GHL dashboard API context: locationId from user context (postMessage/iframe), or GET /oauth/installedLocations when no cookie/session.
- * Token from KV (install flow) or Agency. We prefer GET /oauth/installedLocations over relying on cookie for locationId.
+ * GHL dashboard API context.
+ *
+ * Flow (simple):
+ * 1. We have the access token (from OAuth callback, stored in KV).
+ * 2. Use that access token to see which location the app was installed in → GET /oauth/installedLocations.
+ * 3. Once we have the location, get location access token from the (agency/company) token → POST /oauth/locationToken.
+ * 4. Use the location access token for all calls: contacts, location objects, etc. Never use the company token for those.
  */
 
 import { NextRequest } from 'next/server';
@@ -14,9 +19,9 @@ export type GHLContextResult =
   | null;
 
 /**
- * Resolve locationId + token for dashboard API calls.
- * LocationId: x-ghl-location-id header first, then GET /oauth/installedLocations; query param and session (cookie) are last.
- * Token: KV first (stored when location completes Connect or from Get Location Access Token), then Agency.
+ * Resolve locationId + location token for dashboard API calls.
+ * Step 2: locationId from header, else GET /oauth/installedLocations (with access token), else query/session.
+ * Step 3+4: getOrFetchTokenForLocation(locationId) → POST /oauth/locationToken when needed, returns location token; we use that for contacts etc.
  */
 export async function resolveGHLContext(request: NextRequest): Promise<GHLContextResult> {
   try {
@@ -43,7 +48,7 @@ export async function resolveGHLContext(request: NextRequest): Promise<GHLContex
       return null;
     }
 
-    // KV first (from install/Connect), then Agency (needs oauth.write — not exposed in all Marketplace scope UIs).
+    // Step 3+4: get location access token (POST /oauth/locationToken with our access token), then use it for all GHL calls.
     const token = await getOrFetchTokenForLocation(locationId);
 
     if (token) {
