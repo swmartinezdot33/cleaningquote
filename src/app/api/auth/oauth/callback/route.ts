@@ -387,20 +387,11 @@ export async function GET(request: NextRequest) {
       path: '/',
     };
     try {
-      // Use shared parent domain so cookie works on both callback host (GHL subdomain) and redirect host (e.g. www.cleanquote.io)
-      const redirectHost = new URL(postAuthBase).hostname;
       const callbackHost = request.headers.get('host')?.split(':')[0] ?? '';
-      const parts = redirectHost.split('.');
-      if (parts.length >= 3 && redirectHost !== 'localhost' && !redirectHost.startsWith('127.')) {
-        const parentDomain = parts.slice(-2).join('.');
-        if (callbackHost.endsWith(parentDomain) || callbackHost === parentDomain) {
-          cookieOptions.domain = parentDomain;
-        }
-      }
-      if (!cookieOptions.domain) {
-        const baseHost = new URL(APP_BASE).hostname;
-        if (baseHost && baseHost !== 'localhost' && !baseHost.startsWith('127.')) {
-          cookieOptions.domain = baseHost;
+      if (callbackHost && callbackHost !== 'localhost' && !callbackHost.startsWith('127.')) {
+        const parts = callbackHost.split('.');
+        if (parts.length >= 2) {
+          cookieOptions.domain = parts.length >= 3 ? parts.slice(-2).join('.') : callbackHost;
         }
       }
     } catch {

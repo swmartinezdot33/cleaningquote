@@ -7,6 +7,7 @@
 
 import { useEffect, useState, createContext, useContext, useRef } from 'react';
 import type { GHLIframeData } from './ghl-iframe-types';
+import { GHL_APP_VERSION_ID } from './ghl/oauth-utils';
 
 export type { GHLIframeData };
 
@@ -116,25 +117,25 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
 
     if (urlLocationId) console.log('[GHL Iframe] ✅ 1. From URL params/hash:', urlLocationId);
 
-    // 2. From current URL path (/location/{id}/)
+    // 2. From current URL path (/location/{id}/) — skip if id is our app version_id (GHL sometimes puts that in the path instead of real locationId)
     if (!urlLocationId) {
       const pathMatch = pathname.match(/\/location\/([^/]+)/i);
-      if (pathMatch?.[1]) {
+      if (pathMatch?.[1] && pathMatch[1] !== GHL_APP_VERSION_ID) {
         urlLocationId = pathMatch[1];
         console.log('[GHL Iframe] ✅ 2. From path:', urlLocationId);
       }
     }
 
-    // 3. From iframe src path (v1/v2/location/xxx)
+    // 3. From iframe src path (v1/v2/location/xxx) — same: ignore version_id so session/postMessage provide real locationId
     if (!urlLocationId && isInIframe) {
       const iframePathMatch = pathname.match(/\/(?:v\d+\/)?location\/([^/]+)/i);
-      if (iframePathMatch?.[1]) {
+      if (iframePathMatch?.[1] && iframePathMatch[1] !== GHL_APP_VERSION_ID) {
         urlLocationId = iframePathMatch[1];
         console.log('[GHL Iframe] ✅ 3a. From iframe path (vN/location/xxx):', urlLocationId);
       }
       if (!urlLocationId) {
         const parts = pathname.split('/');
-        const id = parts.find((p) => p.length >= 15 && p.length <= 30 && /^[a-zA-Z0-9]+$/.test(p));
+        const id = parts.find((p) => p.length >= 15 && p.length <= 30 && /^[a-zA-Z0-9]+$/.test(p) && p !== GHL_APP_VERSION_ID);
         if (id) {
           urlLocationId = id;
           console.log('[GHL Iframe] ✅ 3b. From path parts (potential id):', urlLocationId);
@@ -142,14 +143,15 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // 4. Referrer (GHL parent) — reliable for custom menu links
+    // 4. Referrer (GHL parent) — reliable for custom menu links; ignore version_id
     if (!urlLocationId && typeof document !== 'undefined' && document.referrer) {
       try {
         const referrerUrl = new URL(document.referrer);
         console.log('[GHL Iframe] 4. Referrer hostname:', referrerUrl.hostname, 'pathname:', referrerUrl.pathname);
         if (/gohighlevel|leadconnector|cleanquote\.io|ricochetbusinesssolutions/i.test(referrerUrl.hostname)) {
           const refMatch = referrerUrl.pathname.match(/\/(?:v\d+\/)?location\/([^/]+)/i);
-          urlLocationId = refMatch?.[1] ?? referrerUrl.searchParams.get('locationId') ?? referrerUrl.searchParams.get('location_id') ?? urlLocationId;
+          const refId = refMatch?.[1] ?? referrerUrl.searchParams.get('locationId') ?? referrerUrl.searchParams.get('location_id') ?? null;
+          if (refId && refId !== GHL_APP_VERSION_ID) urlLocationId = refId;
           if (urlLocationId) console.log('[GHL Iframe] ✅ 4. From referrer:', urlLocationId);
         } else {
           console.log('[GHL Iframe] 4. Referrer not GHL hostname, skipping');

@@ -14,6 +14,9 @@ export function getGHLMarketplaceAppUrl(): string {
   return process.env.GHL_MARKETPLACE_APP_URL?.trim() || process.env.NEXT_PUBLIC_GHL_MARKETPLACE_APP_URL?.trim() || GHL_MARKETPLACE_APP_URL_DEFAULT;
 }
 
+/** GHL app version ID (prefix of client_id). Paths like /v2/location/{id}/... may use this instead of real locationId — ignore it in iframe context so session/postMessage win. */
+export const GHL_APP_VERSION_ID = '6983957514ceb0bb033c8aa1';
+
 /** Direct GHL app install URL (opens in new tab; OAuth runs in that tab so cookie is preserved). Override with GHL_INSTALL_URL env. */
 export const GHL_INSTALL_URL_DEFAULT = 'https://app.leadconnectorhq.com/integration/6983957514ceb0bb033c8aa1/versions/6983957514ceb0bb033c8aa1';
 

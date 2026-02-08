@@ -46,7 +46,6 @@ export default function SetupPage() {
   const handleOAuthInstall = () => {
     const base = typeof window !== 'undefined' ? window.location.origin : '';
     const installUrl = getInstallUrlWithLocation(base, effectiveLocationId ?? null);
-    console.log('[CQ OAuth]', 'setup: opening install in new tab (cookie set there, OAuth runs in same tab)', { locationId: effectiveLocationId ? `${effectiveLocationId.slice(0, 8)}...` : null });
     window.open(installUrl, '_blank', 'noopener,noreferrer');
   };
 

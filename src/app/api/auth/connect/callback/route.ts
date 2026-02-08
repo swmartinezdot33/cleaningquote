@@ -14,16 +14,6 @@ import { fetchLocationName } from '@/lib/ghl/location-info';
 
 const LOG = '[CQ Connect Callback]';
 
-// #region agent log
-function debugIngest(message: string, data: Record<string, unknown>) {
-  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ location: 'connect/callback/route.ts', message, data, timestamp: Date.now() }),
-  }).catch(() => {});
-}
-// #endregion
-
 function htmlSuccess(
   locationId: string,
   accessTokenLength: number,
@@ -76,15 +66,6 @@ function htmlSuccess(
     ${debugSection}
     <p class="row"><a href="/dashboard" style="color:#166534;font-weight:600;">Continue to Dashboard</a></p>
   </div>
-  <script>
-    (function(){
-      var loc = ${JSON.stringify(safeLocationId)};
-      var al = ${accessTokenLength};
-      var rl = ${refreshTokenLength};
-      console.log('[CQ OAuth Callback] Success — callback URL handled. locationId:', loc);
-      console.log('[CQ OAuth Callback] Token stored in KV. accessToken length:', al, 'refreshToken length:', rl);
-    })();
-  </script>
 </body>
 </html>`;
 }
@@ -111,9 +92,6 @@ function htmlError(title: string, message: string, errorCode?: string): string {
     <p>${safeMsg}</p>
     ${code ? `<p><code>${code}</code></p>` : ''}
   </div>
-  <script>
-    console.error('[CQ OAuth Callback] Error:', ${JSON.stringify(safeMsg)});
-  </script>
 </body>
 </html>`;
 }
@@ -131,10 +109,6 @@ function getLocationIdFromJwt(accessToken: string): string | null {
     const decoded = Buffer.from(base64, 'base64').toString('utf-8');
     const parsed = JSON.parse(decoded) as Record<string, unknown>;
     const locationId = (parsed.locationId as string) ?? (parsed.location_id as string) ?? null;
-    const authClassId = parsed.authClassId as string;
-    // #region agent log
-    debugIngest('JWT claims (H1,H3,H4)', { jwtLocationId: locationId ?? null, authClassId: authClassId ?? null, usingAuthClassId: !locationId && !!authClassId, hypothesisId: 'H1-H3-H4' });
-    // #endregion
     // Only use explicit locationId/location_id from JWT. Do NOT use authClassId — for Company tokens it can be company/parent id (e.g. "CleanQuote.io") not the sub-account location ("CleanQuote.io Snapshot").
     const id = locationId ?? null;
     return typeof id === 'string' && id.length > 5 ? id : null;
@@ -187,18 +161,6 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get('error');
   const stateRaw = searchParams.get('state');
 
-  console.log(LOG, 'CALLBACK HIT', { hasCode: !!code, hasState: !!stateRaw, hasError: !!error, paramKeys: Array.from(searchParams.keys()) });
-  // #region agent log
-  debugIngest('callback hit', {
-    hasCode: !!code,
-    hasState: !!stateRaw,
-    stateLength: stateRaw?.length ?? 0,
-    statePreview: stateRaw ? stateRaw.slice(0, 80) + (stateRaw.length > 80 ? '...' : '') : null,
-    paramKeys: Array.from(searchParams.keys()),
-    hypothesisId: 'H1-H2-H3',
-  });
-  // #endregion
-
   // Parse state for redirect, orgId, and locationId (used when token response has no locationId — e.g. Company-level install)
   let redirectTo = '/dashboard';
   let orgId: string | null = null;
@@ -242,11 +204,6 @@ export async function GET(request: NextRequest) {
   })();
   const PENDING_COOKIE = 'ghl_pending_location_id';
   const locationIdFromCookie = request.cookies.get(PENDING_COOKIE)?.value?.trim() || null;
-  console.log(LOG, 'State parsed', { redirectTo, hasOrgId: !!orgId, locationIdFromState: locationIdFromState ? locationIdFromState.slice(0, 8) + '..' : null, locationIdFromQuery: locationIdFromQuery ? locationIdFromQuery.slice(0, 8) + '..' : null, locationIdFromCookie: locationIdFromCookie ? locationIdFromCookie.slice(0, 8) + '..' : null, stateRawLength: stateRaw?.length ?? 0 });
-  // #region agent log
-  debugIngest('after state parse (H4)', { redirectTo, hasOrgId: !!orgId, locationIdFromStateFull: locationIdFromState ?? null, locationIdFromQueryFull: locationIdFromQuery ?? null, locationIdFromCookiePreview: locationIdFromCookie ? locationIdFromCookie.slice(0, 8) + '..' : null, hypothesisId: 'H4' });
-  // #endregion
-
   if (error) {
     const msg = searchParams.get('error_description') || error;
     console.error(LOG, 'OAuth error from GHL', { error, description: msg });
@@ -312,19 +269,6 @@ export async function GET(request: NextRequest) {
 
     const tokenKeys = Object.keys(data);
     const userType = (data as Record<string, unknown>).userType ?? (data as Record<string, unknown>).user_type ?? null;
-    // #region agent log
-    const tokenIdFields = {
-      location_id: (data as Record<string, unknown>).location_id ?? null,
-      locationId: (data as Record<string, unknown>).locationId ?? null,
-      company_id: (data as Record<string, unknown>).company_id ?? null,
-      companyId: (data as Record<string, unknown>).companyId ?? null,
-      user_id: (data as Record<string, unknown>).user_id ?? null,
-      userId: (data as Record<string, unknown>).userId ?? null,
-      resource_id: (data as Record<string, unknown>).resource_id ?? null,
-      userType,
-    };
-    debugIngest('token response id fields (H2,H3)', { ...tokenIdFields, hypothesisId: 'H2-H3' });
-    // #endregion
     console.log(LOG, 'Token exchanged', {
       hasAccessToken: !!data.access_token,
       hasRefreshToken: !!data.refresh_token,
@@ -343,21 +287,15 @@ export async function GET(request: NextRequest) {
     if (locationIdFromState) {
       locationId = locationIdFromState;
       locationSource = 'state';
-      // #region agent log
-      debugIngest('using locationId from state (iframe)', { locationIdFromState: locationId, hypothesisId: 'H4' });
-      // #endregion
-      console.log(LOG, 'Using locationId from state (iframe where user clicked Connect)', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
     }
     if (!locationId && locationIdFromQuery) {
       locationId = locationIdFromQuery;
       locationSource = 'query';
-      console.log(LOG, 'Using locationId from callback URL query (GHL may pass it)', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
     }
     if (!locationId && locationIdFromCookie) {
       locationId = locationIdFromCookie;
       locationSource = 'cookie';
       usedPendingCookie = true;
-      console.log(LOG, 'Using locationId from pending cookie (state/query lost — e.g. install via marketplace after Back)', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
     }
     if (!locationId) {
       locationId =
@@ -367,27 +305,17 @@ export async function GET(request: NextRequest) {
         data.resource_id ??
         null;
       if (locationId) locationSource = 'token';
-      if (locationId) console.log(LOG, 'locationId from token response', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
     }
     if (!locationId && data.access_token) {
-      // #region agent log
-      debugIngest('trying JWT (H2,H3)', { stateHadLocationId: !!locationIdFromState, queryHadLocationId: !!locationIdFromQuery, userType, hypothesisId: 'H2-H3' });
-      // #endregion
       const jwtLocationId = getLocationIdFromJwt(data.access_token);
-      console.log(LOG, 'JWT decode attempt', { found: !!jwtLocationId, userType, locationIdPreview: jwtLocationId ? jwtLocationId.slice(0, 8) + '..' : null });
       if (jwtLocationId) {
         locationId = jwtLocationId;
         locationSource = 'jwt';
       }
     }
     if (!locationId && data.access_token) {
-      console.log(LOG, 'Fetching /locations/ API fallback (first location in list)');
       locationId = await fetchLocationFromToken(data.access_token, companyId);
       locationSource = 'api';
-      // #region agent log
-      if (locationId) debugIngest('locationId from API fallback (H5)', { apiFirstLocationId: locationId, hypothesisId: 'H5' });
-      // #endregion
-      if (locationId) console.log(LOG, 'locationId from API fallback', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
     }
 
     if (!locationId) {
@@ -399,10 +327,6 @@ export async function GET(request: NextRequest) {
     }
 
     locationId = locationId.trim();
-    // #region agent log
-    debugIngest('final locationId resolution (H1-H5)', { source: locationSource, locationIdFull: locationId, hypothesisId: 'H1-H5' });
-    // #endregion
-    console.log(LOG, 'locationId for KV', { locationId: locationId.slice(0, 8) + '..' + locationId.slice(-4), source: locationSource });
 
     const expiresAt = Date.now() + (data.expires_in ?? 86400) * 1000;
 
@@ -466,18 +390,13 @@ export async function GET(request: NextRequest) {
       path: '/',
     };
     try {
-      const postAuthBase = getPostOAuthRedirectBase();
-      const redirectHost = new URL(postAuthBase).hostname;
       const callbackHost = request.headers.get('host')?.split(':')[0] ?? '';
-      const parts = redirectHost.split('.');
-      if (parts.length >= 3 && redirectHost !== 'localhost' && !redirectHost.startsWith('127.')) {
-        const parentDomain = parts.slice(-2).join('.');
-        if (callbackHost.endsWith(parentDomain) || callbackHost === parentDomain) {
-          cookieOptions.domain = parentDomain;
+      if (callbackHost && callbackHost !== 'localhost' && !callbackHost.startsWith('127.')) {
+        const parts = callbackHost.split('.');
+        if (parts.length >= 2) {
+          const rootDomain = parts.length >= 3 ? parts.slice(-2).join('.') : callbackHost;
+          cookieOptions.domain = rootDomain;
         }
-      }
-      if (!cookieOptions.domain && callbackHost && callbackHost !== 'localhost' && !callbackHost.startsWith('127.')) {
-        cookieOptions.domain = callbackHost;
       }
     } catch {
       /* ignore */
