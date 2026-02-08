@@ -14,12 +14,19 @@ interface Org {
   role: string;
 }
 
+interface GHLSession {
+  locationId: string;
+  companyId: string;
+  userId: string;
+}
+
 interface DashboardHeaderProps {
   orgs: Org[];
   selectedOrgId: string | null;
   selectedOrgRole?: string;
   userDisplayName: string;
   isSuperAdmin: boolean;
+  ghlSession?: GHLSession | null;
 }
 
 export function DashboardHeader({
@@ -28,6 +35,7 @@ export function DashboardHeader({
   selectedOrgRole,
   userDisplayName,
   isSuperAdmin,
+  ghlSession: _ghlSession,
 }: DashboardHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);

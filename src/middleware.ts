@@ -1,40 +1,67 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { verifySessionToken, GHL_SESSION_COOKIE } from '@/lib/ghl/session';
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return response;
-  }
-
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) =>
-          request.cookies.set(name, value)
-        );
-        response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) => {
-          const opts = { ...options } as Record<string, unknown>;
-          if (name.startsWith('sb-')) {
-            opts.sameSite = 'none';
-            opts.secure = true;
-          }
-          response.cookies.set(name, value, opts);
-        });
-      },
-    },
-  });
-
   const { pathname, search } = request.nextUrl;
-  if (pathname.startsWith('/dashboard') || pathname.startsWith('/api/dashboard')) {
+  const isDashboard = pathname.startsWith('/dashboard') || pathname.startsWith('/api/dashboard');
+
+  if (isDashboard) {
+    // Check for valid marketplace session (OAuth install)
+    const sessionToken = request.cookies.get(GHL_SESSION_COOKIE)?.value;
+    if (sessionToken) {
+      const session = await verifySessionToken(sessionToken);
+      if (session) {
+        // Valid marketplace session — allow through, mark for layout
+        const reqHeaders = new Headers(request.headers);
+        reqHeaders.set('x-ghl-session', '1');
+        return NextResponse.next({
+          request: { headers: reqHeaders },
+        });
+      }
+    }
+
+    // Fall back to Supabase auth
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { error: 'Unauthorized', message: 'Please sign in.' },
+          { status: 401 }
+        );
+      }
+      const redirectTo = pathname + search;
+      const redirect = new URL('/login', request.url);
+      redirect.searchParams.set('redirect', redirectTo);
+      return NextResponse.redirect(redirect);
+    }
+
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          );
+          response = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) => {
+            const opts = { ...options } as Record<string, unknown>;
+            if (name.startsWith('sb-')) {
+              opts.sameSite = 'none';
+              opts.secure = true;
+            }
+            response.cookies.set(name, value, opts);
+          });
+        },
+      },
+    });
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -45,7 +72,6 @@ export async function middleware(request: NextRequest) {
           { status: 401 }
         );
       }
-      // Preserve full path including ?checkout=success so after login they land on dashboard?checkout=success
       const redirectTo = pathname + search;
       const redirect = new URL('/login', request.url);
       redirect.searchParams.set('redirect', redirectTo);

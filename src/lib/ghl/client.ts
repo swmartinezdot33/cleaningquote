@@ -4,6 +4,7 @@
  */
 
 import { getGHLToken, getGHLLocationId } from '@/lib/kv';
+import type { GHLCredentials } from '@/lib/ghl/credentials';
 import { normalizeFieldValue } from './field-normalizer';
 import {
   GHLContact,
@@ -32,16 +33,29 @@ const KNOWN_OBJECT_IDS: Record<string, string> = {
 
 /**
  * Make authenticated request to GHL API
+ * When credentials is provided (from OAuth session), uses token store.
+ * Otherwise uses tokenOverride or getGHLToken() from config.
  */
 export async function makeGHLRequest<T>(
   endpoint: string,
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   body?: Record<string, any>,
   locationId?: string,
-  tokenOverride?: string // When provided (e.g. tool-scoped), use instead of global getGHLToken()
+  tokenOverride?: string,
+  credentials?: GHLCredentials | null
 ): Promise<T> {
   try {
-    const token = tokenOverride ?? (await getGHLToken());
+    let token: string | null = null;
+    let resolvedLocationId = locationId;
+
+    if (credentials?.token) {
+      token = credentials.token;
+      resolvedLocationId = credentials.locationId ?? locationId;
+    } else if (tokenOverride) {
+      token = tokenOverride;
+    } else {
+      token = await getGHLToken();
+    }
 
     if (!token || typeof token !== 'string') {
       throw new Error('GHL API token not configured. Please set it in the admin settings.');
@@ -56,8 +70,8 @@ export async function makeGHLRequest<T>(
     
     // Location-Id header: only when explicitly required. For sub-account PIT, objects and associations
     // use locationId in query or body per highlevel-api-docs; adding the header can cause 403.
-    if (locationId) {
-      headers['Location-Id'] = locationId;
+    if (resolvedLocationId) {
+      headers['Location-Id'] = resolvedLocationId;
     }
     
     const options: RequestInit = {
@@ -1754,4 +1768,57 @@ export async function getContactById(
     console.error('Failed to fetch contact by ID:', error);
     throw error;
   }
+}
+
+/**
+ * List contacts from GHL for a location.
+ * Used by CRM when in marketplace (OAuth) session mode.
+ */
+export async function listGHLContacts(
+  locationId: string,
+  options?: { limit?: number; page?: number; search?: string },
+  credentials?: GHLCredentials | null
+): Promise<{ contacts: any[]; total: number }> {
+  const limit = Math.min(100, Math.max(1, options?.limit ?? 25));
+  const offset = ((options?.page ?? 1) - 1) * limit;
+  const params = new URLSearchParams({
+    locationId,
+    limit: String(limit),
+  });
+  const res = await makeGHLRequest<{ contacts?: any[]; meta?: { total?: number } }>(
+    `/contacts/?${params}`,
+    'GET',
+    undefined,
+    undefined,
+    undefined,
+    credentials
+  );
+  const contacts = res?.contacts ?? [];
+  const total = res?.meta?.total ?? contacts.length;
+  return { contacts, total };
+}
+
+/**
+ * List quote custom object records from GHL for a location.
+ * Used by Quotes dashboard when in marketplace (OAuth) session mode.
+ */
+export async function listGHLQuoteRecords(
+  locationId: string,
+  options?: { limit?: number },
+  credentials?: GHLCredentials | null
+): Promise<any[]> {
+  const objectId = KNOWN_OBJECT_IDS.quotes;
+  if (!objectId) return [];
+  const limit = Math.min(500, Math.max(1, options?.limit ?? 2000));
+  const params = new URLSearchParams({ locationId, limit: String(limit) });
+  const res = await makeGHLRequest<{ records?: any[]; data?: any[] }>(
+    `/objects/${objectId}/records?${params}`,
+    'GET',
+    undefined,
+    undefined,
+    undefined,
+    credentials
+  );
+  const records = res?.records ?? res?.data ?? (Array.isArray(res) ? res : []);
+  return Array.isArray(records) ? records : [];
 }

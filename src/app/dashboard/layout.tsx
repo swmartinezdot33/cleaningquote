@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { cookies, headers } from 'next/headers';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { getOrgsForDashboard, isSuperAdminEmail, orgHasActiveAccess } from '@/lib/org-auth';
+import { getSession } from '@/lib/ghl/session';
 import { DashboardHeader } from '@/app/dashboard/DashboardHeader';
 
 export default async function DashboardLayout({
@@ -12,6 +13,26 @@ export default async function DashboardLayout({
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'dashboard/layout.tsx:entry', message: 'DashboardLayout start', data: {}, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H4' }) }).catch(() => {});
   // #endregion
+
+  const ghlSession = await getSession();
+
+  if (ghlSession) {
+    // Marketplace session (OAuth install) — minimal layout for location-scoped access
+    return (
+      <div className="min-h-screen bg-muted/30">
+        <DashboardHeader
+          orgs={[]}
+          selectedOrgId={null}
+          selectedOrgRole={undefined}
+          userDisplayName="Account"
+          isSuperAdmin={false}
+          ghlSession={ghlSession}
+        />
+        <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 overflow-x-hidden">{children}</main>
+      </div>
+    );
+  }
+
   const supabase = await createSupabaseServerSSR();
   const { data: { user } } = await supabase.auth.getUser();
   // #region agent log

@@ -3,8 +3,41 @@ import { cookies } from 'next/headers';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { getOrgsForDashboard, isSuperAdminEmail } from '@/lib/org-auth';
+import { getSession } from '@/lib/ghl/session';
+import { getGHLCredentials } from '@/lib/ghl/credentials';
+import { listGHLQuoteRecords } from '@/lib/ghl/client';
 
 export const dynamic = 'force-dynamic';
+
+/** Map GHL quote record to dashboard quote shape */
+function mapGHLQuoteToDashboard(record: any): any {
+  const p = record.properties ?? record.customFields ?? record;
+  const get = (key: string) => p[key] ?? p[`custom_objects.quotes.${key}`] ?? null;
+  const quoteId = get('quote_id') ?? record.id;
+  return {
+    id: record.id,
+    quote_id: quoteId,
+    tool_id: null,
+    property_id: null,
+    first_name: get('first_name'),
+    last_name: get('last_name'),
+    email: get('email'),
+    phone: get('phone'),
+    address: get('address') ?? get('service_address'),
+    city: get('city'),
+    state: get('state'),
+    postal_code: get('postal_code') ?? get('zip'),
+    service_type: get('service_type') ?? (Array.isArray(get('type')) ? get('type')[0] : get('type')),
+    frequency: get('frequency'),
+    price_low: get('price_low') ?? get('priceLow'),
+    price_high: get('price_high') ?? get('priceHigh'),
+    square_feet: get('square_feet') ?? get('squareFootage'),
+    bedrooms: get('bedrooms'),
+    created_at: record.createdAt ?? record.dateAdded ?? new Date().toISOString(),
+    payload: typeof p.payload === 'object' ? p.payload : (p.payload ? JSON.parse(p.payload) : null),
+    status: get('status') ?? 'quote',
+  };
+}
 
 /**
  * Normalize serviceType/frequency to match quote page (QuotePageClient.tsx) so we pick the same range.
@@ -119,10 +152,71 @@ function getDisplayServiceAndFrequency(
 
 /**
  * GET /api/dashboard/quotes
- * List quotes for the current user's tools (from Supabase).
+ * List quotes for the current user's tools (from Supabase) or GHL location (from OAuth session).
  */
 export async function GET(request: NextRequest) {
   try {
+    const session = await getSession();
+
+    if (session) {
+      const credentials = await getGHLCredentials({ session });
+      if (!credentials.token || !credentials.locationId) {
+        return NextResponse.json({ quotes: [], isSuperAdmin: false, isOrgAdmin: false });
+      }
+      const records = await listGHLQuoteRecords(credentials.locationId, { limit: 2000 }, credentials);
+      const rawQuotes = records.map(mapGHLQuoteToDashboard);
+      const withToolInfo = rawQuotes.map((q: any) => {
+        const display = getDisplayServiceAndFrequency(q.payload, q.service_type, q.frequency);
+        let service_type = q.service_type;
+        let frequency = q.frequency;
+        let priceLow = q.price_low;
+        let priceHigh = q.price_high;
+        let price_initial_low: number | null = null;
+        let price_initial_high: number | null = null;
+        let price_recurring_low: number | null = null;
+        let price_recurring_high: number | null = null;
+        if (q.payload && display.isInitialPlusFrequency && display.initialRange && display.recurringRange) {
+          service_type = display.serviceTypeDisplayLong || 'Initial/Recurring';
+          frequency = `Your Selected Frequency: ${display.frequencyDisplay}`;
+          price_initial_low = display.initialRange.low;
+          price_initial_high = display.initialRange.high;
+          price_recurring_low = display.recurringRange.low;
+          price_recurring_high = display.recurringRange.high;
+          priceLow = display.initialRange.low;
+          priceHigh = display.initialRange.high;
+        } else if (q.payload) {
+          const range = getSelectedRangeFromPayload(q.payload, q.service_type, q.frequency);
+          if (range) {
+            priceLow = range.low;
+            priceHigh = range.high;
+          }
+          frequency = display.frequencyDisplay || display.frequency;
+          if (display.serviceTypeDisplay) service_type = display.serviceTypeDisplay;
+        }
+        const { payload: _p, ...rest } = q;
+        const isDisqualified = q.status === 'disqualified';
+        return {
+          ...rest,
+          service_type: isDisqualified ? 'Disqualified' : service_type,
+          frequency: isDisqualified ? '' : frequency,
+          price_low: isDisqualified ? null : priceLow,
+          price_high: isDisqualified ? null : priceHigh,
+          ...(price_initial_low != null && !isDisqualified && { price_initial_low }),
+          ...(price_initial_high != null && !isDisqualified && { price_initial_high }),
+          ...(price_recurring_low != null && !isDisqualified && { price_recurring_low }),
+          ...(price_recurring_high != null && !isDisqualified && { price_recurring_high }),
+          toolName: 'Quote',
+          toolSlug: null,
+          contactId: null,
+        };
+      });
+      return NextResponse.json({
+        quotes: withToolInfo,
+        isSuperAdmin: false,
+        isOrgAdmin: false,
+      });
+    }
+
     const supabase = await createSupabaseServerSSR();
     const { data: { user } } = await supabase.auth.getUser();
 
