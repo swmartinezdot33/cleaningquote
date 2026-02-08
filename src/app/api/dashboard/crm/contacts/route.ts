@@ -58,34 +58,54 @@ export async function GET(request: NextRequest) {
     // 1) locationId from query/header (GHL iframe flow - client passes from GHL context)
     const requestLocationId = getLocationIdFromRequest(request);
     if (requestLocationId) {
-      const token = await getOrFetchTokenForLocation(requestLocationId);
-      if (token) {
-        const { searchParams } = new URL(request.url);
-        const result = await fetchContactsFromGHL(requestLocationId, token, searchParams);
-        return NextResponse.json(result);
+      try {
+        const token = await getOrFetchTokenForLocation(requestLocationId);
+        if (token) {
+          const { searchParams } = new URL(request.url);
+          const result = await fetchContactsFromGHL(requestLocationId, token, searchParams);
+          return NextResponse.json(result);
+        }
+      } catch (err) {
+        console.warn('CRM contacts: GHL token/fetch error for locationId', requestLocationId, err);
       }
       return NextResponse.json({ contacts: [], total: 0 });
     }
 
     const session = await getSession();
     if (session) {
-      const credentials = await getGHLCredentials({ session });
-      if (!credentials.token || !credentials.locationId) {
-        return NextResponse.json({ contacts: [], total: 0 });
+      try {
+        const credentials = await getGHLCredentials({ session });
+        if (credentials.token && credentials.locationId) {
+          const { searchParams } = new URL(request.url);
+          const result = await fetchContactsFromGHL(credentials.locationId, credentials.token, searchParams);
+          return NextResponse.json(result);
+        }
+      } catch (err) {
+        console.warn('CRM contacts: session/credentials error', err);
       }
-      const { searchParams } = new URL(request.url);
-      const result = await fetchContactsFromGHL(credentials.locationId, credentials.token, searchParams);
-      return NextResponse.json(result);
+      return NextResponse.json({ contacts: [], total: 0 });
     }
 
-    const supabase = await createSupabaseServerSSR();
+    let supabase;
+    try {
+      supabase = await createSupabaseServerSSR();
+    } catch (err) {
+      console.warn('CRM contacts: Supabase init error', err);
+      return NextResponse.json({ contacts: [], total: 0 });
+    }
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const orgs = await getOrgsForDashboard(user.id, user.email ?? undefined);
+    let orgs;
+    try {
+      orgs = await getOrgsForDashboard(user.id, user.email ?? undefined);
+    } catch (err) {
+      console.warn('CRM contacts: getOrgsForDashboard error', err);
+      return NextResponse.json({ contacts: [], total: 0 });
+    }
     const cookieStore = await cookies();
     let selectedOrgId = cookieStore.get('selected_org_id')?.value ?? orgs[0]?.id;
     if (selectedOrgId && !orgs.some((o: { id: string }) => o.id === selectedOrgId)) {

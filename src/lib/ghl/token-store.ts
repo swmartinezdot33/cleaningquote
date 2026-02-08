@@ -26,17 +26,25 @@ function key(locationId: string): string {
  * Store GHL OAuth installation (tokens) for a location.
  */
 export async function storeInstallation(data: GHLInstallation): Promise<void> {
-  const kv = getKV();
-  await kv.set(key(data.locationId), data, { ex: 365 * 24 * 60 * 60 }); // 1 year (refresh token lifespan)
+  try {
+    const kv = getKV();
+    await kv.set(key(data.locationId), data, { ex: 365 * 24 * 60 * 60 }); // 1 year (refresh token lifespan)
+  } catch (err) {
+    console.warn('GHL token store: failed to store installation', err);
+  }
 }
 
 /**
  * Get installation data for a location (raw, no refresh).
  */
 export async function getInstallation(locationId: string): Promise<GHLInstallation | null> {
-  const kv = getKV();
-  const data = await kv.get<GHLInstallation>(key(locationId));
-  return data ?? null;
+  try {
+    const kv = getKV();
+    const data = await kv.get<GHLInstallation>(key(locationId));
+    return data ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**

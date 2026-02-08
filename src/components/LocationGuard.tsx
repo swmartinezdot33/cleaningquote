@@ -46,8 +46,7 @@ export function LocationGuard({ children, fallback, allowWithoutLocation }: Loca
             </p>
             {isInIframe && (
               <p className="mt-3 text-left text-sm text-muted-foreground">
-                <strong>Setup:</strong> In GHL SaaS Configurator → Marketplace Apps → CleanQuote.io → Edit the app URL to include:{' '}
-                <code className="rounded bg-muted px-1.5 py-0.5 text-xs">?locationId={'{{'}location.id{'}}'}</code>
+                <strong>Setup:</strong> Open from a sub-account dashboard (not Agency view). Configure Shared Secret in GHL Marketplace App → Advanced Settings → Auth.
               </p>
             )}
           </div>

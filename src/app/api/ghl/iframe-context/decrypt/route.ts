@@ -1,15 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
+import CryptoJS from 'crypto-js';
 import { createDecipheriv, createHash } from 'node:crypto';
 import type { GHLIframeData } from '@/lib/ghl-iframe-types';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Decrypt GHL SSO payload using EVP_BytesToKey-style key derivation.
- * Matches the algorithm used in the GHL marketplace app template:
+ * Decrypt using CryptoJS (per official GHL User Context docs):
+ * https://marketplace.gohighlevel.com/docs/other/user-context-marketplace-apps
+ */
+function decryptWithCryptoJS(encryptedData: string, ssoKey: string): Record<string, unknown> | null {
+  const decrypted = CryptoJS.AES.decrypt(encryptedData, ssoKey).toString(CryptoJS.enc.Utf8);
+  if (!decrypted || decrypted.trim() === '') return null;
+  return JSON.parse(decrypted) as Record<string, unknown>;
+}
+
+/**
+ * Decrypt using EVP_BytesToKey (GHL marketplace app template fallback):
  * https://github.com/GoHighLevel/ghl-marketplace-app-template
  */
-function decryptGHLSSO(keyBase64: string, ssoKey: string): Record<string, unknown> {
+function decryptWithEVP(keyBase64: string, ssoKey: string): Record<string, unknown> {
   const blockSize = 16;
   const keySize = 32;
   const ivSize = 16;
@@ -63,16 +73,22 @@ export async function POST(request: NextRequest) {
     let userData: Record<string, unknown>;
 
     if (ssoKey && typeof encryptedData === 'string') {
-      try {
-        userData = decryptGHLSSO(encryptedData, ssoKey);
-      } catch (decryptErr) {
+      userData = decryptWithCryptoJS(encryptedData, ssoKey);
+      if (!userData) {
+        try {
+          userData = decryptWithEVP(encryptedData, ssoKey);
+        } catch {
+          // EVP format not used
+        }
+      }
+      if (!userData) {
         try {
           userData = JSON.parse(encryptedData) as Record<string, unknown>;
         } catch {
           return NextResponse.json(
             {
-              error: 'Decryption failed. Ensure GHL_APP_SSO_KEY matches your marketplace app SSO key.',
-              hint: 'Get SSO key from: Marketplace App → Settings → SSO Key',
+              error: 'Decryption failed. Ensure GHL_APP_SSO_KEY (Shared Secret) matches Marketplace App → Advanced Settings → Auth → Shared Secret.',
+              hint: 'Generate the key in your app settings if needed.',
             },
             { status: 400 }
           );
@@ -109,7 +125,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: 'Location ID not found in user data',
-          hint: 'GHL Location context includes activeLocation. Ensure the app is opened from a sub-account dashboard, or configure the app URL with ?locationId={{location.id}}',
+          hint: 'Open the app from a sub-account dashboard (not Agency view). Location context provides activeLocation. Agency context only has companyId.',
+          type: (userData.type as string) ?? 'unknown',
         },
         { status: 400 }
       );

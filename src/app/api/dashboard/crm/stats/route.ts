@@ -15,44 +15,52 @@ export async function GET(request: NextRequest) {
   try {
     const requestLocationId = getLocationIdFromRequest(request);
     if (requestLocationId) {
-      const token = await getOrFetchTokenForLocation(requestLocationId);
-      if (token) {
-        const { contacts } = await listGHLContacts(requestLocationId, { limit: 1000 }, { token, locationId: requestLocationId });
-        const counts: Record<string, number> = { lead: 0, quoted: 0, booked: 0, customer: 0, churned: 0 };
-        for (const c of contacts) {
-          const type = (c.type ?? c.stage ?? 'lead').toString().toLowerCase();
-          const s = type in counts ? type : 'lead';
-          counts[s]++;
+      try {
+        const token = await getOrFetchTokenForLocation(requestLocationId);
+        if (token) {
+          const { contacts } = await listGHLContacts(requestLocationId, { limit: 1000 }, { token, locationId: requestLocationId });
+          const counts: Record<string, number> = { lead: 0, quoted: 0, booked: 0, customer: 0, churned: 0 };
+          for (const c of contacts) {
+            const type = (c.type ?? c.stage ?? 'lead').toString().toLowerCase();
+            const s = type in counts ? type : 'lead';
+            counts[s]++;
+          }
+          return NextResponse.json({ counts, total: contacts.length, recentActivities: [] });
         }
-        return NextResponse.json({ counts, total: contacts.length, recentActivities: [] });
+      } catch (err) {
+        console.warn('CRM stats: GHL token/fetch error for locationId', requestLocationId, err);
       }
       return NextResponse.json({ counts: {}, total: 0, recentActivities: [] });
     }
 
     const session = await getSession();
     if (session) {
-      const credentials = await getGHLCredentials({ session });
-      if (!credentials.token || !credentials.locationId) {
-        return NextResponse.json({ counts: {}, total: 0, recentActivities: [] });
+      try {
+        const credentials = await getGHLCredentials({ session });
+        if (credentials.token && credentials.locationId) {
+          const { contacts } = await listGHLContacts(credentials.locationId, { limit: 1000 }, credentials);
+          const counts: Record<string, number> = {
+            lead: 0,
+            quoted: 0,
+            booked: 0,
+            customer: 0,
+            churned: 0,
+          };
+          for (const c of contacts) {
+            const type = (c.type ?? c.stage ?? 'lead').toString().toLowerCase();
+            const s = type in counts ? type : 'lead';
+            counts[s]++;
+          }
+          return NextResponse.json({
+            counts,
+            total: contacts.length,
+            recentActivities: [],
+          });
+        }
+      } catch (err) {
+        console.warn('CRM stats: session/credentials error', err);
       }
-      const { contacts } = await listGHLContacts(credentials.locationId, { limit: 1000 }, credentials);
-      const counts: Record<string, number> = {
-        lead: 0,
-        quoted: 0,
-        booked: 0,
-        customer: 0,
-        churned: 0,
-      };
-      for (const c of contacts) {
-        const type = (c.type ?? c.stage ?? 'lead').toString().toLowerCase();
-        const s = type in counts ? type : 'lead';
-        counts[s]++;
-      }
-      return NextResponse.json({
-        counts,
-        total: contacts.length,
-        recentActivities: [],
-      });
+      return NextResponse.json({ counts: {}, total: 0, recentActivities: [] });
     }
 
     const supabase = await createSupabaseServerSSR();

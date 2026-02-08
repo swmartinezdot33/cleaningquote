@@ -81,14 +81,11 @@ export default function CRMContactsPage() {
         contacts.length === 0 &&
         !error && (
           <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-200">
-            <p className="font-medium">GHL contacts require location context</p>
+            <p className="font-medium">Location context required</p>
             <p className="mt-1 text-sm">
-              In GHL SaaS Configurator → Marketplace Apps → CleanQuote.io → Edit (pencil icon), set the App URL to:
+              Open CleanQuote from a sub-account dashboard (not Agency view). GHL provides location via user context.
+              Ensure your app has Shared Secret configured in Marketplace App → Advanced Settings → Auth.
             </p>
-            <code className="mt-2 block overflow-x-auto rounded bg-black/10 px-3 py-2 text-sm">
-              https://www.cleanquote.io/dashboard?locationId={'{{'}location.id{'}}'}
-            </code>
-            <p className="mt-2 text-sm opacity-90">Save, then reload this page.</p>
           </div>
         )}
 
@@ -139,8 +136,7 @@ export default function CRMContactsPage() {
             window.self !== window.top &&
             !ghlData?.locationId && (
               <p className="text-sm">
-                Configure the app URL in GHL to include{' '}
-                <code className="rounded bg-muted/50 px-1.5 py-0.5 text-xs">?locationId={'{{'}location.id{'}}'}</code>
+                Open from a sub-account dashboard. Check Shared Secret in GHL Marketplace App → Auth.
               </p>
             )}
         </div>

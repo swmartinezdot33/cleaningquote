@@ -55,22 +55,23 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
     const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
     const apply = (ctx: GHLIframeData) => setGHLContext(ctx, setGhlData, setError, setLoading);
 
-    // 1. URL params
-    const urlParams = new URLSearchParams(window.location?.search ?? '');
-    const hashParams = new URLSearchParams((window.location?.hash ?? '').substring(1));
-    const urlLocationId =
-      urlParams.get('locationId') ||
-      urlParams.get('location_id') ||
-      urlParams.get('location') ||
-      hashParams.get('locationId') ||
-      hashParams.get('location_id');
-
-    if (urlLocationId) {
-      hasLocationIdRef.current = true;
-      apply({ locationId: urlLocationId, userId: urlParams.get('userId') || hashParams.get('user_id') || undefined });
+    // 1. URL params — only when NOT in iframe (standalone dev). In GHL iframe, use user context.
+    if (!isInIframe) {
+      const urlParams = new URLSearchParams(window.location?.search ?? '');
+      const hashParams = new URLSearchParams((window.location?.hash ?? '').substring(1));
+      const urlLocationId =
+        urlParams.get('locationId') ||
+        urlParams.get('location_id') ||
+        urlParams.get('location') ||
+        hashParams.get('locationId') ||
+        hashParams.get('location_id');
+      if (urlLocationId) {
+        hasLocationIdRef.current = true;
+        apply({ locationId: urlLocationId, userId: urlParams.get('userId') || hashParams.get('user_id') || undefined });
+      }
     }
 
-    // 2. Referrer (GHL loads custom apps in iframe; referrer often has /location/{id}/)
+    // 2. Referrer (GHL loads custom apps in iframe; referrer may contain /location/{id}/)
     // Note: Referrer-Policy may strip path for cross-origin; URL params are more reliable.
     if (!hasLocationIdRef.current && typeof document !== 'undefined' && document.referrer) {
       try {
