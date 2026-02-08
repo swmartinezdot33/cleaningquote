@@ -302,12 +302,14 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
 
     if (window.parent && window.parent !== window) {
       // Send REQUEST_USER_DATA per GHL docs; retry for slow-loading parent.
-      // Post to both parent and top — GHL may use nested iframes (sidebar > iframe).
+      // Include origin so GHL can use event.source.postMessage(response, event.origin) to reply to this iframe.
+      // Works with both: (1) GHL replying to iframe via event.source, (2) no postMessage → we use URL/sessionStorage fallbacks.
+      const targetOrigin = typeof window !== 'undefined' ? window.location.origin : '';
       const sendRequest = () => {
-        window.parent.postMessage({ message: 'REQUEST_USER_DATA' }, '*');
+        window.parent.postMessage({ message: 'REQUEST_USER_DATA', origin: targetOrigin }, '*');
         if (window.top && window.top !== window) {
           try {
-            window.top.postMessage({ message: 'REQUEST_USER_DATA' }, '*');
+            window.top.postMessage({ message: 'REQUEST_USER_DATA', origin: targetOrigin }, '*');
           } catch {
             /* same-origin only */
           }

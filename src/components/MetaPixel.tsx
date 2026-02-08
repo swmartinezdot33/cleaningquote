@@ -42,6 +42,8 @@ export function MetaPixel() {
   useEffect(() => {
     if (!isPathAllowed(pathname)) return;
     if (typeof window === 'undefined') return;
+    // Skip in iframe (e.g. GHL embed) to avoid ad-blocker console spam and wrong attribution
+    if (window.self !== window.top) return;
 
     const trackPageView = () => {
       (window as any).fbq('init', META_PIXEL_ID);

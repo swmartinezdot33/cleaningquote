@@ -4,7 +4,7 @@ This document defines the **exact** auth flow for the CleanQuote marketplace app
 
 ## Reference: GoHighLevel template + marketplace OAuth
 
-- [GHL Marketplace App Template](https://github.com/GoHighLevel/ghl-marketplace-app-template): `/authorize-handler` receives `code`, exchanges for tokens, stores by `locationId` or `companyId`, redirects.
+- **[GHL Marketplace App Template](https://github.com/GoHighLevel/ghl-marketplace-app-template)** (Express + Vue): `/authorize-handler` receives `code`, exchanges for tokens, stores by `locationId` or `companyId`, redirects; `/decrypt-sso` decrypts SSO payload from parent using `GHL_APP_SSO_KEY`; Vue app in iframe requests user data via postMessage. We follow the same token exchange and SSO decrypt pattern; our callback is `/api/auth/connect/callback` and we use chooselocation + KV + session cookie.
 - [GHL OAuth 2.0](https://marketplace.gohighlevel.com/docs/Authorization/OAuth2.0): Authorization code flow; token endpoint requires `client_id`, `client_secret`, `grant_type`, `code`, `redirect_uri`.
 - Our iframe flow adds: **chooselocation** (so user picks location), **state** (carries `locationId` + `redirect`), persistent storage (KV), and session cookie so the app works inside the GHL iframe.
 
@@ -68,6 +68,7 @@ No UI in callback; redirect only.
 
 ## 5. Iframe context (client)
 
+- **App host:** The app runs at **my.cleanquote.io** (canonical). The OAuth **callback** URL is typically **www.cleanquote.io** (one fixed URL in GHL Marketplace). After OAuth, users are redirected to my.cleanquote.io. PostMessage requests include `origin: window.location.origin` so GHL receives `https://my.cleanquote.io` when the iframe is loaded there (works with both www and my).
 - **GHLIframeProvider** (or equivalent) runs when app is loaded in iframe.
 - **locationId** resolution order (per reference below):
   1. URL params/hash: `locationId`, `location_id`, etc.
