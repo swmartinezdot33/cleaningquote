@@ -2,6 +2,22 @@
 const nextConfig = {
   reactStrictMode: true,
 
+  // Faster builds: skip ESLint during build (run "next lint" in CI or pre-commit)
+  eslint: { ignoreDuringBuilds: true },
+
+  // Only bundle icons/components actually imported (faster compile + smaller bundles)
+  experimental: {
+    optimizePackageImports: [
+      'lucide-react',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-label',
+      '@radix-ui/react-select',
+      '@radix-ui/react-slot',
+      '@radix-ui/react-tooltip',
+      '@radix-ui/react-progress',
+    ],
+  },
+
   // Security headers
   async headers() {
     return [
