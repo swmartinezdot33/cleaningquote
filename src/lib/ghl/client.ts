@@ -1804,6 +1804,27 @@ export async function listGHLContacts(
 }
 
 /**
+ * Get contacts by business ID.
+ * GET /contacts/business/:businessId
+ * @see https://marketplace.gohighlevel.com/docs/ghl/contacts/get-contacts-by-business-id
+ */
+export async function listGHLContactsByBusinessId(
+  businessId: string,
+  credentials?: GHLCredentials | null
+): Promise<{ contacts: any[] }> {
+  const res = await makeGHLRequest<{ contacts?: any[] }>(
+    `/contacts/business/${encodeURIComponent(businessId)}`,
+    'GET',
+    undefined,
+    undefined,
+    undefined,
+    credentials
+  );
+  const contacts = res?.contacts ?? [];
+  return { contacts };
+}
+
+/**
  * List quote custom object records from GHL for a location.
  * Used by Quotes dashboard when in marketplace (OAuth) session mode.
  */

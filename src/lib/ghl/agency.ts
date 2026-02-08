@@ -98,13 +98,14 @@ export interface InstalledLocation {
 }
 
 /**
- * Get locations where the app is installed (Agency token).
+ * Get locations where the app is installed (OAuth access token — env or from KV/Company install).
  * Official API: GET /oauth/installedLocations — https://marketplace.gohighlevel.com/docs/ghl/oauth/get-installed-location
+ * Use this instead of relying on cookie/session for locationId when request has no locationId.
  */
 export async function getInstalledLocations(): Promise<{ success: boolean; locations?: InstalledLocation[]; error?: string }> {
-  const token = process.env.GHL_AGENCY_ACCESS_TOKEN?.trim();
+  const token = await getAgencyTokenForLocationToken();
   if (!token) {
-    return { success: false, error: 'GHL_AGENCY_ACCESS_TOKEN not set' };
+    return { success: false, error: 'No agency token (set GHL_AGENCY_ACCESS_TOKEN or complete Connect as Company user)' };
   }
   try {
     const res = await fetch(`${GHL_API_BASE}/oauth/installedLocations`, {
@@ -129,8 +130,9 @@ export async function getInstalledLocations(): Promise<{ success: boolean; locat
 
 /**
  * Get a Location-level access token from the Agency token.
- * Official API: POST /oauth/locationToken — https://marketplace.gohighlevel.com/docs/ghl/oauth/get-location-access-token
- * Used when we have locationId from user context (postMessage/iframe) and need a token to call GHL APIs for that location.
+ * API 2.0: POST /oauth/locationToken requires Agency token with scope oauth.write.
+ * @see https://github.com/GoHighLevel/highlevel-api-docs (docs/oauth/Scopes.md: oauth.write → POST /oauth/locationToken | Agency)
+ * @see https://marketplace.gohighlevel.com/docs/ghl/oauth/get-location-access-token
  * @param options.skipStore - If true, do not persist to KV (e.g. when using agency-only for dashboard).
  */
 // #region agent log
@@ -143,15 +145,26 @@ function agencyDebugLog(message: string, data: Record<string, unknown>) {
 }
 // #endregion
 
+/**
+ * Resolve the Agency token: env first, then KV (from OAuth install when a Company user installed).
+ * The token from the OAuth app install (Company user) has oauth.write and can call POST /oauth/locationToken.
+ */
+async function getAgencyTokenForLocationToken(): Promise<string | null> {
+  const fromEnv = process.env.GHL_AGENCY_ACCESS_TOKEN?.trim();
+  if (fromEnv) return fromEnv;
+  const { getAgencyToken } = await import('./token-store');
+  return getAgencyToken();
+}
+
 export async function getLocationTokenFromAgency(
   locationId: string,
   companyId: string,
   options?: { skipStore?: boolean }
 ): Promise<LocationTokenResult> {
-  const token = process.env.GHL_AGENCY_ACCESS_TOKEN?.trim();
+  const token = await getAgencyTokenForLocationToken();
   if (!token) {
-    agencyDebugLog('getLocationTokenFromAgency: GHL_AGENCY_ACCESS_TOKEN not set', { hypothesisId: 'H1' });
-    return { success: false, error: 'GHL_AGENCY_ACCESS_TOKEN not set' };
+    agencyDebugLog('getLocationTokenFromAgency: no agency token (set GHL_AGENCY_ACCESS_TOKEN or complete OAuth install as Company user)', { hypothesisId: 'H1' });
+    return { success: false, error: 'No agency token. Set GHL_AGENCY_ACCESS_TOKEN or have a Company user complete the Connect flow once.' };
   }
 
   try {
@@ -186,16 +199,18 @@ export async function getLocationTokenFromAgency(
       const errMsg = data.error ?? data.message ?? `GHL API ${res.status}`;
       agencyDebugLog('getLocationTokenFromAgency: GHL API error', { status: res.status, error: errMsg, endpoint: '/oauth/locationToken', hypothesisId: 'H2-H3-H5' });
       console.error('GHL locationToken failed:', res.status, data);
-      if (res.status === 401 && (errMsg.includes('scope') || errMsg.includes('authorized'))) {
+      const isScopeError = res.status === 401 && (errMsg.includes('scope') || errMsg.includes('authorized'));
+      if (isScopeError) {
         console.error(
-          '[CQ Agency] GHL_AGENCY_ACCESS_TOKEN is not authorized for /oauth/locationToken. ' +
-          'Use an Agency (Company) OAuth token with scope that allows this endpoint (e.g. locations.write). ' +
-          'See .env.example and GHL marketplace docs: Get Location Access Token from Agency Token.'
+          '[CQ Agency] POST /oauth/locationToken requires Agency token with oauth.write scope. ' +
+          'Add oauth.write to your app scopes in GHL Marketplace. API 2.0: https://github.com/GoHighLevel/highlevel-api-docs (docs/oauth/Scopes.md)'
         );
       }
       return {
         success: false,
-        error: errMsg,
+        error: isScopeError
+          ? `${errMsg}. Add oauth.write scope to your Agency app (GHL Marketplace → App → Scopes). See https://github.com/GoHighLevel/highlevel-api-docs docs/oauth/Scopes.md`
+          : errMsg,
       };
     }
 
@@ -207,15 +222,22 @@ export async function getLocationTokenFromAgency(
 
     const expiresAt = Date.now() + (data.expires_in ?? 86400) * 1000;
 
+    // Store location access token in KV for this locationId so we can make all GHL calls for the location.
+    // @see https://marketplace.gohighlevel.com/docs/ghl/oauth/get-location-access-token
     if (!options?.skipStore) {
-      await storeInstallation({
-        accessToken,
-        refreshToken,
-        expiresAt,
-        companyId: data.companyId ?? companyId,
-        userId: data.userId ?? '',
-        locationId: data.locationId ?? locationId,
-      });
+      try {
+        await storeInstallation({
+          accessToken,
+          refreshToken,
+          expiresAt,
+          companyId: data.companyId ?? companyId,
+          userId: data.userId ?? '',
+          locationId: data.locationId ?? locationId,
+        });
+        console.log('[CQ Agency] stored location token in KV for locationId', (data.locationId ?? locationId).slice(0, 12) + '..');
+      } catch (storeErr) {
+        console.warn('[CQ Agency] store location token in KV failed (will use token for this request only)', storeErr instanceof Error ? storeErr.message : storeErr);
+      }
     }
 
     return {

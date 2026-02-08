@@ -1,11 +1,12 @@
 /**
- * GHL dashboard API context: locationId from user context (postMessage/iframe), token from Agency only.
- * No KV or OAuth token lookup; we always use Agency token and Agency calls.
+ * GHL dashboard API context: locationId from user context (postMessage/iframe), or GET /oauth/installedLocations when no cookie/session.
+ * Token from KV (install flow) or Agency. We prefer GET /oauth/installedLocations over relying on cookie for locationId.
  */
 
 import { NextRequest } from 'next/server';
 import { getSession } from '@/lib/ghl/session';
-import { getLocationTokenFromAgency } from '@/lib/ghl/agency';
+import { getOrFetchTokenForLocation } from '@/lib/ghl/token-store';
+import { getInstalledLocations } from '@/lib/ghl/agency';
 
 export type GHLContextResult =
   | { locationId: string; token: string }
@@ -14,63 +15,43 @@ export type GHLContextResult =
 
 /**
  * Resolve locationId + token for dashboard API calls.
- * LocationId comes from user context (postMessage/iframe → query or x-ghl-location-id or session).
- * Token comes from Agency only: getLocationTokenFromAgency(locationId, companyId). No KV.
+ * LocationId: x-ghl-location-id header first, then GET /oauth/installedLocations; query param and session (cookie) are last.
+ * Token: KV first (stored when location completes Connect or from Get Location Access Token), then Agency.
  */
 export async function resolveGHLContext(request: NextRequest): Promise<GHLContextResult> {
   try {
-    const queryLocationId = request.nextUrl.searchParams.get('locationId');
-    const headerLocationId = request.headers.get('x-ghl-location-id');
-    const requestLocationId = queryLocationId ?? headerLocationId ?? undefined;
-    const session = await getSession();
+    const headerLocationId = request.headers.get('x-ghl-location-id')?.trim() || null;
+    let rawLocationId: string | null = headerLocationId;
 
-    const rawLocationId = requestLocationId ?? session?.locationId ?? null;
+    if (!rawLocationId) {
+      const installed = await getInstalledLocations();
+      if (installed.success && installed.locations?.length) {
+        const first = installed.locations[0];
+        rawLocationId = (first?.id ?? (first as { locationId?: string }).locationId) ?? null;
+      }
+    }
+
+    if (!rawLocationId) {
+      const queryLocationId = request.nextUrl.searchParams.get('locationId')?.trim() || null;
+      const session = await getSession();
+      rawLocationId = queryLocationId ?? session?.locationId ?? null;
+    }
+
     const locationId = rawLocationId ? rawLocationId.trim() : null;
 
     if (!locationId) {
       return null;
     }
 
-    const companyId = process.env.GHL_COMPANY_ID?.trim();
-    const hasAgencyToken = !!(process.env.GHL_AGENCY_ACCESS_TOKEN?.trim());
-    console.log('[CQ api-context] env check', { hasCompanyId: !!companyId, hasAgencyToken });
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'api-context.ts',
-        message: 'resolveGHLContext before Agency',
-        data: { hasCompanyId: !!companyId, hasAgencyToken, hypothesisId: 'H2-H4' },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-    if (!companyId) {
-      return { needsConnect: true, locationId, reason: 'GHL_COMPANY_ID not set' };
-    }
+    // KV first (from install/Connect), then Agency (needs oauth.write — not exposed in all Marketplace scope UIs).
+    const token = await getOrFetchTokenForLocation(locationId);
 
-    const result = await getLocationTokenFromAgency(locationId, companyId, { skipStore: true });
-    const token = result.success ? result.accessToken ?? null : null;
-    console.log('[CQ api-context] Agency result', { gotToken: !!token, errorPreview: result.error ? result.error.slice(0, 100) : null });
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'api-context.ts',
-        message: 'resolveGHLContext after Agency',
-        data: { gotToken: !!token, errorPreview: result.error ? result.error.slice(0, 80) : null, hypothesisId: 'H1-H3-H5' },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     if (token) {
       return { locationId, token };
     }
 
-    const reason = result.error ?? 'Could not get Agency token for this location';
+    const reason =
+      'Connect this location once: open CleanQuote from this location in GHL and complete the Connect step. We store the token in KV (no oauth scope needed).';
     return { needsConnect: true, locationId, reason };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

@@ -9,7 +9,15 @@ import { getKV } from '@/lib/kv';
 import { getRedirectUri } from './oauth-utils';
 
 const PREFIX = 'ghl:install:';
+const AGENCY_TOKEN_KEY = 'ghl:agency:token';
 const REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 min before expiry
+
+export interface AgencyTokenInstall {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+  companyId: string;
+}
 
 export interface GHLInstallation {
   accessToken: string;
@@ -36,6 +44,77 @@ export async function storeInstallation(data: GHLInstallation): Promise<void> {
   const kv = getKV();
   await kv.set(storageKey, data, { ex: 365 * 24 * 60 * 60 }); // 1 year (refresh token lifespan)
   console.log('[CQ token-store] stored OK', { locationId: data.locationId.slice(0, 12) + '...' });
+}
+
+/**
+ * Store the OAuth install token as the "agency" token when it's a Company token.
+ * That token has oauth.write and can be used for POST /oauth/locationToken (Get Location Access Token).
+ * @see https://marketplace.gohighlevel.com/docs/ghl/oauth/get-location-access-token
+ */
+export async function storeAgencyTokenFromInstall(data: AgencyTokenInstall): Promise<void> {
+  try {
+    const kv = getKV();
+    await kv.set(AGENCY_TOKEN_KEY, data, { ex: 365 * 24 * 60 * 60 });
+    console.log('[CQ token-store] agency token stored (from OAuth install)');
+  } catch (err) {
+    console.warn('[CQ token-store] storeAgencyTokenFromInstall failed', err instanceof Error ? err.message : err);
+  }
+}
+
+/**
+ * Get a valid Agency access token (from KV, stored when a Company user completed OAuth install).
+ * Used for POST /oauth/locationToken. Refreshes if expired.
+ */
+export async function getAgencyToken(): Promise<string | null> {
+  try {
+    const kv = getKV();
+    const data = await kv.get<AgencyTokenInstall>(AGENCY_TOKEN_KEY);
+    if (!data?.accessToken || !data?.refreshToken) return null;
+    const now = Date.now();
+    if (data.expiresAt - REFRESH_BUFFER_MS > now) return data.accessToken;
+    const refreshed = await refreshAgencyToken(data);
+    return refreshed?.accessToken ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function refreshAgencyToken(install: AgencyTokenInstall): Promise<AgencyTokenInstall | null> {
+  const clientId = process.env.GHL_CLIENT_ID;
+  const clientSecret = process.env.GHL_CLIENT_SECRET;
+  const redirectUri = getRedirectUri();
+  if (!clientId || !clientSecret || !redirectUri) return null;
+  try {
+    const body = new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: 'refresh_token',
+      refresh_token: install.refreshToken,
+      user_type: 'Company',
+      redirect_uri: redirectUri,
+    });
+    const res = await fetch('https://services.leadconnectorhq.com/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+      body: body.toString(),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      console.error('GHL OAuth agency refresh failed:', res.status, data);
+      return null;
+    }
+    const next: AgencyTokenInstall = {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token ?? install.refreshToken,
+      expiresAt: Date.now() + (data.expires_in ?? 86400) * 1000,
+      companyId: data.companyId ?? install.companyId,
+    };
+    await storeAgencyTokenFromInstall(next);
+    return next;
+  } catch (err) {
+    console.error('GHL OAuth agency refresh error:', err);
+    return null;
+  }
 }
 
 // #region agent log
@@ -111,8 +190,8 @@ export async function getOrFetchTokenForLocation(locationId: string): Promise<st
 
   try {
     const { getLocationTokenFromAgency } = await import('./agency');
-    // skipStore: true so Agency fallback works even when KV is not configured; install callback stores to KV.
-    const result = await getLocationTokenFromAgency(locationId, companyId, { skipStore: true });
+    // Store the location token in KV so we can use it for all calls for this location (Get Location Access Token → store by locationId).
+    const result = await getLocationTokenFromAgency(locationId, companyId, { skipStore: false });
     if (result.success) {
       const out = result.accessToken ?? (await getTokenForLocation(locationId));
       // #region agent log

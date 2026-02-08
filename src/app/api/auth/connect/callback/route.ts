@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { storeInstallation, getInstallation } from '@/lib/ghl/token-store';
+import { storeInstallation, getInstallation, storeAgencyTokenFromInstall } from '@/lib/ghl/token-store';
 import { createSessionToken } from '@/lib/ghl/session';
 import { setOrgGHLOAuth } from '@/lib/config/store';
 import { getRedirectUri, getPostOAuthRedirectBase } from '@/lib/ghl/oauth-utils';
@@ -345,6 +345,15 @@ export async function GET(request: NextRequest) {
     try {
       console.log(LOG, 'Storing in KV', { locationId: locationId.slice(0, 8) + '..', hasAccess: !!data.access_token, hasRefresh: !!data.refresh_token });
       await storeInstallation(installationPayload);
+      // When a Company (Agency) user installs, that token has oauth.write — store it for POST /oauth/locationToken.
+      if (String(userType).toLowerCase() === 'company') {
+        await storeAgencyTokenFromInstall({
+          accessToken: data.access_token,
+          refreshToken: data.refresh_token ?? '',
+          expiresAt,
+          companyId,
+        });
+      }
     } catch (storeErr) {
       const storeMsg = storeErr instanceof Error ? storeErr.message : String(storeErr);
       console.error(LOG, 'KV store failed', storeErr);

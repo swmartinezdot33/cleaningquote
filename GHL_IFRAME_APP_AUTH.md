@@ -73,6 +73,27 @@ No UI here; redirect only. Same idea as template “after install redirect” bu
 
 No UI in callback; redirect only.
 
+## 4b. Token flow (OAuth → installed locations → location token → Contacts)
+
+This is the exact sequence we use so you can verify it against the [GHL OAuth docs](https://marketplace.gohighlevel.com/docs/ghl/oauth/get-access-token):
+
+1. **OAuth Access Token**  
+   - We get it at **OAuth success** (callback): exchange `code` for tokens via [Get Access Token](https://marketplace.gohighlevel.com/docs/ghl/oauth/get-access-token) (`POST /oauth/token`).  
+   - We store it (per-location install in KV, and if Company user also as “agency” token for step 3).  
+   - If we didn’t have it, we would get it via that same endpoint (authorize with all scopes you need, then exchange code → token). We do **not** use query param or cookie as the primary source for **locationId**; see step 2.
+
+2. **Location where app is installed**  
+   - Once we have the OAuth Access Token, we get **locationId** from [Get Location where app is installed](https://marketplace.gohighlevel.com/docs/ghl/oauth/get-installed-location) (`GET /oauth/installedLocations`) when the request doesn’t already provide locationId (e.g. no `x-ghl-location-id` header).  
+   - Resolution order: **x-ghl-location-id** → **GET /oauth/installedLocations** → then query param and session (cookie) as last resort.
+
+3. **Location Access Token**  
+   - For each **locationId** we need a location-scoped token. We get it via [Get Location Access Token from Agency Token](https://marketplace.gohighlevel.com/docs/ghl/oauth/get-location-access-token) (`POST /oauth/locationToken`) using the OAuth Access Token (agency/install token).  
+   - We **store that Location Access Token in KV** keyed by **locationId** so later requests don’t need to call POST /oauth/locationToken again.
+
+4. **Contact (and other location) API calls**  
+   - We use the **Location Access Token** (from step 3) and **locationId** for Contacts and other location-scoped APIs (e.g. `POST /contacts/search`).  
+   - We do **not** use the raw OAuth Access Token for those calls; the OAuth Access Token is used only for `GET /oauth/installedLocations` and `POST /oauth/locationToken`.
+
 ## 5. Iframe context (client)
 
 - **App host:** Our **pages run on www.cleanquote.io** (OAuth callback, dashboard, setup). The **GHL whitelabel app** (parent/entry in GHL) is **my.cleanquote.io**. After OAuth, users are redirected to www.cleanquote.io. PostMessage requests include `origin: window.location.origin`, so when the iframe loads from www we send `https://www.cleanquote.io`; GHL must reply to that origin.

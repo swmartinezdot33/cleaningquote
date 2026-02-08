@@ -5,6 +5,12 @@ import Link from 'next/link';
 import { Loader2, Search, Filter } from 'lucide-react';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 import { useDashboardApi } from '@/lib/dashboard-api';
+import { getInstallUrlWithLocation } from '@/lib/ghl/oauth-utils';
+
+function getConnectUrl(locationId: string | null): string {
+  if (typeof window === 'undefined' || !locationId) return '#';
+  return getInstallUrlWithLocation(window.location.origin, locationId);
+}
 
 interface Contact {
   id: string;
@@ -95,13 +101,18 @@ export default function CRMContactsPage() {
 
       {needsConnect && effectiveLocationId && (
         <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-6 text-amber-800 dark:text-amber-200">
-          <p className="font-medium">Could not load contacts</p>
+          <p className="font-medium">Connect this location</p>
           <p className="mt-2 text-sm">
-            {connectReason ?? 'Token for this location could not be resolved.'}
+            {connectReason ?? 'Complete the one-time Connect so we can load contacts.'}
           </p>
-          <p className="mt-2 text-xs opacity-90">
-            Server needs GHL_COMPANY_ID and GHL_AGENCY_ACCESS_TOKEN. Dashboard uses Agency token only; user context (postMessage) supplies location.
-          </p>
+          <a
+            href={getConnectUrl(effectiveLocationId)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-block rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+          >
+            Connect (opens in new tab)
+          </a>
         </div>
       )}
 
