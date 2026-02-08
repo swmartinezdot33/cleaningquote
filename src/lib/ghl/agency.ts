@@ -90,11 +90,48 @@ export interface LocationTokenResult {
   error?: string;
 }
 
+/** Location shape from GET /oauth/installedLocations */
+export interface InstalledLocation {
+  id?: string;
+  name?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Get locations where the app is installed (Agency token).
+ * Official API: GET /oauth/installedLocations — https://marketplace.gohighlevel.com/docs/ghl/oauth/get-installed-location
+ */
+export async function getInstalledLocations(): Promise<{ success: boolean; locations?: InstalledLocation[]; error?: string }> {
+  const token = process.env.GHL_AGENCY_ACCESS_TOKEN?.trim();
+  if (!token) {
+    return { success: false, error: 'GHL_AGENCY_ACCESS_TOKEN not set' };
+  }
+  try {
+    const res = await fetch(`${GHL_API_BASE}/oauth/installedLocations`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+        Version: '2021-07-28',
+      },
+    });
+    const data = (await res.json().catch(() => ({}))) as { locations?: InstalledLocation[]; location?: InstalledLocation[]; error?: string; message?: string };
+    if (!res.ok) {
+      return { success: false, error: data.error ?? data.message ?? `GHL API ${res.status}` };
+    }
+    const locations = data.locations ?? data.location ?? [];
+    return { success: true, locations: Array.isArray(locations) ? locations : [] };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
 /**
  * Get a Location-level access token from the Agency token.
- * Used when the app is auto-installed: we have locationId (from iframe or webhook)
- * and can exchange our Agency token for a Location token to make API calls.
- * @param options.skipStore - If true, do not persist to KV (e.g. when using agency-only for dashboard, no KV required).
+ * Official API: POST /oauth/locationToken — https://marketplace.gohighlevel.com/docs/ghl/oauth/get-location-access-token
+ * Used when we have locationId from user context (postMessage/iframe) and need a token to call GHL APIs for that location.
+ * @param options.skipStore - If true, do not persist to KV (e.g. when using agency-only for dashboard).
  */
 // #region agent log
 function agencyDebugLog(message: string, data: Record<string, unknown>) {

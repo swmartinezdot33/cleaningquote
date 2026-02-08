@@ -1773,7 +1773,9 @@ export async function listContactNotes(
 
 /**
  * List contacts from GHL for a location.
- * Used by CRM when in marketplace (OAuth) session mode.
+ * Uses POST /contacts/search (Get Contacts GET /contacts/ is deprecated).
+ * @see https://marketplace.gohighlevel.com/docs/ghl/contacts/get-contacts
+ * @see https://marketplace.gohighlevel.com/docs/ghl/contacts/search-contacts-advanced
  */
 export async function listGHLContacts(
   locationId: string,
@@ -1781,21 +1783,23 @@ export async function listGHLContacts(
   credentials?: GHLCredentials | null
 ): Promise<{ contacts: any[]; total: number }> {
   const limit = Math.min(100, Math.max(1, options?.limit ?? 25));
-  const offset = ((options?.page ?? 1) - 1) * limit;
-  const params = new URLSearchParams({
+  const skip = ((options?.page ?? 1) - 1) * limit;
+  const body = {
     locationId,
-    limit: String(limit),
-  });
-  const res = await makeGHLRequest<{ contacts?: any[]; meta?: { total?: number } }>(
-    `/contacts/?${params}`,
-    'GET',
-    undefined,
+    limit,
+    skip,
+    ...(options?.search?.trim() ? { query: { search: options.search.trim() } } : {}),
+  };
+  const res = await makeGHLRequest<{ contacts?: any[]; meta?: { total?: number }; total?: number }>(
+    '/contacts/search',
+    'POST',
+    body,
     undefined,
     undefined,
     credentials
   );
   const contacts = res?.contacts ?? [];
-  const total = res?.meta?.total ?? contacts.length;
+  const total = res?.meta?.total ?? res?.total ?? contacts.length;
   return { contacts, total };
 }
 
