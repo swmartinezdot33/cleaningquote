@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Trash2, Send, Loader2, BookOpen, Sparkles } from 'lucide-react';
 import { CANONICAL_SITE_URL } from '@/lib/canonical-url';
+import { getGHLMarketplaceAppUrl } from '@/lib/ghl/oauth-utils';
 
 interface Member {
   user_id: string;
@@ -334,7 +335,7 @@ export default function SettingsPage() {
               )}
               <div className="flex flex-wrap gap-2">
                 <a
-                  href={`/api/auth/connect?orgId=${encodeURIComponent(orgId)}&redirect=${encodeURIComponent('/dashboard/settings')}`}
+                  href={getGHLMarketplaceAppUrl()}
                   className="inline-flex items-center gap-2 rounded border border-primary px-4 py-2 text-sm text-primary hover:bg-primary/5"
                 >
                   Reconnect with HighLevel
@@ -357,7 +358,7 @@ export default function SettingsPage() {
           ) : (
             <div className="flex flex-wrap items-center gap-2">
               <a
-                href={`/api/auth/connect?orgId=${encodeURIComponent(orgId)}&redirect=${encodeURIComponent('/dashboard/settings')}`}
+                href={getGHLMarketplaceAppUrl()}
                 className="inline-flex items-center gap-2 rounded bg-primary px-4 py-2 text-sm text-primary-foreground hover:opacity-90"
               >
                 <Sparkles className="h-4 w-4" />

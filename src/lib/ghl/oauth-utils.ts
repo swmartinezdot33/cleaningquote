@@ -2,6 +2,18 @@
  * Shared OAuth utilities — used by authorize, callback, and token-store. See GHL_IFRAME_APP_AUTH.md.
  */
 
+/** GHL Marketplace app install page — use for "Connect" / "Install" links so users install from the official app page. Export for client components. */
+export const GHL_MARKETPLACE_APP_URL_DEFAULT =
+  'https://app.gohighlevel.com/integration/6983957514ceb0bb033c8aa1/versions/6983957514ceb0bb033c8aa1';
+
+/**
+ * URL to the CleanQuote app in the GHL Marketplace (install/connect link).
+ * Override with GHL_MARKETPLACE_APP_URL env if needed.
+ */
+export function getGHLMarketplaceAppUrl(): string {
+  return process.env.GHL_MARKETPLACE_APP_URL?.trim() || process.env.NEXT_PUBLIC_GHL_MARKETPLACE_APP_URL?.trim() || GHL_MARKETPLACE_APP_URL_DEFAULT;
+}
+
 /**
  * Base URL for OAuth redirects (APP_BASE_URL or Vercel/localhost)
  */

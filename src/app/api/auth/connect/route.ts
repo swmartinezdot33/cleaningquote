@@ -1,21 +1,10 @@
 /**
- * Redirect to GHL OAuth (marketplace flow).
- * Used for org-level GHL connection from Settings.
- * Pass orgId in state so callback can link location to org.
- * Delegates to oauth/authorize so we use a single redirect URI.
+ * Redirect to GHL Marketplace app page for install/connect.
+ * Old links to /api/auth/connect now send users to the official marketplace app URL.
  */
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { getGHLMarketplaceAppUrl } from '@/lib/ghl/oauth-utils';
 
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const orgId = searchParams.get('orgId');
-  const redirectTo = searchParams.get('redirect') || '/dashboard';
-
-  const authUrl = new URL('/api/auth/oauth/authorize', request.url);
-  authUrl.searchParams.set('redirect', redirectTo);
-  if (orgId) authUrl.searchParams.set('orgId', orgId);
-  const locationId = searchParams.get('locationId');
-  if (locationId) authUrl.searchParams.set('locationId', locationId);
-
-  return NextResponse.redirect(authUrl.toString());
+export async function GET() {
+  return NextResponse.redirect(getGHLMarketplaceAppUrl());
 }

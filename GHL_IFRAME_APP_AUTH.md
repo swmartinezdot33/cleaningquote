@@ -53,8 +53,9 @@ No UI here; redirect only. Same idea as template “after install redirect” bu
   3. From **query** → `locationId`.
   4. If still missing → GET `https://services.leadconnectorhq.com/locations/` with Bearer token, take first location id.
 - **Store installation** by **locationId** (template stores by locationId or companyId; we key by locationId for iframe):
-  - Persist in KV: `ghl:install:{locationId}` with access_token, refresh_token, expires_at, companyId, userId, locationId.
+  - Persist in KV: `ghl:install:{locationId}` with access_token, refresh_token, expires_at, companyId, userId, locationId. This is the source of truth for future lookup: session verification, `getTokenForLocation`, and token refresh all read from KV.
   - On failure → redirect to `/oauth-success?error=storage_failed&error_description=...` (no cookie, no success).
+  - Callback verifies read-back from KV after write and logs `[CQ Callback] STEP 7a — KV verify OK` when tokens are readable.
 - **Session cookie**:
   - Create JWT with `locationId`, `companyId`, `userId`.
   - Set cookie: `ghl_session`, httpOnly, secure, sameSite=none, path=/, domain=app host (for production).

@@ -55,6 +55,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const hasLocationIdRef = useRef(false);
+  const postMessageResponseHandledRef = useRef(false);
 
   useEffect(() => {
     const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
@@ -178,9 +179,6 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
 
     console.log('[CQ Iframe] in iframe: sending REQUEST_USER_DATA, waiting for postMessage');
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.message === 'REQUEST_USER_DATA_RESPONSE' || event.data?.message) {
-        console.log('[GHL Iframe] postMessage:', event.origin, event.data?.message, event.data);
-      }
       try {
         let data = event.data;
         if (typeof data === 'string') {
@@ -193,7 +191,10 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
         if (!data || typeof data !== 'object') return;
 
         if (data.message === 'REQUEST_USER_DATA_RESPONSE' && data.payload != null) {
-          console.log('[CQ Iframe] REQUEST_USER_DATA_RESPONSE received');
+          // Only handle the first valid response per resolution run to avoid duplicate logs and apply() calls
+          if (hasLocationIdRef.current || postMessageResponseHandledRef.current) return;
+          postMessageResponseHandledRef.current = true;
+          console.log('[CQ Iframe] REQUEST_USER_DATA_RESPONSE received (first only)');
           // GHL sends encrypted string or array; extract raw encrypted data
           const rawPayload = Array.isArray(data.payload) ? data.payload[0] : data.payload;
           if (!rawPayload) {

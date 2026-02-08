@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { storeInstallation } from '@/lib/ghl/token-store';
+import { storeInstallation, getInstallation } from '@/lib/ghl/token-store';
 import { createSessionToken } from '@/lib/ghl/session';
 import { setOrgGHLOAuth } from '@/lib/config/store';
 import { getAppBaseUrl, getRedirectUri } from '@/lib/ghl/oauth-utils';
@@ -265,6 +265,18 @@ export async function GET(request: NextRequest) {
       errorUrl.searchParams.set('error', 'storage_failed');
       errorUrl.searchParams.set('error_description', storeErr instanceof Error ? storeErr.message : 'Failed to save OAuth tokens. Check server logs and KV configuration.');
       return NextResponse.redirect(errorUrl.toString());
+    }
+
+    // Verify tokens are readable from KV for future lookup (session, getTokenForLocation, etc.)
+    try {
+      const readBack = await getInstallation(finalLocationId);
+      if (readBack?.accessToken && readBack?.refreshToken) {
+        console.log('[CQ Callback] STEP 7a — KV verify OK: tokens readable for future lookup', { locationId: finalLocationId.slice(0, 12) + '...' });
+      } else {
+        console.warn('[CQ Callback] STEP 7a — KV read-back missing tokens', { hasInstall: !!readBack });
+      }
+    } catch (verifyErr) {
+      console.warn('[CQ Callback] STEP 7a — KV verify read-back failed (tokens were written)', verifyErr);
     }
 
     const { redirect: redirectTo, orgId } = parseState(state);

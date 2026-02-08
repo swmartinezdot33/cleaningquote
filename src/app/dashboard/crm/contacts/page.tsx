@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Loader2, Search, Filter } from 'lucide-react';
 import { useGHLIframe } from '@/lib/ghl-iframe-context';
+import { getGHLMarketplaceAppUrl } from '@/lib/ghl/oauth-utils';
 
 interface Contact {
   id: string;
@@ -90,7 +91,7 @@ export default function CRMContactsPage() {
             This location needs a one-time connection. Click below to authorize CleanQuote to access your CRM data. After connecting, your contacts will load here.
           </p>
           <a
-            href={`/api/auth/connect?redirect=${encodeURIComponent('/dashboard/crm')}`}
+            href={getGHLMarketplaceAppUrl()}
             className="mt-4 inline-block rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
           >
             Connect via OAuth

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getSession } from '@/lib/ghl/session';
+import { getGHLMarketplaceAppUrl } from '@/lib/ghl/oauth-utils';
 import { RedirectToDashboard } from './RedirectToDashboard';
 import { OpenFromGHLLogger } from './OpenFromGHLLogger';
 
@@ -38,18 +39,18 @@ export default async function OpenFromGHLPage() {
         </p>
         <div className="mt-6 flex flex-col gap-3">
           <Link
-            href="/dashboard"
-            className="inline-block rounded-md border border-primary bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
-            Try Dashboard (if you just installed)
-          </Link>
-          <Link
-            href="https://my.cleanquote.io"
+            href={getGHLMarketplaceAppUrl()}
             target="_blank"
             rel="noopener noreferrer"
+            className="inline-block rounded-md border border-primary bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+          >
+            Install CleanQuote (GHL Marketplace)
+          </Link>
+          <Link
+            href="/dashboard"
             className="inline-block rounded-md bg-muted px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/80"
           >
-            Go to GoHighLevel
+            Try Dashboard (if you just installed)
           </Link>
         </div>
       </div>
