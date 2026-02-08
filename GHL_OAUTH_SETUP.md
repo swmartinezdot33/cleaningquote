@@ -2,6 +2,8 @@
 
 The OAuth flow matches **MaidCentral** and uses the same pattern.
 
+**Note:** If `GHL_REDIRECT_URI` was previously set to `connect/callback`, the code now normalizes it to `oauth/callback` so both will work. GHL Marketplace must have `oauth/callback` registered.
+
 ## Required: GHL Marketplace App Config
 
 1. Go to GHL Marketplace → Your App → Settings

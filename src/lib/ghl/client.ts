@@ -1697,77 +1697,63 @@ export async function testGHLConnection(
 }
 
 /**
- * Fetch a contact from GHL by contact ID
- * Used to pre-fill form when opening survey continuation in new tab
+ * Fetch a contact from GHL by contact ID.
+ * When credentials (token + locationId) are provided, uses makeGHLRequest for marketplace/OAuth flow.
  */
 export async function getContactById(
   contactId: string,
   token?: string,
-  locationId?: string
+  locationId?: string,
+  credentials?: GHLCredentials | null
 ): Promise<GHLContactResponse> {
-  try {
-    // Use provided token or get from stored settings
-    const finalToken = token || (await getGHLToken());
-    
-    // Use provided locationId, or get from stored settings
-    const finalLocationId = locationId || (await getGHLLocationId());
-    
-    if (!finalToken) {
-      throw new Error('GHL API token is required but not configured');
-    }
-
-    const url = `${GHL_API_BASE}/contacts/${contactId}`;
-    
-    const options: RequestInit = {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${finalToken}`,
-        'Content-Type': 'application/json',
-        'Version': '2021-07-28', // GHL 2.0 API version
-      },
-    };
-
-    const response = await fetch(url, options);
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      let errorMessage = `GHL API Error (${response.status})`;
-      if (responseText && responseText.trim().length > 0) {
-        try {
-          const errorData = JSON.parse(responseText);
-          errorMessage = `${errorMessage}: ${errorData.message || JSON.stringify(errorData)}`;
-        } catch (parseError) {
-          errorMessage = `${errorMessage}: ${responseText.substring(0, 200)}`;
-        }
-      }
-      throw new Error(errorMessage);
-    }
-
-    if (!responseText || responseText.trim().length === 0) {
-      throw new Error('Empty response from GHL API');
-    }
-
-    let data;
-    try {
-      data = JSON.parse(responseText);
-    } catch (parseError) {
-      console.error('Failed to parse GHL API response:', parseError);
-      throw new Error('Invalid response from GHL API - could not parse JSON');
-    }
-
-    // Handle different response structures
-    const contact = data.contact || data;
-    
-    if (!contact || !contact.id) {
-      console.error('GHL API response missing contact or contact.id:', data);
-      throw new Error('Invalid response from GHL API - missing contact or contact.id');
-    }
-
+  const creds = credentials ?? (token && locationId ? { token, locationId } : null);
+  if (creds?.token) {
+    const data = await makeGHLRequest<{ contact?: GHLContactResponse } | GHLContactResponse>(
+      `/contacts/${contactId}`,
+      'GET',
+      undefined,
+      creds.locationId ?? undefined,
+      undefined,
+      creds
+    );
+    const contact = (data && typeof data === 'object' && 'contact' in data ? data.contact : data) as GHLContactResponse | undefined;
+    if (!contact?.id) throw new Error('Invalid response from GHL API - missing contact or contact.id');
     return contact;
-  } catch (error) {
-    console.error('Failed to fetch contact by ID:', error);
-    throw error;
   }
+  const finalToken = token || (await getGHLToken());
+  const finalLocationId = locationId || (await getGHLLocationId());
+  if (!finalToken) throw new Error('GHL API token is required but not configured');
+  const data = await makeGHLRequest<{ contact?: GHLContactResponse } | GHLContactResponse>(
+    `/contacts/${contactId}`,
+    'GET',
+    undefined,
+    finalLocationId ?? undefined,
+    finalToken,
+    undefined
+  );
+  const contact = (data && typeof data === 'object' && 'contact' in data ? data.contact : data) as GHLContactResponse | undefined;
+  if (!contact?.id) throw new Error('Invalid response from GHL API - missing contact or contact.id');
+  return contact;
+}
+
+/**
+ * Fetch all notes for a contact from GHL.
+ * GET /contacts/:contactId/notes
+ */
+export async function listContactNotes(
+  contactId: string,
+  credentials?: GHLCredentials | null
+): Promise<GHLNoteResponse[]> {
+  const data = await makeGHLRequest<{ notes?: GHLNoteResponse[] } | GHLNoteResponse[]>(
+    `/contacts/${contactId}/notes`,
+    'GET',
+    undefined,
+    credentials?.locationId ?? undefined,
+    undefined,
+    credentials ?? undefined
+  );
+  const notes = Array.isArray(data) ? data : (data?.notes ?? []);
+  return Array.isArray(notes) ? notes : [];
 }
 
 /**

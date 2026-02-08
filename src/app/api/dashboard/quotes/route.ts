@@ -5,6 +5,8 @@ import { createSupabaseServer } from '@/lib/supabase/server';
 import { getOrgsForDashboard, isSuperAdminEmail } from '@/lib/org-auth';
 import { getSession } from '@/lib/ghl/session';
 import { getGHLCredentials } from '@/lib/ghl/credentials';
+import { getOrFetchTokenForLocation } from '@/lib/ghl/token-store';
+import { getLocationIdFromRequest } from '@/lib/request-utils';
 import { listGHLQuoteRecords } from '@/lib/ghl/client';
 
 export const dynamic = 'force-dynamic';
@@ -152,10 +154,76 @@ function getDisplayServiceAndFrequency(
 
 /**
  * GET /api/dashboard/quotes
- * List quotes for the current user's tools (from Supabase) or GHL location (from OAuth session).
+ * List quotes for GHL location (locationId from request or OAuth session) or Supabase tools.
  */
 export async function GET(request: NextRequest) {
   try {
+    // 1) locationId from query/header (GHL iframe flow — same as contacts/stats)
+    const requestLocationId = getLocationIdFromRequest(request);
+    if (requestLocationId) {
+      try {
+        const token = await getOrFetchTokenForLocation(requestLocationId);
+        if (token) {
+          const credentials = { token, locationId: requestLocationId };
+          const records = await listGHLQuoteRecords(requestLocationId, { limit: 2000 }, credentials);
+          const rawQuotes = records.map(mapGHLQuoteToDashboard);
+          const withToolInfo = rawQuotes.map((q: any) => {
+            const display = getDisplayServiceAndFrequency(q.payload, q.service_type, q.frequency);
+            let service_type = q.service_type;
+            let frequency = q.frequency;
+            let priceLow = q.price_low;
+            let priceHigh = q.price_high;
+            let price_initial_low: number | null = null;
+            let price_initial_high: number | null = null;
+            let price_recurring_low: number | null = null;
+            let price_recurring_high: number | null = null;
+            if (q.payload && display.isInitialPlusFrequency && display.initialRange && display.recurringRange) {
+              service_type = display.serviceTypeDisplayLong || 'Initial/Recurring';
+              frequency = `Your Selected Frequency: ${display.frequencyDisplay}`;
+              price_initial_low = display.initialRange.low;
+              price_initial_high = display.initialRange.high;
+              price_recurring_low = display.recurringRange.low;
+              price_recurring_high = display.recurringRange.high;
+              priceLow = display.initialRange.low;
+              priceHigh = display.initialRange.high;
+            } else if (q.payload) {
+              const range = getSelectedRangeFromPayload(q.payload, q.service_type, q.frequency);
+              if (range) {
+                priceLow = range.low;
+                priceHigh = range.high;
+              }
+              frequency = display.frequencyDisplay || display.frequency;
+              if (display.serviceTypeDisplay) service_type = display.serviceTypeDisplay;
+            }
+            const { payload: _p, ...rest } = q;
+            const isDisqualified = q.status === 'disqualified';
+            return {
+              ...rest,
+              service_type: isDisqualified ? 'Disqualified' : service_type,
+              frequency: isDisqualified ? '' : frequency,
+              price_low: isDisqualified ? null : priceLow,
+              price_high: isDisqualified ? null : priceHigh,
+              ...(price_initial_low != null && !isDisqualified && { price_initial_low }),
+              ...(price_initial_high != null && !isDisqualified && { price_initial_high }),
+              ...(price_recurring_low != null && !isDisqualified && { price_recurring_low }),
+              ...(price_recurring_high != null && !isDisqualified && { price_recurring_high }),
+              toolName: 'Quote',
+              toolSlug: null,
+              contactId: null,
+            };
+          });
+          return NextResponse.json({
+            quotes: withToolInfo,
+            isSuperAdmin: false,
+            isOrgAdmin: false,
+          });
+        }
+      } catch (err) {
+        console.warn('Quotes: GHL token/fetch error for locationId', requestLocationId, err);
+      }
+      return NextResponse.json({ quotes: [], isSuperAdmin: false, isOrgAdmin: false });
+    }
+
     const session = await getSession();
 
     if (session) {

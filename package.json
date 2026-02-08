@@ -12,6 +12,7 @@
     "test:association": "node scripts/test-association.mjs",
     "test:e2e:appointment": "playwright test e2e/appointment-from-ui.spec.ts",
     "test:e2e:appointment:local": "./scripts/test-appointment-e2e-local.sh",
+    "troubleshoot:oauth": "playwright test e2e/troubleshoot-oauth.spec.ts --headed",
     "migrate": "node scripts/migrate-to-multitenant.mjs",
     "copy-kv-to-default": "node scripts/copy-global-kv-to-default-tool.mjs",
     "delete-frank-pray-quote": "node scripts/delete-frank-pray-quote.mjs",

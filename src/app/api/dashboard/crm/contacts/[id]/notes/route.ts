@@ -3,6 +3,11 @@ import { cookies } from 'next/headers';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { getOrgsForDashboard } from '@/lib/org-auth';
+import { getSession } from '@/lib/ghl/session';
+import { getGHLCredentials } from '@/lib/ghl/credentials';
+import { getOrFetchTokenForLocation } from '@/lib/ghl/token-store';
+import { getLocationIdFromRequest } from '@/lib/request-utils';
+import { createNote } from '@/lib/ghl/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +18,51 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    const body = await request.json();
+    const content = body.content?.trim();
+    if (!content) {
+      return NextResponse.json({ error: 'Content is required' }, { status: 400 });
+    }
+
+    // 1) GHL iframe flow — locationId from query or body, token from token-store
+    const requestLocationId = getLocationIdFromRequest(request) || body.locationId;
+    if (requestLocationId) {
+      try {
+        const token = await getOrFetchTokenForLocation(requestLocationId);
+        if (token) {
+          const note = await createNote(
+            { contactId: id, body: content },
+            requestLocationId,
+            token
+          );
+          return NextResponse.json({ note: { id: note.id, content: note.body, created_at: note.createdAt } });
+        }
+      } catch (err) {
+        console.warn('CRM note: GHL create error', err);
+        return NextResponse.json({ error: 'Failed to add note' }, { status: 500 });
+      }
+      return NextResponse.json({ error: 'Failed to add note' }, { status: 500 });
+    }
+
+    // 2) Session (OAuth) flow
+    const session = await getSession();
+    if (session) {
+      try {
+        const credentials = await getGHLCredentials({ session });
+        if (credentials.token && credentials.locationId) {
+          const note = await createNote(
+            { contactId: id, body: content },
+            credentials.locationId,
+            credentials.token
+          );
+          return NextResponse.json({ note: { id: note.id, content: note.body, created_at: note.createdAt } });
+        }
+      } catch (err) {
+        console.warn('CRM note: session/GHL error', err);
+      }
+    }
+
+    // 3) Supabase org flow
     const supabase = await createSupabaseServerSSR();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -37,12 +87,6 @@ export async function POST(
 
     if (!contact) {
       return NextResponse.json({ error: 'Contact not found' }, { status: 404 });
-    }
-
-    const body = await request.json();
-    const content = body.content?.trim();
-    if (!content) {
-      return NextResponse.json({ error: 'Content is required' }, { status: 400 });
     }
 
     const admin = createSupabaseServer();

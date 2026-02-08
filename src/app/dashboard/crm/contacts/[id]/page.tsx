@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Loader2, Mail, Phone, MapPin, FileText } from 'lucide-react';
+import { useGHLIframe } from '@/lib/ghl-iframe-context';
 
 interface ContactDetail {
   contact: {
@@ -66,6 +67,7 @@ export default function ContactDetailPage({
 }: {
   params: { id: string } | Promise<{ id: string }>;
 }) {
+  const { ghlData } = useGHLIframe();
   const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(null);
   const [data, setData] = useState<ContactDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,25 +86,37 @@ export default function ContactDetailPage({
   useEffect(() => {
     if (!resolvedParams?.id) return;
 
-    fetch(`/api/dashboard/crm/contacts/${resolvedParams.id}`)
+    const url = ghlData?.locationId
+      ? `/api/dashboard/crm/contacts/${resolvedParams.id}?locationId=${ghlData.locationId}`
+      : `/api/dashboard/crm/contacts/${resolvedParams.id}`;
+    fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Not found'))))
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [resolvedParams?.id]);
+  }, [resolvedParams?.id, ghlData?.locationId]);
 
   const addNote = () => {
     if (!noteContent.trim() || !resolvedParams?.id) return;
     setAddingNote(true);
-    fetch(`/api/dashboard/crm/contacts/${resolvedParams.id}/notes`, {
+    const notesUrl = ghlData?.locationId
+      ? `/api/dashboard/crm/contacts/${resolvedParams.id}/notes?locationId=${ghlData.locationId}`
+      : `/api/dashboard/crm/contacts/${resolvedParams.id}/notes`;
+    const body = ghlData?.locationId
+      ? { content: noteContent.trim(), locationId: ghlData.locationId }
+      : { content: noteContent.trim() };
+    fetch(notesUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: noteContent.trim() }),
+      body: JSON.stringify(body),
     })
       .then((r) => {
         if (r.ok) {
           setNoteContent('');
-          return fetch(`/api/dashboard/crm/contacts/${resolvedParams.id}`).then((x) => x.json());
+          const detailUrl = ghlData?.locationId
+            ? `/api/dashboard/crm/contacts/${resolvedParams.id}?locationId=${ghlData.locationId}`
+            : `/api/dashboard/crm/contacts/${resolvedParams.id}`;
+          return fetch(detailUrl).then((x) => x.json());
         }
         throw new Error('Failed to add note');
       })

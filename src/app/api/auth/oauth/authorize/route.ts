@@ -1,29 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAppBaseUrl, getRedirectUri } from '@/lib/ghl/oauth-utils';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Base URL for OAuth redirects (match Vercel or local port)
- */
-function getAppBaseUrl(): string {
-  if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL.replace(/\/$/, '');
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  const port = process.env.PORT || '3000';
-  return `http://localhost:${port}`;
-}
-
-/**
  * GET /api/auth/oauth/authorize
  * Initiates GHL OAuth flow — matches MaidCentral exactly.
- * Uses GHL_REDIRECT_URI (must be .../api/auth/oauth/callback in GHL Marketplace).
  */
 export async function GET(request: NextRequest) {
   try {
     const clientId = process.env.GHL_CLIENT_ID;
     const baseUrl = getAppBaseUrl();
-    const redirectUri =
-      process.env.GHL_REDIRECT_URI?.trim() ||
-      `${baseUrl}/api/auth/oauth/callback`;
+    const redirectUri = getRedirectUri(baseUrl); // Same logic as callback + token-store
+    const locationId = request.nextUrl.searchParams.get('locationId');
+
+    console.log('[OAuth Authorize] ============================================');
+    console.log('[OAuth Authorize] Initiating OAuth flow');
+    console.log('[OAuth Authorize] Client ID:', clientId ? `${clientId.substring(0, 10)}...${clientId.substring(clientId.length - 4)}` : 'MISSING');
+    console.log('[OAuth Authorize] Redirect URI:', redirectUri);
+    console.log('[OAuth Authorize] Base URL:', baseUrl);
+    console.log('[OAuth Authorize] Location ID (hint):', locationId || 'none');
+    console.log('[OAuth Authorize]   - APP_BASE_URL:', process.env.APP_BASE_URL || 'NOT SET');
+    console.log('[OAuth Authorize]   - GHL_REDIRECT_URI:', process.env.GHL_REDIRECT_URI || 'NOT SET');
+    console.log('[OAuth Authorize] ============================================');
 
     if (!clientId) {
       return NextResponse.json(
@@ -32,15 +31,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Extract version_id from client_id (format: version_id-suffix)
+    if (!redirectUri.includes('/api/auth/oauth/callback')) {
+      console.error('[OAuth Authorize] ⚠️  Redirect URI must use oauth/callback (matches MaidCentral)');
+    }
+
     const versionId = clientId.includes('-') ? clientId.split('-')[0] : clientId;
-    const locationId = request.nextUrl.searchParams.get('locationId');
 
-    console.log('[OAuth Authorize] Initiating OAuth flow');
-    console.log('[OAuth Authorize] Redirect URI:', redirectUri);
-    console.log('[OAuth Authorize] Location ID (hint):', locationId || 'none');
-
-    // GHL OAuth chooselocation — same as MaidCentral
     const authUrl = new URL('https://marketplace.gohighlevel.com/oauth/chooselocation');
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('client_id', clientId);
@@ -48,8 +44,6 @@ export async function GET(request: NextRequest) {
     authUrl.searchParams.set('version_id', versionId);
     authUrl.searchParams.set('prompt', 'consent');
 
-    // Scopes: GHL expects + between scopes. Build URL manually to preserve + signs.
-    // URLSearchParams encodes + as %2B; MaidCentral appends scope separately.
     const scopes = [
       'locations.readonly',
       'contacts.readonly',
@@ -59,9 +53,9 @@ export async function GET(request: NextRequest) {
       'calendars/events.readonly',
       'calendars/events.write',
       'calendars/groups.readonly',
+      'calendars/resources.write',
       'calendars/groups.write',
       'calendars/resources.readonly',
-      'calendars/resources.write',
       'opportunities.readonly',
       'opportunities.write',
     ];
@@ -87,8 +81,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Append scope with literal + signs (matches MaidCentral)
     const finalAuthUrl = `${authUrl.origin}${authUrl.pathname}?${params.toString()}&scope=${encodedScopes}`;
+    console.log('[OAuth Authorize] Redirecting to GHL OAuth...');
 
     return NextResponse.redirect(finalAuthUrl);
   } catch (error) {

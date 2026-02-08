@@ -2,9 +2,11 @@
  * GHL OAuth token store
  * Stores and retrieves OAuth tokens per location (from Marketplace app installs).
  * Uses Vercel KV for persistence.
+ * Uses same redirect URI as authorize/callback for token refresh (oauth-utils).
  */
 
 import { getKV } from '@/lib/kv';
+import { getRedirectUri } from './oauth-utils';
 
 const PREFIX = 'ghl:install:';
 const REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 min before expiry
@@ -103,7 +105,7 @@ async function refreshAccessToken(
 ): Promise<GHLInstallation | null> {
   const clientId = process.env.GHL_CLIENT_ID;
   const clientSecret = process.env.GHL_CLIENT_SECRET;
-  const redirectUri = process.env.GHL_REDIRECT_URI;
+  const redirectUri = getRedirectUri(); // Same as authorize/callback for token refresh
 
   if (!clientId || !clientSecret || !redirectUri) {
     console.error('GHL OAuth: Missing GHL_CLIENT_ID, GHL_CLIENT_SECRET, or GHL_REDIRECT_URI');

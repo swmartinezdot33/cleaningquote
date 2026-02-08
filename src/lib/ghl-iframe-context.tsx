@@ -40,6 +40,12 @@ function setGHLContext(
       sessionStorage.setItem('ghl_locationId', context.locationId);
       sessionStorage.setItem('ghl_iframeData', JSON.stringify(context));
       if (context.userId) sessionStorage.setItem('ghl_userId', context.userId);
+      // Store on backend (matches MaidCentral)
+      fetch('/api/ghl/iframe-context', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(context),
+      }).catch((err) => console.error('[GHL Iframe] Failed to store iframe context:', err));
     }
   }
 }

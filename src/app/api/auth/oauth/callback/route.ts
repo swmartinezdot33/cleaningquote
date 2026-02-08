@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storeInstallation } from '@/lib/ghl/token-store';
-import { createSessionToken, setSessionCookie } from '@/lib/ghl/session';
+import { createSessionToken } from '@/lib/ghl/session';
 import { setOrgGHLOAuth } from '@/lib/config/store';
+import { getAppBaseUrl, getRedirectUri } from '@/lib/ghl/oauth-utils';
 
 export const dynamic = 'force-dynamic';
 
-function getAppBaseUrl(): string {
-  if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL.replace(/\/$/, '');
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  const port = process.env.PORT || '3000';
-  return `http://localhost:${port}`;
-}
 const APP_BASE = getAppBaseUrl();
 
 function parseState(state: string | null): { redirect: string; orgId?: string } {
@@ -58,6 +53,9 @@ function parseState(state: string | null): { redirect: string; orgId?: string } 
  */
 export async function GET(request: NextRequest) {
   try {
+    const allParams = Object.fromEntries(request.nextUrl.searchParams.entries());
+    console.log('[OAuth Callback] Received callback with params:', Object.keys(allParams));
+
     const code = request.nextUrl.searchParams.get('code');
     const state = request.nextUrl.searchParams.get('state');
     const locationIdParam = request.nextUrl.searchParams.get('locationId');
@@ -79,7 +77,7 @@ export async function GET(request: NextRequest) {
 
     const clientId = process.env.GHL_CLIENT_ID;
     const clientSecret = process.env.GHL_CLIENT_SECRET;
-    const redirectUri = process.env.GHL_REDIRECT_URI || `${APP_BASE}/api/auth/oauth/callback`;
+    const redirectUri = getRedirectUri(APP_BASE); // Same as authorize + token-store
 
     if (!clientId || !clientSecret) {
       const url = new URL('/oauth-success', APP_BASE);
@@ -95,11 +93,17 @@ export async function GET(request: NextRequest) {
       redirect_uri: redirectUri,
     });
 
+    console.log('[OAuth Callback] Exchanging code for token...');
+    console.log('[OAuth Callback] Token endpoint: https://services.leadconnectorhq.com/oauth/token');
+    console.log('[OAuth Callback] redirect_uri:', redirectUri);
+
     const tokenRes = await fetch('https://services.leadconnectorhq.com/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: tokenParams.toString(),
     });
+
+    console.log('[OAuth Callback] Token response status:', tokenRes.status);
 
     if (!tokenRes.ok) {
       const errText = await tokenRes.text();
@@ -111,6 +115,7 @@ export async function GET(request: NextRequest) {
     }
 
     const tokenData = await tokenRes.json();
+    console.log('[OAuth Callback] Token exchange successful. Keys:', Object.keys(tokenData));
 
     let finalLocationId =
       locationIdParam ||
@@ -157,15 +162,19 @@ export async function GET(request: NextRequest) {
     }
 
     if (!finalLocationId) {
+      console.error('[OAuth Callback] No locationId found');
       const url = new URL('/oauth-success', APP_BASE);
       url.searchParams.set('error', 'no_location_id');
       return NextResponse.redirect(url.toString());
     }
 
+    console.log('[OAuth Callback] Using locationId:', finalLocationId);
+
     const expiresAt = tokenData.expires_in
       ? Date.now() + tokenData.expires_in * 1000
       : Date.now() + 86400 * 1000;
 
+    console.log('[OAuth Callback] Storing installation for locationId:', finalLocationId);
     await storeInstallation({
       locationId: finalLocationId,
       accessToken: tokenData.access_token,
@@ -200,6 +209,7 @@ export async function GET(request: NextRequest) {
       await setOrgGHLOAuth(orgId, finalLocationId);
     }
 
+    console.log('[OAuth Callback] Redirecting to:', targetUrl);
     const res = NextResponse.redirect(targetUrl);
     res.cookies.set('ghl_session', sessionToken, {
       httpOnly: true,

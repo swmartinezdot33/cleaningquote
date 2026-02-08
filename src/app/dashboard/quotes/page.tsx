@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { FileDown, ExternalLink, Loader2, ArrowRightLeft, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { useGHLIframe } from '@/lib/ghl-iframe-context';
 
 interface QuoteRow {
   id: string;
@@ -90,6 +91,7 @@ interface ToolOption {
 }
 
 export default function DashboardQuotesPage() {
+  const { ghlData } = useGHLIframe();
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -120,8 +122,11 @@ export default function DashboardQuotesPage() {
   const [perPage, setPerPage] = useState(25);
 
   const loadQuotes = () => {
+    const quotesUrl = ghlData?.locationId
+      ? `/api/dashboard/quotes?locationId=${ghlData.locationId}`
+      : '/api/dashboard/quotes';
     Promise.all([
-      fetch('/api/dashboard/quotes'),
+      fetch(quotesUrl),
       fetch('/api/dashboard/super-admin/tools'),
     ])
       .then(([quotesRes, toolsRes]) => {
@@ -145,7 +150,7 @@ export default function DashboardQuotesPage() {
 
   useEffect(() => {
     loadQuotes();
-  }, []);
+  }, [ghlData?.locationId]);
 
   const openReassign = (q: QuoteRow) => {
     setReassignQuote(q);
