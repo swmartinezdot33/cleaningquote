@@ -5,7 +5,7 @@
 
 import { NextRequest } from 'next/server';
 import { getSession } from '@/lib/ghl/session';
-import { getTokenForLocation } from '@/lib/ghl/token-store';
+import { getOrFetchTokenForLocation } from '@/lib/ghl/token-store';
 import { getLocationIdFromRequest } from '@/lib/request-utils';
 
 export type GHLContextResult =
@@ -41,7 +41,9 @@ export async function resolveGHLContext(request: NextRequest): Promise<GHLContex
 
   // #region agent log
   const trimDiff = requestLocationId != null && requestLocationId !== requestLocationId.trim();
+  const requestHost = request.headers.get('host') ?? null;
   debugLog('resolveGHLContext entry', {
+    requestHost,
     source: queryLocationId != null ? 'query' : headerLocationId != null ? 'header' : 'none',
     requestLocationIdLength: requestLocationId?.length ?? 0,
     requestLocationIdPreview: requestLocationId ? `${requestLocationId.slice(0, 8)}..${requestLocationId.slice(-4)}` : null,
@@ -65,23 +67,34 @@ export async function resolveGHLContext(request: NextRequest): Promise<GHLContex
     return null;
   }
 
-  // Primary lookup only: locationId → KV (find location in storage) → return token for calls. No fallback.
-  console.log('[CQ api-context] Checking KV storage for locationId (page/API load)', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
-  const token = await getTokenForLocation(locationId);
+  // Lookup: locationId → KV, or Agency API if KV empty (e.g. local dev without KV, or different host).
+  console.log('[CQ api-context] Resolving token for locationId (KV then Agency)', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
+  const token = await getOrFetchTokenForLocation(locationId);
+  console.log('[CQ api-context] Token result', { gotToken: !!token, locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
   // #region agent log
-  debugLog('after getTokenForLocation (KV only)', {
+  debugLog('after getOrFetchTokenForLocation', {
+    requestHost: request.headers.get('host') ?? null,
     locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`,
+    locationIdFullLength: locationId.length,
     gotToken: !!token,
     hypothesisId: 'H2-H3',
   });
   // #endregion
 
   if (token) {
-    console.log('[CQ api-context] resolved: locationId → KV → token');
+    console.log('[CQ api-context] resolved: locationId → token (KV or Agency)');
     return { locationId, token };
   }
 
-  // No token in KV for this location → needs one-time OAuth (callback will store to KV).
-  console.log('[CQ api-context] needsConnect: no token in KV for this location');
+  // No token in KV or Agency for this location → needs one-time OAuth (callback will store to KV).
+  console.log('[CQ api-context] needsConnect: no token in KV for this location', { requestHost: request.headers.get('host') ?? null, locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
+  // #region agent log
+  debugLog('needsConnect: KV returned no token', {
+    requestHost: request.headers.get('host') ?? null,
+    locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`,
+    locationIdFullLength: locationId.length,
+    hypothesisId: 'H1-H3',
+  });
+  // #endregion
   return { needsConnect: true, locationId };
 }

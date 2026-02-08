@@ -55,6 +55,9 @@ export default function CRMContactsPage() {
         setContacts(d.contacts ?? []);
         setTotal(d.total ?? 0);
         setNeedsConnect(!!d.needsConnect);
+        if (d.needsConnect && (d as { _debug?: unknown })._debug) {
+          console.log('[CRM Contacts] needsConnect — server _debug:', (d as { _debug: unknown })._debug);
+        }
       })
       .catch((e) => {
         setError(e.message);

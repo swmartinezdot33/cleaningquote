@@ -72,15 +72,18 @@ export async function getInstallation(locationId: string): Promise<GHLInstallati
     // #endregion
     return data ?? null;
   } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const kvNotConfigured = /KV_REST_API|required|not configured/i.test(errMsg);
     // #region agent log
     debugLog('getInstallation error', {
       keyPreview: `${kvKey.slice(0, 18)}..`,
       locationIdPreview: locationId?.slice(0, 8) + '..',
-      err: err instanceof Error ? err.message : String(err),
+      err: errMsg,
+      kvNotConfigured,
       hypothesisId: 'H2',
     });
     // #endregion
-    console.warn('[CQ token-store] getInstallation error', { locationIdPreview: locationId?.slice(0, 12) + '...', err: err instanceof Error ? err.message : String(err) });
+    console.warn('[CQ token-store] getInstallation error', { locationIdPreview: locationId?.slice(0, 12) + '...', err: errMsg, kvNotConfigured });
     return null;
   }
 }

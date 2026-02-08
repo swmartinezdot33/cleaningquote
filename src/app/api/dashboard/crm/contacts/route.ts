@@ -55,7 +55,34 @@ export async function GET(request: NextRequest) {
   try {
     const ctx = await resolveGHLContext(request);
     if (!ctx) return NextResponse.json({ contacts: [], total: 0, page: 1, perPage: 25, locationIdRequired: true });
-    if ('needsConnect' in ctx) return NextResponse.json({ contacts: [], total: 0, page: 1, perPage: 25, needsConnect: true });
+    if ('needsConnect' in ctx) {
+      // #region agent log — debug why KV lookup failed (different host vs callback? key mismatch?)
+      const requestHost = request.headers.get('host') ?? null;
+      fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'crm/contacts/route.ts',
+          message: 'contacts GET needsConnect',
+          data: {
+            requestHost,
+            locationIdPreview: ctx.locationId ? `${ctx.locationId.slice(0, 8)}..${ctx.locationId.slice(-4)}` : null,
+            locationIdLength: ctx.locationId?.length ?? 0,
+            hypothesisId: 'H1-H3',
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      return NextResponse.json({
+        contacts: [],
+        total: 0,
+        page: 1,
+        perPage: 25,
+        needsConnect: true,
+        _debug: { requestHost, locationIdReceived: !!ctx.locationId, locationIdPreview: ctx.locationId ? `${ctx.locationId.slice(0, 8)}..${ctx.locationId.slice(-4)}` : null },
+      });
+    }
 
     try {
       const { searchParams } = new URL(request.url);
@@ -64,8 +91,13 @@ export async function GET(request: NextRequest) {
       console.log('[CQ CRM contacts] fetchContactsFromGHL OK', { contactsCount: result.contacts?.length ?? 0 });
       return NextResponse.json(result);
     } catch (err) {
-      console.warn('[CQ CRM contacts] fetchContactsFromGHL error', { locationId: ctx.locationId?.slice(0, 12) + '...', err: err instanceof Error ? err.message : String(err) });
-      return NextResponse.json({ contacts: [], total: 0, page: 1, perPage: 25, needsConnect: true });
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn('[CQ CRM contacts] fetchContactsFromGHL error', { locationId: ctx.locationId?.slice(0, 12) + '...', err: msg });
+      // We have a token; this is a GHL API error, not missing connection — don't tell user to reconnect.
+      return NextResponse.json(
+        { contacts: [], total: 0, page: 1, perPage: 25, error: msg },
+        { status: 502 }
+      );
     }
   } catch (err) {
     console.warn('CRM contacts error:', err);
