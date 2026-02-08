@@ -1,16 +1,85 @@
 /**
  * OAuth callback for marketplace app install.
- * GHL is configured to use this URL (e.g. https://www.cleanquote.io/api/auth/connect/callback).
- * Exchanges code for tokens, stores by locationId, sets session cookie, then redirects to
- * canonical app URL (e.g. www.cleanquote.io, where our pages run) with shared cookie domain so the user lands in the right place.
+ * CALLBACK URL: https://www.cleanquote.io/api/auth/connect/callback
+ * GHL redirects here with ?code=...&state=... . We exchange for tokens, store in KV, then
+ * return an HTML success page on THIS URL (no redirect) with proof: locationId + token stored.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { storeInstallation } from '@/lib/ghl/token-store';
 import { createSessionToken } from '@/lib/ghl/session';
 import { setOrgGHLOAuth } from '@/lib/config/store';
-import { getRedirectUri, getPostOAuthRedirectBase, getPostOAuthRedirectPath } from '@/lib/ghl/oauth-utils';
+import { getRedirectUri, getPostOAuthRedirectBase } from '@/lib/ghl/oauth-utils';
 import { fetchLocationName } from '@/lib/ghl/location-info';
+
+const LOG = '[CQ Connect Callback]';
+
+function htmlSuccess(locationId: string, accessTokenLength: number, refreshTokenLength: number, companyName?: string): string {
+  const safeLocationId = locationId.replace(/[<>"']/g, '');
+  const safeCompany = (companyName ?? '').replace(/[<>"']/g, '');
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>OAuth callback — success | CleanQuote</title>
+<style>
+  body { font-family: system-ui,sans-serif; max-width: 560px; margin: 2rem auto; padding: 1rem; background: #f5f5f5; }
+  .card { background: #fff; border-radius: 8px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+  h1 { color: #166534; font-size: 1.25rem; margin: 0 0 0.5rem 0; }
+  .row { margin: 0.5rem 0; }
+  .label { font-weight: 600; color: #374151; }
+  .value { font-family: monospace; word-break: break-all; }
+  .ok { color: #15803d; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Callback URL worked</h1>
+    <p>This is the OAuth callback. Tokens were exchanged and stored in KV.</p>
+    <div class="row"><span class="label">Location ID:</span> <span class="value">${safeLocationId}</span></div>
+    <div class="row"><span class="label">Token in KV:</span> <span class="ok">stored</span> (access length: ${accessTokenLength}, refresh length: ${refreshTokenLength})</div>
+    ${safeCompany ? `<div class="row"><span class="label">Company:</span> ${safeCompany}</div>` : ''}
+  </div>
+  <script>
+    (function(){
+      var loc = ${JSON.stringify(safeLocationId)};
+      var al = ${accessTokenLength};
+      var rl = ${refreshTokenLength};
+      console.log('[CQ OAuth Callback] Success — callback URL handled. locationId:', loc);
+      console.log('[CQ OAuth Callback] Token stored in KV. accessToken length:', al, 'refreshToken length:', rl);
+    })();
+  </script>
+</body>
+</html>`;
+}
+
+function htmlError(title: string, message: string, errorCode?: string): string {
+  const safeTitle = title.replace(/[<>"']/g, '');
+  const safeMsg = message.replace(/[<>"']/g, '');
+  const code = (errorCode ?? '').replace(/[<>"']/g, '');
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>OAuth callback — error | CleanQuote</title>
+<style>
+  body { font-family: system-ui,sans-serif; max-width: 560px; margin: 2rem auto; padding: 1rem; background: #fef2f2; }
+  .card { background: #fff; border-radius: 8px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,.1); border-left: 4px solid #dc2626; }
+  h1 { color: #b91c1c; font-size: 1.25rem; margin: 0 0 0.5rem 0; }
+  p { margin: 0.5rem 0; }
+  code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>${safeTitle}</h1>
+    <p>${safeMsg}</p>
+    ${code ? `<p><code>${code}</code></p>` : ''}
+  </div>
+  <script>
+    console.error('[CQ OAuth Callback] Error:', ${JSON.stringify(safeMsg)});
+  </script>
+</body>
+</html>`;
+}
 
 const TOKEN_URL = 'https://services.leadconnectorhq.com/oauth/token';
 const API_BASE = 'https://services.leadconnectorhq.com';
@@ -59,13 +128,15 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get('error');
   const stateRaw = searchParams.get('state');
 
-  // GHL may pass locationId in callback URL
-  let locationId =
+  console.log(LOG, 'CALLBACK HIT', { hasCode: !!code, hasState: !!stateRaw, hasError: !!error, paramKeys: Array.from(searchParams.keys()) });
+
+  const locationIdFromQuery =
     searchParams.get('locationId') ??
     searchParams.get('location_id') ??
     searchParams.get('location') ??
     null;
 
+  let locationIdFromState: string | null = null;
   let redirectTo = '/dashboard';
   let orgId: string | null = null;
   if (stateRaw) {
@@ -74,41 +145,62 @@ export async function GET(request: NextRequest) {
       orgId = state.get('orgId');
       const r = state.get('redirect');
       if (r) redirectTo = r;
+      locationIdFromState = state.get('locationId') ?? state.get('location_id') ?? null;
     } catch {
-      /* ignore */
+      try {
+        const parsed = JSON.parse(stateRaw);
+        locationIdFromState = parsed.locationId ?? parsed.location_id ?? null;
+        if (parsed.redirect) redirectTo = parsed.redirect;
+      } catch {
+        try {
+          const decoded = Buffer.from(stateRaw, 'base64').toString('utf-8');
+          const parsed = JSON.parse(decoded);
+          locationIdFromState = parsed.locationId ?? parsed.location_id ?? null;
+          if (parsed.redirect) redirectTo = parsed.redirect;
+        } catch {
+          /* ignore */
+        }
+      }
     }
   }
 
+  let locationId = locationIdFromState ?? locationIdFromQuery ?? null;
+
   if (error) {
-    console.error('OAuth callback error:', error, searchParams.get('error_description'));
-    return NextResponse.redirect(
-      new URL(`/login?error=${encodeURIComponent(error)}`, request.url)
-    );
+    const msg = searchParams.get('error_description') || error;
+    console.error(LOG, 'OAuth error from GHL', { error, description: msg });
+    return new NextResponse(htmlError('OAuth error', String(msg), error), {
+      status: 400,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
   }
 
   if (!code) {
-    return NextResponse.redirect(
-      new URL('/login?error=missing_code', request.url)
-    );
+    console.warn(LOG, 'No code — direct visit or missing params');
+    return new NextResponse(htmlError('Missing code', 'This URL is the OAuth callback. GHL redirects here with ?code=...&state=... after the user authorizes. Open it from the install flow, not directly.', 'missing_code'), {
+      status: 400,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
   }
 
   const clientId = process.env.GHL_CLIENT_ID;
   const clientSecret = process.env.GHL_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
-    console.error('OAuth: Missing env vars (GHL_CLIENT_ID, GHL_CLIENT_SECRET)');
-    return NextResponse.redirect(
-      new URL('/login?error=server_config', request.url)
-    );
+    console.error(LOG, 'Missing GHL_CLIENT_ID or GHL_CLIENT_SECRET');
+    return new NextResponse(htmlError('Server config', 'OAuth not configured. Set GHL_CLIENT_ID and GHL_CLIENT_SECRET.', 'server_config'), {
+      status: 500,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
   }
 
-  // redirect_uri must EXACTLY match GHL app config (use connect/callback)
   const redirectUri = getRedirectUri();
   if (!redirectUri || !redirectUri.includes('/api/auth/')) {
-    console.error('OAuth: GHL_REDIRECT_URI must be set to match GHL app Redirect URI (e.g. https://www.cleanquote.io/api/auth/connect/callback)');
-    return NextResponse.redirect(
-      new URL('/login?error=server_config&message=GHL_REDIRECT_URI+not+configured', request.url)
-    );
+    console.error(LOG, 'GHL_REDIRECT_URI not set or invalid');
+    return new NextResponse(htmlError('Server config', 'GHL_REDIRECT_URI must be the callback URL (https://www.cleanquote.io/api/auth/connect/callback).', 'server_config'), {
+      status: 500,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
   }
 
   try {
@@ -129,11 +221,15 @@ export async function GET(request: NextRequest) {
     const data = await res.json();
 
     if (!res.ok) {
-      console.error('OAuth token exchange failed:', res.status, JSON.stringify(data));
-      return NextResponse.redirect(
-        new URL(`/login?error=token_exchange&message=${encodeURIComponent(String(data.message ?? data.error ?? 'Token exchange failed'))}`, request.url)
-      );
+      const errMsg = String(data.message ?? data.error ?? 'Token exchange failed');
+      console.error(LOG, 'Token exchange failed', res.status, errMsg);
+      return new NextResponse(htmlError('Token exchange failed', errMsg, 'token_exchange'), {
+        status: 400,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      });
     }
+
+    console.log(LOG, 'Token exchanged', { hasAccessToken: !!data.access_token, hasRefreshToken: !!data.refresh_token });
 
     const companyId = data.companyId ?? data.company_id ?? '';
     const userId = data.userId ?? data.user_id ?? '';
@@ -147,46 +243,26 @@ export async function GET(request: NextRequest) {
         null;
     }
 
-    // Fallback: parse state for locationId (chooselocation may encode it)
-    if (!locationId && stateRaw) {
-      try {
-        const state = new URLSearchParams(stateRaw);
-        locationId = state.get('locationId') ?? state.get('location_id') ?? null;
-      } catch {
-        /* ignore */
-      }
-      if (!locationId) {
-        try {
-          const parsed = JSON.parse(stateRaw);
-          locationId = parsed.locationId ?? parsed.location_id ?? null;
-        } catch {
-          try {
-            const decoded = Buffer.from(stateRaw, 'base64').toString('utf-8');
-            const parsed = JSON.parse(decoded);
-            locationId = parsed.locationId ?? parsed.location_id ?? null;
-          } catch {
-            /* ignore */
-          }
-        }
-      }
-    }
-
-    // Fallback: fetch location from API using the token
     if (!locationId && data.access_token) {
       locationId = await fetchLocationFromToken(data.access_token, companyId);
     }
 
     if (!locationId) {
-      console.error('OAuth: No locationId. Token keys:', Object.keys(data).join(', '));
-      return NextResponse.redirect(
-        new URL('/login?error=no_location&message=Installation+did+not+return+location', request.url)
-      );
+      console.error(LOG, 'No locationId', { tokenKeys: Object.keys(data).join(', ') });
+      return new NextResponse(htmlError('No location', 'Installation did not return a location ID. Token keys: ' + Object.keys(data).join(', '), 'no_location'), {
+        status: 400,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      });
     }
+
+    locationId = locationId.trim();
+    console.log(LOG, 'locationId resolved', { locationId: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
 
     const expiresAt = Date.now() + (data.expires_in ?? 86400) * 1000;
 
     const companyName = await fetchLocationName(data.access_token, locationId);
 
+    console.log(LOG, 'Storing in KV', { locationId: locationId.slice(0, 8) + '..', hasAccess: !!data.access_token, hasRefresh: !!data.refresh_token });
     await storeInstallation({
       accessToken: data.access_token,
       refreshToken: data.refresh_token ?? '',
@@ -196,19 +272,23 @@ export async function GET(request: NextRequest) {
       locationId,
       companyName: companyName ?? undefined,
     });
+    console.log(LOG, 'Stored in KV OK');
 
     if (orgId) {
       await setOrgGHLOAuth(orgId, locationId);
     }
 
-    // Redirect to canonical app URL (e.g. www.cleanquote.io/v2/location/LOCATIONID/dashboard)
-    const postAuthBase = getPostOAuthRedirectBase();
-    const path = getPostOAuthRedirectPath(redirectTo, locationId);
-    const targetUrl = new URL(path, postAuthBase);
-    if (path === '/oauth-success') targetUrl.searchParams.set('locationId', locationId);
-
     const sessionToken = await createSessionToken({ locationId, companyId, userId });
-    const redirectResponse = NextResponse.redirect(targetUrl.toString());
+    const html = htmlSuccess(
+      locationId,
+      (data.access_token ?? '').length,
+      (data.refresh_token ?? '').length,
+      companyName ?? undefined
+    );
+    const response = new NextResponse(html, {
+      status: 200,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
 
     const cookieOptions: { httpOnly: boolean; secure: boolean; sameSite: 'lax' | 'none'; maxAge: number; path: string; domain?: string } = {
       httpOnly: true,
@@ -218,6 +298,7 @@ export async function GET(request: NextRequest) {
       path: '/',
     };
     try {
+      const postAuthBase = getPostOAuthRedirectBase();
       const redirectHost = new URL(postAuthBase).hostname;
       const callbackHost = request.headers.get('host')?.split(':')[0] ?? '';
       const parts = redirectHost.split('.');
@@ -233,12 +314,14 @@ export async function GET(request: NextRequest) {
     } catch {
       /* ignore */
     }
-    redirectResponse.cookies.set('ghl_session', sessionToken, cookieOptions);
-    return redirectResponse;
+    response.cookies.set('ghl_session', sessionToken, cookieOptions);
+    return response;
   } catch (err) {
-    console.error('OAuth callback error:', err);
-    return NextResponse.redirect(
-      new URL('/login?error=callback_error', request.url)
-    );
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(LOG, 'Callback exception', err);
+    return new NextResponse(htmlError('Callback error', msg, 'callback_error'), {
+      status: 500,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
   }
 }
