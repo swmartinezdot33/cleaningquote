@@ -27,7 +27,7 @@ export async function resolveGHLContext(request: NextRequest): Promise<GHLContex
       const installed = await getInstalledLocations();
       if (installed.success && installed.locations?.length) {
         const first = installed.locations[0];
-        rawLocationId = (first?.id ?? (first as { locationId?: string }).locationId) ?? null;
+        rawLocationId = (first?._id ?? first?.id ?? (first as { locationId?: string }).locationId) ?? null;
       }
     }
 

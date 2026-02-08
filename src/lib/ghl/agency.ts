@@ -90,25 +90,36 @@ export interface LocationTokenResult {
   error?: string;
 }
 
-/** Location shape from GET /oauth/installedLocations */
+/** Location shape from GET /oauth/installedLocations (highlevel-api-docs: InstalledLocationSchema has _id, name, address) */
 export interface InstalledLocation {
+  _id?: string;
   id?: string;
   name?: string;
+  address?: string;
+  isInstalled?: boolean;
   [key: string]: unknown;
 }
 
 /**
- * Get locations where the app is installed (OAuth access token — env or from KV/Company install).
- * Official API: GET /oauth/installedLocations — https://marketplace.gohighlevel.com/docs/ghl/oauth/get-installed-location
- * Use this instead of relying on cookie/session for locationId when request has no locationId.
+ * Get locations where the app is installed. Uses Agency/Company OAuth token.
+ * API: GET /oauth/installedLocations — companyId and appId are required (highlevel-api-docs apps/oauth.json).
+ * @see https://marketplace.gohighlevel.com/docs/ghl/oauth/get-installed-location
+ * @see https://github.com/GoHighLevel/ghl-marketplace-app-template (example-api-call-location: get location token then contacts)
  */
-export async function getInstalledLocations(): Promise<{ success: boolean; locations?: InstalledLocation[]; error?: string }> {
+export async function getInstalledLocations(options?: { companyId?: string; appId?: string }): Promise<{ success: boolean; locations?: InstalledLocation[]; error?: string }> {
   const token = await getAgencyTokenForLocationToken();
   if (!token) {
     return { success: false, error: 'No agency token (set GHL_AGENCY_ACCESS_TOKEN or complete Connect as Company user)' };
   }
+  const companyId = options?.companyId?.trim() ?? process.env.GHL_COMPANY_ID?.trim();
+  const appId = options?.appId?.trim() ?? process.env.GHL_CLIENT_ID?.trim();
+  if (!companyId || !appId) {
+    return { success: false, error: 'GHL_COMPANY_ID and GHL_CLIENT_ID required for GET /oauth/installedLocations' };
+  }
   try {
-    const res = await fetch(`${GHL_API_BASE}/oauth/installedLocations`, {
+    const params = new URLSearchParams({ companyId, appId });
+    const url = `${GHL_API_BASE}/oauth/installedLocations?${params.toString()}`;
+    const res = await fetch(url, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,

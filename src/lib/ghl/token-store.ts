@@ -168,44 +168,46 @@ export async function getInstallation(locationId: string): Promise<GHLInstallati
 }
 
 /**
- * Get a valid access token for a location.
- * If not stored, tries to fetch from Agency API (for auto-installed apps when
- * AppInstall webhook is not configured). Requires GHL_AGENCY_ACCESS_TOKEN and
- * GHL_COMPANY_ID. Use this for iframe/locationId flows.
+ * Get a valid access token for a location (must be location-scoped for Contacts etc.).
+ * Prefer Location Access Token from POST /oauth/locationToken when we have an agency token,
+ * so we never use a Company-scoped install token for location APIs (GHL 401 "authClass type not allowed").
  */
 export async function getOrFetchTokenForLocation(locationId: string): Promise<string | null> {
-  let token = await getTokenForLocation(locationId);
+  const companyId = process.env.GHL_COMPANY_ID?.trim();
+  const hasAgencyToken = await (async () => {
+    if (process.env.GHL_AGENCY_ACCESS_TOKEN?.trim()) return true;
+    const at = await getAgencyToken();
+    return !!at;
+  })();
+
+  // When we have agency token + companyId, use Location Access Token (POST /oauth/locationToken).
+  // That token is location-scoped; the token in KV from callback may be Company-scoped and 401 on contacts.
+  if (hasAgencyToken && companyId) {
+    try {
+      const { getLocationTokenFromAgency } = await import('./agency');
+      const result = await getLocationTokenFromAgency(locationId, companyId, { skipStore: false });
+      if (result.success && result.accessToken) {
+        debugLog('getOrFetchTokenForLocation: returning location token from Agency', {
+          locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`,
+          hypothesisId: 'location-token-for-contacts',
+        });
+        return result.accessToken;
+      }
+    } catch {
+      // Fall through to KV
+    }
+  }
+
+  // No agency path: use token from KV (Location user install — that token is already location-scoped).
+  const token = await getTokenForLocation(locationId);
   if (token) {
-    // #region agent log
     debugLog('getOrFetchTokenForLocation: returning token from KV', {
       locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`,
       hypothesisId: 'H2-H3-H4',
     });
-    // #endregion
     return token;
   }
 
-  const companyId = process.env.GHL_COMPANY_ID?.trim();
-  if (!companyId) return null;
-
-  try {
-    const { getLocationTokenFromAgency } = await import('./agency');
-    // Store the location token in KV so we can use it for all calls for this location (Get Location Access Token → store by locationId).
-    const result = await getLocationTokenFromAgency(locationId, companyId, { skipStore: false });
-    if (result.success) {
-      const out = result.accessToken ?? (await getTokenForLocation(locationId));
-      // #region agent log
-      debugLog('getOrFetchTokenForLocation: returning token from Agency', {
-        locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`,
-        hadAccessToken: !!result.accessToken,
-        hypothesisId: 'H1',
-      });
-      // #endregion
-      return out;
-    }
-  } catch {
-    // Fall through to return null
-  }
   return null;
 }
 
