@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     }
 
     const ssoKey = process.env.GHL_APP_SSO_KEY;
-    let userData: Record<string, unknown>;
+    let userData: Record<string, unknown> | null = null;
 
     if (ssoKey && typeof encryptedData === 'string') {
       userData = decryptWithCryptoJS(encryptedData, ssoKey);
@@ -110,6 +110,10 @@ export async function POST(request: NextRequest) {
       userData = encryptedData as Record<string, unknown>;
     } else {
       return NextResponse.json({ error: 'Invalid encrypted data format' }, { status: 400 });
+    }
+
+    if (!userData) {
+      return NextResponse.json({ error: 'Decryption failed' }, { status: 400 });
     }
 
     const locationId =
