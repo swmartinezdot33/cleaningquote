@@ -4,7 +4,7 @@ import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { getOrgsForDashboard } from '@/lib/org-auth';
 import { getSession } from '@/lib/ghl/session';
 import { getGHLCredentials } from '@/lib/ghl/credentials';
-import { getTokenForLocation } from '@/lib/ghl/token-store';
+import { getOrFetchTokenForLocation } from '@/lib/ghl/token-store';
 import { getLocationIdFromRequest } from '@/lib/request-utils';
 import { listGHLContacts } from '@/lib/ghl/client';
 
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   try {
     const requestLocationId = getLocationIdFromRequest(request);
     if (requestLocationId) {
-      const token = await getTokenForLocation(requestLocationId);
+      const token = await getOrFetchTokenForLocation(requestLocationId);
       if (token) {
         const { contacts } = await listGHLContacts(requestLocationId, { limit: 1000 }, { token, locationId: requestLocationId });
         const counts: Record<string, number> = { lead: 0, quoted: 0, booked: 0, customer: 0, churned: 0 };

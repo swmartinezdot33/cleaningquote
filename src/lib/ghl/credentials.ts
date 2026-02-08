@@ -3,7 +3,7 @@
  * Use this in API routes to get token + locationId for GHL API calls.
  */
 
-import { getTokenForLocation } from '@/lib/ghl/token-store';
+import { getOrFetchTokenForLocation } from '@/lib/ghl/token-store';
 import { getGHLToken, getGHLLocationId } from '@/lib/kv';
 import type { GHLSession } from '@/lib/ghl/session';
 
@@ -22,7 +22,7 @@ export async function getGHLCredentials(options?: {
   toolId?: string;
 }): Promise<GHLCredentials> {
   if (options?.session?.locationId) {
-    const token = await getTokenForLocation(options.session.locationId);
+    const token = await getOrFetchTokenForLocation(options.session.locationId);
     return {
       token,
       locationId: token ? options.session.locationId : null,

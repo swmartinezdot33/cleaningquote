@@ -440,6 +440,21 @@ export async function POST(request: NextRequest) {
           } catch (kvErr) {
             console.warn('Stripe webhook: could not store GHL location mapping in KV', kvErr);
           }
+          // Pre-fetch and store location token so iframe flow has tokens ready (auto-install)
+          const companyId = process.env.GHL_COMPANY_ID?.trim();
+          if (companyId) {
+            try {
+              const { getLocationTokenFromAgency } = await import('@/lib/ghl/agency');
+              const tokenResult = await getLocationTokenFromAgency(ghlResult.locationId, companyId);
+              if (tokenResult.success) {
+                console.log('Stripe webhook: Location token stored for iframe', { locationId: ghlResult.locationId });
+              } else {
+                console.warn('Stripe webhook: Could not pre-store location token', { error: tokenResult.error });
+              }
+            } catch (tokenErr) {
+              console.warn('Stripe webhook: Location token fetch error', tokenErr);
+            }
+          }
         } else if (process.env.GHL_AGENCY_ACCESS_TOKEN) {
           console.warn('Stripe webhook: GHL sub-account creation failed', { email, error: ghlResult.error });
         }

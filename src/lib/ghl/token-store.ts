@@ -41,6 +41,31 @@ export async function getInstallation(locationId: string): Promise<GHLInstallati
 
 /**
  * Get a valid access token for a location.
+ * If not stored, tries to fetch from Agency API (for auto-installed apps when
+ * AppInstall webhook is not configured). Requires GHL_AGENCY_ACCESS_TOKEN and
+ * GHL_COMPANY_ID. Use this for iframe/locationId flows.
+ */
+export async function getOrFetchTokenForLocation(locationId: string): Promise<string | null> {
+  let token = await getTokenForLocation(locationId);
+  if (token) return token;
+
+  const companyId = process.env.GHL_COMPANY_ID?.trim();
+  if (!companyId) return null;
+
+  try {
+    const { getLocationTokenFromAgency } = await import('./agency');
+    const result = await getLocationTokenFromAgency(locationId, companyId);
+    if (result.success) {
+      return result.accessToken ?? (await getTokenForLocation(locationId));
+    }
+  } catch {
+    // Fall through to return null
+  }
+  return null;
+}
+
+/**
+ * Get a valid access token for a location (no auto-fetch).
  * Refreshes the token if it's expired or about to expire.
  */
 export async function getTokenForLocation(locationId: string): Promise<string | null> {

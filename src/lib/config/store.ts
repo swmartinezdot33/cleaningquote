@@ -225,8 +225,8 @@ export async function getGHLTokenForOrg(orgId: string): Promise<string | null> {
   const row = await getOrgGHLRow(orgId);
   if (!row) return null;
   if (row.ghl_use_oauth && row.ghl_location_id) {
-    const { getTokenForLocation } = await import('@/lib/ghl/token-store');
-    return await getTokenForLocation(row.ghl_location_id);
+    const { getOrFetchTokenForLocation } = await import('@/lib/ghl/token-store');
+    return await getOrFetchTokenForLocation(row.ghl_location_id);
   }
   const t = row.ghl_token;
   return typeof t === 'string' ? t : null;

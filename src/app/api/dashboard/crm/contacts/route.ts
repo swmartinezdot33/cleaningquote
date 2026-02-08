@@ -4,7 +4,7 @@ import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { getOrgsForDashboard } from '@/lib/org-auth';
 import { getSession } from '@/lib/ghl/session';
 import { getGHLCredentials } from '@/lib/ghl/credentials';
-import { getTokenForLocation } from '@/lib/ghl/token-store';
+import { getOrFetchTokenForLocation } from '@/lib/ghl/token-store';
 import { getLocationIdFromRequest } from '@/lib/request-utils';
 import { listGHLContacts } from '@/lib/ghl/client';
 
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
     // 1) locationId from query/header (GHL iframe flow - client passes from GHL context)
     const requestLocationId = getLocationIdFromRequest(request);
     if (requestLocationId) {
-      const token = await getTokenForLocation(requestLocationId);
+      const token = await getOrFetchTokenForLocation(requestLocationId);
       if (token) {
         const { searchParams } = new URL(request.url);
         const result = await fetchContactsFromGHL(requestLocationId, token, searchParams);
