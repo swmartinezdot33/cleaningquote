@@ -4,7 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken, GHL_SESSION_COOKIE } from '@/lib/ghl/session';
-import { getOrFetchTokenForLocation } from '@/lib/ghl/token-store';
+import { getTokenForLocation } from '@/lib/ghl/token-store';
 
 function extractLocationIdFromReferrer(referer: string | null): string | null {
   if (!referer) return null;
@@ -39,10 +39,10 @@ export async function GET(request: NextRequest) {
     request.nextUrl.searchParams.get('location_id') ??
     extractLocationIdFromReferrer(request.headers.get('referer'));
 
-  // If we have locationId, check if token already exists (returning user)
+  // If we have locationId, check if we have the token we saved from OAuth callback (returning user)
   if (locationId) {
     try {
-      const token = await getOrFetchTokenForLocation(locationId);
+      const token = await getTokenForLocation(locationId);
       if (token) {
         console.log('[CQ App] → redirect dashboard (token for location exists)');
         return NextResponse.redirect(new URL(redirectTo, request.url));

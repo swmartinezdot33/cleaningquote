@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getSession } from '@/lib/ghl/session';
-import { getOrFetchTokenForLocation } from '@/lib/ghl/token-store';
+import { getTokenForLocation } from '@/lib/ghl/token-store';
 
 /**
  * GHL-only dashboard. No Supabase — data comes from GHL API via OAuth token for current location.
@@ -12,7 +12,7 @@ export default async function DashboardPage() {
     return null;
   }
 
-  const token = await getOrFetchTokenForLocation(ghlSession.locationId);
+  const token = await getTokenForLocation(ghlSession.locationId);
   if (token) {
     return (
       <div className="space-y-8">

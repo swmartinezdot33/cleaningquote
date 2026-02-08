@@ -46,9 +46,11 @@ export async function GET(request: NextRequest) {
         sessionLocationId !== requestLocationId
       );
       const reason = isLocationMismatch ? 'location_mismatch' : 'needs_connect';
-      const message = isLocationMismatch
-        ? `This location (${requestLocationId.slice(0, 8)}…) is not connected. Your session is for another location. Connect this location via OAuth below.`
-        : 'Location not connected. Complete OAuth for this location.';
+      // When user opened this location (e.g. custom menu link), show one clear CTA; avoid "session is for another location" to reduce confusion.
+      const message =
+        requestLocationId
+          ? 'This location is not connected yet. Click below to authorize CleanQuote for this location.'
+          : 'Location not connected. Complete OAuth for this location.';
       return NextResponse.json({
         ok: false,
         hasToken: false,

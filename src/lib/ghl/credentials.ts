@@ -3,7 +3,7 @@
  * Use this in API routes to get token + locationId for GHL API calls.
  */
 
-import { getOrFetchTokenForLocation } from '@/lib/ghl/token-store';
+import { getTokenForLocation } from '@/lib/ghl/token-store';
 import { getGHLToken, getGHLLocationId } from '@/lib/kv';
 import type { GHLSession } from '@/lib/ghl/session';
 
@@ -14,7 +14,7 @@ export interface GHLCredentials {
 
 /**
  * Get GHL token and locationId.
- * When session is provided (from OAuth install), uses token store.
+ * When session is provided (from OAuth install), uses token from KV only (callback-saved).
  * Otherwise falls back to config (Supabase-backed) by toolId.
  */
 export async function getGHLCredentials(options?: {
@@ -22,7 +22,7 @@ export async function getGHLCredentials(options?: {
   toolId?: string;
 }): Promise<GHLCredentials> {
   if (options?.session?.locationId) {
-    const token = await getOrFetchTokenForLocation(options.session.locationId);
+    const token = await getTokenForLocation(options.session.locationId);
     return {
       token,
       locationId: token ? options.session.locationId : null,

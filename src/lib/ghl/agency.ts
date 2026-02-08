@@ -133,10 +133,18 @@ export async function getLocationTokenFromAgency(
     };
 
     if (!res.ok) {
+      const errMsg = data.error ?? data.message ?? `GHL API ${res.status}`;
       console.error('GHL locationToken failed:', res.status, data);
+      if (res.status === 401 && (errMsg.includes('scope') || errMsg.includes('authorized'))) {
+        console.error(
+          '[CQ Agency] GHL_AGENCY_ACCESS_TOKEN is not authorized for /oauth/locationToken. ' +
+          'Use an Agency (Company) OAuth token with scope that allows this endpoint (e.g. locations.write). ' +
+          'See .env.example and GHL marketplace docs: Get Location Access Token from Agency Token.'
+        );
+      }
       return {
         success: false,
-        error: data.error ?? data.message ?? `GHL API ${res.status}`,
+        error: errMsg,
       };
     }
 
