@@ -94,10 +94,12 @@ export interface LocationTokenResult {
  * Get a Location-level access token from the Agency token.
  * Used when the app is auto-installed: we have locationId (from iframe or webhook)
  * and can exchange our Agency token for a Location token to make API calls.
+ * @param options.skipStore - If true, do not persist to KV (e.g. when using agency-only for dashboard, no KV required).
  */
 export async function getLocationTokenFromAgency(
   locationId: string,
-  companyId: string
+  companyId: string,
+  options?: { skipStore?: boolean }
 ): Promise<LocationTokenResult> {
   const token = process.env.GHL_AGENCY_ACCESS_TOKEN?.trim();
   if (!token) {
@@ -156,14 +158,16 @@ export async function getLocationTokenFromAgency(
 
     const expiresAt = Date.now() + (data.expires_in ?? 86400) * 1000;
 
-    await storeInstallation({
-      accessToken,
-      refreshToken,
-      expiresAt,
-      companyId: data.companyId ?? companyId,
-      userId: data.userId ?? '',
-      locationId: data.locationId ?? locationId,
-    });
+    if (!options?.skipStore) {
+      await storeInstallation({
+        accessToken,
+        refreshToken,
+        expiresAt,
+        companyId: data.companyId ?? companyId,
+        userId: data.userId ?? '',
+        locationId: data.locationId ?? locationId,
+      });
+    }
 
     return {
       success: true,

@@ -5,8 +5,7 @@
 
 import { NextRequest } from 'next/server';
 import { getSession } from '@/lib/ghl/session';
-import { getOrFetchTokenForLocation } from '@/lib/ghl/token-store';
-import { getLocationIdFromRequest } from '@/lib/request-utils';
+import { getLocationTokenFromAgency } from '@/lib/ghl/agency';
 
 export type GHLContextResult =
   | { locationId: string; token: string }
@@ -25,9 +24,8 @@ function debugLog(message: string, data: Record<string, unknown>) {
 
 /**
  * Resolve locationId + token for dashboard API calls.
- * We do NOT compare locationId to anything — it is only the key for KV lookup.
- * Flow: get locationId from page (URL/header or session) → look up in KV → return token or needsConnect.
- * Token is always from KV (stored at OAuth callback); no Agency or other fallback.
+ * Flow: get locationId from context (URL/header or session) → exchange Agency token for location token → use for GHL API (contacts, etc.).
+ * No KV required; uses GHL_AGENCY_ACCESS_TOKEN + GHL_COMPANY_ID only.
  */
 export async function resolveGHLContext(request: NextRequest): Promise<GHLContextResult> {
   const queryLocationId = request.nextUrl.searchParams.get('locationId');
@@ -35,7 +33,7 @@ export async function resolveGHLContext(request: NextRequest): Promise<GHLContex
   const requestLocationId = queryLocationId ?? headerLocationId ?? undefined;
   const session = await getSession();
 
-  // Resolve which locationId to use: request first, else session (e.g. same-tab after OAuth). Normalize so KV lookup matches callback storage.
+  // Resolve which locationId to use: request first, else session (e.g. iframe or same-tab).
   const rawLocationId = requestLocationId ?? session?.locationId ?? null;
   const locationId = rawLocationId ? rawLocationId.trim() : null;
 
@@ -67,32 +65,37 @@ export async function resolveGHLContext(request: NextRequest): Promise<GHLContex
     return null;
   }
 
-  // Lookup: locationId → KV, or Agency API if KV empty (e.g. local dev without KV, or different host).
-  console.log('[CQ api-context] Resolving token for locationId (KV then Agency)', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
-  const token = await getOrFetchTokenForLocation(locationId);
-  console.log('[CQ api-context] Token result', { gotToken: !!token, locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
+  // Agency-only: exchange Agency token for location token (no KV).
+  const companyId = process.env.GHL_COMPANY_ID?.trim();
+  if (!companyId) {
+    console.log('[CQ api-context] GHL_COMPANY_ID not set; cannot resolve token via Agency');
+    return { needsConnect: true, locationId };
+  }
+  console.log('[CQ api-context] Resolving token via Agency for locationId', { locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
+  const result = await getLocationTokenFromAgency(locationId, companyId, { skipStore: true });
+  const token = result.success ? result.accessToken ?? null : null;
+  console.log('[CQ api-context] Agency token result', { gotToken: !!token, locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4), error: result.error ?? null });
   // #region agent log
-  debugLog('after getOrFetchTokenForLocation', {
+  debugLog('after getLocationTokenFromAgency', {
     requestHost: request.headers.get('host') ?? null,
     locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`,
-    locationIdFullLength: locationId.length,
     gotToken: !!token,
     hypothesisId: 'H2-H3',
   });
   // #endregion
 
   if (token) {
-    console.log('[CQ api-context] resolved: locationId → token (KV or Agency)');
+    console.log('[CQ api-context] resolved: locationId → token (Agency)');
     return { locationId, token };
   }
 
-  // No token in KV or Agency for this location → needs one-time OAuth (callback will store to KV).
-  console.log('[CQ api-context] needsConnect: no token in KV for this location', { requestHost: request.headers.get('host') ?? null, locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4) });
+  // Agency not configured or location not under this agency → needs connect.
+  console.log('[CQ api-context] needsConnect: no token from Agency', { requestHost: request.headers.get('host') ?? null, locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4), error: result.error ?? null });
   // #region agent log
-  debugLog('needsConnect: KV returned no token', {
+  debugLog('needsConnect: Agency returned no token', {
     requestHost: request.headers.get('host') ?? null,
     locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`,
-    locationIdFullLength: locationId.length,
+    error: result.error ?? null,
     hypothesisId: 'H1-H3',
   });
   // #endregion

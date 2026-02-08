@@ -34,7 +34,7 @@ export function dashboardApiOptions(
 
 /**
  * Fetch a dashboard API route with locationId attached (query + header).
- * Backend uses resolveGHLContext(request) → getOrFetchTokenForLocation(locationId) → GHL API.
+ * Backend uses resolveGHLContext(request) → Agency location token → GHL API.
  */
 export function dashboardApiFetch(
   path: string,
