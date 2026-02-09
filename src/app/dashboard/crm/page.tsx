@@ -99,9 +99,9 @@ export default function CRMDashboardPage() {
       return;
     }
     Promise.all([
-      api('/api/dashboard/crm/stats').then((r) => (r.ok ? r.json() : null)),
+      api('/api/dashboard/crm/stats').then(async (r) => (r.ok ? r.json() : r.json().catch(() => null))),
       api('/api/dashboard/ghl/verify').then((res) => res.json()),
-      api('/api/dashboard/crm/pipelines').then((r) => (r.ok ? r.json() : { pipelines: [] })),
+      api('/api/dashboard/crm/pipelines').then(async (r) => (r.ok ? r.json() : r.json().catch(() => ({ pipelines: [] })))),
       ...STAGES.map((stage) =>
         api(`/api/dashboard/crm/contacts?stage=${stage}&perPage=20`).then((r) =>
           r.ok ? r.json() : { contacts: [] }
@@ -110,10 +110,11 @@ export default function CRMDashboardPage() {
     ])
       .then(([statsRes, verifyRes, pipelinesRes, ...stageRes]) => {
         const statsData = statsRes as { needsConnect?: boolean; apiError?: boolean; error?: string } | null;
+        const pipelinesData = pipelinesRes as { pipelines?: GHLPipeline[]; needsConnect?: boolean } | undefined;
         setStats(statsRes ?? { counts: {}, total: 0, recentActivities: [] });
         setVerify(verifyRes);
-        setPipelines((pipelinesRes as { pipelines?: GHLPipeline[] })?.pipelines ?? []);
-        setNeedsConnect(!!statsData?.needsConnect);
+        setPipelines(pipelinesData?.pipelines ?? []);
+        setNeedsConnect(!!(statsData?.needsConnect ?? pipelinesData?.needsConnect));
         setApiError(statsData?.apiError && statsData?.error ? statsData.error : null);
         const byStage: Record<string, Contact[]> = {};
         STAGES.forEach((s, i) => {

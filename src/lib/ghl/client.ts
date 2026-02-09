@@ -131,8 +131,9 @@ export async function makeGHLRequest<T>(
       }
       // #endregion
 
-      // Enhanced error logging for 400/404 errors to help debug
-      if (response.status === 400 || response.status === 404) {
+      // Enhanced error logging for 400/404 errors to help debug (skip for expected "user id is invalid")
+      const isInvalidUserId = response.status === 400 && (errorData?.message === 'The user id is invalid.' || String(errorData?.message || '').includes('user id is invalid'));
+      if ((response.status === 400 || response.status === 404) && !isInvalidUserId) {
         console.error(`GHL API ${response.status} Error Details:`, {
           url,
           status: response.status,
@@ -170,7 +171,12 @@ export async function makeGHLRequest<T>(
 
     return data;
   } catch (error) {
-    console.error('GHL API request failed:', error);
+    const isInvalidUserId =
+      error instanceof Error &&
+      (error.message.includes('user id is invalid') || error.message.includes('The user id is invalid'));
+    if (!isInvalidUserId) {
+      console.error('GHL API request failed:', error);
+    }
     throw error;
   }
 }
@@ -1411,15 +1417,20 @@ export async function getLocation(locationId: string): Promise<GHLLocation> {
 
 /**
  * Get user by ID for a location (uses location token; do not send Location-Id header).
+ * Pass locationId when available so GHL can scope the user to the location (avoids 400 "user id is invalid").
  */
 export async function getGHLUser(
   userId: string,
-  locationToken: string
+  locationToken: string,
+  locationId?: string
 ): Promise<GHLUserInfo | null> {
   if (!userId || !locationToken) return null;
   try {
+    const endpoint = locationId
+      ? `/users/${userId}?locationId=${encodeURIComponent(locationId)}`
+      : `/users/${userId}`;
     const response = await makeGHLRequest<{ user?: Record<string, unknown> }>(
-      `/users/${userId}`,
+      endpoint,
       'GET',
       undefined,
       undefined,
@@ -1435,6 +1446,13 @@ export async function getGHLUser(
       lastName: user.lastName as string | undefined,
     };
   } catch (error) {
+    const isInvalidUserId =
+      error instanceof Error &&
+      (error.message.includes('user id is invalid') || error.message.includes('The user id is invalid'));
+    if (isInvalidUserId) {
+      // Expected when userId is stale, from another location, or deleted; avoid log noise.
+      return null;
+    }
     console.warn('Failed to get GHL user:', error);
     return null;
   }

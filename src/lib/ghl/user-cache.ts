@@ -43,7 +43,7 @@ export async function getOrFetchCurrentUser(locationId: string, userId: string):
   const token = await getTokenForLocation(locationId);
   if (!token) return null;
 
-  const user = await getGHLUser(userId, token);
+  const user = await getGHLUser(userId, token, locationId);
   if (!user) return null;
 
   try {

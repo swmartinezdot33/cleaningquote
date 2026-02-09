@@ -20,10 +20,12 @@ export async function GET(request: NextRequest) {
       );
     }
     if ('needsConnect' in ctx) {
-      return NextResponse.json(
-        { error: 'Connect your location first', needsConnect: true, pipelines: [] },
-        { status: 400 }
-      );
+      // Return 200 so the client can parse the body and show Connect CTA (same pattern as stats).
+      return NextResponse.json({
+        pipelines: [],
+        needsConnect: true,
+        error: 'Connect your location first',
+      });
     }
 
     const pipelines = await listGHLPipelines(ctx.locationId, {
