@@ -1783,8 +1783,8 @@ export async function listContactNotes(
 
 /**
  * List contacts from GHL for a location.
- * Uses GET /contacts with query params per GHL Get Contacts API:
- * locationId, limit, skip, query (optional search). Version header required.
+ * Uses GET /contacts with query params: locationId, limit, optional query (search).
+ * API rejects skip; pagination uses limit only (first page). Version header required.
  * @see https://marketplace.gohighlevel.com/docs/api/contacts/get-contacts
  */
 export async function listGHLContacts(
@@ -1793,12 +1793,9 @@ export async function listGHLContacts(
   credentials?: GHLCredentials | null
 ): Promise<{ contacts: any[]; total: number }> {
   const limit = Math.min(100, Math.max(1, options?.limit ?? 25));
-  const page = Math.max(1, options?.page ?? 1);
-  const skip = (page - 1) * limit;
   const params = new URLSearchParams({
     locationId,
     limit: String(limit),
-    skip: String(skip),
   });
   if (options?.search?.trim()) {
     params.set('query', options.search.trim());
