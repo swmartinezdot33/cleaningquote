@@ -11,13 +11,16 @@ import { getSession } from '@/lib/ghl/session';
 
 export const dynamic = 'force-dynamic';
 
-/** GET - List tools for the current GHL location (tools whose tool_config.ghl_location_id matches). */
-export async function GET() {
+/** GET - List tools for the current GHL location (tools whose tool_config.ghl_location_id matches). Accepts locationId from request (user context) so iframe location switch refetches correctly. */
+export async function GET(request: NextRequest) {
   const session = await getSession();
-  if (!session?.locationId) {
+  const headerLocationId = request.headers.get('x-ghl-location-id')?.trim() || null;
+  const queryLocationId = request.nextUrl.searchParams.get('locationId')?.trim() || null;
+  const locationId = headerLocationId ?? queryLocationId ?? session?.locationId ?? null;
+  if (!locationId) {
     return NextResponse.json({ error: 'No GHL session' }, { status: 401 });
   }
-  const toolIds = await configStore.getToolIdsByGHLLocationId(session.locationId);
+  const toolIds = await configStore.getToolIdsByGHLLocationId(locationId);
   if (toolIds.length === 0) {
     return NextResponse.json({ tools: [] });
   }

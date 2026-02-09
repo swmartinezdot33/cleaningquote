@@ -121,13 +121,14 @@ export default function DashboardQuotesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
 
-  const loadQuotes = () => {
+  const loadQuotes = useCallback(() => {
     // All dashboard data depends on user-context locationId (postMessage / iframe). Don't call GHL APIs without it.
     if (!effectiveLocationId) {
       setLoading(false);
       setQuotes([]);
       return;
     }
+    setLoading(true);
     Promise.all([
       api('/api/dashboard/quotes'),
       fetch('/api/dashboard/super-admin/tools'),
@@ -149,11 +150,11 @@ export default function DashboardQuotesPage() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  };
+  }, [effectiveLocationId, api]);
 
   useEffect(() => {
     loadQuotes();
-  }, [effectiveLocationId]);
+  }, [loadQuotes]);
 
   const openReassign = (q: QuoteRow) => {
     setReassignQuote(q);

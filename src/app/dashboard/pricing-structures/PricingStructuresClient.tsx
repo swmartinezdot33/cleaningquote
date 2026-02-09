@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useDashboardApi } from '@/lib/dashboard-api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -24,6 +25,7 @@ interface PricingStructureItem {
 }
 
 export default function PricingStructuresClient() {
+  const { api } = useDashboardApi();
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgRole, setOrgRole] = useState<string | null>(null);
   const [list, setList] = useState<PricingStructureItem[]>([]);
@@ -38,36 +40,30 @@ export default function PricingStructuresClient() {
   const [deleting, setDeleting] = useState(false);
   const loadList = useCallback(() => {
     if (!orgId) return;
-    fetch(`/api/dashboard/orgs/${orgId}/pricing-structures`)
+    api(`/api/dashboard/orgs/${orgId}/pricing-structures`)
       .then((r) => r.json())
       .then((d) => setList(d.pricingStructures ?? []))
       .catch(() => setList([]));
-  }, [orgId]);
+  }, [orgId, api]);
 
   const loadTools = useCallback(() => {
     if (!orgId) return;
-    fetch(`/api/dashboard/orgs/${orgId}/tools`)
+    api(`/api/dashboard/orgs/${orgId}/tools`)
       .then((r) => r.json())
       .then((d) => setTools(d.tools ?? []))
       .catch(() => setTools([]));
-  }, [orgId]);
+  }, [orgId, api]);
 
+  // Refetch selected org when locationId changes (api identity changes) so GHL location toggle updates without refresh.
   useEffect(() => {
-    fetch('/api/dashboard/orgs/selected')
+    api('/api/dashboard/orgs/selected')
       .then((r) => r.json())
       .then((d) => {
         setOrgId(d.org?.id ?? null);
         setOrgRole(d.org?.role ?? null);
-        return d.org?.id;
-      })
-      .then((id) => {
-        if (id) {
-          loadList();
-          loadTools();
-        }
       })
       .finally(() => setLoading(false));
-  }, [loadList, loadTools]);
+  }, [api]);
 
   useEffect(() => {
     if (!orgId) return;
@@ -85,7 +81,7 @@ export default function PricingStructuresClient() {
     try {
       const body: { name: string; copyFromToolId?: string } = { name };
       if (copyFromToolId) body.copyFromToolId = copyFromToolId;
-      const res = await fetch(`/api/dashboard/orgs/${orgId}/pricing-structures`, {
+      const res = await api(`/api/dashboard/orgs/${orgId}/pricing-structures`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -112,7 +108,7 @@ export default function PricingStructuresClient() {
     setDeleting(true);
     setMessage(null);
     try {
-      const res = await fetch(`/api/dashboard/orgs/${orgId}/pricing-structures/${deleteId}`, {
+      const res = await api(`/api/dashboard/orgs/${orgId}/pricing-structures/${deleteId}`, {
         method: 'DELETE',
       });
       if (res.ok) {

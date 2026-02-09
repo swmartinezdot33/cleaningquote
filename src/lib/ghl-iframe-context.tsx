@@ -362,19 +362,17 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
   return (
     <GHLIframeContext.Provider value={{ ghlData, loading, error, effectiveLocationId, userContext }}>
       {showBlockingInIframe ? (
-        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
+        <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
           {error ? (
-            <>
-              <p className="text-destructive font-medium">No GHL user context</p>
-              <p className="max-w-md text-sm text-muted-foreground">{error}</p>
-            </>
+            <p className="max-w-md text-center text-sm text-muted-foreground">
+              Couldn&apos;t connect. Refresh this window or try Setup.
+            </p>
           ) : (
-            <>
-              <p className="font-medium text-foreground">Waiting for GoHighLevel…</p>
-              <p className="max-w-md text-sm text-muted-foreground">
-                Open this app from your GoHighLevel location (sub-account) so we can receive your location ID. Do not use session or cached data when embedded in GHL.
-              </p>
-            </>
+            <span className="inline-flex gap-1" aria-label="Loading">
+              <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce [animation-delay:-0.3s]" />
+              <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce [animation-delay:-0.15s]" />
+              <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce" />
+            </span>
           )}
         </div>
       ) : (

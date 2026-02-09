@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { createSupabaseServer, isSupabaseConfigured } from '@/lib/supabase/server';
@@ -8,8 +8,8 @@ import * as configStore from '@/lib/config/store';
 
 export const dynamic = 'force-dynamic';
 
-/** GET - Return the currently selected org (from cookie, from GHL location, or default) */
-export async function GET() {
+/** GET - Return the currently selected org (from cookie, from GHL location, or default). For GHL iframe, pass locationId (query or x-ghl-location-id) so org resolves for the current location. */
+export async function GET(request: NextRequest) {
   const supabase = await createSupabaseServerSSR();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -22,12 +22,15 @@ export async function GET() {
     return NextResponse.json({ org });
   }
 
-  // GHL-only: resolve org from current GHL location (org_ghl_settings.ghl_location_id)
+  // GHL-only: resolve org from current GHL location (org_ghl_settings.ghl_location_id). Prefer user-context locationId (iframe/postMessage).
   const ghlSession = await getSession();
-  if (!ghlSession?.locationId || !isSupabaseConfigured()) {
+  const headerLocationId = request.headers.get('x-ghl-location-id')?.trim() || null;
+  const queryLocationId = request.nextUrl.searchParams.get('locationId')?.trim() || null;
+  const locationId = headerLocationId ?? queryLocationId ?? ghlSession?.locationId ?? null;
+  if (!locationId || !isSupabaseConfigured()) {
     return NextResponse.json({ org: null });
   }
-  const orgIds = await configStore.getOrgIdsByGHLLocationId(ghlSession.locationId);
+  const orgIds = await configStore.getOrgIdsByGHLLocationId(locationId);
   if (orgIds.length === 0) {
     return NextResponse.json({ org: null });
   }

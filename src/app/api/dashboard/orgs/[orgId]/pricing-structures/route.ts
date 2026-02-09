@@ -15,9 +15,15 @@ async function canAccessOrgViaGHLLocation(orgId: string, locationId: string): Pr
   return orgIds.includes(orgId);
 }
 
+function locationIdFromRequest(request: NextRequest): string | null {
+  const header = request.headers.get('x-ghl-location-id')?.trim() || null;
+  const query = request.nextUrl.searchParams.get('locationId')?.trim() || null;
+  return header ?? query ?? null;
+}
+
 /** GET - List pricing structures for this org */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ orgId: string }> }
 ) {
   const { orgId } = await context.params;
@@ -26,12 +32,14 @@ export async function GET(
 
   let allowed = false;
   let client = supabase;
+  const requestLocationId = locationIdFromRequest(request);
   if (user) {
     allowed = await canManageOrg(user.id, user.email ?? undefined, orgId);
   } else {
     const ghlSession = await getSession();
-    if (ghlSession?.locationId) {
-      allowed = await canAccessOrgViaGHLLocation(orgId, ghlSession.locationId);
+    const locationId = requestLocationId ?? ghlSession?.locationId ?? null;
+    if (locationId) {
+      allowed = await canAccessOrgViaGHLLocation(orgId, locationId);
       if (allowed) client = createSupabaseServer();
     }
   }
@@ -43,9 +51,10 @@ export async function GET(
   }
 
   const ghlSession = await getSession();
+  const locationId = requestLocationId ?? ghlSession?.locationId ?? null;
   let query = client.from('pricing_structures').select('id, name, created_at, updated_at').eq('org_id', orgId);
-  if (ghlSession?.locationId) {
-    query = query.eq('ghl_location_id', ghlSession.locationId);
+  if (locationId) {
+    query = query.eq('ghl_location_id', locationId);
   }
   const { data, error } = await query.order('name');
 
@@ -79,8 +88,9 @@ export async function POST(
     allowed = await canManageOrg(user.id, user.email ?? undefined, orgId);
   } else {
     const ghlSession = await getSession();
-    if (ghlSession?.locationId) {
-      allowed = await canAccessOrgViaGHLLocation(orgId, ghlSession.locationId);
+    const locationId = locationIdFromRequest(request) ?? ghlSession?.locationId ?? null;
+    if (locationId) {
+      allowed = await canAccessOrgViaGHLLocation(orgId, locationId);
       if (allowed) client = createSupabaseServer();
     }
   }

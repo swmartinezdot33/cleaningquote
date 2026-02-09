@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useDashboardApi } from '@/lib/dashboard-api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -38,6 +39,7 @@ interface ServiceAreaItem {
 }
 
 export default function ServiceAreasClient() {
+  const { api } = useDashboardApi();
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgRole, setOrgRole] = useState<string | null>(null);
   const [orgOfficeAddress, setOrgOfficeAddress] = useState<string>('');
@@ -76,14 +78,14 @@ export default function ServiceAreasClient() {
 
   const loadList = useCallback(() => {
     if (!orgId) return;
-    fetch(`/api/dashboard/orgs/${orgId}/service-areas`)
+    api(`/api/dashboard/orgs/${orgId}/service-areas`)
       .then((r) => r.json())
       .then((d) => setList(d.serviceAreas ?? []))
       .catch(() => setList([]));
-  }, [orgId]);
+  }, [orgId, api]);
 
   useEffect(() => {
-    fetch('/api/dashboard/orgs/selected')
+    api('/api/dashboard/orgs/selected')
       .then((r) => r.json())
       .then((d) => {
         setOrgId(d.org?.id ?? null);
@@ -92,13 +94,13 @@ export default function ServiceAreasClient() {
         return d.org?.id && (d.org?.role === 'admin') ? d.org.id : null;
       })
       .then((id) => {
-        if (id) return fetch(`/api/dashboard/orgs/${id}/service-areas`).then((r) => r.json());
+        if (id) return api(`/api/dashboard/orgs/${id}/service-areas`).then((r) => r.json());
         return { serviceAreas: [] };
       })
       .then((d) => setList(d.serviceAreas ?? []))
       .catch(() => setList([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [api]);
 
   useEffect(() => {
     if (orgId) loadList();
@@ -114,7 +116,7 @@ export default function ServiceAreasClient() {
     setAddZipInput('');
     setAddZipError(null);
     if (areaId) {
-      fetch(`/api/dashboard/orgs/${orgId}/service-areas/${areaId}`)
+      api(`/api/dashboard/orgs/${orgId}/service-areas/${areaId}`)
         .then((r) => r.json())
         .then((d) => {
           setEditName(d.serviceArea?.name ?? '');
@@ -144,7 +146,7 @@ export default function ServiceAreasClient() {
     setPreviewPolygons(null);
     setPreviewZoneDisplay([]);
     setPreviewLoading(true);
-    fetch(`/api/dashboard/orgs/${orgId}/service-areas/${areaId}`)
+    api(`/api/dashboard/orgs/${orgId}/service-areas/${areaId}`)
       .then((r) => r.json())
       .then((d) => {
         setPreviewName(d.serviceArea?.name ?? 'Service area');
@@ -182,7 +184,7 @@ export default function ServiceAreasClient() {
         setSaving(false);
         return;
       }
-      const res = await fetch(url, {
+      const res = await api(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -206,7 +208,7 @@ export default function ServiceAreasClient() {
     setMessage(null);
     try {
       const text = await importKmlFile.text();
-      const res = await fetch(`/api/dashboard/orgs/${orgId}/service-areas`, {
+      const res = await api(`/api/dashboard/orgs/${orgId}/service-areas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: importName.trim(), kmlContent: text }),
@@ -231,7 +233,7 @@ export default function ServiceAreasClient() {
     setImporting(true);
     setMessage(null);
     try {
-      const res = await fetch(`/api/dashboard/orgs/${orgId}/service-areas`, {
+      const res = await api(`/api/dashboard/orgs/${orgId}/service-areas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: importName.trim(), network_link_url: importLinkUrl.trim() }),
@@ -257,7 +259,7 @@ export default function ServiceAreasClient() {
     setMessage(null);
     try {
       const csvText = await importZipCsvFile.text();
-      const res = await fetch(`/api/dashboard/orgs/${orgId}/service-areas`, {
+      const res = await api(`/api/dashboard/orgs/${orgId}/service-areas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: importName.trim(), zipCsvContent: csvText }),
@@ -287,7 +289,7 @@ export default function ServiceAreasClient() {
     setAddZipLoading(true);
     setAddZipError(null);
     try {
-      const res = await fetch(`/api/dashboard/orgs/${orgId}/service-areas/zip-to-polygon?zip=${encodeURIComponent(zip5)}`);
+      const res = await api(`/api/dashboard/orgs/${orgId}/service-areas/zip-to-polygon?zip=${encodeURIComponent(zip5)}`);
       const data = await res.json();
       if (res.ok && data.polygon) {
         setEditPolygons((prev) => {
@@ -317,7 +319,7 @@ export default function ServiceAreasClient() {
     setSingleZipCreating(true);
     setMessage(null);
     try {
-      const res = await fetch(`/api/dashboard/orgs/${orgId}/service-areas`, {
+      const res = await api(`/api/dashboard/orgs/${orgId}/service-areas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: singleZipName.trim(), zipCodes: [zip5] }),
@@ -339,7 +341,7 @@ export default function ServiceAreasClient() {
 
   const deleteArea = async (areaId: string) => {
     if (!orgId || !confirm('Delete this service area? Tools using it will no longer have this area assigned.')) return;
-    const res = await fetch(`/api/dashboard/orgs/${orgId}/service-areas/${areaId}`, { method: 'DELETE' });
+    const res = await api(`/api/dashboard/orgs/${orgId}/service-areas/${areaId}`, { method: 'DELETE' });
     if (res.ok) loadList();
   };
 
@@ -347,7 +349,7 @@ export default function ServiceAreasClient() {
     if (!orgId) return;
     setRefreshingId(areaId);
     try {
-      const res = await fetch(`/api/dashboard/orgs/${orgId}/service-areas/${areaId}/refresh-from-link`, {
+      const res = await api(`/api/dashboard/orgs/${orgId}/service-areas/${areaId}/refresh-from-link`, {
         method: 'POST',
       });
       if (res.ok) loadList();

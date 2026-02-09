@@ -17,9 +17,15 @@ async function canAccessOrgViaGHLLocation(orgId: string, locationId: string): Pr
   return orgIds.includes(orgId);
 }
 
+function locationIdFromRequest(request: NextRequest): string | null {
+  const header = request.headers.get('x-ghl-location-id')?.trim() || null;
+  const query = request.nextUrl.searchParams.get('locationId')?.trim() || null;
+  return header ?? query ?? null;
+}
+
 /** GET - List service areas for org (id, name, polygon point count, network_link_url). In GHL context, only areas with matching ghl_location_id. */
 export async function GET(
-  _req: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ orgId: string }> }
 ) {
   const { orgId } = await context.params;
@@ -28,12 +34,14 @@ export async function GET(
 
   let allowed = false;
   let client: ReturnType<typeof createSupabaseServerSSR> | ReturnType<typeof createSupabaseServer> = supabase;
+  const requestLocationId = locationIdFromRequest(request);
   if (user) {
     allowed = await canManageOrg(user.id, user.email ?? undefined, orgId);
   } else {
     const ghlSession = await getSession();
-    if (ghlSession?.locationId) {
-      allowed = await canAccessOrgViaGHLLocation(orgId, ghlSession.locationId);
+    const locationId = requestLocationId ?? ghlSession?.locationId ?? null;
+    if (locationId) {
+      allowed = await canAccessOrgViaGHLLocation(orgId, locationId);
       if (allowed) client = createSupabaseServer();
     }
   }
@@ -45,12 +53,13 @@ export async function GET(
   }
 
   const ghlSession = await getSession();
+  const locationId = requestLocationId ?? ghlSession?.locationId ?? null;
   let query = client
     .from('service_areas')
     .select('id, name, polygon, zone_display, network_link_url, network_link_fetched_at, created_at, updated_at')
     .eq('org_id', orgId);
-  if (ghlSession?.locationId) {
-    query = query.eq('ghl_location_id', ghlSession.locationId);
+  if (locationId) {
+    query = query.eq('ghl_location_id', locationId);
   }
   const { data, error } = await query.order('name');
 
