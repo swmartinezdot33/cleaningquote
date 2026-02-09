@@ -54,12 +54,30 @@ export async function POST(
 
   const name = `Copy of ${tool.name}`;
 
-  // Always use service role for insert - we've already verified user has permission via getDashboardUserAndToolWithClient.
-  // User-authenticated client hits RLS on tools table and can fail (e.g. cookie/session context in API routes).
+  // GHL-only: user.id may not be a valid auth.users id; use first org member for tool.user_id
+  let creatorUserId = user.id;
+  if (user.id === 'ghl' || !user.email) {
+    const admin = createSupabaseServer();
+    const { data: member } = await admin
+      .from('organization_members')
+      .select('user_id')
+      .eq('org_id', targetOrgId)
+      .limit(1)
+      .maybeSingle();
+    const resolved = (member as { user_id: string } | null)?.user_id;
+    if (!resolved) {
+      return NextResponse.json(
+        { error: 'No org member found for this organization' },
+        { status: 403 }
+      );
+    }
+    creatorUserId = resolved;
+  }
+
   const insertClient = createSupabaseServer();
   const { data: newTool, error: insertErr } = await insertClient
     .from('tools')
-    .insert({ org_id: targetOrgId, user_id: user.id, name, slug } as any)
+    .insert({ org_id: targetOrgId, user_id: creatorUserId, name, slug } as any)
     .select()
     .single();
 

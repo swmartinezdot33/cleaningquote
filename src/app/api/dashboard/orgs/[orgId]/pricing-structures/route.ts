@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { createSupabaseServer } from '@/lib/supabase/server';
 import { canManageOrg } from '@/lib/org-auth';
 import { getPricingTable } from '@/lib/kv';
+import * as configStore from '@/lib/config/store';
+import { getSession } from '@/lib/ghl/session';
 import type { PricingTable } from '@/lib/pricing/types';
 
 export const dynamic = 'force-dynamic';
+
+/** True if this org is linked to the given GHL location (org_ghl_settings). */
+async function canAccessOrgViaGHLLocation(orgId: string, locationId: string): Promise<boolean> {
+  const orgIds = await configStore.getOrgIdsByGHLLocationId(locationId);
+  return orgIds.includes(orgId);
+}
 
 /** GET - List pricing structures for this org */
 export async function GET(
@@ -14,16 +23,26 @@ export async function GET(
   const { orgId } = await context.params;
   const supabase = await createSupabaseServerSSR();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  let allowed = false;
+  let client = supabase;
+  if (user) {
+    allowed = await canManageOrg(user.id, user.email ?? undefined, orgId);
+  } else {
+    const ghlSession = await getSession();
+    if (ghlSession?.locationId) {
+      allowed = await canAccessOrgViaGHLLocation(orgId, ghlSession.locationId);
+      if (allowed) client = createSupabaseServer();
+    }
+  }
+  if (!allowed) {
+    return NextResponse.json(
+      user ? { error: 'Only org admins can view pricing structures' } : { error: 'Unauthorized' },
+      { status: user ? 403 : 401 }
+    );
   }
 
-  const canManage = await canManageOrg(user.id, user.email ?? undefined, orgId);
-  if (!canManage) {
-    return NextResponse.json({ error: 'Only org admins can view pricing structures' }, { status: 403 });
-  }
-
-  const { data, error } = await supabase
+  const { data, error } = await client
     .from('pricing_structures')
     .select('id, name, created_at, updated_at')
     .eq('org_id', orgId)
@@ -52,13 +71,23 @@ export async function POST(
   const { orgId } = await context.params;
   const supabase = await createSupabaseServerSSR();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
 
-  const canManage = await canManageOrg(user.id, user.email ?? undefined, orgId);
-  if (!canManage) {
-    return NextResponse.json({ error: 'Only org admins can create pricing structures' }, { status: 403 });
+  let allowed = false;
+  let client: ReturnType<typeof createSupabaseServerSSR> | ReturnType<typeof createSupabaseServer> = supabase;
+  if (user) {
+    allowed = await canManageOrg(user.id, user.email ?? undefined, orgId);
+  } else {
+    const ghlSession = await getSession();
+    if (ghlSession?.locationId) {
+      allowed = await canAccessOrgViaGHLLocation(orgId, ghlSession.locationId);
+      if (allowed) client = createSupabaseServer();
+    }
+  }
+  if (!allowed) {
+    return NextResponse.json(
+      user ? { error: 'Only org admins can create pricing structures' } : { error: 'Unauthorized' },
+      { status: user ? 403 : 401 }
+    );
   }
 
   const body = await request.json().catch(() => ({}));
@@ -70,7 +99,7 @@ export async function POST(
   let pricingTable: PricingTable | null = null;
   if (typeof body.copyFromToolId === 'string' && body.copyFromToolId.trim()) {
     const toolId = body.copyFromToolId.trim();
-    const { data: tool } = await supabase.from('tools').select('org_id').eq('id', toolId).single();
+    const { data: tool } = await client.from('tools').select('org_id').eq('id', toolId).single();
     if (tool && (tool as { org_id: string }).org_id === orgId) {
       pricingTable = await getPricingTable(toolId);
     }
@@ -94,7 +123,7 @@ export async function POST(
     updated_at: now,
   };
 
-  const { data: inserted, error } = await supabase
+  const { data: inserted, error } = await client
     .from('pricing_structures')
     // @ts-expect-error Supabase generated types may not include pricing_structures table
     .insert(row)

@@ -1,10 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { createSupabaseServer } from '@/lib/supabase/server';
 import { canManageOrg } from '@/lib/org-auth';
+import * as configStore from '@/lib/config/store';
+import { getSession } from '@/lib/ghl/session';
 import { invalidatePricingCacheForStructure } from '@/lib/pricing/loadPricingTable';
 import type { PricingTable } from '@/lib/pricing/types';
 
 export const dynamic = 'force-dynamic';
+
+async function resolveOrgAccess(orgId: string): Promise<{
+  allowed: boolean;
+  client: Awaited<ReturnType<typeof createSupabaseServerSSR>> | ReturnType<typeof createSupabaseServer>;
+  isGHL: boolean;
+}> {
+  const supabase = await createSupabaseServerSSR();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    const canManage = await canManageOrg(user.id, user.email ?? undefined, orgId);
+    return { allowed: canManage, client: supabase, isGHL: false };
+  }
+  const ghlSession = await getSession();
+  if (ghlSession?.locationId) {
+    const orgIds = await configStore.getOrgIdsByGHLLocationId(ghlSession.locationId);
+    const allowed = orgIds.includes(orgId);
+    return { allowed, client: allowed ? createSupabaseServer() : supabase, isGHL: true };
+  }
+  return { allowed: false, client: supabase, isGHL: true };
+}
 
 /** GET - Get one pricing structure (with pricing_table). Structure must belong to org. */
 export async function GET(
@@ -12,18 +35,12 @@ export async function GET(
   context: { params: Promise<{ orgId: string; structureId: string }> }
 ) {
   const { orgId, structureId } = await context.params;
-  const supabase = await createSupabaseServerSSR();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { allowed, client } = await resolveOrgAccess(orgId);
+  if (!allowed) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const canManage = await canManageOrg(user.id, user.email ?? undefined, orgId);
-  if (!canManage) {
-    return NextResponse.json({ error: 'Only org admins can view pricing structures' }, { status: 403 });
-  }
-
-  const { data, error } = await supabase
+  const { data, error } = await client
     .from('pricing_structures')
     .select('id, name, pricing_table, initial_cleaning_config, created_at, updated_at')
     .eq('id', structureId)
@@ -53,15 +70,9 @@ export async function PATCH(
   context: { params: Promise<{ orgId: string; structureId: string }> }
 ) {
   const { orgId, structureId } = await context.params;
-  const supabase = await createSupabaseServerSSR();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { allowed, client } = await resolveOrgAccess(orgId);
+  if (!allowed) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const canManage = await canManageOrg(user.id, user.email ?? undefined, orgId);
-  if (!canManage) {
-    return NextResponse.json({ error: 'Only org admins can update pricing structures' }, { status: 403 });
   }
 
   const body = await request.json().catch(() => ({}));
@@ -78,7 +89,7 @@ export async function PATCH(
     updates.initial_cleaning_config = body.initialCleaningConfig;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await client
     .from('pricing_structures')
     // @ts-expect-error Supabase generated types may not include pricing_structures table
     .update(updates)
@@ -108,18 +119,12 @@ export async function DELETE(
   context: { params: Promise<{ orgId: string; structureId: string }> }
 ) {
   const { orgId, structureId } = await context.params;
-  const supabase = await createSupabaseServerSSR();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { allowed, client } = await resolveOrgAccess(orgId);
+  if (!allowed) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const canManage = await canManageOrg(user.id, user.email ?? undefined, orgId);
-  if (!canManage) {
-    return NextResponse.json({ error: 'Only org admins can delete pricing structures' }, { status: 403 });
-  }
-
-  const { error } = await supabase
+  const { error } = await client
     .from('pricing_structures')
     .delete()
     .eq('id', structureId)

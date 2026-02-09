@@ -47,9 +47,6 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createSupabaseServerSSR();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const body = await request.json();
     const orgId = body.org_id;
@@ -57,9 +54,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Organization is required' }, { status: 400 });
     }
 
-    const allowed = await canAccessTool(user.id, user.email ?? undefined, orgId);
-    if (!allowed) {
-      return NextResponse.json({ error: 'Access denied to this organization' }, { status: 403 });
+    let allowed = false;
+    let creatorUserId: string | null = null;
+    if (user) {
+      allowed = await canAccessTool(user.id, user.email ?? undefined, orgId);
+      if (allowed) creatorUserId = user.id;
+    } else {
+      const session = await getSession();
+      if (session?.locationId) {
+        const orgIds = await configStore.getOrgIdsByGHLLocationId(session.locationId);
+        if (orgIds.includes(orgId)) {
+          allowed = true;
+          // Tools table requires user_id; use first org member as creator when GHL-only
+          const admin = createSupabaseServer();
+          const { data: member } = await admin
+            .from('organization_members')
+            .select('user_id')
+            .eq('org_id', orgId)
+            .limit(1)
+            .maybeSingle();
+          creatorUserId = (member as { user_id: string } | null)?.user_id ?? null;
+        }
+      }
+    }
+    if (!allowed || !creatorUserId) {
+      return NextResponse.json(
+        creatorUserId === null && allowed
+          ? { error: 'No org member found for this organization' }
+          : { error: 'Unauthorized' },
+        { status: creatorUserId === null && allowed ? 403 : 401 }
+      );
     }
 
     const name = typeof body.name === 'string' ? body.name.trim() : '';
@@ -70,13 +94,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Name or slug is required' }, { status: 400 });
     }
 
-    const { data: existing } = await supabase.from('tools').select('id').eq('slug', slug).maybeSingle();
+    const checkClient = user ? supabase : createSupabaseServer();
+    const { data: existing } = await checkClient.from('tools').select('id').eq('org_id', orgId).eq('slug', slug).maybeSingle();
     if (existing) {
       return NextResponse.json({ error: `Slug "${slug}" is already in use` }, { status: 400 });
     }
 
-    const insert: ToolInsert = { org_id: orgId, user_id: user.id, name: name || slug, slug };
-    // Use service role for insert so RLS never blocks: we already verified access with canAccessTool. Ensures every "Create quoting tool" adds a row to tools.
+    const insert: ToolInsert = { org_id: orgId, user_id: creatorUserId, name: name || slug, slug };
     const insertClient = createSupabaseServer();
     const { data: tool, error } = await insertClient
       .from('tools')

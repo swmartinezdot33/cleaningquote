@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { createSupabaseServer } from '@/lib/supabase/server';
 import { canManageOrg } from '@/lib/org-auth';
+import * as configStore from '@/lib/config/store';
+import { getSession } from '@/lib/ghl/session';
 
 export const dynamic = 'force-dynamic';
+
+async function canAccessOrgViaGHLLocation(orgId: string, locationId: string): Promise<boolean> {
+  const orgIds = await configStore.getOrgIdsByGHLLocationId(locationId);
+  return orgIds.includes(orgId);
+}
 
 /** GET - List tools for this org (id, name). For dropdowns and copy-from-tool. */
 export async function GET(
@@ -12,16 +20,26 @@ export async function GET(
   const { orgId } = await context.params;
   const supabase = await createSupabaseServerSSR();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  let allowed = false;
+  let client: ReturnType<typeof createSupabaseServerSSR> | ReturnType<typeof createSupabaseServer> = supabase;
+  if (user) {
+    allowed = await canManageOrg(user.id, user.email ?? undefined, orgId);
+  } else {
+    const ghlSession = await getSession();
+    if (ghlSession?.locationId) {
+      allowed = await canAccessOrgViaGHLLocation(orgId, ghlSession.locationId);
+      if (allowed) client = createSupabaseServer();
+    }
+  }
+  if (!allowed) {
+    return NextResponse.json(
+      user ? { error: 'Only org admins can list tools' } : { error: 'Unauthorized' },
+      { status: user ? 403 : 401 }
+    );
   }
 
-  const canManage = await canManageOrg(user.id, user.email ?? undefined, orgId);
-  if (!canManage) {
-    return NextResponse.json({ error: 'Only org admins can list tools' }, { status: 403 });
-  }
-
-  const { data, error } = await supabase
+  const { data, error } = await client
     .from('tools')
     .select('id, name')
     .eq('org_id', orgId)
