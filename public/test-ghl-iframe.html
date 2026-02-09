@@ -23,7 +23,7 @@
     <label for="base">App base URL</label>
     <input type="text" id="base" value="http://localhost:3000" placeholder="http://localhost:3000">
     <label for="locationId" style="margin-top:12px">Location ID (your GHL sub-account location id)</label>
-    <input type="text" id="locationId" placeholder="e.g. ve9EPM428h8vShlRW1KT">
+    <input type="text" id="locationId" placeholder="e.g. ve9EPM428h8vShlRW1KT" value="1uDcMtL7LgPvpYwaQtdq">
     <p class="hint">Find it in GHL: open a sub-account, URL is like <code>.../location/VE9EPM428h8vShlRW1KT/...</code>. Use that id (case-sensitive).</p>
     <button type="button" id="load">Load dashboard in iframe</button>
   </div>
@@ -33,7 +33,7 @@
   </div>
 
   <script>
-    document.getElementById('load').onclick = function () {
+    function loadIframe() {
       var base = (document.getElementById('base').value || '').replace(/\/$/, '');
       var locationId = (document.getElementById('locationId').value || '').trim();
       if (!locationId) {
@@ -43,7 +43,15 @@
       var url = base + '/dashboard?locationId=' + encodeURIComponent(locationId);
       document.getElementById('appFrame').src = url;
       document.getElementById('frameWrap').style.display = 'block';
-    };
+    }
+    document.getElementById('load').onclick = loadIframe;
+    // Auto-load with default locationId on page load (like GHL embedding the app)
+    (function () {
+      var loc = (document.getElementById('locationId').value || '').trim();
+      if (loc) {
+        loadIframe();
+      }
+    })();
   </script>
 </body>
 </html>

@@ -41,12 +41,16 @@ export async function GET(request: NextRequest) {
       }
       return NextResponse.json({ counts, total: contacts.length, recentActivities: [] });
     } catch (err) {
-      debugLog('CRM stats: needsConnect from listGHLContacts error', {
-        err: err instanceof Error ? err.message : String(err),
-        hypothesisId: 'H5',
+      const errMessage = err instanceof Error ? err.message : String(err);
+      debugLog('CRM stats: API error (connected but call failed)', { err: errMessage, hypothesisId: 'H5' });
+      console.warn('[CQ CRM stats] listGHLContacts error', { locationId: ctx.locationId?.slice(0, 12) + '...', err: errMessage });
+      return NextResponse.json({
+        counts: {},
+        total: 0,
+        recentActivities: [],
+        apiError: true,
+        error: errMessage,
       });
-      console.warn('[CQ CRM stats] listGHLContacts error', { locationId: ctx.locationId?.slice(0, 12) + '...', err: err instanceof Error ? err.message : String(err) });
-      return NextResponse.json({ counts: {}, total: 0, recentActivities: [], needsConnect: true });
     }
   } catch (err) {
     console.warn('CRM stats error:', err);

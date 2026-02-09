@@ -50,18 +50,28 @@ interface VerifyResult {
   locationIdLookedUp?: string;
 }
 
+/** GHL pipeline from GET /opportunities/pipelines */
+interface GHLPipeline {
+  id: string;
+  name: string;
+  stages: Array<{ id: string; name: string }>;
+}
+
 const STAGES = ['lead', 'quoted', 'booked', 'customer', 'churned'] as const;
 
 export default function CRMDashboardPage() {
   const effectiveLocationId = useEffectiveLocationId();
   const { api } = useDashboardApi();
   const [stats, setStats] = useState<Stats | null>(null);
+  const [pipelines, setPipelines] = useState<GHLPipeline[]>([]);
   const [contactsByStage, setContactsByStage] = useState<Record<string, Contact[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [needsConnect, setNeedsConnect] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [verify, setVerify] = useState<VerifyResult | null>(null);
   const [testingConnection, setTestingConnection] = useState(false);
+  const [retryTrigger, setRetryTrigger] = useState(0);
   const statusRef = useRef<HTMLParagraphElement | null>(null);
 
   const runVerify = useCallback(async () => {
@@ -79,6 +89,7 @@ export default function CRMDashboardPage() {
   }, [api]);
 
   useEffect(() => {
+    setApiError(null);
     if (!effectiveLocationId) {
       fetch('/api/dashboard/ghl/verify', { credentials: 'include' })
         .then((res) => res.json())
@@ -90,16 +101,20 @@ export default function CRMDashboardPage() {
     Promise.all([
       api('/api/dashboard/crm/stats').then((r) => (r.ok ? r.json() : null)),
       api('/api/dashboard/ghl/verify').then((res) => res.json()),
+      api('/api/dashboard/crm/pipelines').then((r) => (r.ok ? r.json() : { pipelines: [] })),
       ...STAGES.map((stage) =>
         api(`/api/dashboard/crm/contacts?stage=${stage}&perPage=20`).then((r) =>
           r.ok ? r.json() : { contacts: [] }
         )
       ),
     ])
-      .then(([statsRes, verifyRes, ...stageRes]) => {
+      .then(([statsRes, verifyRes, pipelinesRes, ...stageRes]) => {
+        const statsData = statsRes as { needsConnect?: boolean; apiError?: boolean; error?: string } | null;
         setStats(statsRes ?? { counts: {}, total: 0, recentActivities: [] });
         setVerify(verifyRes);
-        setNeedsConnect(!!(statsRes as { needsConnect?: boolean })?.needsConnect);
+        setPipelines((pipelinesRes as { pipelines?: GHLPipeline[] })?.pipelines ?? []);
+        setNeedsConnect(!!statsData?.needsConnect);
+        setApiError(statsData?.apiError && statsData?.error ? statsData.error : null);
         const byStage: Record<string, Contact[]> = {};
         STAGES.forEach((s, i) => {
           byStage[s] = stageRes[i]?.contacts ?? [];
@@ -108,7 +123,7 @@ export default function CRMDashboardPage() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [effectiveLocationId, api]);
+  }, [effectiveLocationId, api, retryTrigger]);
 
   if (loading) {
     return (
@@ -127,8 +142,42 @@ export default function CRMDashboardPage() {
   }
 
   const connectionOk = verify?.ok === true;
-  const showConnectCTA = (needsConnect || !connectionOk) && effectiveLocationId;
+  const showConnectCTA = (needsConnect || !connectionOk) && effectiveLocationId && !apiError;
   const noLocation = !effectiveLocationId && !loading;
+
+  if (apiError && effectiveLocationId) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-foreground">CRM Pipeline</h1>
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-destructive">
+          <p className="font-medium">API call failed</p>
+          <p className="mt-2 text-sm">{apiError}</p>
+          <p className="mt-3 text-xs opacity-90">
+            Location is connected via OAuth; the request to GHL failed. Check the error above (e.g. invalid parameters or rate limits).
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => { setLoading(true); setRetryTrigger((t) => t + 1); }}
+              className="inline-flex items-center gap-2 rounded-md border border-destructive px-4 py-2 text-sm font-medium hover:bg-destructive/10"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Retry
+            </button>
+            <button
+              type="button"
+              onClick={runVerify}
+              disabled={testingConnection}
+              className="inline-flex items-center gap-2 rounded-md border border-muted-foreground/30 px-4 py-2 text-sm font-medium hover:bg-muted/50 disabled:opacity-50"
+            >
+              {testingConnection ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Test connection
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (noLocation) {
     return (
@@ -246,6 +295,40 @@ export default function CRMDashboardPage() {
           Track leads from quote to customer
         </p>
       </div>
+
+      {/* GHL Pipelines from location */}
+      {pipelines.length > 0 && (
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h2 className="text-lg font-semibold text-foreground">Your GHL pipelines</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Opportunity pipelines for this location (from GoHighLevel)
+          </p>
+          <div className="mt-4 space-y-4">
+            {pipelines.map((pipeline) => (
+              <div
+                key={pipeline.id}
+                className="rounded-lg border border-border bg-muted/30 p-3"
+              >
+                <p className="font-medium text-foreground">{pipeline.name}</p>
+                {pipeline.stages?.length ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {pipeline.stages.map((stage) => (
+                      <span
+                        key={stage.id}
+                        className="inline-flex rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground"
+                      >
+                        {stage.name}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-muted-foreground">No stages</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Quick stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">

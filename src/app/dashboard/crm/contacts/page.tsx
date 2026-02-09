@@ -53,10 +53,11 @@ export default function CRMContactsPage() {
     api(`/api/dashboard/crm/contacts?${params}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status === 401 ? 'Unauthorized' : 'Failed to load'))))
       .then((d) => {
-        setError(null); // clear any previous "Failed to load" from a prior request
+        const errMsg = (d as { error?: string }).error;
+        setError(errMsg ?? null);
         setContacts(d.contacts ?? []);
         setTotal(d.total ?? 0);
-        setNeedsConnect(!!d.needsConnect);
+        setNeedsConnect(!!d.needsConnect && !errMsg);
         const debug = (d as { _debug?: { reason?: string } })._debug;
         setConnectReason(debug?.reason ?? null);
         if (d.needsConnect && debug) {

@@ -1835,6 +1835,27 @@ export async function listGHLContactsByBusinessId(
 }
 
 /**
+ * List pipelines for a location (opportunity pipelines and stages).
+ * GET /opportunities/pipelines?locationId=...
+ * @see https://marketplace.gohighlevel.com/docs/ghl/opportunities/get-pipelines
+ */
+export async function listGHLPipelines(
+  locationId: string,
+  credentials?: GHLCredentials | null
+): Promise<GHLPipeline[]> {
+  const res = await makeGHLRequest<{ pipelines?: GHLPipeline[]; data?: GHLPipeline[] }>(
+    `/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`,
+    'GET',
+    undefined,
+    undefined,
+    undefined,
+    credentials
+  );
+  const pipelines = res?.pipelines ?? res?.data ?? [];
+  return Array.isArray(pipelines) ? pipelines : [];
+}
+
+/**
  * List quote custom object records from GHL for a location.
  * Used by Quotes dashboard when in marketplace (OAuth) session mode.
  */
