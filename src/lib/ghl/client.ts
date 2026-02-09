@@ -1783,9 +1783,9 @@ export async function listContactNotes(
 
 /**
  * List contacts from GHL for a location.
- * Uses POST /contacts/search (Get Contacts GET /contacts/ is deprecated).
- * @see https://marketplace.gohighlevel.com/docs/ghl/contacts/get-contacts
- * @see https://marketplace.gohighlevel.com/docs/ghl/contacts/search-contacts-advanced
+ * Uses GET /contacts with query params per GHL Get Contacts API:
+ * locationId, limit, skip, query (optional search). Version header required.
+ * @see https://marketplace.gohighlevel.com/docs/api/contacts/get-contacts
  */
 export async function listGHLContacts(
   locationId: string,
@@ -1793,23 +1793,26 @@ export async function listGHLContacts(
   credentials?: GHLCredentials | null
 ): Promise<{ contacts: any[]; total: number }> {
   const limit = Math.min(100, Math.max(1, options?.limit ?? 25));
-  const skip = ((options?.page ?? 1) - 1) * limit;
-  const body = {
+  const page = Math.max(1, options?.page ?? 1);
+  const skip = (page - 1) * limit;
+  const params = new URLSearchParams({
     locationId,
-    limit,
-    skip,
-    ...(options?.search?.trim() ? { query: { search: options.search.trim() } } : {}),
-  };
-  const res = await makeGHLRequest<{ contacts?: any[]; meta?: { total?: number }; total?: number }>(
-    '/contacts/search',
-    'POST',
-    body,
+    limit: String(limit),
+    skip: String(skip),
+  });
+  if (options?.search?.trim()) {
+    params.set('query', options.search.trim());
+  }
+  const res = await makeGHLRequest<{ contacts?: any[]; total?: number }>(
+    `/contacts?${params.toString()}`,
+    'GET',
+    undefined,
     undefined,
     undefined,
     credentials
   );
   const contacts = res?.contacts ?? [];
-  const total = res?.meta?.total ?? res?.total ?? contacts.length;
+  const total = res?.total ?? contacts.length;
   return { contacts, total };
 }
 

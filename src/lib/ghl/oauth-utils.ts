@@ -18,7 +18,7 @@ export function getGHLMarketplaceAppUrl(): string {
 export const GHL_APP_VERSION_ID = '6983957514ceb0bb033c8aa1';
 
 /** Direct GHL app install URL (opens in new tab; OAuth runs in that tab so cookie is preserved). Override with GHL_INSTALL_URL env. */
-export const GHL_INSTALL_URL_DEFAULT = 'https://app.leadconnectorhq.com/integration/6983957514ceb0bb033c8aa1/versions/6983957514ceb0bb033c8aa1';
+export const GHL_INSTALL_URL_DEFAULT = 'https://marketplace.leadconnectorhq.com/integration/6983957514ceb0bb033c8aa1/versions/6983957514ceb0bb033c8aa1';
 
 export function getGHLInstallUrl(): string {
   return process.env.GHL_INSTALL_URL?.trim() || GHL_INSTALL_URL_DEFAULT;
