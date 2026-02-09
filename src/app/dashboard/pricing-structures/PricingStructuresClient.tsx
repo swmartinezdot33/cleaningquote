@@ -25,7 +25,7 @@ interface PricingStructureItem {
 }
 
 export default function PricingStructuresClient() {
-  const { api } = useDashboardApi();
+  const { api, locationId: effectiveLocationId } = useDashboardApi();
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgRole, setOrgRole] = useState<string | null>(null);
   const [list, setList] = useState<PricingStructureItem[]>([]);
@@ -41,7 +41,12 @@ export default function PricingStructuresClient() {
   const loadList = useCallback(() => {
     if (!orgId) return;
     api(`/api/dashboard/orgs/${orgId}/pricing-structures`)
-      .then((r) => r.json())
+      .then((r) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'PricingStructuresClient:listResponse', message: 'pricing-structures response', data: { status: r.status, ok: r.ok }, timestamp: Date.now(), hypothesisId: 'H2-H5' }) }).catch(() => {});
+        // #endregion
+        return r.json();
+      })
       .then((d) => setList(d.pricingStructures ?? []))
       .catch(() => setList([]));
   }, [orgId, api]);
@@ -56,6 +61,9 @@ export default function PricingStructuresClient() {
 
   // Refetch selected org when locationId changes (api identity changes) so GHL location toggle updates without refresh.
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'PricingStructuresClient:effect', message: 'load effect run', data: { hasEffectiveLocationId: !!effectiveLocationId }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+    // #endregion
     api('/api/dashboard/orgs/selected')
       .then((r) => r.json())
       .then((d) => {
@@ -63,7 +71,7 @@ export default function PricingStructuresClient() {
         setOrgRole(d.org?.role ?? null);
       })
       .finally(() => setLoading(false));
-  }, [api]);
+  }, [api, effectiveLocationId]);
 
   useEffect(() => {
     if (!orgId) return;

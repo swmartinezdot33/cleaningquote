@@ -39,7 +39,7 @@ interface ServiceAreaItem {
 }
 
 export default function ServiceAreasClient() {
-  const { api } = useDashboardApi();
+  const { api, locationId: effectiveLocationId } = useDashboardApi();
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgRole, setOrgRole] = useState<string | null>(null);
   const [orgOfficeAddress, setOrgOfficeAddress] = useState<string>('');
@@ -85,6 +85,9 @@ export default function ServiceAreasClient() {
   }, [orgId, api]);
 
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ServiceAreasClient:effect', message: 'load effect run', data: { hasEffectiveLocationId: !!effectiveLocationId }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+    // #endregion
     api('/api/dashboard/orgs/selected')
       .then((r) => r.json())
       .then((d) => {
@@ -99,7 +102,15 @@ export default function ServiceAreasClient() {
         return resolvedOrgId && resolvedRole === 'admin' ? resolvedOrgId : null;
       })
       .then((id) => {
-        if (id) return api(`/api/dashboard/orgs/${id}/service-areas`).then((r) => r.json());
+        if (id) {
+          return api(`/api/dashboard/orgs/${id}/service-areas`)
+            .then((r) => {
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ServiceAreasClient:listResponse', message: 'service-areas response', data: { status: r.status, ok: r.ok }, timestamp: Date.now(), hypothesisId: 'H2-H5' }) }).catch(() => {});
+              // #endregion
+              return r.json();
+            });
+        }
         return { serviceAreas: [] };
       })
       .then((d) => {
@@ -109,9 +120,14 @@ export default function ServiceAreasClient() {
         // #endregion
         setList(areas);
       })
-      .catch(() => setList([]))
+      .catch((err) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ServiceAreasClient:catch', message: 'load failed', data: { err: String(err) }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});
+        // #endregion
+        setList([]);
+      })
       .finally(() => setLoading(false));
-  }, [api]);
+  }, [api, effectiveLocationId]);
 
   useEffect(() => {
     if (orgId) loadList();
