@@ -68,15 +68,40 @@ export async function storeAgencyTokenFromInstall(data: AgencyTokenInstall): Pro
  * Used for POST /oauth/locationToken. Refreshes if expired.
  */
 export async function getAgencyToken(): Promise<string | null> {
+  // #region agent log
+  const ingest = (msg: string, d: Record<string, unknown>) => {
+    const payload = { location: 'token-store.ts:getAgencyToken', message: msg, data: d, timestamp: Date.now() };
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {});
+    console.log('[CQ-DEBUG]', JSON.stringify(payload));
+  };
+  // #endregion
   try {
     const kv = getKV();
     const data = await kv.get<AgencyTokenInstall>(AGENCY_TOKEN_KEY);
-    if (!data?.accessToken || !data?.refreshToken) return null;
+    if (!data?.accessToken || !data?.refreshToken) {
+      // #region agent log
+      ingest('agency token null: no data or missing tokens', { hasData: !!data, hasAccess: !!data?.accessToken, hasRefresh: !!data?.refreshToken, hypothesisId: 'H1-H5' });
+      // #endregion
+      return null;
+    }
     const now = Date.now();
-    if (data.expiresAt - REFRESH_BUFFER_MS > now) return data.accessToken;
+    const needsRefresh = data.expiresAt - REFRESH_BUFFER_MS <= now;
+    if (!needsRefresh) {
+      // #region agent log
+      ingest('agency token from KV (not refreshed)', { tokenLength: data.accessToken.length, hypothesisId: 'H1-H5' });
+      // #endregion
+      return data.accessToken;
+    }
     const refreshed = await refreshAgencyToken(data);
-    return refreshed?.accessToken ?? null;
-  } catch {
+    const out = refreshed?.accessToken ?? null;
+    // #region agent log
+    ingest('agency token after refresh', { refreshed: !!refreshed, tokenLength: out?.length ?? 0, hypothesisId: 'H3' });
+    // #endregion
+    return out;
+  } catch (e) {
+    // #region agent log
+    ingest('getAgencyToken throw', { err: e instanceof Error ? e.message : String(e), hypothesisId: 'H1-H5' });
+    // #endregion
     return null;
   }
 }
@@ -121,11 +146,9 @@ async function refreshAgencyToken(install: AgencyTokenInstall): Promise<AgencyTo
 
 // #region agent log
 function debugLog(message: string, data: Record<string, unknown>) {
-  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ location: 'token-store.ts', message, data, timestamp: Date.now() }),
-  }).catch(() => {});
+  const payload = { location: 'token-store.ts', message, data, timestamp: Date.now() };
+  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {});
+  console.log('[CQ-DEBUG]', JSON.stringify(payload));
 }
 // #endregion
 
@@ -182,11 +205,27 @@ export async function getOrFetchTokenForLocation(locationId: string): Promise<st
     return !!at;
   })();
 
+  // #region agent log
+  debugLog('getOrFetchTokenForLocation: agency path check', {
+    hasAgencyToken,
+    hasCompanyId: !!companyId,
+    locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4),
+    hypothesisId: 'H1-H2-H5',
+  });
+  // #endregion
   // Use our access token to get location access token (POST /oauth/locationToken); then use that for contacts etc.
   if (hasAgencyToken && companyId) {
     try {
       const { getLocationTokenFromAgency } = await import('./agency');
       const result = await getLocationTokenFromAgency(locationId, companyId, { skipStore: false });
+      // #region agent log
+      debugLog('getOrFetchTokenForLocation: locationToken result', {
+        success: result.success,
+        error: result.error ?? null,
+        hasAccessToken: !!result.accessToken,
+        hypothesisId: 'H1-H5',
+      });
+      // #endregion
       if (result.success && result.accessToken) {
         debugLog('getOrFetchTokenForLocation: returning location token from Agency', {
           locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`,
@@ -194,22 +233,22 @@ export async function getOrFetchTokenForLocation(locationId: string): Promise<st
         });
         return result.accessToken;
       }
-      // 401 "not authorized for this scope" = token lacks oauth.write. If this location has a Company install,
-      // the KV token is company-scoped — do not use it for contacts (would get "authClass type not allowed").
+      // 401 "not authorized for this scope" = token lacks oauth.write. We have an agency token, so the token
+      // in KV for this locationId is the company token — never use it for location APIs (causes "authClass type not allowed").
       const isScopeError = result.error && /scope|authorized/i.test(result.error);
       if (isScopeError) {
-        const install = await getInstallation(locationId);
-        if (install?.userType === 'Company') {
-          console.warn('[CQ token-store] POST /oauth/locationToken returned 401 scope; Company install token cannot be used for contacts. Add oauth.write scope or connect as Location user.');
-          return null;
-        }
+        console.warn('[CQ token-store] POST /oauth/locationToken returned 401 scope; not using KV token (would be company token). Add oauth.write in GHL Marketplace or connect as Location user.');
+        return null;
       }
-    } catch {
-      // Fall through to KV
+    } catch (e) {
+      // #region agent log
+      debugLog('getOrFetchTokenForLocation: getLocationTokenFromAgency threw', { err: e instanceof Error ? e.message : String(e), hypothesisId: 'H4' });
+      // #endregion
+      // Fall through to KV only if we didn't get a scope error (e.g. network failure)
     }
   }
 
-  // No agency path, or locationToken succeeded: use token from KV (Location user install = location-scoped).
+  // No agency path, or locationToken succeeded: use token from KV (Location user install = location-scoped only).
   const token = await getTokenForLocation(locationId);
   if (token) {
     debugLog('getOrFetchTokenForLocation: returning token from KV', {

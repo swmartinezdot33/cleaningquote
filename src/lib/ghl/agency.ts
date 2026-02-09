@@ -155,19 +155,31 @@ function agencyDebugLog(message: string, data: Record<string, unknown>) {
 // #endregion
 
 /**
- * Resolve the token to use for POST /oauth/locationToken. Prefer KV (OAuth install token) over env.
- * The token from the OAuth flow was requested with oauth.write in scope; env token may be a PIT without it.
+ * Resolve the Agency Access Token for POST /oauth/locationToken and GET /oauth/installedLocations.
+ * OAuth Access Token (from app install) is NOT the Agency token — we use only the real Agency Access Token (e.g. from Marketplace / PIT).
  */
-async function getAgencyTokenForLocationToken(): Promise<string | null> {
-  const { getAgencyToken } = await import('./token-store');
-  const fromKV = await getAgencyToken();
-  if (fromKV) return fromKV;
-  return process.env.GHL_AGENCY_ACCESS_TOKEN?.trim() ?? null;
+async function getAgencyTokenForLocationToken(_locationId?: string | null): Promise<string | null> {
+  // #region agent log
+  const ingest = (msg: string, d: Record<string, unknown>) => {
+    const payload = { location: 'agency.ts:getAgencyTokenForLocationToken', message: msg, data: d, timestamp: Date.now() };
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {});
+    console.log('[CQ-DEBUG]', JSON.stringify(payload));
+  };
+  // #endregion
+  const token = process.env.GHL_AGENCY_ACCESS_TOKEN?.trim() ?? null;
+  // #region agent log
+  ingest('Agency token for locationToken (env only; OAuth token is not Agency)', {
+    hasAgencyToken: !!token,
+    tokenLength: token?.length ?? 0,
+    hypothesisId: 'H1-H2-H5',
+  });
+  // #endregion
+  return token || null;
 }
 
 /**
- * Step 3: Get location access token from the (agency/company) access token.
- * Uses the token we got from OAuth; that token must have oauth.write scope (request it in authorize URL and in GHL Marketplace app scopes).
+ * Step 3: Get Location Access Token using the Agency Access Token (not the OAuth token).
+ * POST /oauth/locationToken expects Bearer = Agency Access Token (e.g. GHL_AGENCY_ACCESS_TOKEN).
  */
 export async function getLocationTokenFromAgency(
   locationId: string,
@@ -177,9 +189,23 @@ export async function getLocationTokenFromAgency(
   const token = await getAgencyTokenForLocationToken();
   if (!token) {
     agencyDebugLog('getLocationTokenFromAgency: no agency token (set GHL_AGENCY_ACCESS_TOKEN or complete OAuth install as Company user)', { hypothesisId: 'H1' });
-    return { success: false, error: 'No agency token. Set GHL_AGENCY_ACCESS_TOKEN or have a Company user complete the Connect flow once.' };
+    return { success: false, error: 'No agency token. Set GHL_AGENCY_ACCESS_TOKEN (Agency Access Token from Marketplace/PIT; OAuth token is not the Agency token).' };
   }
 
+  // #region agent log
+  const ingest = (msg: string, d: Record<string, unknown>) => {
+    const payload = { location: 'agency.ts:getLocationTokenFromAgency', message: msg, data: d, timestamp: Date.now() };
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {});
+    console.log('[CQ-DEBUG]', JSON.stringify(payload));
+  };
+  ingest('before POST /oauth/locationToken', {
+    tokenLength: token.length,
+    companyIdLen: companyId.length,
+    locationIdLen: locationId.length,
+    locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4),
+    hypothesisId: 'H4',
+  });
+  // #endregion
   try {
     const body = new URLSearchParams({
       companyId,
@@ -209,6 +235,16 @@ export async function getLocationTokenFromAgency(
       statusCode?: number;
     };
 
+    // #region agent log
+    ingest('after POST /oauth/locationToken', {
+      resStatus: res.status,
+      resOk: res.ok,
+      dataError: data.error ?? null,
+      dataMessage: data.message ?? null,
+      hasAccessToken: !!(data as { access_token?: string }).access_token,
+      hypothesisId: 'H2-H3-H4-H5',
+    });
+    // #endregion
     if (!res.ok) {
       const errMsg = data.error ?? data.message ?? `GHL API ${res.status}`;
       agencyDebugLog('getLocationTokenFromAgency: GHL API error', { status: res.status, error: errMsg, endpoint: '/oauth/locationToken', hypothesisId: 'H2-H3-H5' });
