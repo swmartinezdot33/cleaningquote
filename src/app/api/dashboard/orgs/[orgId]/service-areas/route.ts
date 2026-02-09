@@ -52,17 +52,12 @@ export async function GET(
     );
   }
 
-  const ghlSession = await getSession();
-  const locationId = requestLocationId ?? ghlSession?.locationId ?? null;
-  let query = client
+  // Org is 1:1 with GHL location; show all service areas for this org (no ghl_location_id filter)
+  const { data, error } = await client
     .from('service_areas')
     .select('id, name, polygon, zone_display, network_link_url, network_link_fetched_at, created_at, updated_at')
-    .eq('org_id', orgId);
-  // When in GHL context: show areas for this location OR unscoped (ghl_location_id null) so existing data loads
-  if (locationId) {
-    query = query.or(`ghl_location_id.eq.${locationId},ghl_location_id.is.null`);
-  }
-  const { data, error } = await query.order('name');
+    .eq('org_id', orgId)
+    .order('name');
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
