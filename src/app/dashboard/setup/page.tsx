@@ -88,7 +88,7 @@ export default function SetupPage() {
           {oauthStatus?.installed ? (
             <div className="flex items-center gap-2 text-green-600">
               <CheckCircle className="h-5 w-5" />
-              <span>App installed for location: {oauthStatus.locationId ?? effectiveLocationId}</span>
+              <span>App installed for location: {oauthStatus?.locationId ?? effectiveLocationId ?? '—'}</span>
             </div>
           ) : (
             <div className="flex items-center gap-2 text-amber-600">

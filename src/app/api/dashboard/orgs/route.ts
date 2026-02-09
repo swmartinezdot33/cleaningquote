@@ -2,41 +2,47 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { slugToSafe } from '@/lib/supabase/tools';
+import * as configStore from '@/lib/config/store';
+import { getSession } from '@/lib/ghl/session';
 
 export const dynamic = 'force-dynamic';
 
-/** GET - List organizations the user belongs to */
-export async function GET() {
+function locationIdFromRequest(request: NextRequest): string | null {
+  const header = request.headers.get('x-ghl-location-id')?.trim() || null;
+  const query = request.nextUrl.searchParams.get('locationId')?.trim() || null;
+  return header ?? query ?? null;
+}
+
+/** GET - List organizations. Supabase user: orgs they belong to. GHL iframe: orgs linked to locationId (from request). */
+export async function GET(request: NextRequest) {
   const supabase = await createSupabaseServerSSR();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  if (user) {
+    const { data: dataRaw } = await supabase
+      .from('organization_members')
+      .select('org_id, role')
+      .eq('user_id', user.id);
+    const data = (dataRaw ?? []) as Array<{ org_id: string; role: string }>;
+    if (!data.length) return NextResponse.json({ orgs: [] });
+    const orgIds = data.map((r) => r.org_id);
+    const { data: orgsRaw } = await supabase.from('organizations').select('*').in('id', orgIds).order('name');
+    const orgs = (orgsRaw ?? []) as Array<{ id: string; name: string; slug: string }>;
+    const roleByOrg = new Map(data.map((r) => [r.org_id, r.role]));
+    return NextResponse.json({ orgs: orgs.map((o) => ({ ...o, role: roleByOrg.get(o.id) ?? 'member' })) });
   }
 
-  const { data: dataRaw } = await supabase
-    .from('organization_members')
-    .select('org_id, role')
-    .eq('user_id', user.id);
-  const data = (dataRaw ?? []) as Array<{ org_id: string; role: string }>;
-  if (!data.length) {
-    return NextResponse.json({ orgs: [] });
-  }
+  const requestLocationId = locationIdFromRequest(request);
+  const locationId = requestLocationId ?? (await getSession())?.locationId ?? null;
+  if (!locationId) return NextResponse.json({ orgs: [] });
 
-  const orgIds = data.map((r) => r.org_id);
-  const { data: orgsRaw } = await supabase
-    .from('organizations')
-    .select('*')
-    .in('id', orgIds)
-    .order('name');
+  const orgIds = await configStore.getOrgIdsByGHLLocationId(locationId);
+  if (orgIds.length === 0) return NextResponse.json({ orgs: [] });
+
+  const admin = createSupabaseServer();
+  const { data: orgsRaw } = await admin.from('organizations').select('*').in('id', orgIds).order('name');
   const orgs = (orgsRaw ?? []) as Array<{ id: string; name: string; slug: string }>;
-  const roleByOrg = new Map(data.map((r) => [r.org_id, r.role]));
-
-  const withRole = orgs.map((o) => ({
-    ...o,
-    role: roleByOrg.get(o.id) ?? 'member',
-  }));
-
-  return NextResponse.json({ orgs: withRole });
+  return NextResponse.json({ orgs: orgs.map((o) => ({ ...o, role: 'admin' as const })) });
 }
 
 /** POST - Create a new organization */

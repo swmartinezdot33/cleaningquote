@@ -73,16 +73,30 @@ async function upsertConfig(toolId: string | undefined, updates: Partial<ToolCon
 /**
  * Create or reset this tool's config row with preset only: site customization (title, subtitle, color) and survey questions.
  * Call once when a tool is created so every tool always has its own config. Never uses global row.
+ * When ghlLocationId is provided, the tool is associated with that GHL location (visible in Tools list for that location).
  */
 export async function createToolConfigPreset(
   toolId: string,
   widget: WidgetSettings,
-  surveyQuestions: unknown[]
+  surveyQuestions: unknown[],
+  ghlLocationId?: string | null
 ): Promise<void> {
   await upsertConfig(toolId, {
     widget_settings: widget as unknown as Json,
     survey_questions: surveyQuestions as unknown as Json,
+    ...(ghlLocationId ? { ghl_location_id: ghlLocationId } : {}),
   });
+}
+
+/**
+ * Set the GHL location ID for a tool's config (so the tool appears in that location's Tools list).
+ */
+export async function setToolConfigGhlLocationId(
+  toolId: string,
+  ghlLocationId: string | null
+): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  await upsertConfig(toolId, { ghl_location_id: ghlLocationId });
 }
 
 // ---- Widget ----

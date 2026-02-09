@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const session = await getSession();
   if (!session) {
-    return NextResponse.json({ error: 'No GHL session. Open CleanQuote from your location in GoHighLevel.' }, { status: 401 });
+    return NextResponse.json({ mode: null, locationId: null, companyId: null, userId: null, user: null });
   }
 
   // When we have userId, lookup current user from GHL and cache for reference (name, email, etc.)

@@ -1,29 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { createSupabaseServer } from '@/lib/supabase/server';
 import { canManageOrg } from '@/lib/org-auth';
+import * as configStore from '@/lib/config/store';
+import { getSession } from '@/lib/ghl/session';
 import type { ServiceAreaUpdate } from '@/lib/supabase/types';
 import { toStoredPolygons } from '@/lib/service-area/normalizePolygons';
 
 export const dynamic = 'force-dynamic';
 
-/** GET - Get one service area (for edit). */
+function locationIdFromRequest(request: NextRequest): string | null {
+  const header = request.headers.get('x-ghl-location-id')?.trim() || null;
+  const query = request.nextUrl.searchParams.get('locationId')?.trim() || null;
+  return header ?? query ?? null;
+}
+
+async function canAccessOrgViaGHLLocation(orgId: string, locationId: string): Promise<boolean> {
+  const orgIds = await configStore.getOrgIdsByGHLLocationId(locationId);
+  return orgIds.includes(orgId);
+}
+
+async function resolveAccess(
+  request: NextRequest,
+  orgId: string
+): Promise<{
+  allowed: boolean;
+  client: Awaited<ReturnType<typeof createSupabaseServerSSR>> | ReturnType<typeof createSupabaseServer>;
+}> {
+  const supabase = await createSupabaseServerSSR();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    const canManage = await canManageOrg(user.id, user.email ?? undefined, orgId);
+    return { allowed: canManage, client: supabase };
+  }
+  const locationId = locationIdFromRequest(request) ?? (await getSession())?.locationId ?? null;
+  if (locationId && (await canAccessOrgViaGHLLocation(orgId, locationId))) {
+    return { allowed: true, client: createSupabaseServer() };
+  }
+  return { allowed: false, client: supabase };
+}
+
+/** GET - Get one service area (for edit). Auth: Supabase user or GHL iframe (locationId from request). */
 export async function GET(
-  _req: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ orgId: string; areaId: string }> }
 ) {
   const { orgId, areaId } = await context.params;
-  const supabase = await createSupabaseServerSSR();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { allowed, client } = await resolveAccess(request, orgId);
+  if (!allowed) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const canManage = await canManageOrg(user.id, user.email ?? undefined, orgId);
-  if (!canManage) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
-  const { data, error } = await supabase
+  const { data, error } = await client
     .from('service_areas')
     .select('id, org_id, name, polygon, zone_display, network_link_url, network_link_fetched_at, created_at, updated_at')
     .eq('id', areaId)
@@ -37,25 +65,25 @@ export async function GET(
   return NextResponse.json({ serviceArea: data });
 }
 
-/** PATCH - Update name and/or polygon. */
+/** PATCH - Update name and/or polygon. Auth: Supabase user or GHL iframe (locationId from request). */
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ orgId: string; areaId: string }> }
 ) {
   const { orgId, areaId } = await context.params;
-  const supabase = await createSupabaseServerSSR();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { allowed, client } = await resolveAccess(request, orgId);
+  if (!allowed) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const canManage = await canManageOrg(user.id, user.email ?? undefined, orgId);
-  if (!canManage) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
   const body = await request.json().catch(() => ({}));
-  const updates: ServiceAreaUpdate = { updated_at: new Date().toISOString() };
+  const updates: ServiceAreaUpdate & { ghl_location_id?: string | null } = { updated_at: new Date().toISOString() };
+  const requestLocationId = locationIdFromRequest(request);
+  const ghlSession = await getSession();
+  const locationIdForRow = requestLocationId ?? ghlSession?.locationId ?? null;
+  if (locationIdForRow) {
+    updates.ghl_location_id = locationIdForRow;
+  }
 
   if (typeof body.name === 'string') {
     const name = body.name.trim();
@@ -80,7 +108,7 @@ export async function PATCH(
     updates.network_link_url = typeof body.network_link_url === 'string' ? body.network_link_url.trim() || null : null;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await client
     .from('service_areas')
     // @ts-expect-error Supabase Update type can be inferred as never for new table
     .update(updates)
@@ -95,24 +123,18 @@ export async function PATCH(
   return NextResponse.json({ serviceArea: data });
 }
 
-/** DELETE - Delete service area and remove from tool_service_areas. */
+/** DELETE - Delete service area and remove from tool_service_areas. Auth: Supabase user or GHL iframe. */
 export async function DELETE(
-  _req: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ orgId: string; areaId: string }> }
 ) {
   const { orgId, areaId } = await context.params;
-  const supabase = await createSupabaseServerSSR();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { allowed, client } = await resolveAccess(request, orgId);
+  if (!allowed) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const canManage = await canManageOrg(user.id, user.email ?? undefined, orgId);
-  if (!canManage) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
-  const { error } = await supabase
+  const { error } = await client
     .from('service_areas')
     .delete()
     .eq('id', areaId)

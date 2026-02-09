@@ -7,14 +7,20 @@ import { getSession } from '@/lib/ghl/session';
 
 export const dynamic = 'force-dynamic';
 
+function locationIdFromRequest(request: NextRequest): string | null {
+  const header = request.headers.get('x-ghl-location-id')?.trim() || null;
+  const query = request.nextUrl.searchParams.get('locationId')?.trim() || null;
+  return header ?? query ?? null;
+}
+
 async function canAccessOrgViaGHLLocation(orgId: string, locationId: string): Promise<boolean> {
   const orgIds = await configStore.getOrgIdsByGHLLocationId(locationId);
   return orgIds.includes(orgId);
 }
 
-/** GET - List tools for this org (id, name). For dropdowns and copy-from-tool. */
+/** GET - List tools for this org (id, name). Auth: Supabase user or GHL iframe (locationId from request). */
 export async function GET(
-  _req: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ orgId: string }> }
 ) {
   const { orgId } = await context.params;
@@ -23,12 +29,13 @@ export async function GET(
 
   let allowed = false;
   let client: ReturnType<typeof createSupabaseServerSSR> | ReturnType<typeof createSupabaseServer> = supabase;
+  const requestLocationId = locationIdFromRequest(request);
   if (user) {
     allowed = await canManageOrg(user.id, user.email ?? undefined, orgId);
   } else {
-    const ghlSession = await getSession();
-    if (ghlSession?.locationId) {
-      allowed = await canAccessOrgViaGHLLocation(orgId, ghlSession.locationId);
+    const locationId = requestLocationId ?? (await getSession())?.locationId ?? null;
+    if (locationId) {
+      allowed = await canAccessOrgViaGHLLocation(orgId, locationId);
       if (allowed) client = createSupabaseServer();
     }
   }

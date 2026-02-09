@@ -9,7 +9,13 @@ import type { PricingTable } from '@/lib/pricing/types';
 
 export const dynamic = 'force-dynamic';
 
-async function resolveOrgAccess(orgId: string): Promise<{
+function locationIdFromRequest(request: NextRequest): string | null {
+  const header = request.headers.get('x-ghl-location-id')?.trim() || null;
+  const query = request.nextUrl.searchParams.get('locationId')?.trim() || null;
+  return header ?? query ?? null;
+}
+
+async function resolveOrgAccess(orgId: string, request?: NextRequest): Promise<{
   allowed: boolean;
   client: Awaited<ReturnType<typeof createSupabaseServerSSR>> | ReturnType<typeof createSupabaseServer>;
   isGHL: boolean;
@@ -20,9 +26,11 @@ async function resolveOrgAccess(orgId: string): Promise<{
     const canManage = await canManageOrg(user.id, user.email ?? undefined, orgId);
     return { allowed: canManage, client: supabase, isGHL: false };
   }
+  const requestLocationId = request ? locationIdFromRequest(request) : null;
   const ghlSession = await getSession();
-  if (ghlSession?.locationId) {
-    const orgIds = await configStore.getOrgIdsByGHLLocationId(ghlSession.locationId);
+  const locationId = requestLocationId ?? ghlSession?.locationId ?? null;
+  if (locationId) {
+    const orgIds = await configStore.getOrgIdsByGHLLocationId(locationId);
     const allowed = orgIds.includes(orgId);
     return { allowed, client: allowed ? createSupabaseServer() : supabase, isGHL: true };
   }
@@ -31,11 +39,11 @@ async function resolveOrgAccess(orgId: string): Promise<{
 
 /** GET - Get one pricing structure (with pricing_table). Structure must belong to org. */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ orgId: string; structureId: string }> }
 ) {
   const { orgId, structureId } = await context.params;
-  const { allowed, client } = await resolveOrgAccess(orgId);
+  const { allowed, client } = await resolveOrgAccess(orgId, request);
   if (!allowed) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -70,15 +78,21 @@ export async function PATCH(
   context: { params: Promise<{ orgId: string; structureId: string }> }
 ) {
   const { orgId, structureId } = await context.params;
-  const { allowed, client } = await resolveOrgAccess(orgId);
+  const { allowed, client } = await resolveOrgAccess(orgId, request);
   if (!allowed) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const body = await request.json().catch(() => ({}));
-  const updates: { name?: string; pricing_table?: unknown; initial_cleaning_config?: unknown; updated_at: string } = {
+  const updates: { name?: string; pricing_table?: unknown; initial_cleaning_config?: unknown; updated_at: string; ghl_location_id?: string | null } = {
     updated_at: new Date().toISOString(),
   };
+  const requestLocationId = locationIdFromRequest(request);
+  const ghlSession = await getSession();
+  const locationIdForRow = requestLocationId ?? ghlSession?.locationId ?? null;
+  if (locationIdForRow) {
+    updates.ghl_location_id = locationIdForRow;
+  }
   if (typeof body.name === 'string' && body.name.trim()) {
     updates.name = body.name.trim();
   }
@@ -115,11 +129,11 @@ export async function PATCH(
 
 /** DELETE - Remove pricing structure. Structure must belong to org. */
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ orgId: string; structureId: string }> }
 ) {
   const { orgId, structureId } = await context.params;
-  const { allowed, client } = await resolveOrgAccess(orgId);
+  const { allowed, client } = await resolveOrgAccess(orgId, request);
   if (!allowed) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

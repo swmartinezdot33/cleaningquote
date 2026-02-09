@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDashboardUserAndToolWithClient } from '@/lib/dashboard-auth';
 import { createSupabaseServer, isSupabaseConfigured } from '@/lib/supabase/server';
 import { isSuperAdminEmail } from '@/lib/org-auth';
+import { getSession } from '@/lib/ghl/session';
 import * as configStore from '@/lib/config/store';
 import { slugToSafe } from '@/lib/supabase/tools';
+
+function locationIdFromRequest(request: NextRequest): string | null {
+  const header = request.headers.get('x-ghl-location-id')?.trim() || null;
+  const query = request.nextUrl.searchParams.get('locationId')?.trim() || null;
+  return header ?? query ?? null;
+}
 
 const SUPABASE_REQUIRED_MSG =
   'Supabase is required for configuration. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.';
@@ -94,6 +101,18 @@ export async function POST(
     await configStore.copyToolConfig(toolId, newId);
   } catch (err) {
     console.warn('Clone: config copy partial failure (tool created):', err);
+  }
+
+  // Set cloned tool to current GHL location so it appears in this location's Tools list.
+  const requestLocationId = locationIdFromRequest(request);
+  const session = await getSession();
+  const locationIdForTool = requestLocationId ?? session?.locationId ?? null;
+  if (locationIdForTool) {
+    try {
+      await configStore.setToolConfigGhlLocationId(newId, locationIdForTool);
+    } catch {
+      // non-fatal; clone already succeeded
+    }
   }
 
   return NextResponse.json({ tool: newTool });

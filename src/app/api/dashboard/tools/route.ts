@@ -13,12 +13,11 @@ export const dynamic = 'force-dynamic';
 
 /** GET - List tools for the current GHL location (tools whose tool_config.ghl_location_id matches). Accepts locationId from request (user context) so iframe location switch refetches correctly. */
 export async function GET(request: NextRequest) {
-  const session = await getSession();
   const headerLocationId = request.headers.get('x-ghl-location-id')?.trim() || null;
   const queryLocationId = request.nextUrl.searchParams.get('locationId')?.trim() || null;
-  const locationId = headerLocationId ?? queryLocationId ?? session?.locationId ?? null;
+  const locationId = headerLocationId ?? queryLocationId ?? (await getSession())?.locationId ?? null;
   if (!locationId) {
-    return NextResponse.json({ error: 'No GHL session' }, { status: 401 });
+    return NextResponse.json({ error: 'No location context. Open CleanQuote from your location in GoHighLevel.' }, { status: 401 });
   }
   const toolIds = await configStore.getToolIdsByGHLLocationId(locationId);
   if (toolIds.length === 0) {
@@ -120,8 +119,18 @@ export async function POST(request: NextRequest) {
     }
 
     const toolId = (tool as { id: string }).id;
+    // Set current GHL location on tool_config so the new tool appears in this location's Tools list.
+    const headerLocationId = request.headers.get('x-ghl-location-id')?.trim() || null;
+    const queryLocationId = request.nextUrl.searchParams.get('locationId')?.trim() || null;
+    const session = await getSession();
+    const locationIdForTool = headerLocationId ?? queryLocationId ?? session?.locationId ?? null;
     try {
-      await configStore.createToolConfigPreset(toolId, DEFAULT_WIDGET, DEFAULT_SURVEY_QUESTIONS);
+      await configStore.createToolConfigPreset(
+        toolId,
+        DEFAULT_WIDGET,
+        DEFAULT_SURVEY_QUESTIONS,
+        locationIdForTool
+      );
     } catch (configErr) {
       console.error('Tool created but failed to seed default config:', configErr);
       // Still return success; tool exists, user can configure in settings

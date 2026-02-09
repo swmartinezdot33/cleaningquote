@@ -38,12 +38,18 @@ export function useGHLIframe() {
   return useContext(GHLIframeContext);
 }
 
-/** Resolve locationId from iframe context or session. Use for all GHL API calls app-wide. */
+/**
+ * Resolve locationId from iframe context or session. Use for all GHL API calls app-wide.
+ * May be null while loading or when not in GHL iframe — guard with optional chaining, early return, or loading state.
+ */
 export function useEffectiveLocationId(): string | null {
   return useContext(GHLIframeContext).effectiveLocationId;
 }
 
-/** Full user context (locationId) for the entire app. */
+/**
+ * Full user context (locationId) for the entire app.
+ * May be null when effectiveLocationId is not yet available — guard before reading .locationId.
+ */
 export function useGHLUserContext(): GHLUserContext | null {
   return useContext(GHLIframeContext).userContext;
 }
@@ -98,6 +104,13 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
     ? locationIdFromPostMessage
     : (ghlData?.locationId ?? sessionLocationId);
   const userContext: GHLUserContext | null = effectiveLocationId ? { locationId: effectiveLocationId } : null;
+
+  // Set cookie so server-rendered dashboard pages (e.g. tool detail) can read locationId without session.
+  useEffect(() => {
+    if (typeof document === 'undefined' || !effectiveLocationId) return;
+    const maxAge = 60 * 60 * 24; // 24h
+    document.cookie = `ghl_location_id=${encodeURIComponent(effectiveLocationId)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+  }, [effectiveLocationId]);
 
   useEffect(() => {
     const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
@@ -190,6 +203,15 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
       hasLocationIdRef.current = true;
       console.log('[CQ Iframe] locationId resolved (URL/path/referrer)', { locationId: urlLocationId.slice(0, 12) + '...' });
       apply({ locationId: urlLocationId, userId: urlUserId || undefined });
+    }
+
+    // When in iframe, also use URL/path locationId immediately so we don't block on postMessage (e.g. parent URL has /location/xxx/).
+    if (urlLocationId && isInIframe) {
+      hasLocationIdRef.current = true;
+      console.log('[CQ Iframe] locationId from URL/path in iframe (no postMessage required)', { locationId: urlLocationId.slice(0, 12) + '...' });
+      setLocationIdFromPostMessage(urlLocationId);
+      apply({ locationId: urlLocationId, userId: urlUserId || undefined });
+      setLoading(false);
     }
 
     // 5. Session cache — when NOT in iframe we can use it; when in iframe we require postMessage (decrypt) only.
