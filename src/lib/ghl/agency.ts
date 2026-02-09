@@ -101,14 +101,16 @@ export interface InstalledLocation {
 
 /**
  * Step 2: Use the access token to see which location(s) the app was installed in.
- * GET /oauth/installedLocations (companyId and appId required). Uses the OAuth access token as Bearer.
+ * GET /oauth/installedLocations (companyId and appId required). Uses stored Agency token + Company ID when available.
  */
 export async function getInstalledLocations(options?: { companyId?: string; appId?: string }): Promise<{ success: boolean; locations?: InstalledLocation[]; error?: string }> {
-  const token = await getAgencyTokenForLocationToken();
+  const { getAgencyInstall } = await import('./token-store');
+  const agencyInstall = await getAgencyInstall();
+  const token = agencyInstall?.accessToken ?? null;
   if (!token) {
     return { success: false, error: 'No agency token. Install the app as Agency (Target User: Agency); the OAuth Access Token from that install is the Agency token.' };
   }
-  const companyId = options?.companyId?.trim() ?? process.env.GHL_COMPANY_ID?.trim();
+  const companyId = options?.companyId?.trim() ?? agencyInstall?.companyId?.trim() ?? process.env.GHL_COMPANY_ID?.trim();
   const appId = options?.appId?.trim() ?? process.env.GHL_CLIENT_ID?.trim();
   if (!companyId || !appId) {
     return { success: false, error: 'GHL_COMPANY_ID and GHL_CLIENT_ID required for GET /oauth/installedLocations' };
@@ -154,58 +156,35 @@ function agencyDebugLog(message: string, data: Record<string, unknown>) {
 // #endregion
 
 /**
- * Resolve the Agency Access Token for POST /oauth/locationToken and GET /oauth/installedLocations.
- * The OAuth Access Token (from app install, userType Company) is the Agency Token. We use only
- * the stored Company token from OAuth — never GHL_AGENCY_ACCESS_TOKEN.
- * @see GHL: "Handling Access Tokens for Apps with Target User: Agency"
+ * Resolve the Agency Access Token for POST /oauth/locationToken.
+ * Uses stored Agency install (OAuth Company) — never GHL_AGENCY_ACCESS_TOKEN.
  */
-async function getAgencyTokenForLocationToken(_locationId?: string | null): Promise<string | null> {
-  // #region agent log
-  const ingest = (msg: string, d: Record<string, unknown>) => {
-    const payload = { location: 'agency.ts:getAgencyTokenForLocationToken', message: msg, data: d, timestamp: Date.now() };
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {});
-    console.log('[CQ-DEBUG]', JSON.stringify(payload));
-  };
-  // #endregion
+async function getAgencyTokenForLocationToken(): Promise<string | null> {
   const { getAgencyToken } = await import('./token-store');
-  const token = await getAgencyToken();
-  ingest('Agency token (OAuth Company only)', {
-    hasToken: !!token,
-    tokenLength: token?.length ?? 0,
-    hypothesisId: 'H1-H2-H5',
-  });
-  return token ?? null;
+  return await getAgencyToken();
 }
 
 /**
- * Step 3: Get Location Access Token using the Agency Access Token (not the OAuth token).
- * POST /oauth/locationToken expects Bearer = OAuth Access Token (Company) — the Agency token.
+ * Step 3: Get Location Access Token using the Agency Access Token.
+ * POST /oauth/locationToken expects Bearer = Agency (Company) token; companyId from stored agency install when not passed.
  */
 export async function getLocationTokenFromAgency(
   locationId: string,
-  companyId: string,
+  companyIdOrOptional?: string,
   options?: { skipStore?: boolean }
 ): Promise<LocationTokenResult> {
-  const token = await getAgencyTokenForLocationToken();
+  const { getAgencyInstall } = await import('./token-store');
+  const agencyInstall = await getAgencyInstall();
+  const token = agencyInstall?.accessToken ?? (await getAgencyTokenForLocationToken());
   if (!token) {
     agencyDebugLog('getLocationTokenFromAgency: no agency token (install app as Agency so OAuth returns Company token)', { hypothesisId: 'H1' });
     return { success: false, error: 'No agency token. Install the app as Agency (Target User: Agency); the OAuth Access Token from that install is the Agency token.' };
   }
+  const companyId = companyIdOrOptional?.trim() ?? agencyInstall?.companyId?.trim() ?? process.env.GHL_COMPANY_ID?.trim();
+  if (!companyId) {
+    return { success: false, error: 'Company ID required for POST /oauth/locationToken. Install as Agency (Company) so we store Company ID, or set GHL_COMPANY_ID.' };
+  }
 
-  // #region agent log
-  const ingest = (msg: string, d: Record<string, unknown>) => {
-    const payload = { location: 'agency.ts:getLocationTokenFromAgency', message: msg, data: d, timestamp: Date.now() };
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {});
-    console.log('[CQ-DEBUG]', JSON.stringify(payload));
-  };
-  ingest('before POST /oauth/locationToken', {
-    tokenLength: token.length,
-    companyIdLen: companyId.length,
-    locationIdLen: locationId.length,
-    locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4),
-    hypothesisId: 'H4',
-  });
-  // #endregion
   try {
     const body = new URLSearchParams({
       companyId,
@@ -235,16 +214,6 @@ export async function getLocationTokenFromAgency(
       statusCode?: number;
     };
 
-    // #region agent log
-    ingest('after POST /oauth/locationToken', {
-      resStatus: res.status,
-      resOk: res.ok,
-      dataError: data.error ?? null,
-      dataMessage: data.message ?? null,
-      hasAccessToken: !!(data as { access_token?: string }).access_token,
-      hypothesisId: 'H2-H3-H4-H5',
-    });
-    // #endregion
     if (!res.ok) {
       const errMsg = data.error ?? data.message ?? `GHL API ${res.status}`;
       agencyDebugLog('getLocationTokenFromAgency: GHL API error', { status: res.status, error: errMsg, endpoint: '/oauth/locationToken', hypothesisId: 'H2-H3-H5' });

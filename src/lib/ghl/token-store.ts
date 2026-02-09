@@ -22,6 +22,7 @@ export function installKey(locationId: string): string {
   return `${PREFIX}${normalizeLocationId(locationId)}`;
 }
 
+/** Agency data stored at ghl:agency:token: Agency Access Token, Agency Refresh Token, Company ID. Required for agency calls (POST /oauth/locationToken, GET /oauth/installedLocations). */
 export interface AgencyTokenInstall {
   accessToken: string;
   refreshToken: string;
@@ -68,63 +69,45 @@ export async function storeInstallation(data: {
 }
 
 /**
- * Store the OAuth install token as the Agency token when it's a Company token.
- * For apps with Target User: Agency, the token from the OAuth exchange (user_type=Company) is the
- * Agency Level Token and can be used for POST /oauth/locationToken and GET /oauth/installedLocations.
- * @see GHL: "Handling Access Tokens for Apps with Target User: Agency"
- * @see https://marketplace.gohighlevel.com/docs/ghl/oauth/get-location-access-token
+ * Store Agency data: Agency Access Token, Agency Refresh Token, Company ID.
+ * Required for agency calls: get Location Access Token (POST /oauth/locationToken), get installed locations (GET /oauth/installedLocations).
+ * Called when a Company (Agency) user completes OAuth; token response includes companyId.
  */
 export async function storeAgencyTokenFromInstall(data: AgencyTokenInstall): Promise<void> {
   try {
     const kv = getKV();
     await kv.set(AGENCY_TOKEN_KEY, data, { ex: 365 * 24 * 60 * 60 });
-    console.log('[CQ token-store] agency token stored (from OAuth install)');
+    console.log('[CQ token-store] agency stored', { hasAccessToken: !!data.accessToken, hasRefreshToken: !!data.refreshToken, companyId: data.companyId ? `${data.companyId.slice(0, 8)}..` : null });
   } catch (err) {
     console.warn('[CQ token-store] storeAgencyTokenFromInstall failed', err instanceof Error ? err.message : err);
   }
 }
 
 /**
- * Get a valid Agency access token (from KV, stored when a Company user completed OAuth install).
- * Used for POST /oauth/locationToken. Refreshes if expired.
+ * Get full Agency install from KV (Access Token, Refresh Token, Company ID). Refreshes access token if expired.
+ * Use for agency calls: POST /oauth/locationToken (need token + companyId), GET /oauth/installedLocations (need token + companyId).
  */
-export async function getAgencyToken(): Promise<string | null> {
-  // #region agent log
-  const ingest = (msg: string, d: Record<string, unknown>) => {
-    const payload = { location: 'token-store.ts:getAgencyToken', message: msg, data: d, timestamp: Date.now() };
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {});
-    console.log('[CQ-DEBUG]', JSON.stringify(payload));
-  };
-  // #endregion
+export async function getAgencyInstall(): Promise<AgencyTokenInstall | null> {
   try {
     const kv = getKV();
     const data = await kv.get<AgencyTokenInstall>(AGENCY_TOKEN_KEY);
-    if (!data?.accessToken || !data?.refreshToken) {
-      // #region agent log
-      ingest('agency token null: no data or missing tokens', { hasData: !!data, hasAccess: !!data?.accessToken, hasRefresh: !!data?.refreshToken, hypothesisId: 'H1-H5' });
-      // #endregion
-      return null;
-    }
+    if (!data?.accessToken || !data?.refreshToken) return null;
     const now = Date.now();
     const needsRefresh = data.expiresAt - REFRESH_BUFFER_MS <= now;
-    if (!needsRefresh) {
-      // #region agent log
-      ingest('agency token from KV (not refreshed)', { tokenLength: data.accessToken.length, hypothesisId: 'H1-H5' });
-      // #endregion
-      return data.accessToken;
-    }
+    if (!needsRefresh) return data;
     const refreshed = await refreshAgencyToken(data);
-    const out = refreshed?.accessToken ?? null;
-    // #region agent log
-    ingest('agency token after refresh', { refreshed: !!refreshed, tokenLength: out?.length ?? 0, hypothesisId: 'H3' });
-    // #endregion
-    return out;
-  } catch (e) {
-    // #region agent log
-    ingest('getAgencyToken throw', { err: e instanceof Error ? e.message : String(e), hypothesisId: 'H1-H5' });
-    // #endregion
+    return refreshed ?? data;
+  } catch {
     return null;
   }
+}
+
+/**
+ * Get a valid Agency access token (from KV). Refreshes if expired. Prefer getAgencyInstall() when you need companyId too.
+ */
+export async function getAgencyToken(): Promise<string | null> {
+  const install = await getAgencyInstall();
+  return install?.accessToken ?? null;
 }
 
 async function refreshAgencyToken(install: AgencyTokenInstall): Promise<AgencyTokenInstall | null> {
@@ -222,8 +205,9 @@ export async function getInstallation(locationId: string): Promise<GHLInstallati
  */
 export async function getOrFetchTokenForLocation(locationId: string): Promise<string | null> {
   const normalizedLocationId = normalizeLocationId(locationId);
-  const companyId = process.env.GHL_COMPANY_ID?.trim();
-  const hasAgencyToken = !!(await getAgencyToken());
+  const agencyInstall = await getAgencyInstall();
+  const hasAgencyToken = !!agencyInstall?.accessToken;
+  const companyId = agencyInstall?.companyId?.trim() ?? process.env.GHL_COMPANY_ID?.trim();
 
   // #region agent log
   debugLog('getOrFetchTokenForLocation: agency path check', {
