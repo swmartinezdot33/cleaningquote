@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ org });
   }
 
-  // GHL-only: resolve org from current GHL location (org_ghl_settings.ghl_location_id). Prefer user-context locationId (iframe/postMessage).
+  // GHL-only: one org = one GHL sub-account (location). Resolve org from locationId; auto-provision if none.
   const ghlSession = await getSession();
   const headerLocationId = request.headers.get('x-ghl-location-id')?.trim() || null;
   const queryLocationId = request.nextUrl.searchParams.get('locationId')?.trim() || null;
@@ -30,15 +30,16 @@ export async function GET(request: NextRequest) {
   if (!locationId || !isSupabaseConfigured()) {
     return NextResponse.json({ org: null });
   }
-  const orgIds = await configStore.getOrgIdsByGHLLocationId(locationId);
-  if (orgIds.length === 0) {
-    return NextResponse.json({ org: null });
+  let orgId: string | null = (await configStore.getOrgIdsByGHLLocationId(locationId))[0] ?? null;
+  if (!orgId) {
+    orgId = await configStore.ensureOrgForGHLLocation(locationId);
   }
+  if (!orgId) return NextResponse.json({ org: null });
   const admin = createSupabaseServer();
   const { data: orgRow } = await admin
     .from('organizations')
     .select('id, name, slug')
-    .eq('id', orgIds[0])
+    .eq('id', orgId)
     .maybeSingle();
   if (!orgRow) return NextResponse.json({ org: null });
   const row = orgRow as { id: string; name: string; slug: string };

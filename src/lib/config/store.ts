@@ -333,6 +333,49 @@ export async function getOrgIdsByGHLLocationId(locationId: string): Promise<stri
   return Array.from(orgIds);
 }
 
+/** Ensure exactly one org exists for this GHL location (1 org = 1 GHL sub-account). Creates org + org_ghl_settings if none. Returns org id or null. */
+export async function ensureOrgForGHLLocation(locationId: string): Promise<string | null> {
+  if (!isSupabaseConfigured() || !locationId?.trim()) return null;
+  const existing = await getOrgIdsByGHLLocationId(locationId);
+  if (existing.length > 0) return existing[0];
+
+  const supabase = createSupabaseServer();
+  const loc = locationId.trim();
+  const slugBase = 'loc-' + loc.replace(/[^a-zA-Z0-9]/g, '').slice(0, 24) || loc.slice(0, 28);
+  let slug = slugBase;
+  let attempt = 0;
+  while (attempt < 10) {
+    const { data: existingOrg } = await supabase.from('organizations').select('id').eq('slug', slug).maybeSingle();
+    if (existingOrg && (existingOrg as { id: string }).id) {
+      const orgId = (existingOrg as { id: string }).id;
+      await (supabase as any).from('org_ghl_settings').upsert(
+        { org_id: orgId, ghl_token: null, ghl_location_id: loc, ghl_use_oauth: true, updated_at: new Date().toISOString() },
+        { onConflict: 'org_id' }
+      );
+      return orgId;
+    }
+    const { data: inserted, error: insertError } = await (supabase as any)
+      .from('organizations')
+      .insert({ name: 'Location', slug })
+      .select('id')
+      .single();
+    if (!insertError && inserted?.id) {
+      const orgId = (inserted as { id: string }).id;
+      const { error: settingsError } = await (supabase as any).from('org_ghl_settings').insert({
+        org_id: orgId,
+        ghl_token: null,
+        ghl_location_id: loc,
+        ghl_use_oauth: true,
+        updated_at: new Date().toISOString(),
+      });
+      if (!settingsError) return orgId;
+    }
+    attempt++;
+    slug = `${slugBase}-${attempt}`;
+  }
+  return null;
+}
+
 /** Get tool IDs whose tool_config.ghl_location_id matches this GHL location (for Tools page visibility). */
 export async function getToolIdsByGHLLocationId(locationId: string): Promise<string[]> {
   if (!isSupabaseConfigured() || !locationId?.trim()) return [];

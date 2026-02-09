@@ -17,6 +17,10 @@ This document describes where data lives and how the dashboard loads it so the t
 
 So: **Supabase = config only, keyed by locationId; GHL = everything else; locationId from user context drives all lookups.** The iframe dashboard should feel like a single GHL page.
 
+## Org = GHL sub-account (location)
+
+The app only loads inside the GHL iframe, so **one org in Supabase = one GHL sub-account (location)**. We keep the `organizations` table as the Supabase bucket for that location (tools, service areas, pricing structures still reference `org_id` for FKs and RLS). There is no separate “org” concept in the UI when in GHL: the user’s scope is always the current `locationId` from postMessage. We resolve “the org for this location” via `getOrgIdsByGHLLocationId(locationId)` and, when none exists, **auto-provision** one org and link it in `org_ghl_settings` so the location has exactly one org. No org switcher in GHL context; everything is scoped by `locationId`.
+
 ## Supabase (config only)
 
 - **Tables:** `tool_config`, `org_ghl_settings`, `pricing_structures`, `service_areas`, tools, pricing associations, etc.
