@@ -8,8 +8,33 @@ import * as configStore from '@/lib/config/store';
 
 export const dynamic = 'force-dynamic';
 
-/** GET - Return the currently selected org (from cookie, from GHL location, or default). For GHL iframe, pass locationId (query or x-ghl-location-id) so org resolves for the current location. */
+/** GET - Return the currently selected org. When request has locationId (GHL iframe), always resolve org from org_ghl_settings so each location sees only its org. Otherwise use Supabase user + cookie. */
 export async function GET(request: NextRequest) {
+  const headerLocationId = request.headers.get('x-ghl-location-id')?.trim() || null;
+  const queryLocationId = request.nextUrl.searchParams.get('locationId')?.trim() || null;
+  const requestLocationId = headerLocationId ?? queryLocationId;
+
+  // When locationId is present (GHL iframe), always resolve org from location — never use cookie/user so each account sees only its data.
+  if (requestLocationId && isSupabaseConfigured()) {
+    const locationId = requestLocationId;
+    const orgIdsFromLocation = await configStore.getOrgIdsByGHLLocationId(locationId);
+    let orgId: string | null = orgIdsFromLocation[0] ?? null;
+    if (!orgId) orgId = await configStore.ensureOrgForGHLLocation(locationId);
+    if (orgId) {
+      const admin = createSupabaseServer();
+      const { data: orgRow } = await admin
+        .from('organizations')
+        .select('id, name, slug')
+        .eq('id', orgId)
+        .maybeSingle();
+      if (orgRow) {
+        const row = orgRow as { id: string; name: string; slug: string };
+        return NextResponse.json({ org: { ...row, role: 'admin' as const } });
+      }
+    }
+    return NextResponse.json({ org: null });
+  }
+
   const supabase = await createSupabaseServerSSR();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -22,11 +47,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ org });
   }
 
-  // GHL-only: one org = one GHL sub-account (location). Resolve org from locationId; auto-provision if none.
+  // No locationId in request and no user: try session location as fallback (e.g. server-side only).
   const ghlSession = await getSession();
-  const headerLocationId = request.headers.get('x-ghl-location-id')?.trim() || null;
-  const queryLocationId = request.nextUrl.searchParams.get('locationId')?.trim() || null;
-  const locationId = headerLocationId ?? queryLocationId ?? ghlSession?.locationId ?? null;
+  const locationId = ghlSession?.locationId ?? null;
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'orgs/selected/route.ts:GET', message: 'GHL branch entry', data: { hasLocationId: !!locationId, locationIdPreview: locationId ? `${locationId.slice(0, 8)}..` : null }, timestamp: Date.now(), hypothesisId: 'H1-H3' }) }).catch(() => {});
   // #endregion
