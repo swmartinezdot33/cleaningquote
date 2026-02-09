@@ -49,8 +49,10 @@ export async function storeInstallation(data: GHLInstallation): Promise<void> {
 }
 
 /**
- * Store the OAuth install token as the "agency" token when it's a Company token.
- * That token has oauth.write and can be used for POST /oauth/locationToken (Get Location Access Token).
+ * Store the OAuth install token as the Agency token when it's a Company token.
+ * For apps with Target User: Agency, the token from the OAuth exchange (user_type=Company) is the
+ * Agency Level Token and can be used for POST /oauth/locationToken and GET /oauth/installedLocations.
+ * @see GHL: "Handling Access Tokens for Apps with Target User: Agency"
  * @see https://marketplace.gohighlevel.com/docs/ghl/oauth/get-location-access-token
  */
 export async function storeAgencyTokenFromInstall(data: AgencyTokenInstall): Promise<void> {
@@ -199,11 +201,7 @@ export async function getInstallation(locationId: string): Promise<GHLInstallati
  */
 export async function getOrFetchTokenForLocation(locationId: string): Promise<string | null> {
   const companyId = process.env.GHL_COMPANY_ID?.trim();
-  const hasAgencyToken = await (async () => {
-    if (process.env.GHL_AGENCY_ACCESS_TOKEN?.trim()) return true;
-    const at = await getAgencyToken();
-    return !!at;
-  })();
+  const hasAgencyToken = !!(await getAgencyToken());
 
   // #region agent log
   debugLog('getOrFetchTokenForLocation: agency path check', {

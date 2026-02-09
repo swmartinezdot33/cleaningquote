@@ -1,8 +1,7 @@
 /**
  * GHL Agency-level API operations.
- * Requires GHL_AGENCY_ACCESS_TOKEN and GHL_COMPANY_ID (your agency).
- * Used to create sub-accounts when customers purchase via Stripe,
- * and to get location tokens for auto-installed apps.
+ * For locationToken and installedLocations we use the OAuth Access Token (Company) as the Agency token — never GHL_AGENCY_ACCESS_TOKEN.
+ * createGHLSubAccount (Stripe) may use env token when creating locations.
  */
 
 import { storeInstallation } from './token-store';
@@ -107,7 +106,7 @@ export interface InstalledLocation {
 export async function getInstalledLocations(options?: { companyId?: string; appId?: string }): Promise<{ success: boolean; locations?: InstalledLocation[]; error?: string }> {
   const token = await getAgencyTokenForLocationToken();
   if (!token) {
-    return { success: false, error: 'No agency token (set GHL_AGENCY_ACCESS_TOKEN or complete Connect as Company user)' };
+    return { success: false, error: 'No agency token. Install the app as Agency (Target User: Agency); the OAuth Access Token from that install is the Agency token.' };
   }
   const companyId = options?.companyId?.trim() ?? process.env.GHL_COMPANY_ID?.trim();
   const appId = options?.appId?.trim() ?? process.env.GHL_CLIENT_ID?.trim();
@@ -156,7 +155,9 @@ function agencyDebugLog(message: string, data: Record<string, unknown>) {
 
 /**
  * Resolve the Agency Access Token for POST /oauth/locationToken and GET /oauth/installedLocations.
- * OAuth Access Token (from app install) is NOT the Agency token — we use only the real Agency Access Token (e.g. from Marketplace / PIT).
+ * The OAuth Access Token (from app install, userType Company) is the Agency Token. We use only
+ * the stored Company token from OAuth — never GHL_AGENCY_ACCESS_TOKEN.
+ * @see GHL: "Handling Access Tokens for Apps with Target User: Agency"
  */
 async function getAgencyTokenForLocationToken(_locationId?: string | null): Promise<string | null> {
   // #region agent log
@@ -166,20 +167,19 @@ async function getAgencyTokenForLocationToken(_locationId?: string | null): Prom
     console.log('[CQ-DEBUG]', JSON.stringify(payload));
   };
   // #endregion
-  const token = process.env.GHL_AGENCY_ACCESS_TOKEN?.trim() ?? null;
-  // #region agent log
-  ingest('Agency token for locationToken (env only; OAuth token is not Agency)', {
-    hasAgencyToken: !!token,
+  const { getAgencyToken } = await import('./token-store');
+  const token = await getAgencyToken();
+  ingest('Agency token (OAuth Company only)', {
+    hasToken: !!token,
     tokenLength: token?.length ?? 0,
     hypothesisId: 'H1-H2-H5',
   });
-  // #endregion
-  return token || null;
+  return token ?? null;
 }
 
 /**
  * Step 3: Get Location Access Token using the Agency Access Token (not the OAuth token).
- * POST /oauth/locationToken expects Bearer = Agency Access Token (e.g. GHL_AGENCY_ACCESS_TOKEN).
+ * POST /oauth/locationToken expects Bearer = OAuth Access Token (Company) — the Agency token.
  */
 export async function getLocationTokenFromAgency(
   locationId: string,
@@ -188,8 +188,8 @@ export async function getLocationTokenFromAgency(
 ): Promise<LocationTokenResult> {
   const token = await getAgencyTokenForLocationToken();
   if (!token) {
-    agencyDebugLog('getLocationTokenFromAgency: no agency token (set GHL_AGENCY_ACCESS_TOKEN or complete OAuth install as Company user)', { hypothesisId: 'H1' });
-    return { success: false, error: 'No agency token. Set GHL_AGENCY_ACCESS_TOKEN (Agency Access Token from Marketplace/PIT; OAuth token is not the Agency token).' };
+    agencyDebugLog('getLocationTokenFromAgency: no agency token (install app as Agency so OAuth returns Company token)', { hypothesisId: 'H1' });
+    return { success: false, error: 'No agency token. Install the app as Agency (Target User: Agency); the OAuth Access Token from that install is the Agency token.' };
   }
 
   // #region agent log

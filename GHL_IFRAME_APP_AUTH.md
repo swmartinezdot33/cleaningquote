@@ -87,12 +87,15 @@ This is the exact sequence we use so you can verify it against the [GHL OAuth do
    - Resolution order: **x-ghl-location-id** → **GET /oauth/installedLocations** → then query param and session (cookie) as last resort.
 
 3. **Location Access Token**  
-   - For each **locationId** we need a location-scoped token. We get it via [Get Location Access Token from Agency Token](https://marketplace.gohighlevel.com/docs/ghl/oauth/get-location-access-token) (`POST /oauth/locationToken`) using the OAuth Access Token (agency/install token).  
+   - For each **locationId** we need a location-scoped token. We get it via [Get Location Access Token from Agency Token](https://marketplace.gohighlevel.com/docs/ghl/oauth/get-location-access-token) (`POST /oauth/locationToken`) using the **OAuth Access Token** from the Agency install (userType Company = Agency Token). We **never** use GHL_AGENCY_ACCESS_TOKEN.  
    - We **store that Location Access Token in KV** keyed by **locationId** so later requests don’t need to call POST /oauth/locationToken again.
 
 4. **Contact (and other location) API calls**  
-   - We use the **Location Access Token** (from step 3) and **locationId** for Contacts and other location-scoped APIs (e.g. `POST /contacts/search`).  
-   - We do **not** use the raw OAuth Access Token for those calls; the OAuth Access Token is used only for `GET /oauth/installedLocations` and `POST /oauth/locationToken`.
+   - We use the **Location Access Token** (from step 3) and **locationId** for Contacts and other location-scoped APIs (e.g. `GET /contacts/business/:businessId`).  
+   - We do **not** use the raw OAuth Access Token for those calls; the OAuth Access Token (when Company) or a separate Agency token is used only for `GET /oauth/installedLocations` and `POST /oauth/locationToken`.
+
+**Apps with Target User: Agency**  
+For apps whose Target User is set as **Agency**, only the Agency Admin/Owner can install. The **OAuth Access Token** from the OAuth exchange (with `user_type=Company`) **is** the Agency Token. We store it and use it for `POST /oauth/locationToken` and `GET /oauth/installedLocations`. We do **not** use GHL_AGENCY_ACCESS_TOKEN.
 
 ## 5. Iframe context (client)
 
