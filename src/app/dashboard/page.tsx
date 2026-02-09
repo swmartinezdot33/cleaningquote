@@ -1,8 +1,8 @@
-import DashboardClient from './DashboardClient';
+import DashboardHomeClient from './DashboardHomeClient';
 
 /**
- * GHL dashboard. Uses client component so tools list refetches when user switches location in GHL (postMessage locationId) without page refresh.
+ * Dashboard home: analytics cards and quick links. Users land here and navigate to Tools, Quotes, Contacts, etc. via the header.
  */
 export default function DashboardPage() {
-  return <DashboardClient />;
+  return <DashboardHomeClient />;
 }

@@ -8,32 +8,24 @@ import { Loader2 } from 'lucide-react';
 type ToolRow = { id: string; name: string; slug: string; org_id: string };
 
 /**
- * Client dashboard: tools list and connect CTA. Refetches when locationId from user context (postMessage) changes so GHL location toggle updates without refresh.
+ * Tools list for /dashboard/tools. Refetches when locationId from user context changes.
  */
-export default function DashboardClient() {
+export default function ToolsListClient() {
   const { api, locationId } = useDashboardApi();
   const [tools, setTools] = useState<ToolRow[]>([]);
-  const [connected, setConnected] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!locationId) {
       setTools([]);
-      setConnected(false);
       setLoading(false);
       return;
     }
     setLoading(true);
     api('/api/dashboard/tools')
       .then((r) => (r.ok ? r.json() : { tools: [] }))
-      .then((toolsRes) => {
-        setTools(toolsRes.tools ?? []);
-        setConnected(true); // We have locationId from iframe — always show dashboard, never "Connect location"
-      })
-      .catch(() => {
-        setTools([]);
-        setConnected(true); // Still show dashboard (empty state) when in iframe with locationId
-      })
+      .then((data) => setTools(data.tools ?? []))
+      .catch(() => setTools([]))
       .finally(() => setLoading(false));
   }, [locationId, api]);
 
@@ -45,12 +37,11 @@ export default function DashboardClient() {
     );
   }
 
-  // No location context (e.g. opened /dashboard in a new tab). Show CTA to open from GHL.
   if (!locationId) {
     return (
       <div className="space-y-8">
-        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground">Reconnect to load your CRM data.</p>
+        <h1 className="text-2xl font-bold text-foreground">Tools</h1>
+        <p className="text-muted-foreground">Open CleanQuote from your GoHighLevel dashboard to manage tools.</p>
         <Link
           href="/dashboard/setup"
           className="inline-block rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
@@ -61,11 +52,10 @@ export default function DashboardClient() {
     );
   }
 
-  // We have locationId (from GHL iframe). Always show main dashboard (tools list, possibly empty).
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-bold text-foreground">Tools</h1>
-      <p className="text-muted-foreground">You&apos;re connected to your location.</p>
+      <p className="text-muted-foreground">Quoting tools for this location. Create one to start sending quotes.</p>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {tools.map((tool) => (

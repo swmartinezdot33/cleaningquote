@@ -77,6 +77,13 @@ export function DashboardHeader({
         </>
       )}
       <Link
+        href="/dashboard"
+        onClick={closeMobileMenu}
+        className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+      >
+        Dashboard
+      </Link>
+      <Link
         href="/dashboard/quotes"
         onClick={closeMobileMenu}
         className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
@@ -98,7 +105,7 @@ export function DashboardHeader({
         Contacts
       </Link>
       <Link
-        href="/dashboard"
+        href="/dashboard/tools"
         onClick={closeMobileMenu}
         className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
       >
@@ -209,6 +216,13 @@ export function DashboardHeader({
                   </>
                 )}
                 <Link
+                  href="/dashboard"
+                  onClick={closeMobileMenu}
+                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                >
+                  Dashboard
+                </Link>
+                <Link
                   href="/dashboard/quotes"
                   onClick={closeMobileMenu}
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
@@ -230,7 +244,7 @@ export function DashboardHeader({
                   Contacts
                 </Link>
                 <Link
-                  href="/dashboard"
+                  href="/dashboard/tools"
                   onClick={closeMobileMenu}
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
