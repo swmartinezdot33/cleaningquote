@@ -284,6 +284,22 @@ export async function clearOrgGHL(orgId: string): Promise<void> {
   }
 }
 
+/** Get org IDs linked to this GHL location (for listing tools when using GHL session). */
+export async function getOrgIdsByGHLLocationId(locationId: string): Promise<string[]> {
+  if (!isSupabaseConfigured() || !locationId?.trim()) return [];
+  const supabase = createSupabaseServer();
+  const { data, error } = await (supabase as any)
+    .from('org_ghl_settings')
+    .select('org_id')
+    .eq('ghl_location_id', locationId.trim());
+  if (error) {
+    console.warn('org_ghl_settings getOrgIdsByGHLLocationId:', error);
+    return [];
+  }
+  const rows = (data ?? []) as Array<{ org_id: string }>;
+  return rows.map((r) => r.org_id).filter(Boolean);
+}
+
 /** Get GHL token: when toolId is provided, use org-level GHL for that tool's org; else legacy global tool_config. */
 export async function getGHLToken(toolId?: string): Promise<string | null> {
   if (toolId) {

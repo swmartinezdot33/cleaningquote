@@ -104,24 +104,20 @@ export function DashboardHeader({
       >
         Tools
       </Link>
-      {selectedOrgRole === 'admin' && (
-        <>
-          <Link
-            href="/dashboard/service-areas"
-            onClick={closeMobileMenu}
-            className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
-          >
-            Service Areas
-          </Link>
-          <Link
-            href="/dashboard/pricing-structures"
-            onClick={closeMobileMenu}
-            className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
-          >
-            Pricing
-          </Link>
-        </>
-      )}
+      <Link
+        href="/dashboard/service-areas"
+        onClick={closeMobileMenu}
+        className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+      >
+        Service Areas
+      </Link>
+      <Link
+        href="/dashboard/pricing-structures"
+        onClick={closeMobileMenu}
+        className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+      >
+        Pricing
+      </Link>
       <Link
         href="/dashboard/crm/schedule"
         onClick={closeMobileMenu}
@@ -247,24 +243,20 @@ export function DashboardHeader({
                 >
                   Tools
                 </Link>
-                {selectedOrgRole === 'admin' && (
-                  <>
-                    <Link
-                      href="/dashboard/service-areas"
-                      onClick={closeMobileMenu}
-                      className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
-                    >
-                      Service Areas
-                    </Link>
-                    <Link
-                      href="/dashboard/pricing-structures"
-                      onClick={closeMobileMenu}
-                      className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
-                    >
-                      Pricing
-                    </Link>
-                  </>
-                )}
+                <Link
+                  href="/dashboard/service-areas"
+                  onClick={closeMobileMenu}
+                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                >
+                  Service Areas
+                </Link>
+                <Link
+                  href="/dashboard/pricing-structures"
+                  onClick={closeMobileMenu}
+                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                >
+                  Pricing
+                </Link>
                 <Link
                   href="/dashboard/crm/schedule"
                   onClick={closeMobileMenu}

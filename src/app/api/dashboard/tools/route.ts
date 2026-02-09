@@ -7,6 +7,41 @@ import { canAccessTool } from '@/lib/org-auth';
 import * as configStore from '@/lib/config/store';
 import { DEFAULT_WIDGET } from '@/lib/tools/config';
 import { DEFAULT_SURVEY_QUESTIONS } from '@/lib/survey/schema';
+import { getSession } from '@/lib/ghl/session';
+
+export const dynamic = 'force-dynamic';
+
+/** GET - List tools for the current GHL location (orgs linked to this locationId). */
+export async function GET() {
+  const session = await getSession();
+  if (!session?.locationId) {
+    return NextResponse.json({ error: 'No GHL session' }, { status: 401 });
+  }
+  const orgIds = await configStore.getOrgIdsByGHLLocationId(session.locationId);
+  if (orgIds.length === 0) {
+    return NextResponse.json({ tools: [] });
+  }
+  try {
+    const supabase = createSupabaseServer();
+    const { data, error } = await supabase
+      .from('tools')
+      .select('id, name, slug, org_id')
+      .in('org_id', orgIds)
+      .order('name');
+    if (error) {
+      return NextResponse.json({ tools: [] });
+    }
+    const tools = (data ?? []).map((t: { id: string; name: string; slug: string; org_id: string }) => ({
+      id: t.id,
+      name: t.name,
+      slug: t.slug,
+      org_id: t.org_id,
+    }));
+    return NextResponse.json({ tools });
+  } catch {
+    return NextResponse.json({ tools: [] });
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
