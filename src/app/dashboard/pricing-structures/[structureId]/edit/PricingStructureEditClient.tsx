@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
+import { useDashboardApi } from '@/lib/dashboard-api';
 import {
   Upload,
   Save,
@@ -80,6 +81,7 @@ const DEFAULT_INITIAL_CLEANING = {
 };
 
 export function PricingStructureEditClient({ structureId }: { structureId: string }) {
+  const { api } = useDashboardApi();
   const [orgId, setOrgId] = useState<string | null>(null);
   const [structureName, setStructureName] = useState<string>('');
   const [uploadMode, setUploadMode] = useState<'view' | 'manual' | 'upload'>('view');
@@ -109,7 +111,7 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
     setLoading(true);
     setMessage(null);
     try {
-      const res = await fetch(`/api/dashboard/orgs/${orgId}/pricing-structures/${structureId}`);
+      const res = await api(`/api/dashboard/orgs/${orgId}/pricing-structures/${structureId}`);
       const data = await res.json();
       if (res.ok && data.pricingStructure) {
         const ps = data.pricingStructure;
@@ -147,11 +149,11 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
     } finally {
       setLoading(false);
     }
-  }, [orgId, structureId, reset]);
+  }, [orgId, structureId, reset, api]);
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/dashboard/orgs/selected')
+    api('/api/dashboard/orgs/selected')
       .then((r) => r.json())
       .then((d) => (d.org?.id ?? null) as string | null)
       .then((id) => {
@@ -159,7 +161,7 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [api]);
 
   useEffect(() => {
     if (orgId) loadStructure();
@@ -211,7 +213,7 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
     try {
       const maxSqFt = Math.max(...(data.rows?.map((r) => r.sqFtRange?.max ?? 0) ?? []), 0);
       const pricingData: PricingTable = { ...data, maxSqFt };
-      const res = await fetch(`/api/dashboard/orgs/${orgId}/pricing-structures/${structureId}`, {
+      const res = await api(`/api/dashboard/orgs/${orgId}/pricing-structures/${structureId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pricingTable: pricingData }),
@@ -239,7 +241,7 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch(`/api/dashboard/orgs/${orgId}/pricing-structures/${structureId}/upload`, {
+      const res = await api(`/api/dashboard/orgs/${orgId}/pricing-structures/${structureId}/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -269,7 +271,7 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
     setSavingInitialCleaning(true);
     setInitialCleaningMessage(null);
     try {
-      const res = await fetch(`/api/dashboard/orgs/${orgId}/pricing-structures/${structureId}`, {
+      const res = await api(`/api/dashboard/orgs/${orgId}/pricing-structures/${structureId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ initialCleaningConfig: initialCleaning }),
@@ -311,7 +313,7 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
     setSavingName(true);
     setNameError(null);
     try {
-      const res = await fetch(`/api/dashboard/orgs/${orgId}/pricing-structures/${structureId}`, {
+      const res = await api(`/api/dashboard/orgs/${orgId}/pricing-structures/${structureId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),

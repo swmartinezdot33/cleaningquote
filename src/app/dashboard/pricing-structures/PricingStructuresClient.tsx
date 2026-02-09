@@ -39,17 +39,14 @@ export default function PricingStructuresClient() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const loadList = useCallback(() => {
-    if (!orgId) return;
-    api(`/api/dashboard/orgs/${orgId}/pricing-structures`)
-      .then((r) => {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'PricingStructuresClient:listResponse', message: 'pricing-structures response', data: { status: r.status, ok: r.ok }, timestamp: Date.now(), hypothesisId: 'H2-H5' }) }).catch(() => {});
-        // #endregion
-        return r.json();
+    api('/api/dashboard/pricing-structures')
+      .then((r) => r.json())
+      .then((d) => {
+        setList(d.pricingStructures ?? []);
+        if (d.orgId != null) setOrgId(d.orgId);
       })
-      .then((d) => setList(d.pricingStructures ?? []))
       .catch(() => setList([]));
-  }, [orgId, api]);
+  }, [api]);
 
   const loadTools = useCallback(() => {
     if (!orgId) return;
@@ -59,24 +56,31 @@ export default function PricingStructuresClient() {
       .catch(() => setTools([]));
   }, [orgId, api]);
 
-  // Refetch selected org when locationId changes (api identity changes) so GHL location toggle updates without refresh.
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'PricingStructuresClient:effect', message: 'load effect run', data: { hasEffectiveLocationId: !!effectiveLocationId }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-    // #endregion
-    api('/api/dashboard/orgs/selected')
+    if (!effectiveLocationId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    api('/api/dashboard/pricing-structures')
       .then((r) => r.json())
       .then((d) => {
-        setOrgId(d.org?.id ?? null);
-        setOrgRole(d.org?.role ?? null);
+        setList(d.pricingStructures ?? []);
+        const resolvedOrgId = d?.orgId ?? null;
+        setOrgId(resolvedOrgId);
+        setOrgRole(resolvedOrgId ? 'admin' : null);
+      })
+      .catch(() => {
+        setOrgId(null);
+        setOrgRole(null);
+        setList([]);
       })
       .finally(() => setLoading(false));
   }, [api, effectiveLocationId]);
 
   useEffect(() => {
-    if (!orgId) return;
-    loadList();
-  }, [orgId, loadList]);
+    if (orgId) loadTools();
+  }, [orgId, loadTools]);
 
   const handleCreate = async () => {
     const name = newName.trim();

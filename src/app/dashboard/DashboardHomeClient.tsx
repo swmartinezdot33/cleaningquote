@@ -18,6 +18,8 @@ export default function DashboardHomeClient() {
   const [toolsCount, setToolsCount] = useState<number | null>(null);
   const [crmStats, setCrmStats] = useState<CrmStats | null>(null);
   const [quotesCount, setQuotesCount] = useState<number | null>(null);
+  const [serviceAreasCount, setServiceAreasCount] = useState<number | null>(null);
+  const [pricingCount, setPricingCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,16 +32,22 @@ export default function DashboardHomeClient() {
       api('/api/dashboard/tools').then((r) => (r.ok ? r.json() : { tools: [] })),
       api('/api/dashboard/crm/stats').then((r) => (r.ok ? r.json() : { counts: {}, total: 0 })),
       api('/api/dashboard/quotes').then((r) => (r.ok ? r.json() : { quotes: [] })),
+      api('/api/dashboard/service-areas').then((r) => (r.ok ? r.json() : { serviceAreas: [] })),
+      api('/api/dashboard/pricing-structures').then((r) => (r.ok ? r.json() : { pricingStructures: [] })),
     ])
-      .then(([toolsRes, statsRes, quotesRes]) => {
+      .then(([toolsRes, statsRes, quotesRes, serviceAreasRes, pricingRes]) => {
         setToolsCount((toolsRes.tools ?? []).length);
         setCrmStats({ counts: statsRes.counts ?? {}, total: statsRes.total ?? 0 });
         setQuotesCount((quotesRes.quotes ?? []).length);
+        setServiceAreasCount((serviceAreasRes.serviceAreas ?? []).length);
+        setPricingCount((pricingRes.pricingStructures ?? []).length);
       })
       .catch(() => {
         setToolsCount(0);
         setCrmStats({ counts: {}, total: 0 });
         setQuotesCount(0);
+        setServiceAreasCount(0);
+        setPricingCount(0);
       })
       .finally(() => setLoading(false));
   }, [locationId, api]);
@@ -92,14 +100,14 @@ export default function DashboardHomeClient() {
     },
     {
       title: 'Service areas',
-      value: '—',
+      value: serviceAreasCount ?? 0,
       href: '/dashboard/service-areas',
       icon: MapPin,
       description: 'Manage coverage',
     },
     {
       title: 'Pricing',
-      value: '—',
+      value: pricingCount ?? 0,
       href: '/dashboard/pricing-structures',
       icon: DollarSign,
       description: 'Pricing structures',

@@ -77,61 +77,38 @@ export default function ServiceAreasClient() {
   const [initialZoneDisplayForDrawer, setInitialZoneDisplayForDrawer] = useState<ZoneDisplayItem[]>([]);
 
   const loadList = useCallback(() => {
-    if (!orgId) return;
-    api(`/api/dashboard/orgs/${orgId}/service-areas`)
+    api('/api/dashboard/service-areas')
       .then((r) => r.json())
-      .then((d) => setList(d.serviceAreas ?? []))
+      .then((d) => {
+        setList(d.serviceAreas ?? []);
+        if (d.orgId != null) setOrgId(d.orgId);
+      })
       .catch(() => setList([]));
-  }, [orgId, api]);
+  }, [api]);
 
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ServiceAreasClient:effect', message: 'load effect run', data: { hasEffectiveLocationId: !!effectiveLocationId }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-    // #endregion
-    api('/api/dashboard/orgs/selected')
+    if (!effectiveLocationId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    api('/api/dashboard/service-areas')
       .then((r) => r.json())
       .then((d) => {
-        const resolvedOrgId = d?.org?.id ?? null;
-        const resolvedRole = d?.org?.role ?? null;
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ServiceAreasClient:orgs/selected', message: 'orgs/selected response', data: { hasOrg: !!d?.org, resolvedOrgId, resolvedRole }, timestamp: Date.now(), hypothesisId: 'H1-H5' }) }).catch(() => {});
-        // #endregion
-        setOrgId(resolvedOrgId);
-        setOrgRole(resolvedRole);
-        setOrgOfficeAddress((d.org as { office_address?: string } | null)?.office_address ?? '');
-        return resolvedOrgId && resolvedRole === 'admin' ? resolvedOrgId : null;
-      })
-      .then((id) => {
-        if (id) {
-          return api(`/api/dashboard/orgs/${id}/service-areas`)
-            .then((r) => {
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ServiceAreasClient:listResponse', message: 'service-areas response', data: { status: r.status, ok: r.ok }, timestamp: Date.now(), hypothesisId: 'H2-H5' }) }).catch(() => {});
-              // #endregion
-              return r.json();
-            });
-        }
-        return { serviceAreas: [] };
-      })
-      .then((d) => {
         const areas = d?.serviceAreas ?? [];
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ServiceAreasClient:serviceAreas', message: 'service areas list', data: { count: areas.length, firstId: areas[0]?.id ?? null }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});
-        // #endregion
+        const resolvedOrgId = d?.orgId ?? null;
+        setOrgId(resolvedOrgId);
+        setOrgRole(resolvedOrgId ? 'admin' : null);
+        setOrgOfficeAddress('');
         setList(areas);
       })
-      .catch((err) => {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ServiceAreasClient:catch', message: 'load failed', data: { err: String(err) }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});
-        // #endregion
+      .catch(() => {
+        setOrgId(null);
+        setOrgRole(null);
         setList([]);
       })
       .finally(() => setLoading(false));
   }, [api, effectiveLocationId]);
-
-  useEffect(() => {
-    if (orgId) loadList();
-  }, [orgId, loadList]);
 
   const openDrawModal = (areaId?: string) => {
     // #region agent log
