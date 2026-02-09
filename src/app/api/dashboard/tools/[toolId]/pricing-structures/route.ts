@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDashboardUserAndToolWithClient } from '@/lib/dashboard-auth';
-import { createSupabaseServer } from '@/lib/supabase/server';
 import { getPricingTable } from '@/lib/kv';
 import type { PricingTable } from '@/lib/pricing/types';
 import { getPricingStructureIdFromConfig, setPricingStructureIdInConfig } from '@/lib/config/store';
@@ -53,7 +52,7 @@ export async function PATCH(
   context: { params: Promise<{ toolId: string }> }
 ) {
   const { toolId } = await context.params;
-  const auth = await getDashboardUserAndTool(toolId);
+  const auth = await getDashboardUserAndToolWithClient(toolId);
   if (auth instanceof NextResponse) return auth;
 
   const body = await request.json().catch(() => ({}));
@@ -66,8 +65,7 @@ export async function PATCH(
         : null;
 
   if (pricingStructureId) {
-    const supabase = await createSupabaseServerSSR();
-    const { data: row } = await supabase
+    const { data: row } = await auth.supabase
       .from('pricing_structures')
       .select('id, org_id')
       .eq('id', pricingStructureId)
@@ -87,7 +85,7 @@ export async function POST(
   context: { params: Promise<{ toolId: string }> }
 ) {
   const { toolId } = await context.params;
-  const auth = await getDashboardUserAndTool(toolId);
+  const auth = await getDashboardUserAndToolWithClient(toolId);
   if (auth instanceof NextResponse) return auth;
 
   const body = await request.json().catch(() => ({}));
@@ -109,7 +107,6 @@ export async function POST(
     pricingTable = body.pricingTable as PricingTable;
   }
 
-  const supabase = await createSupabaseServerSSR();
   const now = new Date().toISOString();
   const row = {
     org_id: auth.tool.org_id,
@@ -120,7 +117,7 @@ export async function POST(
     updated_at: now,
   };
 
-  const { data: inserted, error } = await supabase
+  const { data: inserted, error } = await auth.supabase
     .from('pricing_structures')
     // @ts-expect-error Supabase generated types may not include pricing_structures table
     .insert(row)

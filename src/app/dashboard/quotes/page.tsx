@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { FileDown, ExternalLink, Loader2, ArrowRightLeft, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User } from 'lucide-react';
-import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
+import { useDashboardApi } from '@/lib/dashboard-api';
 
 interface QuoteRow {
   id: string;
@@ -91,7 +91,7 @@ interface ToolOption {
 }
 
 export default function DashboardQuotesPage() {
-  const effectiveLocationId = useEffectiveLocationId();
+  const { api, locationId: effectiveLocationId } = useDashboardApi();
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -122,11 +122,14 @@ export default function DashboardQuotesPage() {
   const [perPage, setPerPage] = useState(25);
 
   const loadQuotes = () => {
-    const quotesUrl = effectiveLocationId
-      ? `/api/dashboard/quotes?locationId=${effectiveLocationId}`
-      : '/api/dashboard/quotes';
+    // All dashboard data depends on user-context locationId (postMessage / iframe). Don't call GHL APIs without it.
+    if (!effectiveLocationId) {
+      setLoading(false);
+      setQuotes([]);
+      return;
+    }
     Promise.all([
-      fetch(quotesUrl),
+      api('/api/dashboard/quotes'),
       fetch('/api/dashboard/super-admin/tools'),
     ])
       .then(([quotesRes, toolsRes]) => {
@@ -197,7 +200,7 @@ export default function DashboardQuotesPage() {
     if (!deleteQuote) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/dashboard/quotes/${deleteQuote.id}`, { method: 'DELETE' });
+      const res = await api(`/api/dashboard/quotes/${deleteQuote.id}`, { method: 'DELETE' });
       const data = await res.json();
       if (res.ok) {
         setDeleteQuote(null);
@@ -215,7 +218,7 @@ export default function DashboardQuotesPage() {
     setBulkDeleting(true);
     setBulkReassignMessage(null);
     try {
-      const res = await fetch('/api/dashboard/quotes/bulk-delete', {
+      const res = await api('/api/dashboard/quotes/bulk-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: Array.from(selectedIds) }),
@@ -238,7 +241,7 @@ export default function DashboardQuotesPage() {
     setBulkReassigning(true);
     setBulkReassignMessage(null);
     try {
-      const res = await fetch('/api/dashboard/quotes/bulk-reassign', {
+      const res = await api('/api/dashboard/quotes/bulk-reassign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: Array.from(selectedIds), tool_id: selectedToolId || null }),
@@ -417,6 +420,18 @@ export default function DashboardQuotesPage() {
       el.indeterminate = selectedOnPage > 0 && selectedOnPage < pageIds.length;
     }
   }, [selectedIds, paginatedQuotes]);
+
+  if (!effectiveLocationId) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <span className="inline-flex gap-1" aria-label="Loading">
+          <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce [animation-delay:-0.3s]" />
+          <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce [animation-delay:-0.15s]" />
+          <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce" />
+        </span>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

@@ -110,12 +110,11 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
     const hashParams = new URLSearchParams((window.location?.hash ?? '').substring(1));
     const pathname = window.location?.pathname ?? '';
 
+    // Only use location params — never companyId/company_id. Objects API requires sub-account (location) ID, not company ID.
     let urlLocationId =
       urlParams.get('locationId') ||
       urlParams.get('location_id') ||
       urlParams.get('location') ||
-      urlParams.get('companyId') ||
-      urlParams.get('company_id') ||
       hashParams.get('locationId') ||
       hashParams.get('location_id') ||
       hashParams.get('location');

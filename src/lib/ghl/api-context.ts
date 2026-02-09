@@ -20,16 +20,25 @@ export type GHLContextResult =
 
 /**
  * Resolve locationId + location token for dashboard API calls.
- * Step 2: locationId from header, else GET /oauth/installedLocations (with access token), else query/session.
- * Step 3+4: getOrFetchTokenForLocation(locationId) → POST /oauth/locationToken when needed, returns location token; we use that for contacts etc.
+ * User context (postMessage / iframe) must win: header, then query, then session. Agency fallback only when request has no locationId.
+ * Step 2: locationId from x-ghl-location-id header, else locationId query param, else session; only then GET /locations/search or GET /oauth/installedLocations.
+ * Step 3+4: getOrFetchTokenForLocation(locationId) → POST /oauth/locationToken when needed.
  */
 export async function resolveGHLContext(request: NextRequest): Promise<GHLContextResult> {
   try {
     const headerLocationId = request.headers.get('x-ghl-location-id')?.trim() || null;
-    let rawLocationId: string | null = headerLocationId;
+    const queryLocationId = request.nextUrl.searchParams.get('locationId')?.trim() || null;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'api-context.ts:resolveGHLContext:entry', message: 'resolveGHLContext entry', data: { headerLocationId: headerLocationId ? `${headerLocationId.slice(0, 8)}..` : null, queryLocationId: queryLocationId ? `${queryLocationId.slice(0, 8)}..` : null }, timestamp: Date.now(), hypothesisId: 'H1-H2-H3' }) }).catch(() => {});
+    // #endregion
 
+    // User context first: header (postMessage/snippet), then query, then session. Agency only when none provided.
+    let rawLocationId: string | null = headerLocationId ?? queryLocationId;
     if (!rawLocationId) {
-      // Prefer GET /locations/search (Search Sub-Account) — scope locations.readonly, Agency token + companyId
+      const session = await getSession();
+      rawLocationId = session?.locationId ?? null;
+    }
+    if (!rawLocationId) {
       const searched = await searchLocations({ limit: 10 });
       if (searched.success && searched.locations?.length) {
         const first = searched.locations[0];
@@ -44,20 +53,16 @@ export async function resolveGHLContext(request: NextRequest): Promise<GHLContex
       }
     }
 
-    if (!rawLocationId) {
-      const queryLocationId = request.nextUrl.searchParams.get('locationId')?.trim() || null;
-      const session = await getSession();
-      rawLocationId = queryLocationId ?? session?.locationId ?? null;
-    }
-
     const locationId = rawLocationId ? rawLocationId.trim() : null;
 
     if (!locationId) {
       return null;
     }
 
-    // Step 3+4: get location access token (POST /oauth/locationToken with our access token), then use it for all GHL calls.
     const token = await getOrFetchTokenForLocation(locationId);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'api-context.ts:resolveGHLContext:result', message: 'final locationId and token', data: { locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`, hasToken: !!token }, timestamp: Date.now(), hypothesisId: 'H4-H5' }) }).catch(() => {});
+    // #endregion
 
     if (token) {
       return { locationId, token };

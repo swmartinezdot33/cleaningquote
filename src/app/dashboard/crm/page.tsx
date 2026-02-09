@@ -143,8 +143,9 @@ export default function CRMDashboardPage() {
   }
 
   const connectionOk = verify?.ok === true;
-  const showConnectCTA = (needsConnect || !connectionOk) && effectiveLocationId && !apiError;
   const noLocation = !effectiveLocationId && !loading;
+  // When we have locationId, always show pipeline UI (same API calls as contacts). Only show full-page Connect when no location at all.
+  const needsConnectBanner = (needsConnect || !connectionOk) && effectiveLocationId && !apiError;
 
   if (apiError && effectiveLocationId) {
     return (
@@ -214,59 +215,33 @@ export default function CRMDashboardPage() {
     );
   }
 
-  if (showConnectCTA) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-foreground">CRM Pipeline</h1>
-        <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-6 text-amber-800 dark:text-amber-200">
-          <p className="font-medium">Connect your location</p>
-          <p className="mt-2 text-sm">
-            This location needs a one-time connection. Click below to authorize CleanQuote to access your CRM data.
-          </p>
-          <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">
-            User context: Location ID = {effectiveLocationId ? `${effectiveLocationId.slice(0, 8)}..${effectiveLocationId.slice(-4)}` : 'None (not received)'}
-          </p>
-          {verify && (
-            <div ref={statusRef} className="mt-3 rounded border border-amber-600/50 bg-amber-500/10 px-3 py-2">
-              <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">
-                {testingConnection ? 'Testing…' : 'Not connected'}
-              </p>
-              <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">
-                {verify.message ?? ''}
-              </p>
-              {(verify.tokenExistsInKV !== undefined || verify.locationIdLookedUp) && (
-                <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
-                  KV lookup: {verify.locationIdLookedUp ?? '—'} → token in KV: {verify.tokenExistsInKV === true ? 'Yes' : verify.tokenExistsInKV === false ? 'No' : '—'}
-                </p>
-              )}
-            </div>
-          )}
-          <div className="mt-4 flex flex-wrap items-center gap-3">
+  return (
+    <div className="space-y-8">
+      {/* Connect banner when we have locationId but no token — same pattern as contacts; don't block pipeline UI */}
+      {needsConnectBanner && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+          <span className="font-medium">Connect this location to load CRM data and opportunities.</span>
+          <div className="flex items-center gap-2">
             <a
               href={getConnectInstallUrl(effectiveLocationId)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+              className="inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700"
             >
-              Connect via OAuth (opens in new tab)
+              Connect via OAuth
             </a>
             <button
               type="button"
               onClick={runVerify}
-              disabled={testingConnection || !effectiveLocationId}
-              className="inline-flex items-center gap-2 rounded-md border border-amber-600 bg-transparent px-4 py-2 text-sm font-medium text-amber-800 dark:text-amber-200 hover:bg-amber-500/20 disabled:opacity-50"
+              disabled={testingConnection}
+              className="inline-flex items-center gap-1.5 rounded border border-amber-600/50 px-2.5 py-1 text-xs hover:bg-amber-500/20 disabled:opacity-50"
             >
-              {testingConnection ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {testingConnection ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
               Test connection
             </button>
           </div>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
+      )}
       {/* Connection status: we have locationId + token and GHL API works */}
       {verify?.ok && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-800 dark:text-green-200">
