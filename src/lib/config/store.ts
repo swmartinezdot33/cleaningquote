@@ -299,38 +299,25 @@ export async function clearOrgGHL(orgId: string): Promise<void> {
 }
 
 /** Get org IDs linked to this GHL location (for listing tools, service areas, pricing when using GHL session).
- * Includes: (1) org_ghl_settings.ghl_location_id and (2) orgs that have at least one tool with tool_config.ghl_location_id = locationId.
- * So when tools load for a location but org_ghl_settings has no row, Service Areas and Pricing still get an org. */
+ * Org and location are the same entity: we use org_id in Supabase, GHL uses LocationID; tied in org_ghl_settings.
+ * One org per ghl_location_id (enforced by unique constraint). Use ensureOrgForGHLLocation when no row exists. */
 export async function getOrgIdsByGHLLocationId(locationId: string): Promise<string[]> {
   if (!isSupabaseConfigured() || !locationId?.trim()) return [];
   const supabase = createSupabaseServer();
   const loc = locationId.trim();
-  const orgIds = new Set<string>();
 
   const { data: settingsRows, error: settingsError } = await (supabase as any)
     .from('org_ghl_settings')
     .select('org_id')
     .eq('ghl_location_id', loc);
-  if (!settingsError && Array.isArray(settingsRows)) {
-    for (const r of settingsRows as Array<{ org_id: string }>) {
-      if (r?.org_id) orgIds.add(r.org_id);
-    }
+  if (!settingsError && Array.isArray(settingsRows) && settingsRows.length > 0) {
+    const fromSettings = (settingsRows as Array<{ org_id: string }>)
+      .map((r) => r?.org_id)
+      .filter((id): id is string => !!id);
+    if (fromSettings.length > 0) return [fromSettings[0]];
   }
 
-  const toolIds = await getToolIdsByGHLLocationId(loc);
-  if (toolIds.length > 0) {
-    const { data: toolRows, error: toolsError } = await supabase
-      .from('tools')
-      .select('org_id')
-      .in('id', toolIds);
-    if (!toolsError && Array.isArray(toolRows)) {
-      for (const t of toolRows as Array<{ org_id: string | null }>) {
-        if (t?.org_id) orgIds.add(t.org_id);
-      }
-    }
-  }
-
-  return Array.from(orgIds);
+  return [];
 }
 
 /** Ensure exactly one org exists for this GHL location (1 org = 1 GHL sub-account). Creates org + org_ghl_settings if none. Returns org id or null. */
