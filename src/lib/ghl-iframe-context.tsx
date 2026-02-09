@@ -77,6 +77,8 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sessionLocationId, setSessionLocationId] = useState<string | null>(null);
+  /** When in iframe, only this unlocks the dashboard — set when REQUEST_USER_DATA_RESPONSE + decrypt returns locationId. */
+  const [locationIdFromPostMessage, setLocationIdFromPostMessage] = useState<string | null>(null);
   const hasLocationIdRef = useRef(false);
   const postMessageResponseHandledRef = useRef(false);
 
@@ -91,7 +93,10 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
       .catch(() => {});
   }, [ghlData?.locationId]);
 
-  const effectiveLocationId = ghlData?.locationId ?? sessionLocationId;
+  const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
+  const effectiveLocationId = isInIframe
+    ? locationIdFromPostMessage
+    : (ghlData?.locationId ?? sessionLocationId);
   const userContext: GHLUserContext | null = effectiveLocationId ? { locationId: effectiveLocationId } : null;
 
   useEffect(() => {
@@ -182,14 +187,14 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
 
     const urlUserId = urlParams.get('userId') || urlParams.get('user_id') || hashParams.get('userId') || hashParams.get('user_id');
 
-    if (urlLocationId) {
+    if (urlLocationId && !isInIframe) {
       hasLocationIdRef.current = true;
       console.log('[CQ Iframe] locationId resolved (URL/path/referrer)', { locationId: urlLocationId.slice(0, 12) + '...' });
       apply({ locationId: urlLocationId, userId: urlUserId || undefined });
     }
 
-    // 5. Session cache
-    if (!hasLocationIdRef.current && typeof window !== 'undefined') {
+    // 5. Session cache — when NOT in iframe we can use it; when in iframe we require postMessage (decrypt) only.
+    if (!hasLocationIdRef.current && typeof window !== 'undefined' && !isInIframe) {
       const cached = sessionStorage.getItem('ghl_iframeData');
       if (cached) {
         try {
@@ -250,6 +255,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
               if (result?.success && result.locationId) {
                 hasLocationIdRef.current = true;
                 console.log('[CQ Iframe] locationId from decrypt (postMessage)', { locationId: result.locationId?.slice(0, 12) + '...' });
+                setLocationIdFromPostMessage(result.locationId);
                 apply({
                   locationId: result.locationId,
                   userId: result.userId,
@@ -261,6 +267,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
               } else if (typeof data.payload === 'object' && data.payload?.locationId) {
                 hasLocationIdRef.current = true;
                 console.log('[GHL Iframe] ✅ 6b. From payload.locationId (unencrypted):', data.payload.locationId);
+                setLocationIdFromPostMessage(data.payload.locationId);
                 apply({ locationId: data.payload.locationId, ...data.payload });
               } else if (result?.error || result?.hint) {
                 console.warn('[GHL Iframe] Decrypt failed:', result?.error, result?.hint);
@@ -270,6 +277,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
               console.error('[GHL Iframe] Decrypt fetch error:', err);
               if (typeof data.payload === 'object' && data.payload?.locationId) {
                 hasLocationIdRef.current = true;
+                setLocationIdFromPostMessage(data.payload.locationId);
                 apply({ locationId: data.payload.locationId, ...data.payload });
               }
             });
@@ -286,6 +294,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
         if (locationId) {
           hasLocationIdRef.current = true;
           console.log('[GHL Iframe] ✅ 6c. From other postMessage:', locationId, 'keys:', Object.keys(data));
+          setLocationIdFromPostMessage(locationId);
           apply({
             locationId,
             userId: data.userId ?? data.payload?.userId,
@@ -349,9 +358,29 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
+  const showBlockingInIframe = isInIframe && !locationIdFromPostMessage;
+
   return (
     <GHLIframeContext.Provider value={{ ghlData, loading, error, effectiveLocationId, userContext }}>
-      {children}
+      {showBlockingInIframe ? (
+        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
+          {error ? (
+            <>
+              <p className="text-destructive font-medium">No GHL user context</p>
+              <p className="max-w-md text-sm text-muted-foreground">{error}</p>
+            </>
+          ) : (
+            <>
+              <p className="font-medium text-foreground">Waiting for GoHighLevel…</p>
+              <p className="max-w-md text-sm text-muted-foreground">
+                Open this app from your GoHighLevel location (sub-account) so we can receive your location ID. Do not use session or cached data when embedded in GHL.
+              </p>
+            </>
+          )}
+        </div>
+      ) : (
+        children
+      )}
     </GHLIframeContext.Provider>
   );
 }
