@@ -11,14 +11,14 @@ import { getSession } from '@/lib/ghl/session';
 
 export const dynamic = 'force-dynamic';
 
-/** GET - List tools for the current GHL location (orgs linked to this locationId). */
+/** GET - List tools for the current GHL location (tools whose tool_config.ghl_location_id matches). */
 export async function GET() {
   const session = await getSession();
   if (!session?.locationId) {
     return NextResponse.json({ error: 'No GHL session' }, { status: 401 });
   }
-  const orgIds = await configStore.getOrgIdsByGHLLocationId(session.locationId);
-  if (orgIds.length === 0) {
+  const toolIds = await configStore.getToolIdsByGHLLocationId(session.locationId);
+  if (toolIds.length === 0) {
     return NextResponse.json({ tools: [] });
   }
   try {
@@ -26,7 +26,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from('tools')
       .select('id, name, slug, org_id')
-      .in('org_id', orgIds)
+      .in('id', toolIds)
       .order('name');
     if (error) {
       return NextResponse.json({ tools: [] });

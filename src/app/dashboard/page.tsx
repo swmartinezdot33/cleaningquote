@@ -6,14 +6,15 @@ import { createSupabaseServer, isSupabaseConfigured } from '@/lib/supabase/serve
 
 type ToolRow = { id: string; name: string; slug: string; org_id: string };
 
+/** Tools shown on the page are those whose tool_config.ghl_location_id matches the current GHL location. */
 async function getToolsForLocation(locationId: string): Promise<ToolRow[]> {
-  const orgIds = await configStore.getOrgIdsByGHLLocationId(locationId);
-  if (orgIds.length === 0 || !isSupabaseConfigured()) return [];
+  const toolIds = await configStore.getToolIdsByGHLLocationId(locationId);
+  if (toolIds.length === 0 || !isSupabaseConfigured()) return [];
   const supabase = createSupabaseServer();
   const { data, error } = await supabase
     .from('tools')
     .select('id, name, slug, org_id')
-    .in('org_id', orgIds)
+    .in('id', toolIds)
     .order('name');
   if (error) return [];
   return (data ?? []) as ToolRow[];

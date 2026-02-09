@@ -4,11 +4,16 @@ import { getContactById, listContactNotes, updateContact } from '@/lib/ghl/clien
 
 export const dynamic = 'force-dynamic';
 
-/** Map GHL contact to ContactDetail shape (same pattern as contacts list) */
+/** Map GHL contact to ContactDetail shape (same pattern as contacts list). Includes customFields for CleanQuote home/quote display. */
 function mapGHLContactToDetail(ghl: any, notes: Array<{ id: string; body: string; createdAt?: string }>) {
   const stage = (ghl.type ?? ghl.stage ?? 'lead').toLowerCase();
   const mapped = ['lead', 'quoted', 'booked', 'customer', 'churned'].includes(stage) ? stage : 'lead';
   const addr = [ghl.address1 ?? ghl.address, ghl.city, ghl.state, ghl.postalCode ?? ghl.postal_code, ghl.country].filter(Boolean).join(', ');
+  const customFields = ghl.customFields && typeof ghl.customFields === 'object'
+    ? (Array.isArray(ghl.customFields)
+        ? Object.fromEntries((ghl.customFields as Array<{ key: string; value: string }>).map((f: { key: string; value: string }) => [f.key, f.value]))
+        : { ...ghl.customFields })
+    : {};
   return {
     contact: {
       id: ghl.id ?? '',
@@ -20,6 +25,14 @@ function mapGHLContactToDetail(ghl: any, notes: Array<{ id: string; body: string
       source: ghl.source ?? null,
       tags: Array.isArray(ghl.tags) ? ghl.tags : [],
       created_at: ghl.dateAdded ?? ghl.date_added ?? ghl.createdAt ?? new Date().toISOString(),
+    },
+    customFields: customFields as Record<string, string>,
+    address: {
+      street: ghl.address1 ?? ghl.address ?? null,
+      city: ghl.city ?? null,
+      state: ghl.state ?? null,
+      postal_code: ghl.postalCode ?? ghl.postal_code ?? null,
+      country: ghl.country ?? null,
     },
     properties: addr ? [{ id: 'ghl-addr', address: addr, city: ghl.city ?? null, state: ghl.state ?? null, postal_code: ghl.postalCode ?? ghl.postal_code ?? null, nickname: null, stage: 'active' }] : [],
     quotes: [],

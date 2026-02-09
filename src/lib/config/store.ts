@@ -300,6 +300,23 @@ export async function getOrgIdsByGHLLocationId(locationId: string): Promise<stri
   return rows.map((r) => r.org_id).filter(Boolean);
 }
 
+/** Get tool IDs whose tool_config.ghl_location_id matches this GHL location (for Tools page visibility). */
+export async function getToolIdsByGHLLocationId(locationId: string): Promise<string[]> {
+  if (!isSupabaseConfigured() || !locationId?.trim()) return [];
+  const supabase = createSupabaseServer();
+  const { data, error } = await supabase
+    .from('tool_config')
+    .select('tool_id')
+    .eq('ghl_location_id', locationId.trim())
+    .not('tool_id', 'is', null);
+  if (error) {
+    console.warn('tool_config getToolIdsByGHLLocationId:', error);
+    return [];
+  }
+  const rows = (data ?? []) as Array<{ tool_id: string | null }>;
+  return rows.map((r) => r.tool_id).filter((id): id is string => typeof id === 'string' && id.length > 0);
+}
+
 /** Get GHL token: when toolId is provided, use org-level GHL for that tool's org; else legacy global tool_config. */
 export async function getGHLToken(toolId?: string): Promise<string | null> {
   if (toolId) {

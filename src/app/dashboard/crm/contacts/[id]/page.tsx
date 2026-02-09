@@ -2,8 +2,20 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Loader2, Mail, Phone, MapPin, FileText } from 'lucide-react';
+import {
+  Loader2,
+  Mail,
+  Phone,
+  MapPin,
+  FileText,
+  Home,
+  DollarSign,
+  User,
+  Tag,
+  ChevronLeft,
+} from 'lucide-react';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
+import { getVisibleDisplayFields } from '@/lib/crm/contact-display-fields';
 
 interface ContactDetail {
   contact: {
@@ -16,6 +28,14 @@ interface ContactDetail {
     source: string | null;
     tags: string[];
     created_at: string;
+  };
+  customFields?: Record<string, string>;
+  address?: {
+    street: string | null;
+    city: string | null;
+    state: string | null;
+    postal_code: string | null;
+    country: string | null;
   };
   properties: Array<{
     id: string;
@@ -60,6 +80,15 @@ interface ContactDetail {
     content: string;
     created_at: string;
   }>;
+}
+
+function getInitials(first: string | null, last: string | null): string {
+  const a = (first ?? '').trim().charAt(0);
+  const b = (last ?? '').trim().charAt(0);
+  if (a && b) return `${a}${b}`.toUpperCase();
+  if (a) return a.toUpperCase();
+  if (b) return b.toUpperCase();
+  return '?';
 }
 
 export default function ContactDetailPage({
@@ -127,7 +156,7 @@ export default function ContactDetailPage({
 
   if (error) {
     return (
-      <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-destructive">
+      <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-6 text-destructive">
         <p>{error}</p>
         <Link href="/dashboard/crm/contacts" className="mt-2 inline-block text-sm underline">
           Back to contacts
@@ -145,87 +174,198 @@ export default function ContactDetailPage({
   }
 
   const name = [data.contact.first_name, data.contact.last_name].filter(Boolean).join(' ') || 'Unknown';
+  const initials = getInitials(data.contact.first_name, data.contact.last_name);
+  const displayFields = getVisibleDisplayFields(data.customFields ?? {});
+  const hasAddress =
+    data.address &&
+    [data.address.street, data.address.city, data.address.state, data.address.postal_code, data.address.country].some(
+      (x) => x != null && String(x).trim() !== ''
+    );
+  const addressLine = data.address
+    ? [data.address.street, data.address.city, data.address.state, data.address.postal_code, data.address.country]
+        .filter(Boolean)
+        .join(', ')
+    : '';
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Link href="/dashboard/crm/contacts" className="text-sm text-muted-foreground hover:underline mb-2 inline-block">
-            ← Back to contacts
-          </Link>
-          <h1 className="text-2xl font-bold text-foreground">{name}</h1>
-          <div className="mt-2 flex flex-wrap gap-4 text-sm text-muted-foreground">
-            {data.contact.email && (
-              <a href={`mailto:${data.contact.email}`} className="flex items-center gap-1.5 hover:text-primary">
-                <Mail className="h-4 w-4" />
-                {data.contact.email}
-              </a>
-            )}
-            {data.contact.phone && (
-              <a href={`tel:${data.contact.phone}`} className="flex items-center gap-1.5 hover:text-primary">
-                <Phone className="h-4 w-4" />
-                {data.contact.phone}
-              </a>
-            )}
+    <div className="mx-auto max-w-4xl space-y-8 pb-12">
+      {/* Back */}
+      <Link
+        href="/dashboard/crm/contacts"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        Back to contacts
+      </Link>
+
+      {/* CleanQuote contact header */}
+      <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+        <div className="bg-gradient-to-br from-primary/8 via-background to-primary/5 px-6 py-8 sm:px-8">
+          <div className="flex flex-wrap items-start gap-6">
+            <div
+              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-primary text-xl font-semibold text-primary-foreground shadow-md"
+              aria-hidden
+            >
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{name}</h1>
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                {data.contact.email && (
+                  <a
+                    href={`mailto:${data.contact.email}`}
+                    className="inline-flex items-center gap-1.5 hover:text-primary hover:underline"
+                  >
+                    <Mail className="h-4 w-4 shrink-0" />
+                    {data.contact.email}
+                  </a>
+                )}
+                {data.contact.phone && (
+                  <a
+                    href={`tel:${data.contact.phone}`}
+                    className="inline-flex items-center gap-1.5 hover:text-primary hover:underline"
+                  >
+                    <Phone className="h-4 w-4 shrink-0" />
+                    {data.contact.phone}
+                  </a>
+                )}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center rounded-full border border-border bg-muted/80 px-3 py-1 text-xs font-medium capitalize text-foreground">
+                  {data.contact.stage}
+                </span>
+                {data.contact.tags.length > 0 && (
+                  <span className="inline-flex flex-wrap items-center gap-1.5">
+                    <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+                    {data.contact.tags.slice(0, 8).map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-md bg-muted/70 px-2 py-0.5 text-xs text-muted-foreground"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                    {data.contact.tags.length > 8 && (
+                      <span className="text-xs text-muted-foreground">+{data.contact.tags.length - 8} more</span>
+                    )}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-          <span className="mt-2 inline-flex rounded-md bg-muted px-2 py-0.5 text-xs font-medium capitalize">
-            {data.contact.stage}
-          </span>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Properties & Quotes */}
-        <div className="rounded-xl border border-border bg-card p-6">
-          <h2 className="font-semibold text-foreground">Properties & Quotes</h2>
-          {data.properties.length === 0 ? (
-            <p className="mt-4 text-sm text-muted-foreground">No properties yet.</p>
-          ) : (
-            <ul className="mt-4 space-y-4">
-              {data.properties.map((p) => {
-                const addr = [p.address, p.city, p.state, p.postal_code].filter(Boolean).join(', ');
-                const propQuotes = data.quotes.filter((q) => q.property_id === p.id);
-                return (
-                  <li key={p.id} className="rounded-lg border border-border p-4">
-                    <div className="flex items-start gap-2">
-                      <MapPin className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
-                      <div>
-                        {p.nickname && (
-                          <p className="font-medium text-foreground">{p.nickname}</p>
-                        )}
-                        <p className="text-sm text-muted-foreground">{addr || 'No address'}</p>
-                        <span className="mt-1 inline-flex rounded bg-muted px-1.5 py-0.5 text-xs capitalize">
-                          {p.stage}
-                        </span>
-                        {propQuotes.length > 0 && (
-                          <ul className="mt-3 space-y-1">
-                            {propQuotes.map((q) => (
-                              <li key={q.id}>
-                                <Link
-                                  href={`/quote/${q.quote_id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-sm text-primary hover:underline"
-                                >
-                                  {q.quote_id} — {q.service_type || '—'}
-                                  {q.price_low != null && q.price_high != null && ` ($${q.price_low}–$${q.price_high})`}
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+      {/* Address (if we have it from GHL) */}
+      {hasAddress && addressLine && (
+        <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <MapPin className="h-4 w-4" />
+            Address
+          </h2>
+          <p className="mt-2 text-foreground">{addressLine}</p>
+        </section>
+      )}
+
+      {/* CleanQuote Home & Quote info (curated GHL custom fields) */}
+      {(displayFields.quote.length > 0 || displayFields.home.length > 0 || displayFields.lead.length > 0) && (
+        <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2">
+          {(displayFields.quote.length > 0 || displayFields.lead.length > 0) && (
+            <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                <DollarSign className="h-4 w-4" />
+                Quote & lead
+              </h2>
+              <dl className="mt-4 space-y-3">
+                {displayFields.quote.map(({ label, value }) => (
+                  <div key={label} className="flex flex-col gap-0.5">
+                    <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+                    <dd className="text-sm font-medium text-foreground">{value}</dd>
+                  </div>
+                ))}
+                {displayFields.lead.map(({ label, value }) => (
+                  <div key={label} className="flex flex-col gap-0.5">
+                    <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+                    <dd className="text-sm font-medium text-foreground">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
+          {displayFields.home.length > 0 && (
+            <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                <Home className="h-4 w-4" />
+                Home information
+              </h2>
+              <dl className="mt-4 space-y-3">
+                {displayFields.home.map(({ label, value }) => (
+                  <div key={label} className="flex flex-col gap-0.5">
+                    <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+                    <dd className="text-sm font-medium text-foreground">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
           )}
         </div>
+      )}
 
+      {/* Properties & Quotes */}
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <User className="h-4 w-4" />
+          Properties & quotes
+        </h2>
+        {data.properties.length === 0 ? (
+          <p className="mt-4 text-sm text-muted-foreground">No properties yet.</p>
+        ) : (
+          <ul className="mt-4 space-y-4">
+            {data.properties.map((p) => {
+              const addr = [p.address, p.city, p.state, p.postal_code].filter(Boolean).join(', ');
+              const propQuotes = data.quotes.filter((q) => q.property_id === p.id);
+              return (
+                <li key={p.id} className="rounded-xl border border-border bg-muted/30 p-4">
+                  <div className="flex items-start gap-3">
+                    <MapPin className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      {p.nickname && <p className="font-medium text-foreground">{p.nickname}</p>}
+                      <p className="text-sm text-muted-foreground">{addr || 'No address'}</p>
+                      <span className="mt-1 inline-flex rounded-md bg-muted px-1.5 py-0.5 text-xs capitalize">
+                        {p.stage}
+                      </span>
+                      {propQuotes.length > 0 && (
+                        <ul className="mt-3 space-y-1">
+                          {propQuotes.map((q) => (
+                            <li key={q.id}>
+                              <Link
+                                href={`/quote/${q.quote_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-primary hover:underline"
+                              >
+                                {q.quote_id} — {q.service_type || '—'}
+                                {q.price_low != null && q.price_high != null && ` ($${q.price_low}–$${q.price_high})`}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2">
         {/* Schedules */}
-        <div className="rounded-xl border border-border bg-card p-6">
-          <h2 className="font-semibold text-foreground">Recurring Schedules</h2>
+        <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Recurring schedules
+          </h2>
           {data.schedules.length === 0 ? (
             <p className="mt-4 text-sm text-muted-foreground">No schedules.</p>
           ) : (
@@ -241,11 +381,11 @@ export default function ContactDetailPage({
               ))}
             </ul>
           )}
-        </div>
+        </section>
 
         {/* Appointments */}
-        <div className="rounded-xl border border-border bg-card p-6">
-          <h2 className="font-semibold text-foreground">Appointments</h2>
+        <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Appointments</h2>
           {data.appointments.length === 0 ? (
             <p className="mt-4 text-sm text-muted-foreground">No appointments.</p>
           ) : (
@@ -258,44 +398,45 @@ export default function ContactDetailPage({
               ))}
             </ul>
           )}
-        </div>
-
-        {/* Notes */}
-        <div className="rounded-xl border border-border bg-card p-6">
-          <h2 className="font-semibold text-foreground">Notes</h2>
-          <div className="mt-4 flex gap-2">
-            <textarea
-              value={noteContent}
-              onChange={(e) => setNoteContent(e.target.value)}
-              placeholder="Add a note…"
-              className="min-h-[80px] flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-              rows={2}
-            />
-            <button
-              type="button"
-              onClick={addNote}
-              disabled={!noteContent.trim() || addingNote}
-              className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground hover:opacity-90 disabled:opacity-50"
-            >
-              {addingNote ? 'Adding…' : 'Add'}
-            </button>
-          </div>
-          <ul className="mt-4 space-y-2">
-            {data.notes.map((n) => (
-              <li key={n.id} className="rounded-lg bg-muted/50 p-3 text-sm">
-                <p className="whitespace-pre-wrap">{n.content}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {new Date(n.created_at).toLocaleString()}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </div>
+        </section>
       </div>
 
-      {/* Activity timeline */}
-      <div className="rounded-xl border border-border bg-card p-6">
-        <h2 className="font-semibold text-foreground">Activity</h2>
+      {/* Notes */}
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Notes</h2>
+        <div className="mt-4 flex gap-2">
+          <textarea
+            value={noteContent}
+            onChange={(e) => setNoteContent(e.target.value)}
+            placeholder="Add a note…"
+            className="min-h-[80px] flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm"
+            rows={2}
+          />
+          <button
+            type="button"
+            onClick={addNote}
+            disabled={!noteContent.trim() || addingNote}
+            className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          >
+            {addingNote ? 'Adding…' : 'Add'}
+          </button>
+        </div>
+        <ul className="mt-4 space-y-2">
+          {data.notes.map((n) => (
+            <li key={n.id} className="rounded-lg bg-muted/50 p-3 text-sm">
+              <p className="whitespace-pre-wrap">{n.content}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{new Date(n.created_at).toLocaleString()}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* Activity */}
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <FileText className="h-4 w-4" />
+          Activity
+        </h2>
         {data.activities.length === 0 ? (
           <p className="mt-4 text-sm text-muted-foreground">No activity yet.</p>
         ) : (
@@ -305,14 +446,12 @@ export default function ContactDetailPage({
                 <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <span className="capitalize">{a.type.replace('_', ' ')}</span>
                 <span className="text-muted-foreground">— {a.title}</span>
-                <span className="ml-auto text-muted-foreground">
-                  {new Date(a.created_at).toLocaleString()}
-                </span>
+                <span className="ml-auto text-muted-foreground">{new Date(a.created_at).toLocaleString()}</span>
               </li>
             ))}
           </ul>
         )}
-      </div>
+      </section>
     </div>
   );
 }
