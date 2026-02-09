@@ -3,9 +3,8 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { BrandLogo } from '@/components/BrandLogo';
 import { OrgSwitcher } from '@/components/OrgSwitcher';
-import { Menu, X } from 'lucide-react';
+import { Menu, Settings, X } from 'lucide-react';
 
 interface Org {
   id: string;
@@ -78,13 +77,6 @@ export function DashboardHeader({
         </>
       )}
       <Link
-        href="/dashboard"
-        onClick={closeMobileMenu}
-        className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
-      >
-        Tools
-      </Link>
-      <Link
         href="/dashboard/quotes"
         onClick={closeMobileMenu}
         className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
@@ -96,9 +88,22 @@ export function DashboardHeader({
         onClick={closeMobileMenu}
         className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
       >
-        CRM
+        Pipelines
       </Link>
-      {/* Service Areas and Pricing: admin only; members do not see these */}
+      <Link
+        href="/dashboard/crm/contacts"
+        onClick={closeMobileMenu}
+        className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+      >
+        Contacts
+      </Link>
+      <Link
+        href="/dashboard"
+        onClick={closeMobileMenu}
+        className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+      >
+        Tools
+      </Link>
       {selectedOrgRole === 'admin' && (
         <>
           <Link
@@ -115,42 +120,34 @@ export function DashboardHeader({
           >
             Pricing
           </Link>
-          <Link
-            href="/dashboard/settings"
-            onClick={closeMobileMenu}
-            className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
-          >
-            Settings
-          </Link>
         </>
       )}
       <Link
-        href="/dashboard/profile"
+        href="/dashboard/crm/schedule"
         onClick={closeMobileMenu}
-        className="text-sm font-medium text-foreground hover:text-primary hover:underline"
+        className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
       >
-        {userDisplayName}
+        Schedule
       </Link>
+      {selectedOrgRole === 'admin' && (
+        <Link
+          href="/dashboard/settings"
+          onClick={closeMobileMenu}
+          className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline p-1.5 -m-1.5 rounded-md"
+          aria-label="Settings"
+        >
+          <Settings className="h-5 w-5" />
+        </Link>
+      )}
     </>
   );
 
   return (
     <header className="border-b border-border bg-card">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <BrandLogo />
-        </Link>
-        {/* Desktop nav */}
+        {/* Desktop nav — aligned left */}
         <div className="hidden md:flex md:items-center md:gap-4">
           {navLinks}
-          <form action="/api/auth/signout" method="post">
-            <button
-              type="submit"
-              className="text-sm font-medium text-primary hover:underline"
-            >
-              Sign out
-            </button>
-          </form>
         </div>
         {/* Mobile: hamburger */}
         <button
@@ -223,13 +220,6 @@ export function DashboardHeader({
                   </>
                 )}
                 <Link
-                  href="/dashboard"
-                  onClick={closeMobileMenu}
-                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
-                >
-                  Tools
-                </Link>
-                <Link
                   href="/dashboard/quotes"
                   onClick={closeMobileMenu}
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
@@ -241,9 +231,22 @@ export function DashboardHeader({
                   onClick={closeMobileMenu}
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
-                  CRM
+                  Pipelines
                 </Link>
-                {/* Service Areas and Pricing: admin only */}
+                <Link
+                  href="/dashboard/crm/contacts"
+                  onClick={closeMobileMenu}
+                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                >
+                  Contacts
+                </Link>
+                <Link
+                  href="/dashboard"
+                  onClick={closeMobileMenu}
+                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                >
+                  Tools
+                </Link>
                 {selectedOrgRole === 'admin' && (
                   <>
                     <Link
@@ -260,32 +263,25 @@ export function DashboardHeader({
                     >
                       Pricing
                     </Link>
-                    <Link
-                      href="/dashboard/settings"
-                      onClick={closeMobileMenu}
-                      className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
-                    >
-                      Settings
-                    </Link>
                   </>
                 )}
                 <Link
-                  href="/dashboard/profile"
+                  href="/dashboard/crm/schedule"
                   onClick={closeMobileMenu}
-                  className="py-3 px-3 text-sm font-medium text-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
-                  {userDisplayName}
+                  Schedule
                 </Link>
-                <div className="border-t border-gray-200 mt-2 pt-4">
-                  <form action="/api/auth/signout" method="post">
-                    <button
-                      type="submit"
-                      className="w-full text-left py-3 px-3 text-sm font-medium text-primary hover:bg-muted/50 rounded-md transition-colors"
-                    >
-                      Sign out
-                    </button>
-                  </form>
-                </div>
+                {selectedOrgRole === 'admin' && (
+                  <Link
+                    href="/dashboard/settings"
+                    onClick={closeMobileMenu}
+                    className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors flex items-center gap-2"
+                  >
+                    <Settings className="h-5 w-5" />
+                    Settings
+                  </Link>
+                )}
               </nav>
             </div>
           </div>,

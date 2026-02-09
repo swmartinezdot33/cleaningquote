@@ -21,6 +21,7 @@ import {
   GHLConnectionTestResult,
   GHLCustomObject,
   GHLCustomObjectResponse,
+  GHLUserInfo,
 } from './types';
 
 const GHL_API_BASE = 'https://services.leadconnectorhq.com';
@@ -1046,8 +1047,61 @@ export async function createCustomObject(
 }
 
 /**
+ * Get association by key name (standard or user-defined).
+ * GET /associations/key/:key_name?locationId=...
+ * @see https://marketplace.gohighlevel.com/docs/ghl/associations/get-association-key-by-key-name
+ */
+export async function getAssociationByKeyName(
+  keyName: string,
+  locationId: string,
+  credentials?: GHLCredentials | null,
+  tokenOverride?: string
+): Promise<{ id: string; [k: string]: unknown } | null> {
+  const key = encodeURIComponent(keyName.trim());
+  const res = await makeGHLRequest<{ id?: string; associationId?: string; [k: string]: unknown }>(
+    `/associations/key/${key}?locationId=${encodeURIComponent(locationId)}`,
+    'GET',
+    undefined,
+    locationId,
+    tokenOverride,
+    credentials
+  );
+  const id = res?.id ?? res?.associationId;
+  if (id) return { id, ...res };
+  return null;
+}
+
+/**
+ * Get association(s) by object key (e.g. custom_objects.quotes, contact).
+ * GET /associations/objectKey/:objectKey?locationId=...
+ * @see https://marketplace.gohighlevel.com/docs/ghl/associations/get-association-by-object-keys
+ */
+export async function getAssociationByObjectKey(
+  objectKey: string,
+  locationId: string,
+  credentials?: GHLCredentials | null,
+  tokenOverride?: string
+): Promise<Array<{ id: string; [k: string]: unknown }>> {
+  const key = encodeURIComponent(objectKey.trim());
+  const res = await makeGHLRequest<
+    { id?: string; associationId?: string; [k: string]: unknown } | Array<{ id?: string; associationId?: string; [k: string]: unknown }>
+  >(
+    `/associations/objectKey/${key}?locationId=${encodeURIComponent(locationId)}`,
+    'GET',
+    undefined,
+    locationId,
+    tokenOverride,
+    credentials
+  );
+  const list = Array.isArray(res) ? res : res?.id || res?.associationId ? [res] : [];
+  return list
+    .map((a) => ({ id: a.id ?? a.associationId ?? '', ...a }))
+    .filter((a) => a.id);
+}
+
+/**
  * Associate a custom object with a contact (GHL highlevel-api-docs: associations.json)
- * - GET /associations/key/{key_name}?locationId= — locationId in query; no Location-Id header (sub-account PIT)
+ * - GET /associations/key/{key_name}?locationId= — get association by key name (preferred)
  * - POST /associations/relations — body createRelationReqDto: { locationId, associationId, firstRecordId, secondRecordId }
  * Scopes: associations.readonly (get), associations/relation.write (create)
  */
@@ -1062,29 +1116,44 @@ async function associateCustomObjectWithContact(
   if (!objectId) {
     throw new Error('Object ID is required for association');
   }
-  
-  // Step 1: Fetch association definitions to find the Contact-Quote association ID
+
+  // Step 1: Fetch association ID — try key name, then object key custom_objects.quotes, then legacy endpoints
   let associationId: string | null = null;
-  
   try {
-    // Try multiple endpoints to find the association
-    const associationEndpoints = [
-      `/associations/key/contact_quote?locationId=${locationId}`,
-      `/associations?locationId=${locationId}`,
-      `/associations`,
-      `/associations/object-keys?firstObjectKey=contact&secondObjectKey=custom_objects.quotes&locationId=${locationId}`,
-      `/associations/object-keys?firstObjectKey=Contact&secondObjectKey=quotes&locationId=${locationId}`,
-      `/associations/object-keys?firstObjectKey=Contact&secondObjectKey=Quote&locationId=${locationId}`,
-      `/associations/object-keys?firstObjectKey=quotes&secondObjectKey=Contact&locationId=${locationId}`,
-    ];
-    
-    for (const assocEndpoint of associationEndpoints) {
-      try {
-        const associationsResponse = await makeGHLRequest<any>(assocEndpoint, 'GET', undefined, undefined, tokenOverride);
-        if (assocEndpoint.includes('key/contact_quote') && associationsResponse && typeof associationsResponse === 'object' && (associationsResponse.id || associationsResponse.associationId)) {
-          associationId = associationsResponse.id || associationsResponse.associationId;
-          break;
-        }
+    const keyRes = await getAssociationByKeyName('contact_quote', locationId, undefined, tokenOverride);
+    if (keyRes?.id) associationId = keyRes.id;
+  } catch {
+    // fall through
+  }
+  if (!associationId) {
+    try {
+      const byObjectKey = await getAssociationByObjectKey('custom_objects.quotes', locationId, undefined, tokenOverride);
+      const contactQuote = byObjectKey.find((a: any) => {
+        const first = (a.firstEntityKey ?? a.firstObjectKey ?? '').toLowerCase();
+        const second = (a.secondEntityKey ?? a.secondObjectKey ?? '').toLowerCase();
+        const isContact = (s: string) => s === 'contact' || s === 'contacts';
+        const isQuote = (s: string) => s.includes('quote') || s === 'quotes' || s === 'custom_objects.quotes';
+        return (isContact(first) && isQuote(second)) || (isQuote(first) && isContact(second));
+      });
+      if (contactQuote?.id) associationId = contactQuote.id;
+    } catch {
+      // fall through
+    }
+  }
+  if (!associationId) {
+    try {
+      const associationEndpoints = [
+        `/associations?locationId=${locationId}`,
+        `/associations`,
+        `/associations/object-keys?firstObjectKey=contact&secondObjectKey=custom_objects.quotes&locationId=${locationId}`,
+        `/associations/object-keys?firstObjectKey=Contact&secondObjectKey=quotes&locationId=${locationId}`,
+        `/associations/object-keys?firstObjectKey=Contact&secondObjectKey=Quote&locationId=${locationId}`,
+        `/associations/object-keys?firstObjectKey=quotes&secondObjectKey=Contact&locationId=${locationId}`,
+      ];
+
+      for (const assocEndpoint of associationEndpoints) {
+        try {
+          const associationsResponse = await makeGHLRequest<any>(assocEndpoint, 'GET', undefined, undefined, tokenOverride);
         let associations: any[] = [];
         if (Array.isArray(associationsResponse)) {
           associations = associationsResponse;
@@ -1116,9 +1185,10 @@ async function associateCustomObjectWithContact(
       } catch {
         continue;
       }
+      }
+    } catch {
+      // Try without associationId
     }
-  } catch {
-    // Try without associationId
   }
   
   // Step 2: Create the relation using the correct format
@@ -1336,6 +1406,37 @@ export async function getLocation(locationId: string): Promise<GHLLocation> {
   } catch (error) {
     console.error('Failed to get location:', error);
     throw error;
+  }
+}
+
+/**
+ * Get user by ID for a location (uses location token; do not send Location-Id header).
+ */
+export async function getGHLUser(
+  userId: string,
+  locationToken: string
+): Promise<GHLUserInfo | null> {
+  if (!userId || !locationToken) return null;
+  try {
+    const response = await makeGHLRequest<{ user?: Record<string, unknown> }>(
+      `/users/${userId}`,
+      'GET',
+      undefined,
+      undefined,
+      locationToken
+    );
+    const user = response?.user ?? (response as unknown as Record<string, unknown>);
+    if (!user || typeof user !== 'object') return null;
+    return {
+      id: String(user.id ?? user._id ?? userId),
+      name: [user.name, [user.firstName, user.lastName].filter(Boolean).join(' ')].find(Boolean) as string | undefined,
+      email: user.email as string | undefined,
+      firstName: user.firstName as string | undefined,
+      lastName: user.lastName as string | undefined,
+    };
+  } catch (error) {
+    console.warn('Failed to get GHL user:', error);
+    return null;
   }
 }
 

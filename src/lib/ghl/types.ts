@@ -144,3 +144,12 @@ export interface GHLCustomObjectResponse {
   customFields?: Record<string, string>;
   [key: string]: any; // Allow additional fields from GHL
 }
+
+/** Cached GHL user info for session/display */
+export interface GHLUserInfo {
+  id: string;
+  name?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+}

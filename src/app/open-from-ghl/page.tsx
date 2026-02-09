@@ -32,7 +32,7 @@ export default async function OpenFromGHLPage() {
       <div className="max-w-md w-full rounded-xl border border-border bg-card p-8 text-center shadow-sm">
         <h1 className="text-xl font-semibold text-foreground">Open from GoHighLevel</h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          CleanQuote runs inside GoHighLevel. Open it from your sub-account sidebar or app launcher in your CRM dashboard.
+          You must be logged into GoHighLevel to use CleanQuote. We didn&apos;t receive your user context — open CleanQuote from your sub-account sidebar or app launcher in your GHL dashboard so we can identify you.
         </p>
         <p className="mt-2 text-sm text-muted-foreground">
           If you haven&apos;t installed CleanQuote yet, add it from the GHL App Marketplace.

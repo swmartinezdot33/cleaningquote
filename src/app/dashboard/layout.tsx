@@ -1,4 +1,5 @@
 import { getSession } from '@/lib/ghl/session';
+import { getOrFetchCurrentUser } from '@/lib/ghl/user-cache';
 import { DashboardHeader } from '@/app/dashboard/DashboardHeader';
 import { DashboardGHLWrapper } from '@/app/dashboard/DashboardGHLWrapper';
 import { DashboardGate } from '@/app/dashboard/DashboardGate';
@@ -9,19 +10,18 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const ghlSession = await getSession();
-  console.log('[CQ Dashboard layout] getSession result', { hasSession: !!ghlSession, locationId: ghlSession?.locationId ? ghlSession.locationId.slice(0, 12) + '...' : null });
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      location: 'dashboard/layout.tsx',
-      message: ghlSession ? 'dashboard layout has session' : 'dashboard layout no session, rendering Gate',
-      data: { hasSession: !!ghlSession, hypothesisId: 'H1' },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
+  // When we have user context, lookup current user for display (cached in KV).
+  let userDisplayName = 'Account';
+  if (ghlSession?.userId && ghlSession?.locationId) {
+    try {
+      const user = await getOrFetchCurrentUser(ghlSession.locationId, ghlSession.userId);
+      if (user?.name) userDisplayName = user.name;
+      else if (user?.firstName || user?.lastName) userDisplayName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || userDisplayName;
+      else if (user?.email) userDisplayName = user.email;
+    } catch {
+      // non-fatal
+    }
+  }
   if (ghlSession) {
     return (
       <div className="min-h-screen bg-muted/30">
@@ -29,7 +29,7 @@ export default async function DashboardLayout({
           orgs={[]}
           selectedOrgId={null}
           selectedOrgRole={undefined}
-          userDisplayName="Account"
+          userDisplayName={userDisplayName}
           isSuperAdmin={false}
           ghlSession={ghlSession}
         />

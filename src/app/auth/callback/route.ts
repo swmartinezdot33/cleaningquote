@@ -3,9 +3,8 @@ import { NextResponse } from 'next/server';
 import { getSiteUrl } from '@/lib/canonical-url';
 
 /**
- * Auth callback for OAuth, magic link, and email confirmation redirects.
- * Exchanges code for session and redirects to ?next= or /dashboard.
- * Redirects to canonical domain (https://www.cleanquote.io) so users land on the main site.
+ * Auth callback for legacy Supabase magic link / email confirmation.
+ * CleanQuote uses GHL for sign-in; if exchange fails or no code, send user to open-from-ghl.
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -14,12 +13,16 @@ export async function GET(request: Request) {
   const baseUrl = getSiteUrl();
 
   if (code) {
-    const supabase = await createSupabaseServerSSR();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      return NextResponse.redirect(`${baseUrl}${next}`);
+    try {
+      const supabase = await createSupabaseServerSSR();
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (!error) {
+        return NextResponse.redirect(`${baseUrl}${next}`);
+      }
+    } catch {
+      // fall through to open-from-ghl
     }
   }
 
-  return NextResponse.redirect(`${baseUrl}/login?error=auth_callback_error`);
+  return NextResponse.redirect(`${baseUrl}/open-from-ghl`);
 }
