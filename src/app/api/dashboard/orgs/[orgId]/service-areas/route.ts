@@ -58,8 +58,9 @@ export async function GET(
     .from('service_areas')
     .select('id, name, polygon, zone_display, network_link_url, network_link_fetched_at, created_at, updated_at')
     .eq('org_id', orgId);
+  // When in GHL context: show areas for this location OR unscoped (ghl_location_id null) so existing data loads
   if (locationId) {
-    query = query.eq('ghl_location_id', locationId);
+    query = query.or(`ghl_location_id.eq.${locationId},ghl_location_id.is.null`);
   }
   const { data, error } = await query.order('name');
 

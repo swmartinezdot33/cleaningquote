@@ -53,8 +53,9 @@ export async function GET(
   const ghlSession = await getSession();
   const locationId = requestLocationId ?? ghlSession?.locationId ?? null;
   let query = client.from('pricing_structures').select('id, name, created_at, updated_at').eq('org_id', orgId);
+  // When in GHL context: show structures for this location OR unscoped (ghl_location_id null) so existing data loads
   if (locationId) {
-    query = query.eq('ghl_location_id', locationId);
+    query = query.or(`ghl_location_id.eq.${locationId},ghl_location_id.is.null`);
   }
   const { data, error } = await query.order('name');
 
