@@ -31,29 +31,9 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // API without locationId → ask client to open from GHL so context is available
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json(
-        { error: 'Unauthorized', message: 'Open CleanQuote from your GoHighLevel dashboard.' },
-        { status: 401 }
-      );
-    }
-
-    const host = request.headers.get('host') ?? '';
-    const isLocalhost = host.startsWith('localhost') || host.startsWith('127.0.0.1');
-    const hasLocationIdInQuery = request.nextUrl.searchParams.has('locationId') || request.nextUrl.searchParams.has('location_id');
-    if (isLocalhost && hasLocationIdInQuery && (pathname.startsWith('/dashboard') || pathname === '/dashboard')) {
-      return NextResponse.next();
-    }
-
-    const referer = request.headers.get('referer') || '';
-    const hasGhlParam = request.nextUrl.searchParams.get('ghl') === '1';
-    const isFromGHL = hasGhlParam || /gohighlevel|leadconnectorhq|cleanquote\.io|ricochetbusinesssolutions/i.test(referer);
-    // From GHL (iframe): allow dashboard pages to load. Context (locationId) comes from postMessage; API calls send it and token is looked up from KV.
-    if (isFromGHL) {
-      return NextResponse.next();
-    }
-    return NextResponse.redirect(new URL('/open-from-ghl', request.url));
+    // Allow all dashboard requests. No redirect — client resolves locationId from iframe and sends it on API calls.
+    // When not in GHL iframe, DashboardGHLWrapper shows "Open from GoHighLevel". API routes return 401 when locationId is missing.
+    return NextResponse.next();
   }
 
   return response;
