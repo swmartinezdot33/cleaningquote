@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { storeInstallation, getInstallation, storeAgencyTokenFromInstall } from '@/lib/ghl/token-store';
+import { storeInstallation, getInstallation, storeAgencyTokenFromInstall, normalizeLocationId } from '@/lib/ghl/token-store';
 import { createSessionToken } from '@/lib/ghl/session';
 import { setOrgGHLOAuth } from '@/lib/config/store';
 import { getAppBaseUrl, getRedirectUri, getPostOAuthRedirectBase, getPostOAuthRedirectPath } from '@/lib/ghl/oauth-utils';
@@ -295,7 +295,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(errorUrl.toString());
     }
 
-    finalLocationId = finalLocationId.trim();
+    finalLocationId = normalizeLocationId(finalLocationId);
     console.log('[CQ Callback] STEP 6 — locationId resolved', { finalLocationId: finalLocationId?.slice(0, 12) + '...' });
 
     const expiresAt = tokenData.expires_in ? Date.now() + tokenData.expires_in * 1000 : Date.now() + 86400 * 1000;

@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { storeInstallation, getInstallation, storeAgencyTokenFromInstall } from '@/lib/ghl/token-store';
+import { storeInstallation, getInstallation, storeAgencyTokenFromInstall, normalizeLocationId } from '@/lib/ghl/token-store';
 import { createSessionToken } from '@/lib/ghl/session';
 import { setOrgGHLOAuth } from '@/lib/config/store';
 import { getRedirectUri, getPostOAuthRedirectBase } from '@/lib/ghl/oauth-utils';
@@ -326,7 +326,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    locationId = locationId.trim();
+    locationId = normalizeLocationId(locationId);
 
     const expiresAt = Date.now() + (data.expires_in ?? 86400) * 1000;
     const userTypeVal = String(userType ?? '').toLowerCase();

@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
         }
       : null,
     agencyTokenInKV: !!agencyTokenRaw,
+    agencyTokenSource: 'ghl:agency:token (one Agency token per app, stored when Company user completes OAuth; not keyed by locationId)',
     agencyToken: (() => {
       const p = previewToken(agencyTokenRaw ?? undefined);
       if (showToken && isDev && agencyTokenRaw) (p as Record<string, unknown>).full = agencyTokenRaw;

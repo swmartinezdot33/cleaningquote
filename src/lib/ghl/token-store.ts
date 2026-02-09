@@ -12,6 +12,16 @@ const PREFIX = 'ghl:install:';
 const AGENCY_TOKEN_KEY = 'ghl:agency:token';
 const REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 min before expiry
 
+/** Normalize locationId for storage and lookup (single source of truth). */
+export function normalizeLocationId(locationId: string): string {
+  return String(locationId).trim();
+}
+
+/** Canonical KV key for a location's install. Use everywhere we read/write by locationId. */
+export function installKey(locationId: string): string {
+  return `${PREFIX}${normalizeLocationId(locationId)}`;
+}
+
 export interface AgencyTokenInstall {
   accessToken: string;
   refreshToken: string;
@@ -19,8 +29,9 @@ export interface AgencyTokenInstall {
   companyId: string;
 }
 
-/** Stored value only: token + expiry. Key = ghl:install:{locationId}. */
+/** Stored value at ghl:install:{locationId}. Includes locationId so the record is self-describing. */
 export interface GHLInstallation {
+  locationId: string;
   accessToken: string;
   refreshToken: string;
   expiresAt: number;
@@ -29,11 +40,11 @@ export interface GHLInstallation {
 }
 
 function key(locationId: string): string {
-  return `${PREFIX}${locationId.trim()}`;
+  return installKey(locationId);
 }
 
 /**
- * Store token for a location. Key = ghl:install:{locationId}, value = token + expiry + userType only.
+ * Store token for a location. Key = installKey(locationId). Value includes locationId for verification.
  */
 export async function storeInstallation(data: {
   locationId: string;
@@ -42,8 +53,10 @@ export async function storeInstallation(data: {
   expiresAt: number;
   userType?: 'Location' | 'Company';
 }): Promise<void> {
-  const storageKey = key(data.locationId);
+  const locationId = normalizeLocationId(data.locationId);
+  const storageKey = installKey(locationId);
   const value: GHLInstallation = {
+    locationId,
     accessToken: data.accessToken,
     refreshToken: data.refreshToken,
     expiresAt: data.expiresAt,
@@ -51,6 +64,7 @@ export async function storeInstallation(data: {
   };
   const kv = getKV();
   await kv.set(storageKey, value, { ex: 365 * 24 * 60 * 60 });
+  console.log('[CQ token-store] stored', { key: storageKey, locationId, userType: value.userType });
 }
 
 /**
@@ -163,12 +177,16 @@ function debugLog(message: string, data: Record<string, unknown>) {
  * Get installation data for a location (raw, no refresh).
  */
 export async function getInstallation(locationId: string): Promise<GHLInstallation | null> {
-  const kvKey = key(locationId);
-  console.log('[CQ token-store] KV lookup', { kvKey, locationId, result: 'checking...' });
+  const normalized = normalizeLocationId(locationId);
+  const kvKey = installKey(normalized);
+  console.log('[CQ token-store] KV lookup', { kvKey, locationId: normalized, result: 'checking...' });
   try {
     const kv = getKV();
-    const data = await kv.get<GHLInstallation>(kvKey);
-    console.log('[CQ token-store] KV result', { kvKey, found: !!data, hasToken: !!data?.accessToken });
+    const data = await kv.get<GHLInstallation & { locationId?: string }>(kvKey);
+    const resolved = data ? { ...data, locationId: data.locationId ?? normalized } : null;
+    const match = resolved?.locationId === normalized;
+    if (data && resolved && !match) console.warn('[CQ token-store] KV value.locationId !== requested', { stored: resolved.locationId, requested: normalized });
+    console.log('[CQ token-store] KV result', { kvKey, found: !!resolved, hasToken: !!resolved?.accessToken, locationIdMatch: match });
     // #region agent log
     debugLog('getInstallation result', {
       kvKey,
@@ -179,7 +197,7 @@ export async function getInstallation(locationId: string): Promise<GHLInstallati
       hypothesisId: 'H1-H2-H4',
     });
     // #endregion
-    return data ?? null;
+    return resolved ?? null;
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     const kvNotConfigured = /KV_REST_API|required|not configured/i.test(errMsg);
@@ -203,6 +221,7 @@ export async function getInstallation(locationId: string): Promise<GHLInstallati
  * We never use the company/agency token for contacts; only the location token.
  */
 export async function getOrFetchTokenForLocation(locationId: string): Promise<string | null> {
+  const normalizedLocationId = normalizeLocationId(locationId);
   const companyId = process.env.GHL_COMPANY_ID?.trim();
   const hasAgencyToken = !!(await getAgencyToken());
 
@@ -210,7 +229,7 @@ export async function getOrFetchTokenForLocation(locationId: string): Promise<st
   debugLog('getOrFetchTokenForLocation: agency path check', {
     hasAgencyToken,
     hasCompanyId: !!companyId,
-    locationIdPreview: locationId.slice(0, 8) + '..' + locationId.slice(-4),
+    locationIdPreview: normalizedLocationId.slice(0, 8) + '..' + normalizedLocationId.slice(-4),
     hypothesisId: 'H1-H2-H5',
   });
   // #endregion
@@ -218,7 +237,7 @@ export async function getOrFetchTokenForLocation(locationId: string): Promise<st
   if (hasAgencyToken && companyId) {
     try {
       const { getLocationTokenFromAgency } = await import('./agency');
-      const result = await getLocationTokenFromAgency(locationId, companyId, { skipStore: false });
+      const result = await getLocationTokenFromAgency(normalizedLocationId, companyId, { skipStore: false });
       // #region agent log
       debugLog('getOrFetchTokenForLocation: locationToken result', {
         success: result.success,
@@ -250,15 +269,15 @@ export async function getOrFetchTokenForLocation(locationId: string): Promise<st
   }
 
   // Use token from KV only if it's a Location-scoped token. Company (Agency) token in KV must never be used for contacts (causes "authClass type not allowed").
-  const install = await getInstallation(locationId);
+  const install = await getInstallation(normalizedLocationId);
   if (install?.userType === 'Company') {
     console.warn('[CQ token-store] Token in KV for this location is Company (Agency) — not used for location APIs. Need Location token from POST /oauth/locationToken (add oauth.write in GHL Marketplace).');
     return null;
   }
-  const token = await getTokenForLocation(locationId);
+  const token = await getTokenForLocation(normalizedLocationId);
   if (token) {
     debugLog('getOrFetchTokenForLocation: returning token from KV', {
-      locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`,
+      locationIdPreview: `${normalizedLocationId.slice(0, 8)}..${normalizedLocationId.slice(-4)}`,
       hypothesisId: 'H2-H3-H4',
     });
     return token;
@@ -343,12 +362,13 @@ async function refreshAccessToken(
 
     const expiresAt = Date.now() + (data.expires_in ?? 86400) * 1000;
     const updated: GHLInstallation = {
+      locationId: normalizeLocationId(locationId),
       accessToken: data.access_token,
       refreshToken: data.refresh_token ?? install.refreshToken,
       expiresAt,
       userType: install.userType,
     };
-    await storeInstallation({ locationId, ...updated });
+    await storeInstallation(updated);
     return updated;
   } catch (err) {
     console.error('GHL OAuth refresh error:', err);
