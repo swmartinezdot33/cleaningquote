@@ -248,6 +248,7 @@ export async function GET(request: NextRequest) {
       grant_type: 'authorization_code',
       code,
       redirect_uri: redirectUri,
+      user_type: 'Company', // Required for Agency-targeted apps: get Agency (Company) token for POST /oauth/locationToken
     });
 
     const res = await fetch(TOKEN_URL, {
@@ -345,9 +346,17 @@ export async function GET(request: NextRequest) {
     };
 
     try {
-      console.log(LOG, 'Storing in KV', { locationId: locationId.slice(0, 8) + '..', hasAccess: !!data.access_token, hasRefresh: !!data.refresh_token });
+      const kvKey = `ghl:install:${locationId}`;
+      console.log(LOG, 'Storing in KV', {
+        kvKey,
+        locationIdFull: locationId,
+        locationIdSource: locationSource,
+        hasAccess: !!data.access_token,
+        hasRefresh: !!data.refresh_token,
+        userType: userTypeVal,
+      });
       await storeInstallation(installationPayload);
-      // When a Company (Agency) user installs, that token has oauth.write — store it for POST /oauth/locationToken.
+      // When a Company (Agency) user installs, that token is the Agency token — store for POST /oauth/locationToken.
       if (String(userType).toLowerCase() === 'company') {
         await storeAgencyTokenFromInstall({
           accessToken: data.access_token,
@@ -355,6 +364,7 @@ export async function GET(request: NextRequest) {
           expiresAt,
           companyId,
         });
+        console.log(LOG, 'Stored Agency token at ghl:agency:token (OAuth Company token)');
       }
     } catch (storeErr) {
       const storeMsg = storeErr instanceof Error ? storeErr.message : String(storeErr);
