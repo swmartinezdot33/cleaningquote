@@ -42,11 +42,12 @@ export async function GET(
     );
   }
 
-  const { data, error } = await client
-    .from('pricing_structures')
-    .select('id, name, created_at, updated_at')
-    .eq('org_id', orgId)
-    .order('name');
+  const ghlSession = await getSession();
+  let query = client.from('pricing_structures').select('id, name, created_at, updated_at').eq('org_id', orgId);
+  if (ghlSession?.locationId) {
+    query = query.eq('ghl_location_id', ghlSession.locationId);
+  }
+  const { data, error } = await query.order('name');
 
   if (error) {
     console.error('GET org pricing-structures:', error);

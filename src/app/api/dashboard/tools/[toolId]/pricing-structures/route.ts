@@ -1,28 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDashboardUserAndTool } from '@/lib/dashboard-auth';
-import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { getDashboardUserAndToolWithClient } from '@/lib/dashboard-auth';
+import { createSupabaseServer } from '@/lib/supabase/server';
 import { getPricingTable } from '@/lib/kv';
 import type { PricingTable } from '@/lib/pricing/types';
 import { getPricingStructureIdFromConfig, setPricingStructureIdInConfig } from '@/lib/config/store';
+import { getSession } from '@/lib/ghl/session';
 
 export const dynamic = 'force-dynamic';
 
-/** GET - List pricing structures for the tool's org and the tool's selected pricing structure id */
+/** GET - List pricing structures for the tool's org and the tool's selected pricing structure id. In GHL context, only structures with matching ghl_location_id. */
 export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ toolId: string }> }
 ) {
   const { toolId } = await context.params;
-  const auth = await getDashboardUserAndTool(toolId);
+  const auth = await getDashboardUserAndToolWithClient(toolId);
   if (auth instanceof NextResponse) return auth;
 
-  const supabase = await createSupabaseServerSSR();
+  const supabase = auth.supabase;
   const orgId = auth.tool.org_id;
-  const { data, error } = await supabase
+  let query = supabase
     .from('pricing_structures')
     .select('id, name, created_at, updated_at')
-    .eq('org_id', orgId)
-    .order('name');
+    .eq('org_id', orgId);
+  const ghlSession = await getSession();
+  if (ghlSession?.locationId) {
+    query = query.eq('ghl_location_id', ghlSession.locationId);
+  }
+  const { data, error } = await query.order('name');
 
   if (error) {
     console.error('GET pricing-structures:', error);
