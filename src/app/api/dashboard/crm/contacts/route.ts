@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveGHLContext } from '@/lib/ghl/api-context';
-import { listGHLContactsByBusinessId } from '@/lib/ghl/client';
+import { listGHLContacts } from '@/lib/ghl/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,8 +24,12 @@ async function fetchContactsFromGHL(locationId: string, token: string, searchPar
   const search = searchParams.get('search')?.trim();
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
   const perPage = Math.min(100, Math.max(1, parseInt(searchParams.get('perPage') ?? '25', 10)));
-  // GET /contacts/business/:businessId per GHL docs (Location Access Token as Bearer)
-  const { contacts: ghlContacts } = await listGHLContactsByBusinessId(locationId, { token, locationId });
+  // POST /contacts/search with Location token (no Location-Id header). Same as verify/stats routes.
+  const { contacts: ghlContacts } = await listGHLContacts(
+    locationId,
+    { limit: 1000, page: 1, search: search ?? undefined },
+    { token, locationId }
+  );
   let mapped = ghlContacts.map(mapGHLContactToCRM);
   if (stage && ['lead', 'quoted', 'booked', 'customer', 'churned'].includes(stage)) {
     mapped = mapped.filter((c) => c.stage === stage);
@@ -41,6 +45,7 @@ async function fetchContactsFromGHL(locationId: string, token: string, searchPar
   const paginated = mapped.slice(start, start + perPage);
   return { contacts: paginated, total: mapped.length, page, perPage };
 }
+
 
 function emptyContacts() {
   return NextResponse.json({ contacts: [], total: 0, page: 1, perPage: 25 });

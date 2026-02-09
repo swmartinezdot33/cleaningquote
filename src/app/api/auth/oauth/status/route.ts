@@ -20,12 +20,14 @@ export async function GET(request: NextRequest) {
     const install = await getInstallation(locationId);
     const hasToken = !!(install?.accessToken);
     const installed = hasToken;
-    console.log('[CQ OAuth status] check', { locationId: locationId.slice(0, 12) + '...', installed, hasToken });
+    const oauth_connected = install?.oauth_connected === true || hasToken;
+    console.log('[CQ OAuth status] check', { locationId: locationId.slice(0, 12) + '...', installed, hasToken, oauth_connected });
 
     return NextResponse.json({
       installed,
       locationId,
-      hasToken: hasToken,
+      hasToken,
+      oauth_connected,
       isExpired: false,
       canRefresh: !!install?.refreshToken,
     });

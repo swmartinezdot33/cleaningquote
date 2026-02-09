@@ -70,8 +70,9 @@ export async function makeGHLRequest<T>(
     // When using OAuth credentials (location token), do NOT send Location-Id — GHL infers location from
     // the token. Sending it causes 403 "The token does not have access to this location". Only add the
     // header when using a non-credential token (e.g. agency/PIT) that may need it to scope the request.
-    if (resolvedLocationId && !credentials?.token) {
-      headers['Location-Id'] = resolvedLocationId;
+    const sendLocationIdHeader = Boolean(resolvedLocationId && !credentials?.token);
+    if (sendLocationIdHeader) {
+      headers['Location-Id'] = resolvedLocationId!;
     }
     
     const options: RequestInit = {
@@ -105,6 +106,15 @@ export async function makeGHLRequest<T>(
         errorMessage = `${errorMessage}: Empty response from GHL API`;
       }
 
+      // Log 403 with auth context so we can confirm Location-Id header is not sent when using location token
+      if (response.status === 403) {
+        console.warn('[CQ GHL] 403', {
+          endpoint: endpoint.slice(0, 80),
+          message: errorData?.message || errorData?.error || responseText?.slice(0, 100),
+          usedCredentials: !!credentials?.token,
+          sentLocationIdHeader: sendLocationIdHeader,
+        });
+      }
       // #region agent log
       if (response.status === 401) {
         fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {

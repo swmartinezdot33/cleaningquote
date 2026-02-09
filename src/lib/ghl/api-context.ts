@@ -3,15 +3,15 @@
  *
  * Flow (simple):
  * 1. We have the access token (from OAuth callback, stored in KV).
- * 2. Use that access token to see which location the app was installed in → GET /oauth/installedLocations.
- * 3. Once we have the location, get location access token from the (agency/company) token → POST /oauth/locationToken.
+ * 2. Resolve locationId: header, else GET /locations/search (companyId), else GET /oauth/installedLocations, else query/session.
+ * 3. Get location access token from agency token → POST /oauth/locationToken.
  * 4. Use the location access token for all calls: contacts, location objects, etc. Never use the company token for those.
  */
 
 import { NextRequest } from 'next/server';
 import { getSession } from '@/lib/ghl/session';
 import { getOrFetchTokenForLocation } from '@/lib/ghl/token-store';
-import { getInstalledLocations } from '@/lib/ghl/agency';
+import { searchLocations, getInstalledLocations } from '@/lib/ghl/agency';
 
 export type GHLContextResult =
   | { locationId: string; token: string }
@@ -29,10 +29,18 @@ export async function resolveGHLContext(request: NextRequest): Promise<GHLContex
     let rawLocationId: string | null = headerLocationId;
 
     if (!rawLocationId) {
-      const installed = await getInstalledLocations();
-      if (installed.success && installed.locations?.length) {
-        const first = installed.locations[0];
-        rawLocationId = (first?._id ?? first?.id ?? (first as { locationId?: string }).locationId) ?? null;
+      // Prefer GET /locations/search (Search Sub-Account) — scope locations.readonly, Agency token + companyId
+      const searched = await searchLocations({ limit: 10 });
+      if (searched.success && searched.locations?.length) {
+        const first = searched.locations[0];
+        rawLocationId = (first?.id ?? first?._id ?? (first as { locationId?: string }).locationId) ?? null;
+      }
+      if (!rawLocationId) {
+        const installed = await getInstalledLocations();
+        if (installed.success && installed.locations?.length) {
+          const first = installed.locations[0];
+          rawLocationId = (first?._id ?? first?.id ?? (first as { locationId?: string }).locationId) ?? null;
+        }
       }
     }
 

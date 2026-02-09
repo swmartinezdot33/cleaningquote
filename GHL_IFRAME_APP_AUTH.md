@@ -1,153 +1,121 @@
-# GHL Iframe App Auth Process (Reference)
+# GHL Iframe App Auth (Reference)
 
-This document defines the **exact** auth flow for the CleanQuote marketplace app so it matches the official GHL pattern and works identically in the iframe. The UI (dashboard, setup, oauth-success pages) is ours; the **auth process** below is the single source of truth.
+This document is the **source of truth** for the CleanQuote marketplace app auth flow. Storage is **KV only** (no Supabase for install sessions or location installations). The flow binds each OAuth completion to a **location** using state → KV and cookies.
 
-## Reference: GoHighLevel template + marketplace OAuth
+## 1. Overview
 
-- **[GHL Marketplace App Template](https://github.com/GoHighLevel/ghl-marketplace-app-template)** (Express + Vue): `/authorize-handler` receives `code`, exchanges for tokens, stores by `locationId` or `companyId`, redirects; `/decrypt-sso` decrypts SSO payload from parent using `GHL_APP_SSO_KEY`; Vue app in iframe requests user data via postMessage. We follow the same token exchange and SSO decrypt pattern; our callback is `/api/auth/connect/callback` and we use chooselocation + KV + session cookie.
-- [GHL OAuth 2.0](https://marketplace.gohighlevel.com/docs/Authorization/OAuth2.0): Authorization code flow; token endpoint requires `client_id`, `client_secret`, `grant_type`, `code`, `redirect_uri`.
-- Our iframe flow adds: **chooselocation** (so user picks location), **state** (carries `locationId` + `redirect`), persistent storage (KV), and session cookie so the app works inside the GHL iframe.
+- **Callback URL**: `https://www.cleanquote.io/api/auth/connect/callback` (or your app base + `/api/auth/connect/callback`).
+- **Flow**: User starts connect from iframe/setup with `locationId` (and optional `companyId`) → we store an install session in KV keyed by a **state UUID** and set pending cookies → redirect to GHL chooselocation → user authorizes → GHL redirects to callback with `code` and `state` → we resolve **locationId** from state→KV first, then cookies → exchange code for tokens → POST `/oauth/locationToken` to get Location Access Token → store in KV with `oauth_connected: true` → clear pending cookies, set session cookie, return success HTML.
+- **Location binding**: We **never** use the token response as the primary source for which location this install is for. The location is determined **before** exchanging the code (state→KV or cookies). If we cannot resolve a locationId, we **abort** and do not store any tokens.
 
-### LocationId: same as template / Maid Central
+## 2. KV keys and cookies
 
-We do it **exactly like the [GHL template](https://github.com/GoHighLevel/ghl-marketplace-app-template)** and Maid Central:
+### KV keys
 
-- **Only one locationId** — the one for the app that was just installed. That comes from **GHL’s token response** when we exchange the authorization code.
-- Callback uses **token response first**: `locationId` / `location_id` / `location.id` / `resource_id` from the token JSON. If missing, we fall back to `GET /locations/` with the Bearer token (same as template pattern).
-- We **do not** use state or cookie for locationId. State is only used for `redirect` and `orgId`. There is no “iframe location” override — the location where the app was installed is the one GHL returns in the token.
+| Key | Value | TTL | Purpose |
+|-----|--------|-----|---------|
+| `ghl:install_session:{state}` | `{ location_id, company_id }` | 600s | One-time install session. Written by authorize/install; read and **deleted** by callback via `getAndConsumeInstallSession(state)`. |
+| `ghl:install:{locationId}` | Full install payload (see below) | 1 year | Per-location installation. `getInstallation(locationId)` enforces that the stored `locationId` matches the requested one (normalized); on mismatch returns `null` (no cross-location use). |
 
----
+**Install payload** (at `ghl:install:{locationId}`): `locationId`, `accessToken`, `refreshToken`, `expiresAt`, `userType`, `oauth_connected`, `oauth_response`, `oauth_expires_at`, `location_token_response`.
 
-## 1. Entry points (who starts the flow)
+### Cookies
+
+| Cookie | Set by | Cleared by | Purpose |
+|--------|--------|------------|---------|
+| `ghl_pending_location_id` | Authorize (when `locationId` in query) | Callback (on success) | Fallback for resolving location when KV session is missing/expired. |
+| `ghl_pending_company_id` | Authorize (when `companyId` in query) | Callback (on success) | Company id for POST `/oauth/locationToken`. |
+| `ghl_pending_oauth_state` | Authorize (when `locationId` in query) | Callback (on success) | Value = state UUID (for reference; resolution uses KV lookup by state). |
+| `ghl_session` | Callback (on success) | — | JWT with `locationId`, `companyId`, `userId`. httpOnly, secure, sameSite=none, path=/, optional domain. |
+
+Cookie options for pending cookies: `httpOnly: true`, `secure: true`, `sameSite: 'lax'`, `maxAge: 600`, `path: '/'`.
+
+## 3. Entry points
 
 | Entry | URL | When |
 |-------|-----|------|
-| App Launch (GHL) | `/app` or GHL “Live URL” | User opens app from GHL sidebar/menu. |
-| Setup (iframe) | `/dashboard/setup` | User in iframe needs to install OAuth for current location. |
-| Direct dashboard | `/dashboard` | User/bookmark; middleware may redirect to authorize or open-from-ghl. |
+| Install (GHL / setup) | `GET /install?locationId=xxx&companyId=yyy` | User clicks “Connect” from iframe/setup. Redirects to authorize with same params. Open in same tab or new tab so callback receives cookies. |
+| Authorize | `GET /api/auth/oauth/authorize?locationId=xxx&companyId=yyy&redirect=...` | Called by `/install` or directly (e.g. dashboard/setup link). Starts OAuth and binds to location. |
+| Callback | `GET /api/auth/connect/callback?code=...&state=...` | GHL redirects here after user authorizes. |
+| OAuth status | `GET /api/auth/oauth/status?locationId=xxx` (or `x-ghl-location-id` header) | Returns `installed`, `oauth_connected`, `hasToken`, `canRefresh` from KV. |
 
-## 2. App Launch (`GET /app`)
+## 4. Install → Authorize
 
-- If **session cookie** valid → redirect to `?redirect` or `/dashboard`.
-- Else if **locationId** in query or referrer and we have a **token** for that location → redirect to dashboard (no OAuth).
-- Else → redirect to **`/api/auth/oauth/authorize`** with `locationId` and `redirect` in query (so state can carry them).
+**`GET /install`**
 
-No UI here; redirect only. Same idea as template “after install redirect” but to our app.
+- Query: `locationId`, `location_id`, `companyId`, `company_id` (all optional).
+- Redirects to `{APP_BASE}/api/auth/oauth/authorize` with the same query params.
+- No KV or cookies set here; authorize does that.
 
-## 3. Authorize (`GET /api/auth/oauth/authorize`)
+## 5. Authorize
 
-- Reads: `locationId`, `redirect` from query (optional).
-- Builds GHL URL: **`https://marketplace.gohighlevel.com/oauth/chooselocation`** with:
-  - `response_type=code`
-  - `client_id`, `redirect_uri`, `version_id` (from client_id), `prompt=consent`
-  - `scope` = required scopes (e.g. locations, contacts, calendars, opportunities), `+` separated.
-  - **`state`** = base64(JSON) with at least:
-    - `locationId` (if from iframe/setup)
-    - `redirect` (e.g. `/dashboard`; default in callback is `/dashboard`) so callback knows where to send user.
-- Responds with **302** to that GHL URL. No UI; redirect only.
+**`GET /api/auth/oauth/authorize`**
 
-## 4. Callback (`GET /api/auth/connect/callback` — canonical; `/api/auth/oauth/callback` also supported)
+- Query: `locationId` (or `location_id`), `companyId` (or `company_id`), `redirect` (optional).
+- Generates **state** = `randomUUID()`.
+- If **locationId** is present:
+  - Calls **setInstallSession(state, locationId, companyId)** → writes `ghl:install_session:{state}` in KV (TTL 600s).
+  - Sets cookies: `ghl_pending_location_id`, `ghl_pending_company_id`, `ghl_pending_oauth_state` (value = state).
+- Builds GHL URL: `https://marketplace.leadconnectorhq.com/oauth/chooselocation` with `response_type=code`, `client_id`, `redirect_uri`, `version_id`, `prompt=consent`, `state`, `scope`.
+- Responds with **302** to that URL. No UI.
 
-- Query params from GHL: `code`, `state`; optional `error`, `locationId`.
-- If `error` → redirect to `/oauth-success?error=...&error_description=...`.
-- If no `code` → redirect to `/oauth-success?error=no_code`.
-- **Token exchange** (same as GHL template + OAuth spec):
-  - `POST https://services.leadconnectorhq.com/oauth/token`
-  - Body (form): `grant_type=authorization_code`, `client_id`, `client_secret`, `code`, **`redirect_uri`** (must match authorize).
-  - Parse JSON: `access_token`, `refresh_token`, `expires_in`, `locationId`/`location_id`, `companyId`/`company_id`, `userId`/`user_id`.
-- **Location ID** (same as GHL template / Maid Central — only the app that was installed):
-  1. From **token response** → `locationId` / `location_id` / `location.id` / `resource_id`. This is the single source of truth.
-  2. If still missing → GET `https://services.leadconnectorhq.com/locations/` with Bearer token, take first location id.
-  - State and query are **not** used for locationId (only for `redirect` and `orgId`).
-- **Store installation** by **locationId** (template stores by locationId or companyId; we key by locationId for iframe):
-  - Fetch location/company name from GHL (`GET /locations/:locationId`) for display in the UI.
-  - Persist in KV: `ghl:install:{locationId}` with access_token, refresh_token, expires_at, companyId, userId, locationId, companyName. This is the source of truth for future lookup: **every time a user loads with a locationId**, the app uses this KV lookup to get the token (and optional companyName) for GHL API calls (contacts, stats, etc.). Session verification, `getTokenForLocation`, and token refresh all read from KV.
-  - On failure → redirect to `/oauth-success?error=storage_failed&error_description=...` (no cookie, no success).
-  - Callback verifies read-back from KV after write and logs `[CQ Callback] STEP 7a — KV verify OK` when tokens are readable.
-- **Session cookie**:
-  - Create JWT with `locationId`, `companyId`, `userId`.
-  - Set cookie: `ghl_session`, httpOnly, secure, sameSite=none, path=/, domain=app host (for production).
-- **Redirect** from **state**:
-  - Parse state → `redirect` (default **`/dashboard`** so user lands in the app in same tab, same as working GHL marketplace apps).
-  - Redirect to `APP_BASE + redirect` with `locationId` in query if needed; on success add `success=oauth_installed` when redirect is `/oauth-success`. If redirect is `/dashboard`, user goes straight into the app (no redirect loop).
+## 6. Callback
 
-No UI in callback; redirect only.
+**`GET /api/auth/connect/callback`**
 
-## 4b. Token flow (OAuth → installed locations → location token → Contacts)
+- Query from GHL: `code`, `state`; optional `error`, `error_description`.
 
-This is the exact sequence we use so you can verify it against the [GHL OAuth docs](https://marketplace.gohighlevel.com/docs/ghl/oauth/get-access-token):
+**6.1 Errors**
 
-1. **OAuth Access Token**  
-   - We get it at **OAuth success** (callback): exchange `code` for tokens via [Get Access Token](https://marketplace.gohighlevel.com/docs/ghl/oauth/get-access-token) (`POST /oauth/token`).  
-   - We store it (per-location install in KV, and if Company user also as “agency” token for step 3).  
-   - If we didn’t have it, we would get it via that same endpoint (authorize with all scopes you need, then exchange code → token). We do **not** use query param or cookie as the primary source for **locationId**; see step 2.
+- If `error` → return HTML error page (OAuth error from GHL).
+- If no `code` → return HTML error (missing code).
+- If missing `GHL_CLIENT_ID` / `GHL_CLIENT_SECRET` / valid `GHL_REDIRECT_URI` → return HTML error (server config).
 
-2. **Location where app is installed**  
-   - Once we have the OAuth Access Token, we get **locationId** from [Get Location where app is installed](https://marketplace.gohighlevel.com/docs/ghl/oauth/get-installed-location) (`GET /oauth/installedLocations`) when the request doesn’t already provide locationId (e.g. no `x-ghl-location-id` header).  
-   - Resolution order: **x-ghl-location-id** → **GET /oauth/installedLocations** → then query param and session (cookie) as last resort.
+**6.2 Resolve locationId (before exchanging code)**
 
-3. **Location Access Token**  
-   - For each **locationId** we need a location-scoped token. We get it via [Get Location Access Token from Agency Token](https://marketplace.gohighlevel.com/docs/ghl/oauth/get-location-access-token) (`POST /oauth/locationToken`) using the **OAuth Access Token** from the Agency install (userType Company = Agency Token). We **never** use GHL_AGENCY_ACCESS_TOKEN.  
-   - We **store that Location Access Token in KV** keyed by **locationId** so later requests don’t need to call POST /oauth/locationToken again.
+- **State → KV first**: If `state` is present, call **getAndConsumeInstallSession(state)**. If result has `location_id`, use it as **resolvedLocationId** and result’s `company_id` as **resolvedCompanyId**; source = `kv_session`.
+- **Cookie fallback**: If still no resolvedLocationId, use cookie `ghl_pending_location_id` as **resolvedLocationId** and `ghl_pending_company_id` as **resolvedCompanyId**; source = `cookie`.
+- **Abort if unresolved**: If **resolvedLocationId** is still null, **do not** exchange the code or store any tokens. Return HTML error asking the user to open the app from the location in GHL and click Connect again (e.g. state session expired).
 
-4. **Contact (and other location) API calls**  
-   - We use the **Location Access Token** (from step 3) and **locationId** for Contacts and other location-scoped APIs (e.g. `GET /contacts/business/:businessId`).  
-   - We do **not** use the raw OAuth Access Token for those calls; the OAuth Access Token (when Company) or a separate Agency token is used only for `GET /oauth/installedLocations` and `POST /oauth/locationToken`.
+**6.3 Token exchange and storage**
 
-**Apps with Target User: Agency**  
-For apps whose Target User is set as **Agency**, only the Agency Admin/Owner can install. The **OAuth Access Token** from the OAuth exchange (with `user_type=Company`) **is** the Agency Token. We store it and use it for `POST /oauth/locationToken` and `GET /oauth/installedLocations`. We do **not** use GHL_AGENCY_ACCESS_TOKEN.
+- POST `https://services.leadconnectorhq.com/oauth/token` with `grant_type=authorization_code`, `client_id`, `client_secret`, `code`, `redirect_uri`.
+- Parse OAuth response (e.g. `access_token`, `refresh_token`, `expires_in`).
+- Call **fetchLocationTokenFromOAuth(locationId, companyId, oauthAccessToken)** → POST `/oauth/locationToken` with Bearer = OAuth access token, body `companyId`, `locationId`. Obtain Location Access Token.
+- Call **storeLocationOAuthAndToken(locationId, oauthResponse, locationTokenResponse)** → writes to `ghl:install:{locationId}` with **oauth_connected: true**, OAuth response, and location token response.
+- Verify read-back from KV; on failure return HTML error (storage failed).
 
-## 5. Iframe context (client)
+**6.4 Response**
 
-- **App host:** Our **pages run on www.cleanquote.io** (OAuth callback, dashboard, setup). The **GHL whitelabel app** (parent/entry in GHL) is **my.cleanquote.io**. After OAuth, users are redirected to www.cleanquote.io. PostMessage requests include `origin: window.location.origin`, so when the iframe loads from www we send `https://www.cleanquote.io`; GHL must reply to that origin.
-- **GHLIframeProvider** (or equivalent) runs when app is loaded in iframe.
-- **locationId** resolution order (per reference below):
-  1. URL params/hash: `locationId`, `location_id`, etc.
-  2. URL path: `/location/{id}` or `/(v1|v2)/location/{id}`.
-  3. Referrer (GHL parent) path or query.
-  4. `window.name` (JSON or plain id).
-  5. Session cache (e.g. sessionStorage).
-  6. **postMessage**: send `REQUEST_USER_DATA` to parent; on `REQUEST_USER_DATA_RESPONSE`, decrypt payload with **GHL_APP_SSO_KEY** (Shared Secret) and use `activeLocation` / `locationId` etc.
-- Store resolved context (e.g. POST `/api/ghl/iframe-context`) and in sessionStorage so dashboard/setup use the same locationId.
-- **App-wide user context**: The provider also fetches **GET /api/dashboard/session** when iframe has no locationId (e.g. same-tab after OAuth). It exposes **effectiveLocationId** (iframe or session) and **userContext: { locationId }** so the **entire app** uses one resolved location for all API calls. Use **useEffectiveLocationId()** or **useGHLUserContext()** in any dashboard page; never rely only on ghlData when making GHL-backed API requests.
+- Create session JWT with `locationId`, `companyId`, `userId`; set cookie **ghl_session**.
+- Clear pending cookies: `ghl_pending_location_id`, `ghl_pending_company_id`, `ghl_pending_oauth_state` (maxAge 0).
+- Return **200** with HTML success page (no redirect). User can click “Continue to Dashboard”.
 
-## 5b. UI ↔ GHL data flow (locationId + token → fill UI)
+## 7. Token flow (after install)
 
-Communication between the UI and the GHL location (id + token) works as follows so the UI can be filled with GHL data (contacts, stats, etc.):
+- **Location Access Token** is stored at `ghl:install:{locationId}` (from callback). It is used for all location-scoped GHL API calls (contacts, calendars, opportunities, etc.).
+- **getInstallation(locationId)** returns the install only if the stored `locationId` (normalized) matches the requested one; otherwise returns `null`.
+- **getTokenForLocation(locationId)** returns a valid Location Access Token: if the stored token is expired (or within refresh buffer), it runs **refreshAccessToken**:
+  - If the install has **oauth_response** (OAuth-connected):
+    - **Step 1**: If the Location OAuth token is expired, refresh it via POST `/oauth/token` (refresh_token, client_id, client_secret, redirect_uri, user_type=Location). Update KV with new `oauth_response` and `oauth_expires_at`.
+    - **Step 2**: Re-exchange via **fetchLocationTokenFromOAuth** (POST `/oauth/locationToken`) and update KV with new Location Access Token and expiry.
+  - If the install has no **oauth_response** (legacy), refresh using the stored Location refresh token directly (single-step legacy refresh).
+- All reads/writes stay in KV; no DB tables for this flow.
 
-1. **UI has locationId**: **effectiveLocationId** is set by the iframe context (postMessage decrypt, URL, referrer, or sessionStorage) or by the session (same-tab after OAuth). Use **useEffectiveLocationId()** or **useDashboardApi()** in dashboard pages.
-2. **Every dashboard API request sends locationId**: Use **useDashboardApi()** from `@/lib/dashboard-api` so each request includes `?locationId=...` and the **x-ghl-location-id** header. This guarantees the backend can resolve the token for that location.
-3. **Backend resolves token**: **resolveGHLContext(request)** (in `api-context.ts`) reads locationId from the query or **x-ghl-location-id** header, then calls **getOrFetchTokenForLocation(locationId)** to get the access token from KV (stored at install). If token exists → returns `{ locationId, token }`; if not → returns `{ needsConnect: true }`.
-4. **Dashboard routes use context**: Routes such as **GET /api/dashboard/ghl/verify**, **GET /api/dashboard/crm/stats**, **GET /api/dashboard/crm/contacts** call **resolveGHLContext(request)** and then call the GHL API with the resolved token and locationId (e.g. **listGHLContacts(locationId, options, { token, locationId })**). The response fills the UI.
+## 8. OAuth status and API context
 
-**Requirements for data to load**: (a) **effectiveLocationId** must be set (iframe got locationId or session has it). (b) That location must have completed OAuth once so KV has the token. If (a) is missing, user must open the app from a GHL sub-account/location or add locationId to the URL. If (b) is missing, user must go to Setup and complete “Install via OAuth” for that location.
+- **GET /api/auth/oauth/status**: Requires `locationId` (query or `x-ghl-location-id` header). Reads **getInstallation(locationId)** from KV. Returns `installed`, `hasToken`, **oauth_connected** (`install?.oauth_connected === true || hasToken`), `canRefresh`.
+- **resolveGHLContext(request)** (e.g. for dashboard API): Resolves `locationId` from header, then locations search / installed locations, then query/session. Then calls **getOrFetchTokenForLocation(locationId)**. Strict locationId check is already enforced inside **getInstallation**; no cross-location use.
 
-## 6. Decrypt SSO / user context
+## 9. Iframe and setup
 
-- **POST /api/ghl/iframe-context/decrypt**: body `{ encryptedData }` or `{ key }`.
-- Use **GHL_APP_SSO_KEY** to decrypt (algorithm per GHL docs / template).
-- Return `{ success, locationId, userId, companyId, ... }` for iframe context.
+- **Setup page**: Uses iframe context (e.g. postMessage, URL, session) to get **effectiveLocationId**. “Install via OAuth” links to `/install?locationId={effectiveLocationId}&companyId=...` or directly to `/api/auth/oauth/authorize?locationId=...&redirect=/dashboard`. Same-tab or new-tab so callback receives cookies.
+- **Dashboard**: Uses **effectiveLocationId** and sends it on every API request (e.g. `?locationId=...` and `x-ghl-location-id`). Backend uses **resolveGHLContext** → **getOrFetchTokenForLocation** → GHL API. If no token for that location, returns `needsConnect: true`; user must complete Connect from that location.
 
-## 7. Dashboard and middleware
+## 10. Summary
 
-- **Middleware** (dashboard routes):
-  - Valid **ghl_session** → allow request.
-  - **/dashboard/setup** → always allow (no session required) so iframe can load and show “Install via OAuth”.
-  - No session + from GHL (referrer or `?ghl=1`) → redirect to **/api/auth/oauth/authorize** with current path as `redirect` and `locationId` when present (e.g. from referrer path or query).
-  - No session + not from GHL → redirect to **/open-from-ghl**.
-- **Dashboard UI** (our UI): show app content when session exists (in iframe or same tab — no redirect to open-from-ghl when session is valid; matches working GHL apps). Show “Connect location” or setup when no token for current location.
-
-## 8. Setup page (iframe)
-
-- Uses **GHLIframeProvider** and **useEffectiveLocationId()** so **effectiveLocationId** is set (from iframe or session).
-- “Install via OAuth” → **same-window** navigate to `/api/auth/oauth/authorize?locationId={locationId}&redirect=/dashboard` so callback redirects into the app in same tab and cookie is sent (same as working GHL marketplace apps).
-- After return, user is on `/dashboard`; session cookie is used.
-
-## 9. Summary
-
-- **Authorize**: only redirects to GHL chooselocation with state (locationId + redirect).
-- **Callback**: exchange code → resolve locationId (state → query → token → API) → store by locationId in KV → set session cookie → redirect to state.redirect.
-- **App launch**: session or token for location → dashboard; else → authorize with locationId/redirect.
-- **Iframe**: resolve locationId (URL → referrer → postMessage/decrypt), then use for setup and API calls.
-- **UI ↔ data**: Dashboard pages use **useDashboardApi()** or pass **effectiveLocationId** on every API call; backend uses **resolveGHLContext** → **getOrFetchTokenForLocation** → GHL API so the UI is filled with location data.
-- **UI**: Our dashboard, setup, oauth-success, open-from-ghl; auth process above is shared and must not diverge without updating this doc.
+- **KV only**: Install sessions at `ghl:install_session:{state}` (TTL 600s); installations at `ghl:install:{locationId}`. No Supabase for this flow.
+- **Authorize**: State UUID + setInstallSession + three pending cookies when locationId provided → redirect to GHL chooselocation.
+- **Callback**: Resolve locationId by **state→KV first**, then cookies; **abort** if unresolved; exchange code → POST `/oauth/locationToken` → store with **oauth_connected: true**; clear pending cookies; set ghl_session.
+- **Token refresh**: Two-step when oauth_connected (refresh OAuth token, then re-exchange for Location Access Token); legacy single-step otherwise. Strict locationId match on getInstallation.
+- **Status**: GET `/api/auth/oauth/status` returns `oauth_connected` from KV for the given locationId.

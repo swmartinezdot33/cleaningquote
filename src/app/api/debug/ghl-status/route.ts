@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/ghl/session';
-import { getInstallation, getAgencyToken } from '@/lib/ghl/token-store';
+import { getInstallation, getAgencyToken, getAgencyInstall } from '@/lib/ghl/token-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
 
   const session = await getSession();
   const agencyTokenRaw = await getAgencyToken();
+  const agencyInstall = await getAgencyInstall();
 
   const response: Record<string, unknown> = {
     ok: true,
@@ -43,6 +44,22 @@ export async function GET(request: NextRequest) {
       if (showToken && isDev && agencyTokenRaw) (p as Record<string, unknown>).full = agencyTokenRaw;
       return p;
     })(),
+    agencyInstall: agencyInstall
+      ? {
+          hasAccessToken: !!agencyInstall.accessToken,
+          hasRefreshToken: !!agencyInstall.refreshToken,
+          companyId: agencyInstall.companyId ? `${agencyInstall.companyId.slice(0, 8)}..${agencyInstall.companyId.slice(-4)}` : null,
+          expiresAt: agencyInstall.expiresAt,
+          expiresAtISO: agencyInstall.expiresAt ? new Date(agencyInstall.expiresAt).toISOString() : null,
+          ...(showToken && isDev
+            ? {
+                accessToken: agencyInstall.accessToken,
+                refreshToken: agencyInstall.refreshToken,
+                companyId: agencyInstall.companyId,
+              }
+            : {}),
+        }
+      : null,
   };
 
   if (locationIdParam) {

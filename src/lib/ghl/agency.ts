@@ -89,7 +89,7 @@ export interface LocationTokenResult {
   error?: string;
 }
 
-/** Location shape from GET /oauth/installedLocations (highlevel-api-docs: InstalledLocationSchema has _id, name, address) */
+/** Location shape from GET /oauth/installedLocations or GET /locations/search */
 export interface InstalledLocation {
   _id?: string;
   id?: string;
@@ -100,8 +100,55 @@ export interface InstalledLocation {
 }
 
 /**
- * Step 2: Use the access token to see which location(s) the app was installed in.
- * GET /oauth/installedLocations (companyId and appId required). Uses stored Agency token + Company ID when available.
+ * Search sub-accounts (locations) for the company. Use this to get the list of locations when resolving context.
+ * GET /locations/search — requires scope locations.readonly; use Agency token + companyId.
+ * @see https://marketplace.gohighlevel.com/docs/ghl/locations/search-locations
+ */
+export async function searchLocations(options?: {
+  companyId?: string;
+  skip?: number;
+  limit?: number;
+  order?: 'asc' | 'desc';
+}): Promise<{ success: boolean; locations?: InstalledLocation[]; error?: string }> {
+  const { getAgencyInstall } = await import('./token-store');
+  const agencyInstall = await getAgencyInstall();
+  const token = agencyInstall?.accessToken ?? null;
+  if (!token) {
+    return { success: false, error: 'No agency token. Install the app as Agency (Target User: Agency).' };
+  }
+  const companyId = options?.companyId?.trim() ?? agencyInstall?.companyId?.trim() ?? process.env.GHL_COMPANY_ID?.trim();
+  if (!companyId) {
+    return { success: false, error: 'Company ID required for GET /locations/search.' };
+  }
+  try {
+    const params = new URLSearchParams({ companyId });
+    if (options?.skip != null) params.set('skip', String(options.skip));
+    if (options?.limit != null) params.set('limit', String(options.limit));
+    if (options?.order) params.set('order', options.order);
+    const url = `${GHL_API_BASE}/locations/search?${params.toString()}`;
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+        Version: '2021-07-28',
+      },
+    });
+    const data = (await res.json().catch(() => ({}))) as { locations?: InstalledLocation[]; location?: InstalledLocation[]; data?: { locations?: InstalledLocation[] }; error?: string; message?: string };
+    if (!res.ok) {
+      return { success: false, error: data.error ?? data.message ?? `GHL API ${res.status}` };
+    }
+    const locations = data.locations ?? data.location ?? data.data?.locations ?? [];
+    return { success: true, locations: Array.isArray(locations) ? locations : [] };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * Step 2 (legacy): Use the access token to see which location(s) the app was installed in.
+ * GET /oauth/installedLocations (companyId and appId required). Prefer searchLocations (GET /locations/search) when you have companyId.
  */
 export async function getInstalledLocations(options?: { companyId?: string; appId?: string }): Promise<{ success: boolean; locations?: InstalledLocation[]; error?: string }> {
   const { getAgencyInstall } = await import('./token-store');
