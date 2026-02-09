@@ -19,16 +19,12 @@ export interface AgencyTokenInstall {
   companyId: string;
 }
 
+/** Stored value only: token + expiry. Key = ghl:install:{locationId}. */
 export interface GHLInstallation {
   accessToken: string;
   refreshToken: string;
   expiresAt: number;
-  companyId: string;
-  userId: string;
-  locationId: string;
-  /** Location/company display name (fetched from GHL after install). */
-  companyName?: string;
-  /** From token response: Location = location-scoped token (use for contacts); Company = company-scoped (need POST /oauth/locationToken with oauth.write). */
+  /** Location = use for contacts; Company = Agency token, do not use for location APIs. */
   userType?: 'Location' | 'Company';
 }
 
@@ -37,15 +33,24 @@ function key(locationId: string): string {
 }
 
 /**
- * Store GHL OAuth installation (tokens) for a location.
- * Throws on failure so the callback can redirect with an error (no silent failure).
+ * Store token for a location. Key = ghl:install:{locationId}, value = token + expiry + userType only.
  */
-export async function storeInstallation(data: GHLInstallation): Promise<void> {
+export async function storeInstallation(data: {
+  locationId: string;
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+  userType?: 'Location' | 'Company';
+}): Promise<void> {
   const storageKey = key(data.locationId);
-  console.log('[CQ token-store] storing', { key: storageKey.slice(0, 30) + '...', hasAccessToken: !!data.accessToken, hasRefreshToken: !!data.refreshToken });
+  const value: GHLInstallation = {
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken,
+    expiresAt: data.expiresAt,
+    userType: data.userType,
+  };
   const kv = getKV();
-  await kv.set(storageKey, data, { ex: 365 * 24 * 60 * 60 }); // 1 year (refresh token lifespan)
-  console.log('[CQ token-store] stored OK', { locationId: data.locationId.slice(0, 12) + '...' });
+  await kv.set(storageKey, value, { ex: 365 * 24 * 60 * 60 });
 }
 
 /**
@@ -166,13 +171,11 @@ export async function getInstallation(locationId: string): Promise<GHLInstallati
     console.log('[CQ token-store] KV result', { kvKey, found: !!data, hasToken: !!data?.accessToken });
     // #region agent log
     debugLog('getInstallation result', {
-      keyPreview: `${kvKey.slice(0, 18)}..${kvKey.slice(-8)}`,
-      locationIdLength: locationId.length,
+      kvKey,
       locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`,
       hasData: !!data,
       hasAccessToken: !!(data?.accessToken),
-      storedVsRequested: data?.locationId === locationId,
-      storedLocationIdPreview: data?.locationId ? `${data.locationId.slice(0, 8)}..${data.locationId.slice(-4)}` : null,
+      userType: data?.userType ?? null,
       hypothesisId: 'H1-H2-H4',
     });
     // #endregion
@@ -246,7 +249,12 @@ export async function getOrFetchTokenForLocation(locationId: string): Promise<st
     }
   }
 
-  // No agency path, or locationToken succeeded: use token from KV (Location user install = location-scoped only).
+  // Use token from KV only if it's a Location-scoped token. Company (Agency) token in KV must never be used for contacts (causes "authClass type not allowed").
+  const install = await getInstallation(locationId);
+  if (install?.userType === 'Company') {
+    console.warn('[CQ token-store] Token in KV for this location is Company (Agency) — not used for location APIs. Need Location token from POST /oauth/locationToken (add oauth.write in GHL Marketplace).');
+    return null;
+  }
   const token = await getTokenForLocation(locationId);
   if (token) {
     debugLog('getOrFetchTokenForLocation: returning token from KV', {
@@ -316,7 +324,7 @@ async function refreshAccessToken(
       client_secret: clientSecret,
       grant_type: 'refresh_token',
       refresh_token: install.refreshToken,
-      user_type: 'Location',
+      user_type: install.userType === 'Company' ? 'Company' : 'Location',
       redirect_uri: redirectUri,
     });
 
@@ -338,13 +346,9 @@ async function refreshAccessToken(
       accessToken: data.access_token,
       refreshToken: data.refresh_token ?? install.refreshToken,
       expiresAt,
-      companyId: data.companyId ?? install.companyId,
-      userId: data.userId ?? install.userId,
-      locationId: data.locationId ?? locationId,
-      companyName: install.companyName,
+      userType: install.userType,
     };
-
-    await storeInstallation(updated);
+    await storeInstallation({ locationId, ...updated });
     return updated;
   } catch (err) {
     console.error('GHL OAuth refresh error:', err);

@@ -276,15 +276,15 @@ export async function getLocationTokenFromAgency(
     // @see https://marketplace.gohighlevel.com/docs/ghl/oauth/get-location-access-token
     if (!options?.skipStore) {
       try {
+        const locId = data.locationId ?? locationId;
         await storeInstallation({
+          locationId: locId,
           accessToken,
           refreshToken,
           expiresAt,
-          companyId: data.companyId ?? companyId,
-          userId: data.userId ?? '',
-          locationId: data.locationId ?? locationId,
+          userType: 'Location',
         });
-        console.log('[CQ Agency] stored location token in KV for locationId', (data.locationId ?? locationId).slice(0, 12) + '..');
+        console.log('[CQ Agency] stored location token in KV', { locationId: locId.slice(0, 12) + '..' });
       } catch (storeErr) {
         console.warn('[CQ Agency] store location token in KV failed (will use token for this request only)', storeErr instanceof Error ? storeErr.message : storeErr);
       }

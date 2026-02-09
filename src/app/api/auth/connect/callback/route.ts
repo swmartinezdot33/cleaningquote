@@ -10,7 +10,6 @@ import { storeInstallation, getInstallation, storeAgencyTokenFromInstall } from 
 import { createSessionToken } from '@/lib/ghl/session';
 import { setOrgGHLOAuth } from '@/lib/config/store';
 import { getRedirectUri, getPostOAuthRedirectBase } from '@/lib/ghl/oauth-utils';
-import { fetchLocationName } from '@/lib/ghl/location-info';
 
 const LOG = '[CQ Connect Callback]';
 
@@ -330,32 +329,19 @@ export async function GET(request: NextRequest) {
     locationId = locationId.trim();
 
     const expiresAt = Date.now() + (data.expires_in ?? 86400) * 1000;
-
-    const companyName = await fetchLocationName(data.access_token, locationId);
-
     const userTypeVal = String(userType ?? '').toLowerCase();
-    const installationPayload = {
-      accessToken: data.access_token,
-      refreshToken: data.refresh_token ?? '',
-      expiresAt,
-      companyId,
-      userId,
-      locationId,
-      companyName: companyName ?? undefined,
-      userType: userTypeVal === 'company' ? 'Company' : userTypeVal === 'location' ? 'Location' : undefined,
-    };
+    const installUserType = userTypeVal === 'company' ? 'Company' : userTypeVal === 'location' ? 'Location' : undefined;
 
     try {
       const kvKey = `ghl:install:${locationId}`;
-      console.log(LOG, 'Storing in KV', {
-        kvKey,
-        locationIdFull: locationId,
-        locationIdSource: locationSource,
-        hasAccess: !!data.access_token,
-        hasRefresh: !!data.refresh_token,
-        userType: userTypeVal,
+      console.log(LOG, 'Storing in KV', { kvKey, locationId, locationIdSource: locationSource, userType: installUserType });
+      await storeInstallation({
+        locationId,
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token ?? '',
+        expiresAt,
+        userType: installUserType,
       });
-      await storeInstallation(installationPayload);
       // When a Company (Agency) user installs, that token is the Agency token — store for POST /oauth/locationToken.
       if (String(userType).toLowerCase() === 'company') {
         await storeAgencyTokenFromInstall({
@@ -417,7 +403,7 @@ export async function GET(request: NextRequest) {
       locationId,
       (data.access_token ?? '').length,
       (data.refresh_token ?? '').length,
-      companyName ?? undefined,
+      undefined,
       locationSource,
       stateDebug,
       {

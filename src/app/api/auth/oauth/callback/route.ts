@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { storeInstallation, getInstallation } from '@/lib/ghl/token-store';
+import { storeInstallation, getInstallation, storeAgencyTokenFromInstall } from '@/lib/ghl/token-store';
 import { createSessionToken } from '@/lib/ghl/session';
 import { setOrgGHLOAuth } from '@/lib/config/store';
 import { getAppBaseUrl, getRedirectUri, getPostOAuthRedirectBase, getPostOAuthRedirectPath } from '@/lib/ghl/oauth-utils';
-import { fetchLocationName } from '@/lib/ghl/location-info';
 
 export const dynamic = 'force-dynamic';
 
@@ -300,36 +299,36 @@ export async function GET(request: NextRequest) {
     console.log('[CQ Callback] STEP 6 — locationId resolved', { finalLocationId: finalLocationId?.slice(0, 12) + '...' });
 
     const expiresAt = tokenData.expires_in ? Date.now() + tokenData.expires_in * 1000 : Date.now() + 86400 * 1000;
-
-    const companyName = await fetchLocationName(tokenData.access_token, finalLocationId);
+    const userTypeRaw = (tokenData as Record<string, unknown>).userType ?? (tokenData as Record<string, unknown>).user_type;
+    const installUserType =
+      String(userTypeRaw ?? '').toLowerCase() === 'company'
+        ? 'Company'
+        : String(userTypeRaw ?? '').toLowerCase() === 'location'
+          ? 'Location'
+          : undefined;
 
     console.log('[CQ Callback] STEP 7 — storing to KV', {
+      kvKey: `ghl:install:${finalLocationId}`,
       locationId: finalLocationId?.slice(0, 12) + '...',
-      hasAccessToken: !!tokenData.access_token,
-      hasRefreshToken: !!tokenData.refresh_token,
-      expiresAt: new Date(expiresAt).toISOString(),
-      companyId: (tokenData.companyId ?? tokenData.company_id ?? '').slice(0, 8) + '...',
-      userId: (tokenData.userId ?? tokenData.user_id ?? '').slice(0, 8) + '...',
-      companyName: companyName ?? null,
+      userType: installUserType,
     });
-    // #region agent log
-    debugLog('OAuth callback before storeInstallation', {
-      finalLocationIdLength: finalLocationId?.length ?? 0,
-      finalLocationIdPreview: finalLocationId ? `${finalLocationId.slice(0, 8)}..${finalLocationId.slice(-4)}` : null,
-      kvKeyPreview: finalLocationId ? `ghl:install:${finalLocationId.slice(0, 8)}..${finalLocationId.slice(-4)}` : null,
-      hypothesisId: 'H1-H4',
-    });
-    // #endregion
     try {
       await storeInstallation({
         locationId: finalLocationId,
         accessToken: tokenData.access_token,
         refreshToken: tokenData.refresh_token ?? '',
         expiresAt,
-        companyId: tokenData.companyId ?? tokenData.company_id ?? '',
-        userId: tokenData.userId ?? tokenData.user_id ?? '',
-        companyName: companyName ?? undefined,
+        userType: installUserType,
       });
+      const companyId = tokenData.companyId ?? tokenData.company_id ?? '';
+      if (installUserType === 'Company' && companyId) {
+        await storeAgencyTokenFromInstall({
+          accessToken: tokenData.access_token,
+          refreshToken: tokenData.refresh_token ?? '',
+          expiresAt,
+          companyId,
+        });
+      }
       console.log('[CQ Callback] STEP 7 — storeInstallation() returned (no throw)');
     } catch (storeErr) {
       console.error('[OAuth Callback] ❌ STORAGE FAILED — tokens were NOT saved. Check KV (Vercel KV or KV_REST_API_* env vars).', storeErr);

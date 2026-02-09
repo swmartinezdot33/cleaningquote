@@ -81,7 +81,6 @@ export async function GET(request: NextRequest) {
         hasLocationId: true,
         ghlCallOk: true,
         locationId: ctx.locationId,
-        companyName: install?.companyName ?? undefined,
         message: 'Token and GHL API OK. Connection verified.',
         contactsSample: Array.isArray(contacts) ? contacts.length : 0,
       });
