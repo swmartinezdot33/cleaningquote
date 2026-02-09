@@ -298,20 +298,39 @@ export async function clearOrgGHL(orgId: string): Promise<void> {
   }
 }
 
-/** Get org IDs linked to this GHL location (for listing tools when using GHL session). */
+/** Get org IDs linked to this GHL location (for listing tools, service areas, pricing when using GHL session).
+ * Includes: (1) org_ghl_settings.ghl_location_id and (2) orgs that have at least one tool with tool_config.ghl_location_id = locationId.
+ * So when tools load for a location but org_ghl_settings has no row, Service Areas and Pricing still get an org. */
 export async function getOrgIdsByGHLLocationId(locationId: string): Promise<string[]> {
   if (!isSupabaseConfigured() || !locationId?.trim()) return [];
   const supabase = createSupabaseServer();
-  const { data, error } = await (supabase as any)
+  const loc = locationId.trim();
+  const orgIds = new Set<string>();
+
+  const { data: settingsRows, error: settingsError } = await (supabase as any)
     .from('org_ghl_settings')
     .select('org_id')
-    .eq('ghl_location_id', locationId.trim());
-  if (error) {
-    console.warn('org_ghl_settings getOrgIdsByGHLLocationId:', error);
-    return [];
+    .eq('ghl_location_id', loc);
+  if (!settingsError && Array.isArray(settingsRows)) {
+    for (const r of settingsRows as Array<{ org_id: string }>) {
+      if (r?.org_id) orgIds.add(r.org_id);
+    }
   }
-  const rows = (data ?? []) as Array<{ org_id: string }>;
-  return rows.map((r) => r.org_id).filter(Boolean);
+
+  const toolIds = await getToolIdsByGHLLocationId(loc);
+  if (toolIds.length > 0) {
+    const { data: toolRows, error: toolsError } = await supabase
+      .from('tools')
+      .select('org_id')
+      .in('id', toolIds);
+    if (!toolsError && Array.isArray(toolRows)) {
+      for (const t of toolRows as Array<{ org_id: string | null }>) {
+        if (t?.org_id) orgIds.add(t.org_id);
+      }
+    }
+  }
+
+  return Array.from(orgIds);
 }
 
 /** Get tool IDs whose tool_config.ghl_location_id matches this GHL location (for Tools page visibility). */
