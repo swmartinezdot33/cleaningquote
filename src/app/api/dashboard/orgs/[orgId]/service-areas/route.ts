@@ -45,6 +45,9 @@ export async function GET(
       if (allowed) client = createSupabaseServer();
     }
   }
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'orgs/[orgId]/service-areas:GET', message: 'access check', data: { orgId, hasRequestLocationId: !!requestLocationId, allowed }, timestamp: Date.now(), hypothesisId: 'H3' }) }).catch(() => {});
+  // #endregion
   if (!allowed) {
     return NextResponse.json(
       user ? { error: 'Only org admins can manage service areas' } : { error: 'Unauthorized' },

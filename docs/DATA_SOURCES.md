@@ -20,6 +20,8 @@ So: **Supabase = config only, keyed by locationId; GHL = everything else; locati
 
 ## Org = GHL sub-account (location)
 
+**Strict isolation:** The only link between location and data is `locationId` (postMessage) → `org_ghl_settings.ghl_location_id` → `org_id`. Changing which org is linked to a `ghl_location_id` in Supabase changes all data that location sees. The dashboard must never show data for an org that is not the one resolved from the current request’s locationId.
+
 The app only loads inside the GHL iframe, so **one org in Supabase = one GHL sub-account (location)**. We keep the `organizations` table as the Supabase bucket for that location (tools, service areas, pricing structures still reference `org_id` for FKs and RLS). There is no separate “org” concept in the UI when in GHL: the user’s scope is always the current `locationId` from postMessage. We resolve “the org for this location” via `getOrgIdsByGHLLocationId(locationId)` and, when none exists, **auto-provision** one org and link it in `org_ghl_settings` so the location has exactly one org. No org switcher in GHL context; everything is scoped by `locationId`.
 
 ## Supabase (config only)

@@ -88,16 +88,27 @@ export default function ServiceAreasClient() {
     api('/api/dashboard/orgs/selected')
       .then((r) => r.json())
       .then((d) => {
-        setOrgId(d.org?.id ?? null);
-        setOrgRole(d.org?.role ?? null);
+        const resolvedOrgId = d?.org?.id ?? null;
+        const resolvedRole = d?.org?.role ?? null;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ServiceAreasClient:orgs/selected', message: 'orgs/selected response', data: { hasOrg: !!d?.org, resolvedOrgId, resolvedRole }, timestamp: Date.now(), hypothesisId: 'H1-H5' }) }).catch(() => {});
+        // #endregion
+        setOrgId(resolvedOrgId);
+        setOrgRole(resolvedRole);
         setOrgOfficeAddress((d.org as { office_address?: string } | null)?.office_address ?? '');
-        return d.org?.id && (d.org?.role === 'admin') ? d.org.id : null;
+        return resolvedOrgId && resolvedRole === 'admin' ? resolvedOrgId : null;
       })
       .then((id) => {
         if (id) return api(`/api/dashboard/orgs/${id}/service-areas`).then((r) => r.json());
         return { serviceAreas: [] };
       })
-      .then((d) => setList(d.serviceAreas ?? []))
+      .then((d) => {
+        const areas = d?.serviceAreas ?? [];
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ServiceAreasClient:serviceAreas', message: 'service areas list', data: { count: areas.length, firstId: areas[0]?.id ?? null }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});
+        // #endregion
+        setList(areas);
+      })
       .catch(() => setList([]))
       .finally(() => setLoading(false));
   }, [api]);
@@ -107,6 +118,10 @@ export default function ServiceAreasClient() {
   }, [orgId, loadList]);
 
   const openDrawModal = (areaId?: string) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ServiceAreasClient:openDrawModal', message: 'openDrawModal called', data: { orgId, areaId: areaId ?? null }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
+    // #endregion
+    if (!orgId) return;
     setEditingId(areaId ?? null);
     setEditName('');
     setEditPolygons(null);
@@ -141,6 +156,10 @@ export default function ServiceAreasClient() {
   const [previewZoneDisplay, setPreviewZoneDisplay] = useState<ZoneDisplayItem[]>([]);
 
   const openPreview = (areaId: string) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ServiceAreasClient:openPreview', message: 'openPreview called', data: { orgId, areaId }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
+    // #endregion
+    if (!orgId) return;
     setPreviewOpen(true);
     setPreviewName('');
     setPreviewPolygons(null);
