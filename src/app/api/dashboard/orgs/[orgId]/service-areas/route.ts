@@ -23,7 +23,7 @@ function locationIdFromRequest(request: NextRequest): string | null {
   return header ?? query ?? null;
 }
 
-/** GET - List service areas for org (id, name, polygon point count, network_link_url). In GHL context, only areas with matching ghl_location_id. */
+/** GET - List service areas for org. Org is resolved from locationId via org_ghl_settings (1 org = 1 GHL location). */
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ orgId: string }> }
@@ -107,10 +107,6 @@ export async function POST(
     );
   }
 
-  // Set ghl_location_id from request context so location-scoped lookups return this row.
-  const ghlSessionForRow = await getSession();
-  const locationIdForRow = requestLocationId ?? ghlSessionForRow?.locationId ?? null;
-
   const body = await request.json().catch(() => ({}));
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   if (!name) {
@@ -118,7 +114,6 @@ export async function POST(
   }
 
   const now = new Date().toISOString();
-  const ghlLocationPayload = locationIdForRow ? { ghl_location_id: locationIdForRow } : {};
 
   // Option 1: Direct polygon (single or array of polygons)
   if (body.polygon && Array.isArray(body.polygon)) {
@@ -127,7 +122,7 @@ export async function POST(
       return NextResponse.json({ error: 'Provide at least one valid polygon (3+ points each)' }, { status: 400 });
     }
     const zoneDisplay = Array.isArray(body.zone_display) ? (body.zone_display as import('@/lib/supabase/types').Json) : [];
-    const insert: ServiceAreaInsert & { ghl_location_id?: string | null } = {
+    const insert: ServiceAreaInsert = {
       org_id: orgId,
       name,
       polygon: stored as unknown as import('@/lib/supabase/types').Json,
@@ -136,7 +131,6 @@ export async function POST(
       network_link_fetched_at: null,
       created_at: now,
       updated_at: now,
-      ...ghlLocationPayload,
     };
     // @ts-expect-error Supabase Insert type can be never for new table
     const { data: row, error } = await client.from('service_areas').insert(insert).select('id, name, polygon').single();
@@ -160,7 +154,7 @@ export async function POST(
       return NextResponse.json({ error: 'No polygon coordinates found in KML' }, { status: 400 });
     }
     const stored = toStoredPolygons(parsed.polygons);
-    const insert: ServiceAreaInsert & { ghl_location_id?: string | null } = {
+    const insert: ServiceAreaInsert = {
       org_id: orgId,
       name,
       polygon: stored as unknown as import('@/lib/supabase/types').Json,
@@ -168,7 +162,6 @@ export async function POST(
       network_link_fetched_at: null,
       created_at: now,
       updated_at: now,
-      ...ghlLocationPayload,
     };
     // @ts-expect-error Supabase Insert type can be never for new table
     const { data: row, error } = await client.from('service_areas').insert(insert).select('id, name, polygon').single();
@@ -187,7 +180,7 @@ export async function POST(
       );
     }
     const stored = toStoredPolygons(result.polygons);
-    const insert: ServiceAreaInsert & { ghl_location_id?: string | null } = {
+    const insert: ServiceAreaInsert = {
       org_id: orgId,
       name,
       polygon: stored as unknown as import('@/lib/supabase/types').Json,
@@ -195,7 +188,6 @@ export async function POST(
       network_link_fetched_at: now,
       created_at: now,
       updated_at: now,
-      ...ghlLocationPayload,
     };
     // @ts-expect-error Supabase Insert type can be never for new table
     const { data: row, error } = await client.from('service_areas').insert(insert).select('id, name, polygon, network_link_url, network_link_fetched_at').single();
@@ -228,7 +220,7 @@ export async function POST(
     }
     const stored = toStoredPolygons(result.polygons);
     const zoneDisplay = result.labels.map((label) => ({ label, color: undefined }));
-    const insert: ServiceAreaInsert & { ghl_location_id?: string | null } = {
+    const insert: ServiceAreaInsert = {
       org_id: orgId,
       name,
       polygon: stored as unknown as import('@/lib/supabase/types').Json,
@@ -237,7 +229,6 @@ export async function POST(
       network_link_fetched_at: null,
       created_at: now,
       updated_at: now,
-      ...ghlLocationPayload,
     };
     // @ts-expect-error Supabase Insert type can be never for new table
     const { data: row, error } = await client.from('service_areas').insert(insert).select('id, name, polygon').single();

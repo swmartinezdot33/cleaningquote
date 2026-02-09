@@ -84,15 +84,9 @@ export async function PATCH(
   }
 
   const body = await request.json().catch(() => ({}));
-  const updates: { name?: string; pricing_table?: unknown; initial_cleaning_config?: unknown; updated_at: string; ghl_location_id?: string | null } = {
+  const updates: { name?: string; pricing_table?: unknown; initial_cleaning_config?: unknown; updated_at: string } = {
     updated_at: new Date().toISOString(),
   };
-  const requestLocationId = locationIdFromRequest(request);
-  const ghlSession = await getSession();
-  const locationIdForRow = requestLocationId ?? ghlSession?.locationId ?? null;
-  if (locationIdForRow) {
-    updates.ghl_location_id = locationIdForRow;
-  }
   if (typeof body.name === 'string' && body.name.trim()) {
     updates.name = body.name.trim();
   }

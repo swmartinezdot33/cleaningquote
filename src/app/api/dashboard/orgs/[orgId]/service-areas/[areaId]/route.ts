@@ -77,13 +77,7 @@ export async function PATCH(
   }
 
   const body = await request.json().catch(() => ({}));
-  const updates: ServiceAreaUpdate & { ghl_location_id?: string | null } = { updated_at: new Date().toISOString() };
-  const requestLocationId = locationIdFromRequest(request);
-  const ghlSession = await getSession();
-  const locationIdForRow = requestLocationId ?? ghlSession?.locationId ?? null;
-  if (locationIdForRow) {
-    updates.ghl_location_id = locationIdForRow;
-  }
+  const updates: ServiceAreaUpdate = { updated_at: new Date().toISOString() };
 
   if (typeof body.name === 'string') {
     const name = body.name.trim();

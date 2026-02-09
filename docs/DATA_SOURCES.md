@@ -9,10 +9,11 @@ This document describes where data lives and how the dashboard loads it so the t
 
 ## Lookup key: location ID
 
-- Every Supabase row the dashboard needs is keyed by **location** (e.g. `ghl_location_id`) so we can always filter by the current user’s location.
+- The dashboard resolves **location** from user context; that drives which org (and thus which config) is shown.
 - **User context:** When the app loads inside the GHL iframe, we get `locationId` from the decrypted postMessage (`REQUEST_USER_DATA_RESPONSE`). That `locationId` is the **key** for all lookups.
 - **Lookup rule:** The dashboard resolves `locationId` from user context (header, query, or session), then:
-  - Queries **Supabase** filtered by `ghl_location_id` (or via `org_ghl_settings` / `tool_config`) for config.
+  - Resolves **org** via `org_ghl_settings.ghl_location_id` (and tools with `tool_config.ghl_location_id`). One org = one GHL location.
+  - Queries **Supabase** config by **org_id** (service areas, pricing structures) or by `tool_config.ghl_location_id` (tools list).
   - Calls the **GHL API** for contacts, pipelines, calendars, appointments, and all other CRM/operational data.
 
 So: **Supabase = config only, keyed by locationId; GHL = everything else; locationId from user context drives all lookups.** The iframe dashboard should feel like a single GHL page.
@@ -24,8 +25,8 @@ The app only loads inside the GHL iframe, so **one org in Supabase = one GHL sub
 ## Supabase (config only)
 
 - **Tables:** `tool_config`, `org_ghl_settings`, `pricing_structures`, `service_areas`, tools, pricing associations, etc.
-- **Convention:** New dashboard-backed tables should include `ghl_location_id` (or equivalent) and APIs should filter by it.
-- **Writes:** When creating or updating location-scoped rows (e.g. pricing structure, service area), set `ghl_location_id` from the current request context so lookups by locationId return that row.
+- **Convention:** Config is scoped by **org_id**. The org for the current location is resolved via `org_ghl_settings.ghl_location_id` (and tools’ `tool_config.ghl_location_id`). Service areas and pricing structures have no `ghl_location_id` column; they are scoped only by `org_id`.
+- **Writes:** When creating or updating service areas or pricing structures, set `org_id` (the org resolved for the current location). No `ghl_location_id` on those tables.
 
 ## GHL (everything else)
 

@@ -50,7 +50,7 @@ export async function GET(
     );
   }
 
-  // Org is 1:1 with GHL location; show all pricing structures for this org (no ghl_location_id filter)
+  // Org is 1:1 with GHL location; show all pricing structures for this org (scope by org_id only)
   const { data, error } = await client
     .from('pricing_structures')
     .select('id, name, created_at, updated_at')
@@ -100,11 +100,6 @@ export async function POST(
     );
   }
 
-  // Set ghl_location_id from request context so location-scoped lookups return this row.
-  const requestLocationId = locationIdFromRequest(request);
-  const ghlSessionForRow = await getSession();
-  const locationIdForRow = requestLocationId ?? ghlSessionForRow?.locationId ?? null;
-
   const body = await request.json().catch(() => ({}));
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   if (!name) {
@@ -136,7 +131,6 @@ export async function POST(
     pricing_table: pricingTable ? (pricingTable as unknown as Record<string, unknown>) : null,
     created_at: now,
     updated_at: now,
-    ...(locationIdForRow ? { ghl_location_id: locationIdForRow } : {}),
   };
 
   const { data: inserted, error } = await client
