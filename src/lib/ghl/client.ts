@@ -67,10 +67,10 @@ export async function makeGHLRequest<T>(
       'Content-Type': 'application/json',
       'Version': '2021-07-28', // GHL 2.0 API version
     };
-    
-    // Location-Id header: only when explicitly required. For sub-account PIT, objects and associations
-    // use locationId in query or body per highlevel-api-docs; adding the header can cause 403.
-    if (resolvedLocationId) {
+    // When using OAuth credentials (location token), do NOT send Location-Id — GHL infers location from
+    // the token. Sending it causes 403 "The token does not have access to this location". Only add the
+    // header when using a non-credential token (e.g. agency/PIT) that may need it to scope the request.
+    if (resolvedLocationId && !credentials?.token) {
       headers['Location-Id'] = resolvedLocationId;
     }
     
