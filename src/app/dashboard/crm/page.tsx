@@ -144,13 +144,18 @@ export default function CRMDashboardPage() {
 
   const connectionOk = verify?.ok === true;
   const noLocation = !effectiveLocationId && !loading;
-  // When we have locationId, always show pipeline UI (same API calls as contacts). Only show full-page Connect when no location at all.
-  const needsConnectBanner = (needsConnect || !connectionOk) && effectiveLocationId && !apiError;
+  // Don't show Connect banner when we already have data — e.g. contacts loaded in columns, pipelines, or stats.
+  const hasData =
+    pipelines.length > 0 ||
+    (stats?.total ?? 0) > 0 ||
+    STAGES.some((s) => (contactsByStage[s]?.length ?? 0) > 0);
+  const needsConnectBanner =
+    (needsConnect || !connectionOk) && effectiveLocationId && !apiError && !hasData;
 
   if (apiError && effectiveLocationId) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-foreground">CRM Pipeline</h1>
+        <h1 className="text-2xl font-bold text-foreground">Leads</h1>
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-destructive">
           <p className="font-medium">API call failed</p>
           <p className="mt-2 text-sm">{apiError}</p>
@@ -184,7 +189,7 @@ export default function CRMDashboardPage() {
   if (noLocation) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-foreground">CRM Pipeline</h1>
+        <h1 className="text-2xl font-bold text-foreground">Leads</h1>
         <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-6 text-amber-800 dark:text-amber-200">
           <p className="font-medium">No location context</p>
           <p className="mt-2 text-sm">
@@ -266,7 +271,7 @@ export default function CRMDashboardPage() {
       )}
 
       <div>
-        <h1 className="text-2xl font-bold text-foreground">CRM Pipeline</h1>
+        <h1 className="text-2xl font-bold text-foreground">Leads</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Track leads from quote to customer
         </p>
@@ -275,9 +280,9 @@ export default function CRMDashboardPage() {
       {/* GHL Pipelines from location */}
       {pipelines.length > 0 && (
         <div className="rounded-xl border border-border bg-card p-4">
-          <h2 className="text-lg font-semibold text-foreground">Your GHL pipelines</h2>
+          <h2 className="text-lg font-semibold text-foreground">Your GHL leads</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Opportunity pipelines for this location (from GoHighLevel)
+            Opportunity leads for this location (from GoHighLevel)
           </p>
           <div className="mt-4 space-y-4">
             {pipelines.map((pipeline) => (
@@ -326,7 +331,7 @@ export default function CRMDashboardPage() {
         ))}
       </div>
 
-      {/* Pipeline Kanban */}
+      {/* Leads Kanban */}
       <div className="grid gap-4 lg:grid-cols-5">
         {STAGES.map((stage) => (
           <div

@@ -88,7 +88,7 @@ export function DashboardHeader({
         onClick={closeMobileMenu}
         className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
       >
-        Pipelines
+        Leads
       </Link>
       <Link
         href="/dashboard/crm/contacts"
@@ -117,20 +117,6 @@ export function DashboardHeader({
         className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
       >
         Pricing
-      </Link>
-      <Link
-        href="/dashboard/crm/schedule"
-        onClick={closeMobileMenu}
-        className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
-      >
-        Schedule
-      </Link>
-      <Link
-        href="/dashboard/jobs"
-        onClick={closeMobileMenu}
-        className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
-      >
-        Jobs
       </Link>
       {selectedOrgRole === 'admin' && (
         <Link
@@ -234,7 +220,7 @@ export function DashboardHeader({
                   onClick={closeMobileMenu}
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
-                  Pipelines
+                  Leads
                 </Link>
                 <Link
                   href="/dashboard/crm/contacts"
@@ -263,20 +249,6 @@ export function DashboardHeader({
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
                   Pricing
-                </Link>
-                <Link
-                  href="/dashboard/crm/schedule"
-                  onClick={closeMobileMenu}
-                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
-                >
-                  Schedule
-                </Link>
-                <Link
-                  href="/dashboard/jobs"
-                  onClick={closeMobileMenu}
-                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
-                >
-                  Jobs
                 </Link>
                 {selectedOrgRole === 'admin' && (
                   <Link
