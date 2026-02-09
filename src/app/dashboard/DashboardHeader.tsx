@@ -125,6 +125,13 @@ export function DashboardHeader({
       >
         Schedule
       </Link>
+      <Link
+        href="/dashboard/jobs"
+        onClick={closeMobileMenu}
+        className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+      >
+        Jobs
+      </Link>
       {selectedOrgRole === 'admin' && (
         <Link
           href="/dashboard/settings"
@@ -263,6 +270,13 @@ export function DashboardHeader({
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
                   Schedule
+                </Link>
+                <Link
+                  href="/dashboard/jobs"
+                  onClick={closeMobileMenu}
+                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                >
+                  Jobs
                 </Link>
                 {selectedOrgRole === 'admin' && (
                   <Link
