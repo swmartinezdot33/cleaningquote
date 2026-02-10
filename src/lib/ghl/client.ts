@@ -1993,7 +1993,7 @@ export async function searchGHLOpportunities(
 ): Promise<{ opportunities: GHLOpportunitySearchItem[]; total?: number }> {
   const limit = Math.min(100, Math.max(1, options.limit ?? 50));
   const params = new URLSearchParams({
-    locationId,
+    location_id: locationId,
     limit: String(limit),
   });
   if (options.pipelineId) params.set('pipeline_id', options.pipelineId);
@@ -2054,16 +2054,14 @@ export async function updateGHLOpportunity(
 
 /**
  * List quote custom object records from GHL for a location.
- * Tries GET /objects/{objectId}/records first, then POST /objects/custom_objects.quotes/records/search
- * so quotes load whether the API expects object ID or schema key.
+ * Uses POST /objects/custom_objects.quotes/records/search with page + pageLimit (GHL does not support GET /objects/{id}/records for custom objects).
  */
 export async function listGHLQuoteRecords(
   locationId: string,
   options?: { limit?: number },
   credentials?: GHLCredentials | null
 ): Promise<any[]> {
-  const limit = Math.min(500, Math.max(1, options?.limit ?? 2000));
-  const objectId = KNOWN_OBJECT_IDS.quotes;
+  const pageLimit = Math.min(500, Math.max(1, options?.limit ?? 2000));
 
   function parseRecords(res: any): any[] {
     if (Array.isArray(res)) return res;
@@ -2078,31 +2076,11 @@ export async function listGHLQuoteRecords(
     return [];
   }
 
-  // 1) GET by object ID (common format)
-  if (objectId) {
-    try {
-      const params = new URLSearchParams({ locationId, limit: String(limit) });
-      const res = await makeGHLRequest<{ records?: any[]; data?: any[] }>(
-        `/objects/${objectId}/records?${params}`,
-        'GET',
-        undefined,
-        undefined,
-        undefined,
-        credentials
-      );
-      const records = parseRecords(res);
-      if (records.length > 0) return records;
-    } catch (_) {
-      // Fall through to schema-key search
-    }
-  }
-
-  // 2) POST search by schema key (custom_objects.quotes)
   try {
     const res = await makeGHLRequest<{ records?: any[]; data?: any[] }>(
       '/objects/custom_objects.quotes/records/search',
       'POST',
-      { locationId, limit },
+      { locationId, page: 1, pageLimit },
       undefined,
       undefined,
       credentials
@@ -2110,7 +2088,6 @@ export async function listGHLQuoteRecords(
     const records = parseRecords(res);
     return Array.isArray(records) ? records : [];
   } catch (_) {
-    // Return empty so dashboard can still render
     return [];
   }
 }

@@ -22,9 +22,9 @@ export function DashboardGHLWrapper({ children }: { children: React.ReactNode })
   if (inIframe === false) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
-        <p className="font-medium text-foreground">Open from GoHighLevel</p>
+        <p className="font-medium text-foreground">Open inside CleanQuote.io</p>
         <p className="max-w-md text-sm text-muted-foreground">
-          This app runs only inside GoHighLevel. Open it from your location dashboard or app menu in GoHighLevel — do not open this URL directly in a browser tab.
+          Open this page inside of CleanQuote.io. Do not open this URL directly in a browser tab.
         </p>
       </div>
     );

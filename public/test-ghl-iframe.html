@@ -5,52 +5,97 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Local GHL iframe test – CleanQuote</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+    body { font-family: system-ui, sans-serif; max-width: 920px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
     .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.1); margin-bottom: 20px; }
     label { display: block; margin-bottom: 6px; font-weight: 600; }
-    input[type="text"] { width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    input[type="text"], select { width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    select { margin-top: 4px; cursor: pointer; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .row > * { flex: 1 1 auto; min-width: 140px; }
     button { padding: 10px 16px; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; }
     button:hover { background: #1d4ed8; }
-    iframe { width: 100%; height: 70vh; border: 1px solid #ddd; border-radius: 6px; background: #fff; }
+    button.secondary { background: #64748b; }
+    button.secondary:hover { background: #475569; }
+    iframe { width: 100%; height: 72vh; border: 1px solid #ddd; border-radius: 6px; background: #fff; }
     .hint { font-size: 0.875rem; color: #666; margin-top: 8px; }
     code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; }
+    .url-preview { font-size: 0.8rem; color: #555; word-break: break-all; margin-top: 8px; }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>Local GHL iframe test</h1>
-    <p>Use this page to test the dashboard <strong>as if</strong> it were loaded inside GoHighLevel with user context (locationId).</p>
+    <p>Test the app <strong>as if</strong> it were embedded in GoHighLevel: same iframe + <code>locationId</code> context. Run dev server, then open this file or <code>/test-ghl-iframe.html</code>.</p>
     <label for="base">App base URL</label>
     <input type="text" id="base" value="http://localhost:3000" placeholder="http://localhost:3000">
-    <label for="locationId" style="margin-top:12px">Location ID (your GHL sub-account location id)</label>
+    <label for="locationId" style="margin-top:12px">Location ID (GHL sub-account)</label>
     <input type="text" id="locationId" placeholder="e.g. ve9EPM428h8vShlRW1KT" value="1uDcMtL7LgPvpYwaQtdq">
-    <p class="hint">Find it in GHL: open a sub-account, URL is like <code>.../location/VE9EPM428h8vShlRW1KT/...</code>. Use that id (case-sensitive).</p>
-    <button type="button" id="load">Load dashboard in iframe</button>
+    <p class="hint">From GHL: open a sub-account; URL has <code>.../location/XXXXXXXX/...</code>. Use that id (case-sensitive).</p>
+    <label for="page" style="margin-top:12px">Open page</label>
+    <select id="page">
+      <option value="/dashboard">Dashboard</option>
+      <option value="/dashboard/crm">Leads</option>
+      <option value="/dashboard/quotes">Quotes</option>
+      <option value="/dashboard/crm/contacts">Contacts</option>
+      <option value="/dashboard/tools">Tools</option>
+      <option value="/dashboard/service-areas">Service Areas</option>
+      <option value="/dashboard/pricing-structures">Pricing</option>
+    </select>
+    <div class="row" style="margin-top:16px; gap:8px;">
+      <button type="button" id="load">Load in iframe</button>
+      <button type="button" id="openWindow" class="secondary">Open app in new tab (no iframe)</button>
+    </div>
+    <p class="url-preview" id="urlPreview"></p>
   </div>
   <div class="card" id="frameWrap" style="display:none">
-    <h2>Dashboard (iframe)</h2>
+    <h2>App (iframe)</h2>
     <iframe id="appFrame" title="CleanQuote Dashboard"></iframe>
   </div>
 
   <script>
+    function getBase() { return (document.getElementById('base').value || '').replace(/\/$/, ''); }
+    function getLocationId() { return (document.getElementById('locationId').value || '').trim(); }
+    function getPath() { return (document.getElementById('page').value || '/dashboard'); }
+    function buildUrl() {
+      var base = getBase();
+      var locationId = getLocationId();
+      var path = getPath();
+      if (!locationId) return '';
+      var sep = path.indexOf('?') !== -1 ? '&' : '?';
+      return base + path + sep + 'locationId=' + encodeURIComponent(locationId);
+    }
+    function updatePreview() {
+      var u = buildUrl();
+      document.getElementById('urlPreview').textContent = u ? 'URL: ' + u : '';
+    }
     function loadIframe() {
-      var base = (document.getElementById('base').value || '').replace(/\/$/, '');
-      var locationId = (document.getElementById('locationId').value || '').trim();
+      var locationId = getLocationId();
       if (!locationId) {
         alert('Enter a Location ID');
         return;
       }
-      var url = base + '/dashboard?locationId=' + encodeURIComponent(locationId);
+      var url = buildUrl();
       document.getElementById('appFrame').src = url;
       document.getElementById('frameWrap').style.display = 'block';
+      updatePreview();
+    }
+    function openInNewTab() {
+      var locationId = getLocationId();
+      if (!locationId) {
+        alert('Enter a Location ID');
+        return;
+      }
+      window.open(buildUrl(), '_blank', 'noopener');
+      updatePreview();
     }
     document.getElementById('load').onclick = loadIframe;
-    // Auto-load with default locationId on page load (like GHL embedding the app)
+    document.getElementById('openWindow').onclick = openInNewTab;
+    document.getElementById('base').oninput = updatePreview;
+    document.getElementById('locationId').oninput = updatePreview;
+    document.getElementById('page').onchange = updatePreview;
+    updatePreview();
     (function () {
-      var loc = (document.getElementById('locationId').value || '').trim();
-      if (loc) {
-        loadIframe();
-      }
+      if (getLocationId()) loadIframe();
     })();
   </script>
 </body>

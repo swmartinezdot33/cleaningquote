@@ -32,7 +32,7 @@ export async function middleware(request: NextRequest) {
     }
 
     // Allow all dashboard requests. No redirect — client resolves locationId from iframe and sends it on API calls.
-    // When not in GHL iframe, DashboardGHLWrapper shows "Open from GoHighLevel". API routes return 401 when locationId is missing.
+    // When not in iframe, DashboardGHLWrapper shows "Open inside CleanQuote.io". API routes return 401 when locationId is missing.
     return NextResponse.next();
   }
 
