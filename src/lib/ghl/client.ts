@@ -2044,25 +2044,63 @@ export async function updateGHLOpportunity(
 
 /**
  * List quote custom object records from GHL for a location.
- * Used by Quotes dashboard when in marketplace (OAuth) session mode.
+ * Tries GET /objects/{objectId}/records first, then POST /objects/custom_objects.quotes/records/search
+ * so quotes load whether the API expects object ID or schema key.
  */
 export async function listGHLQuoteRecords(
   locationId: string,
   options?: { limit?: number },
   credentials?: GHLCredentials | null
 ): Promise<any[]> {
-  const objectId = KNOWN_OBJECT_IDS.quotes;
-  if (!objectId) return [];
   const limit = Math.min(500, Math.max(1, options?.limit ?? 2000));
-  const params = new URLSearchParams({ locationId, limit: String(limit) });
-  const res = await makeGHLRequest<{ records?: any[]; data?: any[] }>(
-    `/objects/${objectId}/records?${params}`,
-    'GET',
-    undefined,
-    undefined,
-    undefined,
-    credentials
-  );
-  const records = res?.records ?? res?.data ?? (Array.isArray(res) ? res : []);
-  return Array.isArray(records) ? records : [];
+  const objectId = KNOWN_OBJECT_IDS.quotes;
+
+  function parseRecords(res: any): any[] {
+    if (Array.isArray(res)) return res;
+    if (res?.records && Array.isArray(res.records)) return res.records;
+    if (res?.data && Array.isArray(res.data)) return res.data;
+    if (res?.customObjects && Array.isArray(res.customObjects)) return res.customObjects;
+    if (typeof res === 'object') {
+      for (const key of Object.keys(res)) {
+        if (Array.isArray(res[key])) return res[key];
+      }
+    }
+    return [];
+  }
+
+  // 1) GET by object ID (common format)
+  if (objectId) {
+    try {
+      const params = new URLSearchParams({ locationId, limit: String(limit) });
+      const res = await makeGHLRequest<{ records?: any[]; data?: any[] }>(
+        `/objects/${objectId}/records?${params}`,
+        'GET',
+        undefined,
+        undefined,
+        undefined,
+        credentials
+      );
+      const records = parseRecords(res);
+      if (records.length > 0) return records;
+    } catch (_) {
+      // Fall through to schema-key search
+    }
+  }
+
+  // 2) POST search by schema key (custom_objects.quotes)
+  try {
+    const res = await makeGHLRequest<{ records?: any[]; data?: any[] }>(
+      '/objects/custom_objects.quotes/records/search',
+      'POST',
+      { locationId, limit },
+      undefined,
+      undefined,
+      credentials
+    );
+    const records = parseRecords(res);
+    return Array.isArray(records) ? records : [];
+  } catch (_) {
+    // Return empty so dashboard can still render
+    return [];
+  }
 }

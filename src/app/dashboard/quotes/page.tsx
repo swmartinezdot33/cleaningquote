@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { FileDown, ExternalLink, Loader2, ArrowRightLeft, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { ExternalLink, Loader2, RefreshCw, ArrowRightLeft, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import { useDashboardApi } from '@/lib/dashboard-api';
 
 interface QuoteRow {
@@ -66,22 +66,6 @@ function formatPriceCell(q: QuoteRow) {
   return formatPrice(q.price_low, q.price_high);
 }
 
-function formatPriceCellString(q: QuoteRow): string {
-  const hasInitial = q.price_initial_low != null && q.price_initial_high != null;
-  const hasRecurring = q.price_recurring_low != null && q.price_recurring_high != null;
-  if (hasInitial && hasRecurring) {
-    return `Initial: ${formatPrice(q.price_initial_low ?? null, q.price_initial_high ?? null)}; Recurring: ${formatPrice(q.price_recurring_low ?? null, q.price_recurring_high ?? null)}`;
-  }
-  return formatPrice(q.price_low, q.price_high);
-}
-
-function escapeCsv(val: string | number | null | undefined): string {
-  if (val == null || val === '') return '';
-  const s = String(val);
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-
 interface ToolOption {
   id: string;
   name: string;
@@ -122,7 +106,7 @@ export default function DashboardQuotesPage() {
   const [perPage, setPerPage] = useState(25);
 
   const loadQuotes = useCallback(() => {
-    // All dashboard data depends on user-context locationId (postMessage / iframe). Don't call GHL APIs without it.
+    setError(null);
     if (!effectiveLocationId) {
       setLoading(false);
       setQuotes([]);
@@ -135,20 +119,22 @@ export default function DashboardQuotesPage() {
     ])
       .then(([quotesRes, toolsRes]) => {
         return quotesRes.ok
-          ? quotesRes.json().then((data: { quotes?: QuoteRow[]; isSuperAdmin?: boolean; isOrgAdmin?: boolean }) => ({
+          ? quotesRes.json().then((data: { quotes?: QuoteRow[]; isSuperAdmin?: boolean; isOrgAdmin?: boolean; error?: string }) => ({
               quotes: data.quotes ?? [],
               isSuperAdminFromQuotes: !!data.isSuperAdmin,
               isOrgAdminFromQuotes: !!data.isOrgAdmin,
               toolsOk: toolsRes.ok,
+              apiError: data.error,
             }))
-          : Promise.reject(new Error('Failed to load quotes'));
+          : quotesRes.json().then((data: { error?: string }) => Promise.reject(new Error(data?.error ?? 'Failed to load quotes')));
       })
-      .then(({ quotes: list, isSuperAdminFromQuotes, isOrgAdminFromQuotes, toolsOk }) => {
+      .then(({ quotes: list, isSuperAdminFromQuotes, isOrgAdminFromQuotes, toolsOk, apiError }) => {
         setQuotes(list);
         setIsSuperAdmin(!!isSuperAdminFromQuotes || !!toolsOk);
         setIsOrgAdmin(!!isOrgAdminFromQuotes);
+        if (apiError) setError(apiError);
       })
-      .catch((e) => setError(e.message))
+      .catch((e) => setError(e?.message ?? 'Failed to load quotes'))
       .finally(() => setLoading(false));
   }, [effectiveLocationId, api]);
 
@@ -280,58 +266,6 @@ export default function DashboardQuotesPage() {
 
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
-  const exportCsv = (onlySelected = false) => {
-    const toExport = onlySelected && selectedIds.size > 0 ? selectedQuotes : filteredQuotes;
-    const headers = [
-      'Quote ID',
-      'Tool',
-      'Date',
-      'Status',
-      'First Name',
-      'Last Name',
-      'Email',
-      'Phone',
-      'Address',
-      'City',
-      'State',
-      'Postal Code',
-      'Service Type',
-      'Frequency',
-      'Price Range',
-      'Sq Ft',
-      'Bedrooms',
-    ];
-    const rows = toExport.map((q) => [
-      escapeCsv(q.quote_id),
-      escapeCsv(q.toolName),
-      escapeCsv(formatDate(q.created_at)),
-      escapeCsv(q.status === 'disqualified' ? 'Disqualified' : 'Quote'),
-      escapeCsv(q.first_name),
-      escapeCsv(q.last_name),
-      escapeCsv(q.email),
-      escapeCsv(q.phone),
-      escapeCsv(q.address),
-      escapeCsv(q.city),
-      escapeCsv(q.state),
-      escapeCsv(q.postal_code),
-      escapeCsv(q.service_type),
-      escapeCsv(q.frequency),
-      escapeCsv(q.status === 'disqualified' ? '—' : formatPriceCellString(q)),
-      escapeCsv(q.square_feet),
-      escapeCsv(q.bedrooms),
-    ]);
-    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = onlySelected
-      ? `quotes-selected-${toExport.length}-${new Date().toISOString().slice(0, 10)}.csv`
-      : `quotes-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
   // Unique tool names and service types for filter dropdowns
@@ -444,24 +378,29 @@ export default function DashboardQuotesPage() {
 
   if (error) {
     return (
-      <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-destructive">
-        <p>Could not load quotes: {error}</p>
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-foreground">Quotes</h1>
+        <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-6 text-destructive">
+          <p className="font-medium">Could not load quotes</p>
+          <p className="mt-2 text-sm">{error}</p>
+          <p className="mt-2 text-xs opacity-90">Quotes are loaded from your GoHighLevel custom object (Quote).</p>
+          <button
+            type="button"
+            onClick={() => { setError(null); loadQuotes(); }}
+            className="mt-4 inline-flex items-center gap-2 rounded-md border border-destructive/50 px-4 py-2 text-sm font-medium hover:bg-destructive/20"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
         <h1 className="text-2xl font-bold text-foreground">Quotes</h1>
-        <button
-          onClick={() => exportCsv(false)}
-          disabled={filteredQuotes.length === 0}
-          className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
-        >
-          <FileDown className="h-4 w-4" />
-          Export CSV
-        </button>
       </div>
 
       {selectedIds.size > 0 && (
@@ -469,14 +408,6 @@ export default function DashboardQuotesPage() {
           <span className="text-sm font-medium text-foreground">
             {selectedIds.size} selected
           </span>
-          <button
-            type="button"
-            onClick={() => exportCsv(true)}
-            className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted"
-          >
-            <FileDown className="h-4 w-4" />
-            Export selected
-          </button>
           {isSuperAdmin && (
             <button
               type="button"
@@ -509,10 +440,25 @@ export default function DashboardQuotesPage() {
 
       {quotes.length === 0 ? (
         <div className="rounded-xl border border-border bg-card p-12 text-center">
-          <p className="text-muted-foreground">No quotes yet. Quotes submitted through your tools will appear here.</p>
-          <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
-            Back to dashboard
-          </Link>
+          {effectiveLocationId ? (
+            <>
+              <p className="text-muted-foreground">
+                No quotes yet. Quotes from your tools (saved to the GoHighLevel Quote custom object) will appear here.
+              </p>
+              <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
+                Back to dashboard
+              </Link>
+            </>
+          ) : (
+            <>
+              <p className="text-muted-foreground">
+                Open CleanQuote from your GoHighLevel location (sub-account) to load quotes from the Quote custom object.
+              </p>
+              <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
+                Back to dashboard
+              </Link>
+            </>
+          )}
         </div>
       ) : (
         <>
