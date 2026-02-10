@@ -2,10 +2,28 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { Users, Loader2, TrendingUp, RefreshCw } from 'lucide-react';
+import {
+  DndContext,
+  type DragEndEvent,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+} from '@dnd-kit/core';
+import { Users, Loader2, TrendingUp, RefreshCw, GripVertical, ExternalLink, DollarSign } from 'lucide-react';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 import { useDashboardApi } from '@/lib/dashboard-api';
 import { getInstallUrlWithLocation } from '@/lib/ghl/oauth-utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 /** Install URL (opens in new tab): sets cookie then redirects to GHL install so callback gets correct locationId. */
 function getConnectInstallUrl(locationId: string | null): string {
@@ -70,6 +88,74 @@ interface Opportunity {
 
 const STAGES = ['lead', 'quoted', 'booked', 'customer', 'churned'] as const;
 
+/** Draggable opportunity card for Kanban */
+function DraggableOpportunityCard({
+  opportunity,
+  onOpenModal,
+}: {
+  opportunity: Opportunity;
+  onOpenModal: (o: Opportunity) => void;
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: opportunity.id,
+    data: { opportunity, stageId: opportunity.pipelineStageId },
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      onClick={() => onOpenModal(opportunity)}
+      className={`flex items-start gap-2 rounded-lg border border-border bg-card p-3 shadow-sm transition-colors cursor-grab active:cursor-grabbing hover:border-primary/40 hover:shadow-md ${isDragging ? 'opacity-80 shadow-lg ring-2 ring-primary/30' : ''}`}
+    >
+      <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p className="font-medium text-foreground truncate">{opportunity.name || 'Opportunity'}</p>
+        {opportunity.value != null && (
+          <p className="mt-0.5 text-xs text-muted-foreground flex items-center gap-1">
+            <DollarSign className="h-3 w-3" />
+            {Number(opportunity.value).toLocaleString()}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Droppable column for a pipeline stage */
+function DroppableStageColumn({
+  stage,
+  opportunities,
+  onOpenModal,
+}: {
+  stage: { id: string; name: string };
+  opportunities: Opportunity[];
+  onOpenModal: (o: Opportunity) => void;
+}) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: stage.id,
+    data: { stageId: stage.id },
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`rounded-xl border min-h-[120px] p-3 transition-colors ${
+        isOver ? 'border-primary bg-primary/5' : 'border-border bg-muted/30'
+      }`}
+    >
+      <h4 className="mb-3 font-semibold text-foreground truncate flex items-center gap-2" title={stage.name}>
+        {stage.name}
+        <span className="text-xs font-normal text-muted-foreground">({opportunities.length})</span>
+      </h4>
+      <div className="space-y-2">
+        {opportunities.map((o) => (
+          <DraggableOpportunityCard key={o.id} opportunity={o} onOpenModal={onOpenModal} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CRMDashboardPage() {
   const effectiveLocationId = useEffectiveLocationId();
   const { api } = useDashboardApi();
@@ -87,6 +173,9 @@ export default function CRMDashboardPage() {
   const [selectedPipelineId, setSelectedPipelineId] = useState<string | null>(null);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loadingOpportunities, setLoadingOpportunities] = useState(false);
+  const [modalOpportunity, setModalOpportunity] = useState<Opportunity | null>(null);
+  const [movingId, setMovingId] = useState<string | null>(null);
+  const dragJustEndedRef = useRef(false);
 
   const runVerify = useCallback(async () => {
     setTestingConnection(true);
@@ -125,9 +214,12 @@ export default function CRMDashboardPage() {
       .then(([statsRes, verifyRes, pipelinesRes, ...stageRes]) => {
         const statsData = statsRes as { needsConnect?: boolean; apiError?: boolean; error?: string } | null;
         const pipelinesData = pipelinesRes as { pipelines?: GHLPipeline[]; needsConnect?: boolean } | undefined;
+        const pipelineList = pipelinesData?.pipelines ?? [];
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'dashboard/crm/page.tsx:Promise.then', message: 'pipelines response on client', data: { pipelinesDataKeys: pipelinesData ? Object.keys(pipelinesData) : [], pipelineListLength: pipelineList?.length ?? 0, needsConnect: pipelinesData?.needsConnect }, timestamp: Date.now(), hypothesisId: 'H4' }) }).catch(() => {});
+        // #endregion
         setStats(statsRes ?? { counts: {}, total: 0, recentActivities: [] });
         setVerify(verifyRes);
-        const pipelineList = pipelinesData?.pipelines ?? [];
         setPipelines(pipelineList);
         setNeedsConnect(!!(statsData?.needsConnect ?? pipelinesData?.needsConnect));
         setSelectedPipelineId((prev) => prev || (pipelineList[0]?.id ?? null));
@@ -154,6 +246,79 @@ export default function CRMDashboardPage() {
       .catch(() => setOpportunities([]))
       .finally(() => setLoadingOpportunities(false));
   }, [effectiveLocationId, selectedPipelineId, api]);
+
+  const refetchOpportunities = useCallback(() => {
+    if (!effectiveLocationId || !selectedPipelineId || !api) return;
+    setLoadingOpportunities(true);
+    api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(selectedPipelineId)}&limit=100`)
+      .then((r) => (r.ok ? r.json() : { opportunities: [] }))
+      .then((data: { opportunities?: Opportunity[] }) => {
+        setOpportunities(Array.isArray(data?.opportunities) ? data.opportunities : []);
+      })
+      .catch(() => setOpportunities([]))
+      .finally(() => setLoadingOpportunities(false));
+  }, [effectiveLocationId, selectedPipelineId, api]);
+
+  const handleDragStart = useCallback(() => {
+    dragJustEndedRef.current = false;
+  }, []);
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      dragJustEndedRef.current = true;
+      setTimeout(() => {
+        dragJustEndedRef.current = false;
+      }, 150);
+      if (!over || active.id === over.id) {
+        setMovingId(null);
+        return;
+      }
+      const opportunityId = active.id as string;
+      const stages = pipelines.find((p) => p.id === selectedPipelineId)?.stages ?? [];
+      const stageIds = new Set(stages.map((s) => s.id));
+      let newStageId: string | null = null;
+      if (stageIds.has(over.id as string)) {
+        newStageId = over.id as string;
+      } else {
+        const droppedOnOpp = opportunities.find((o) => o.id === over.id);
+        newStageId = droppedOnOpp?.pipelineStageId ?? null;
+      }
+      const opp = opportunities.find((o) => o.id === opportunityId);
+      if (!opp || !newStageId || opp.pipelineStageId === newStageId) {
+        setMovingId(null);
+        return;
+      }
+      setMovingId(opportunityId);
+      api(`/api/dashboard/crm/opportunities/${encodeURIComponent(opportunityId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pipelineStageId: newStageId }),
+      })
+        .then((r) => {
+          if (r.ok) {
+            setOpportunities((prev) =>
+              prev.map((o) =>
+                o.id === opportunityId ? { ...o, pipelineStageId: newStageId } : o
+              )
+            );
+          } else {
+            refetchOpportunities();
+          }
+        })
+        .catch(() => refetchOpportunities())
+        .finally(() => setMovingId(null));
+    },
+    [opportunities, pipelines, selectedPipelineId, api, refetchOpportunities]
+  );
+  const openModalIfNotDrag = useCallback((o: Opportunity) => {
+    if (dragJustEndedRef.current) return;
+    setModalOpportunity(o);
+  }, []);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor)
+  );
 
   if (loading) {
     return (
@@ -332,39 +497,31 @@ export default function CRMDashboardPage() {
               });
               return (
                 <div className="mt-6">
-                  <h3 className="mb-3 font-medium text-foreground">{selectedPipeline?.name ?? 'Pipeline'}</h3>
-                  <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-                    {stages.length ? (
-                      stages.map((stage) => (
-                        <div
-                          key={stage.id}
-                          className="rounded-xl border border-border bg-muted/30 p-3"
-                        >
-                          <h4 className="mb-3 font-semibold text-foreground truncate" title={stage.name}>
-                            {stage.name}
-                          </h4>
-                          <div className="space-y-2">
-                            {(byStage[stage.id] ?? []).map((o) => (
-                              <Link
-                                key={o.id}
-                                href={`/dashboard/crm/contacts/${o.contactId}`}
-                                className="block rounded-lg border border-border bg-card p-3 shadow-sm hover:border-primary/40 transition-colors"
-                              >
-                                <p className="font-medium text-foreground truncate">{o.name || 'Opportunity'}</p>
-                                {o.value != null && (
-                                  <p className="mt-0.5 text-xs text-muted-foreground">
-                                    ${Number(o.value).toLocaleString()}
-                                  </p>
-                                )}
-                              </Link>
-                            ))}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No stages in this pipeline.</p>
+                  <div className="flex items-center justify-between gap-4 mb-3">
+                    <h3 className="font-medium text-foreground">{selectedPipeline?.name ?? 'Pipeline'}</h3>
+                    {loadingOpportunities && (
+                      <span className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Updating…
+                      </span>
                     )}
                   </div>
+                  {stages.length ? (
+                    <DndContext sensors={sensors} onDragEnd={handleDragEnd} onDragStart={handleDragStart}>
+                      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                        {stages.map((stage) => (
+                          <DroppableStageColumn
+                            key={stage.id}
+                            stage={stage}
+                            opportunities={byStage[stage.id] ?? []}
+                            onOpenModal={openModalIfNotDrag}
+                          />
+                        ))}
+                      </div>
+                    </DndContext>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No stages in this pipeline.</p>
+                  )}
                 </div>
               );
             })()}
@@ -424,6 +581,42 @@ export default function CRMDashboardPage() {
           </ul>
         </div>
       )}
+
+      {/* Opportunity detail modal */}
+      <Dialog open={!!modalOpportunity} onOpenChange={(open) => !open && setModalOpportunity(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{modalOpportunity?.name || 'Opportunity'}</DialogTitle>
+            <DialogDescription>
+              View contact and details in CRM.
+            </DialogDescription>
+          </DialogHeader>
+          {modalOpportunity && (
+            <div className="space-y-4 py-2">
+              {modalOpportunity.value != null && (
+                <p className="flex items-center gap-2 text-sm">
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">${Number(modalOpportunity.value).toLocaleString()}</span>
+                </p>
+              )}
+              <p className="text-sm text-muted-foreground">
+                Status: <span className="capitalize">{modalOpportunity.status}</span>
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            {modalOpportunity && (
+              <Link
+                href={`/dashboard/crm/contacts/${modalOpportunity.contactId}`}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                <ExternalLink className="h-4 w-4" />
+                View contact
+              </Link>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

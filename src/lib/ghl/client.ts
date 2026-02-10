@@ -1971,6 +1971,12 @@ export async function listGHLPipelines(
     undefined,
     credentials
   );
+  // #region agent log
+  const resKeys = res && typeof res === 'object' ? Object.keys(res as object) : [];
+  const fromPipelines = Array.isArray((res as any)?.pipelines) ? (res as any).pipelines.length : 0;
+  const fromData = Array.isArray((res as any)?.data) ? (res as any).data.length : 0;
+  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'lib/ghl/client.ts:listGHLPipelines', message: 'GHL pipelines raw response', data: { responseKeys: resKeys, pipelinesLength: fromPipelines, dataLength: fromData }, timestamp: Date.now(), hypothesisId: 'H1-H5' }) }).catch(() => {});
+  // #endregion
   const pipelines = res?.pipelines ?? res?.data ?? [];
   return Array.isArray(pipelines) ? pipelines : [];
 }
@@ -2009,6 +2015,31 @@ export async function searchGHLOpportunities(
   const list = Array.isArray(opportunities) ? opportunities : [];
   const total = (res as { meta?: { total?: number } })?.meta?.total;
   return { opportunities: list, total };
+}
+
+/**
+ * Update an opportunity (e.g. move to another pipeline stage).
+ * PUT /opportunities/:id
+ * @see https://marketplace.gohighlevel.com/docs/ghl/opportunities/update-opportunity
+ */
+export async function updateGHLOpportunity(
+  opportunityId: string,
+  payload: { pipelineStageId?: string; name?: string; monetaryValue?: number; status?: string },
+  locationId?: string,
+  credentials?: GHLCredentials | null
+): Promise<GHLOpportunityResponse> {
+  const body: Record<string, unknown> = { ...payload };
+  if (locationId) body.locationId = locationId;
+  const res = await makeGHLRequest<{ opportunity?: GHLOpportunityResponse } | GHLOpportunityResponse>(
+    `/opportunities/${encodeURIComponent(opportunityId)}`,
+    'PUT',
+    body as Record<string, any>,
+    undefined,
+    undefined,
+    credentials
+  );
+  const opportunity = (res as { opportunity?: GHLOpportunityResponse })?.opportunity ?? res;
+  return opportunity as GHLOpportunityResponse;
 }
 
 /**
