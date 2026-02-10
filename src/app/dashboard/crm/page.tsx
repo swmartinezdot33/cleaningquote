@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { Users, Loader2, TrendingUp, CheckCircle, RefreshCw } from 'lucide-react';
+import { Users, Loader2, TrendingUp, RefreshCw } from 'lucide-react';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 import { useDashboardApi } from '@/lib/dashboard-api';
 import { getInstallUrlWithLocation } from '@/lib/ghl/oauth-utils';
@@ -57,6 +57,17 @@ interface GHLPipeline {
   stages: Array<{ id: string; name: string }>;
 }
 
+/** Opportunity from GET /opportunities/search */
+interface Opportunity {
+  id: string;
+  contactId: string;
+  name: string;
+  value?: number;
+  status: string;
+  pipelineId?: string;
+  pipelineStageId?: string;
+}
+
 const STAGES = ['lead', 'quoted', 'booked', 'customer', 'churned'] as const;
 
 export default function CRMDashboardPage() {
@@ -73,6 +84,9 @@ export default function CRMDashboardPage() {
   const [testingConnection, setTestingConnection] = useState(false);
   const [retryTrigger, setRetryTrigger] = useState(0);
   const statusRef = useRef<HTMLParagraphElement | null>(null);
+  const [selectedPipelineId, setSelectedPipelineId] = useState<string | null>(null);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [loadingOpportunities, setLoadingOpportunities] = useState(false);
 
   const runVerify = useCallback(async () => {
     setTestingConnection(true);
@@ -113,8 +127,10 @@ export default function CRMDashboardPage() {
         const pipelinesData = pipelinesRes as { pipelines?: GHLPipeline[]; needsConnect?: boolean } | undefined;
         setStats(statsRes ?? { counts: {}, total: 0, recentActivities: [] });
         setVerify(verifyRes);
-        setPipelines(pipelinesData?.pipelines ?? []);
+        const pipelineList = pipelinesData?.pipelines ?? [];
+        setPipelines(pipelineList);
         setNeedsConnect(!!(statsData?.needsConnect ?? pipelinesData?.needsConnect));
+        setSelectedPipelineId((prev) => prev || (pipelineList[0]?.id ?? null));
         setApiError(statsData?.apiError && statsData?.error ? statsData.error : null);
         const byStage: Record<string, Contact[]> = {};
         STAGES.forEach((s, i) => {
@@ -125,6 +141,19 @@ export default function CRMDashboardPage() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [effectiveLocationId, api, retryTrigger]);
+
+  // Fetch opportunities for the selected pipeline
+  useEffect(() => {
+    if (!effectiveLocationId || !selectedPipelineId || !api) return;
+    setLoadingOpportunities(true);
+    api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(selectedPipelineId)}&limit=100`)
+      .then((r) => (r.ok ? r.json() : { opportunities: [] }))
+      .then((data: { opportunities?: Opportunity[] }) => {
+        setOpportunities(Array.isArray(data?.opportunities) ? data.opportunities : []);
+      })
+      .catch(() => setOpportunities([]))
+      .finally(() => setLoadingOpportunities(false));
+  }, [effectiveLocationId, selectedPipelineId, api]);
 
   if (loading) {
     return (
@@ -247,28 +276,6 @@ export default function CRMDashboardPage() {
           </div>
         </div>
       )}
-      {/* Connection status: we have locationId + token and GHL API works */}
-      {verify?.ok && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-800 dark:text-green-200">
-          <span className="inline-flex items-center gap-2 font-medium">
-            <CheckCircle className="h-5 w-5" />
-            {verify.companyName ? (
-              <>Connected: {verify.companyName} — location and token verified, GHL API OK</>
-            ) : (
-              <>Connected: location and token verified, GHL API OK</>
-            )}
-          </span>
-          <button
-            type="button"
-            onClick={runVerify}
-            disabled={testingConnection}
-            className="inline-flex items-center gap-1.5 rounded border border-green-600/50 px-2.5 py-1 text-xs hover:bg-green-500/20 disabled:opacity-50"
-          >
-            {testingConnection ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            Test again
-          </button>
-        </div>
-      )}
 
       <div>
         <h1 className="text-2xl font-bold text-foreground">Leads</h1>
@@ -277,41 +284,103 @@ export default function CRMDashboardPage() {
         </p>
       </div>
 
-      {/* GHL Pipelines from location */}
-      {pipelines.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-4">
-          <h2 className="text-lg font-semibold text-foreground">Your GHL leads</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Opportunity leads for this location (from GoHighLevel)
-          </p>
-          <div className="mt-4 space-y-4">
-            {pipelines.map((pipeline) => (
-              <div
-                key={pipeline.id}
-                className="rounded-lg border border-border bg-muted/30 p-3"
+      {/* Pipeline selector + GHL opportunities Kanban */}
+      <div className="rounded-xl border border-border bg-card p-4">
+        <h2 className="text-lg font-semibold text-foreground">Your GHL leads</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Opportunity leads for this location (from GoHighLevel). Select a pipeline to view opportunities by stage.
+        </p>
+        {pipelines.length > 0 ? (
+          <>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <label htmlFor="pipeline-select" className="text-sm font-medium text-foreground">
+                Pipeline
+              </label>
+              <select
+                id="pipeline-select"
+                value={selectedPipelineId ?? ''}
+                onChange={(e) => setSelectedPipelineId(e.target.value || null)}
+                className="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 min-w-[200px]"
               >
-                <p className="font-medium text-foreground">{pipeline.name}</p>
-                {pipeline.stages?.length ? (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {pipeline.stages.map((stage) => (
-                      <span
-                        key={stage.id}
-                        className="inline-flex rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground"
-                      >
-                        {stage.name}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-2 text-xs text-muted-foreground">No stages</p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+                <option value="">Select a pipeline</option>
+                {pipelines.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              {selectedPipelineId && (
+                <span className="text-sm text-muted-foreground">
+                  {loadingOpportunities ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Loading…
+                    </span>
+                  ) : (
+                    <span>{opportunities.length} opportunity{opportunities.length !== 1 ? 'ies' : ''}</span>
+                  )}
+                </span>
+              )}
+            </div>
 
-      {/* Quick stats */}
+            {selectedPipelineId && (() => {
+              const selectedPipeline = pipelines.find((p) => p.id === selectedPipelineId);
+              const stages = selectedPipeline?.stages ?? [];
+              const byStage: Record<string, Opportunity[]> = {};
+              stages.forEach((s) => {
+                byStage[s.id] = opportunities.filter((o) => o.pipelineStageId === s.id);
+              });
+              return (
+                <div className="mt-6">
+                  <h3 className="mb-3 font-medium text-foreground">{selectedPipeline?.name ?? 'Pipeline'}</h3>
+                  <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                    {stages.length ? (
+                      stages.map((stage) => (
+                        <div
+                          key={stage.id}
+                          className="rounded-xl border border-border bg-muted/30 p-3"
+                        >
+                          <h4 className="mb-3 font-semibold text-foreground truncate" title={stage.name}>
+                            {stage.name}
+                          </h4>
+                          <div className="space-y-2">
+                            {(byStage[stage.id] ?? []).map((o) => (
+                              <Link
+                                key={o.id}
+                                href={`/dashboard/crm/contacts/${o.contactId}`}
+                                className="block rounded-lg border border-border bg-card p-3 shadow-sm hover:border-primary/40 transition-colors"
+                              >
+                                <p className="font-medium text-foreground truncate">{o.name || 'Opportunity'}</p>
+                                {o.value != null && (
+                                  <p className="mt-0.5 text-xs text-muted-foreground">
+                                    ${Number(o.value).toLocaleString()}
+                                  </p>
+                                )}
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No stages in this pipeline.</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {selectedPipelineId && !loadingOpportunities && opportunities.length === 0 && (
+              <p className="mt-4 text-sm text-muted-foreground">
+                No open opportunities in this pipeline. Create opportunities in GoHighLevel to see them here.
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="mt-4 text-sm text-muted-foreground">No pipelines found for this location.</p>
+        )}
+      </div>
+
+      {/* Quick stats (contact overview) */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-2">
@@ -327,34 +396,6 @@ export default function CRMDashboardPage() {
               <span className="text-sm font-medium text-muted-foreground capitalize">{stage}</span>
             </div>
             <p className="mt-2 text-2xl font-bold">{stats?.counts?.[stage] ?? 0}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Leads Kanban */}
-      <div className="grid gap-4 lg:grid-cols-5">
-        {STAGES.map((stage) => (
-          <div
-            key={stage}
-            className="rounded-xl border border-border bg-muted/30 p-3"
-          >
-            <h3 className="mb-3 font-semibold capitalize text-foreground">{stage}</h3>
-            <div className="space-y-2">
-              {(contactsByStage[stage] ?? []).map((c) => (
-                <Link
-                  key={c.id}
-                  href={`/dashboard/crm/contacts/${c.id}`}
-                  className="block rounded-lg border border-border bg-card p-3 shadow-sm hover:border-primary/40 transition-colors"
-                >
-                  <p className="font-medium text-foreground truncate">
-                    {[c.first_name, c.last_name].filter(Boolean).join(' ') || c.email || 'Unknown'}
-                  </p>
-                  {c.email && (
-                    <p className="mt-0.5 text-xs text-muted-foreground truncate">{c.email}</p>
-                  )}
-                </Link>
-              ))}
-            </div>
           </div>
         ))}
       </div>

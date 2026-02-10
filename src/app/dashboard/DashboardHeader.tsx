@@ -3,8 +3,16 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { OrgSwitcher } from '@/components/OrgSwitcher';
 import { Menu, Settings, X } from 'lucide-react';
+
+function isNavActive(href: string, pathname: string): boolean {
+  const clean = pathname.replace(/\/$/, '') || '/';
+  const base = href.replace(/\/$/, '') || '/';
+  if (base === '/dashboard') return clean === '/dashboard';
+  return clean === base || clean.startsWith(base + '/');
+}
 
 interface Org {
   id: string;
@@ -52,6 +60,16 @@ export function DashboardHeader({
   }, [mobileMenuOpen]);
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
+  const pathname = usePathname() ?? '';
+
+  const navLinkClass = (href: string) => {
+    const active = isNavActive(href, pathname);
+    return `text-sm font-medium border-b-2 py-3.5 px-0.5 -mb-px transition-colors ${
+      active
+        ? 'text-purple-600 border-purple-600'
+        : 'text-muted-foreground border-transparent hover:text-foreground hover:border-border'
+    }`;
+  };
 
   const navLinks = (
     <>
@@ -63,14 +81,18 @@ export function DashboardHeader({
           <Link
             href="/dashboard/super-admin"
             onClick={closeMobileMenu}
-            className="text-sm font-medium text-amber-600 hover:text-amber-700 hover:underline"
+            className={`text-sm font-medium border-b-2 py-3.5 px-0.5 -mb-px ${
+              isNavActive('/dashboard/super-admin', pathname)
+                ? 'text-amber-600 border-amber-600'
+                : 'text-muted-foreground border-transparent hover:text-amber-700 hover:border-border'
+            }`}
           >
             Super Admin
           </Link>
           <Link
             href="/dashboard/super-admin/inbox"
             onClick={closeMobileMenu}
-            className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+            className={navLinkClass('/dashboard/super-admin/inbox')}
           >
             Inbox
           </Link>
@@ -79,49 +101,49 @@ export function DashboardHeader({
       <Link
         href="/dashboard"
         onClick={closeMobileMenu}
-        className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+        className={navLinkClass('/dashboard')}
       >
         Dashboard
       </Link>
       <Link
         href="/dashboard/quotes"
         onClick={closeMobileMenu}
-        className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+        className={navLinkClass('/dashboard/quotes')}
       >
         Quotes
       </Link>
       <Link
         href="/dashboard/crm"
         onClick={closeMobileMenu}
-        className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+        className={navLinkClass('/dashboard/crm')}
       >
         Leads
       </Link>
       <Link
         href="/dashboard/crm/contacts"
         onClick={closeMobileMenu}
-        className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+        className={navLinkClass('/dashboard/crm/contacts')}
       >
         Contacts
       </Link>
       <Link
         href="/dashboard/tools"
         onClick={closeMobileMenu}
-        className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+        className={navLinkClass('/dashboard/tools')}
       >
         Tools
       </Link>
       <Link
         href="/dashboard/service-areas"
         onClick={closeMobileMenu}
-        className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+        className={navLinkClass('/dashboard/service-areas')}
       >
         Service Areas
       </Link>
       <Link
         href="/dashboard/pricing-structures"
         onClick={closeMobileMenu}
-        className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+        className={navLinkClass('/dashboard/pricing-structures')}
       >
         Pricing
       </Link>
@@ -129,7 +151,11 @@ export function DashboardHeader({
         <Link
           href="/dashboard/settings"
           onClick={closeMobileMenu}
-          className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline p-1.5 -m-1.5 rounded-md"
+          className={`text-sm font-medium border-b-2 py-3.5 px-1 -mb-px rounded-md ${
+            isNavActive('/dashboard/settings', pathname)
+              ? 'text-purple-600 border-purple-600'
+              : 'text-muted-foreground border-transparent hover:text-foreground hover:border-border'
+          }`}
           aria-label="Settings"
         >
           <Settings className="h-5 w-5" />

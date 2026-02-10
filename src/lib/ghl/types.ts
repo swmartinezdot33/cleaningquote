@@ -59,6 +59,14 @@ export interface GHLOpportunityResponse {
   name: string;
   value?: number;
   status: string;
+  pipelineId?: string;
+  pipelineStageId?: string;
+}
+
+/** Opportunity item returned from GET /opportunities/search */
+export interface GHLOpportunitySearchItem extends GHLOpportunityResponse {
+  pipelineId?: string;
+  pipelineStageId?: string;
 }
 
 export interface GHLNote {

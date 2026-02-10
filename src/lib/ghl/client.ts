@@ -11,6 +11,7 @@ import {
   GHLContactResponse,
   GHLOpportunity,
   GHLOpportunityResponse,
+  GHLOpportunitySearchItem,
   GHLNote,
   GHLNoteResponse,
   GHLAppointment,
@@ -1972,6 +1973,42 @@ export async function listGHLPipelines(
   );
   const pipelines = res?.pipelines ?? res?.data ?? [];
   return Array.isArray(pipelines) ? pipelines : [];
+}
+
+/**
+ * Search opportunities for a location, optionally filtered by pipeline.
+ * GET /opportunities/search?locationId=...&pipeline_id=...&limit=...
+ * @see https://marketplace.gohighlevel.com/docs/ghl/opportunities/search-opportunity
+ */
+export async function searchGHLOpportunities(
+  locationId: string,
+  options: { pipelineId?: string; limit?: number; status?: string } = {},
+  credentials?: GHLCredentials | null
+): Promise<{ opportunities: GHLOpportunitySearchItem[]; total?: number }> {
+  const limit = Math.min(100, Math.max(1, options.limit ?? 50));
+  const params = new URLSearchParams({
+    locationId,
+    limit: String(limit),
+  });
+  if (options.pipelineId) params.set('pipeline_id', options.pipelineId);
+  if (options.status) params.set('status', options.status);
+  const res = await makeGHLRequest<{
+    opportunities?: GHLOpportunitySearchItem[];
+    data?: GHLOpportunitySearchItem[];
+    meta?: { total?: number };
+  }>(
+    `/opportunities/search?${params}`,
+    'GET',
+    undefined,
+    undefined,
+    undefined,
+    credentials
+  );
+  const opportunities =
+    res?.opportunities ?? res?.data ?? (Array.isArray(res) ? res : []);
+  const list = Array.isArray(opportunities) ? opportunities : [];
+  const total = (res as { meta?: { total?: number } })?.meta?.total;
+  return { opportunities: list, total };
 }
 
 /**
