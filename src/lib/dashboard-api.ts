@@ -1,8 +1,16 @@
 'use client';
 
 /**
- * Dashboard API helpers — ensure every request sends locationId so the backend
- * can resolve token from KV (getOrFetchTokenForLocation) and fill the UI with GHL data.
+ * Dashboard API helpers — user-context rule:
+ *
+ * 1. Every dashboard page must rely on user context: effectiveLocationId from
+ *    postMessage (iframe) or URL/session. Use useEffectiveLocationId() or useDashboardApi().
+ * 2. Every call to /api/dashboard/* must send that locationId (header + query) via
+ *    dashboardApiFetch / useDashboardApi() so the backend uses the same context and
+ *    can look up auth in KV for that location when needed.
+ * 3. Do not use raw fetch() for dashboard API routes — use api() from useDashboardApi()
+ *    so locationId and credentials are always attached.
+ *
  * See GHL_IFRAME_APP_AUTH.md (UI ↔ GHL id + token flow).
  */
 

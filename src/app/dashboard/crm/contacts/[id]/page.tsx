@@ -14,7 +14,7 @@ import {
   Tag,
   ChevronLeft,
 } from 'lucide-react';
-import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
+import { useDashboardApi } from '@/lib/dashboard-api';
 import { getVisibleDisplayFields } from '@/lib/crm/contact-display-fields';
 
 interface ContactDetail {
@@ -96,7 +96,7 @@ export default function ContactDetailPage({
 }: {
   params: { id: string } | Promise<{ id: string }>;
 }) {
-  const effectiveLocationId = useEffectiveLocationId();
+  const { api } = useDashboardApi();
   const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(null);
   const [data, setData] = useState<ContactDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -113,39 +113,26 @@ export default function ContactDetailPage({
   }, [params]);
 
   useEffect(() => {
-    if (!resolvedParams?.id) return;
-
-    const url = effectiveLocationId
-      ? `/api/dashboard/crm/contacts/${resolvedParams.id}?locationId=${effectiveLocationId}`
-      : `/api/dashboard/crm/contacts/${resolvedParams.id}`;
-    fetch(url)
+    if (!resolvedParams?.id || !api) return;
+    api(`/api/dashboard/crm/contacts/${resolvedParams.id}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Not found'))))
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [resolvedParams?.id, effectiveLocationId]);
+  }, [resolvedParams?.id, api]);
 
   const addNote = () => {
-    if (!noteContent.trim() || !resolvedParams?.id) return;
+    if (!noteContent.trim() || !resolvedParams?.id || !api) return;
     setAddingNote(true);
-    const notesUrl = effectiveLocationId
-      ? `/api/dashboard/crm/contacts/${resolvedParams.id}/notes?locationId=${effectiveLocationId}`
-      : `/api/dashboard/crm/contacts/${resolvedParams.id}/notes`;
-    const body = effectiveLocationId
-      ? { content: noteContent.trim(), locationId: effectiveLocationId }
-      : { content: noteContent.trim() };
-    fetch(notesUrl, {
+    api(`/api/dashboard/crm/contacts/${resolvedParams.id}/notes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ content: noteContent.trim() }),
     })
       .then((r) => {
         if (r.ok) {
           setNoteContent('');
-          const detailUrl = effectiveLocationId
-            ? `/api/dashboard/crm/contacts/${resolvedParams.id}?locationId=${effectiveLocationId}`
-            : `/api/dashboard/crm/contacts/${resolvedParams.id}`;
-          return fetch(detailUrl).then((x) => x.json());
+          return api(`/api/dashboard/crm/contacts/${resolvedParams.id}`).then((x) => x.json());
         }
         throw new Error('Failed to add note');
       })

@@ -8,11 +8,13 @@ import ToolSettingsClient from './settings/ToolSettingsClient';
 import ToolSurveyClient from './survey/ToolSurveyClient';
 import { ExternalLink, Copy, Check, Loader2, Pencil, CodeXml, BookOpen, X } from 'lucide-react';
 import { CloneToolButton } from '@/components/CloneToolButton';
+import { useDashboardApi } from '@/lib/dashboard-api';
 
 type TabId = 'overview' | 'survey' | 'settings';
 
 export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?: string | null }) {
   const router = useRouter();
+  const { api } = useDashboardApi();
   const [tab, setTab] = useState<TabId>('overview');
   const toolId = tool.id;
   const [publicBaseUrls, setPublicBaseUrls] = useState<string[]>([]);
@@ -54,7 +56,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/dashboard/tools/${toolId}/form-settings`);
+        const res = await api(`/api/dashboard/tools/${toolId}/form-settings`);
         if (!res.ok || cancelled) return;
         const data = await res.json();
         const urls = Array.isArray(data.formSettings?.publicBaseUrls) ? data.formSettings.publicBaseUrls : [];
@@ -72,7 +74,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
       }
     })();
     return () => { cancelled = true; };
-  }, [tab, toolId]);
+  }, [tab, toolId, api]);
 
   // Unambiguous org-scoped paths (recommended): quotes always associate to this org even if another org reuses this tool slug
   const surveyPathOrgScoped = orgSlug ? `/t/${orgSlug}/${tool.slug}` : null;
@@ -109,7 +111,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
     }
     setSavingName(true);
     try {
-      const res = await fetch(`/api/dashboard/tools/${toolId}`, {
+      const res = await api(`/api/dashboard/tools/${toolId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: raw }),
@@ -137,7 +139,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
     }
     setSavingSlug(true);
     try {
-      const res = await fetch(`/api/dashboard/tools/${toolId}`, {
+      const res = await api(`/api/dashboard/tools/${toolId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slug: raw }),
@@ -182,7 +184,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
     }
     setSavingBaseUrl(true);
     try {
-      const res = await fetch(`/api/dashboard/tools/${toolId}/form-settings`, {
+      const res = await api(`/api/dashboard/tools/${toolId}/form-settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ addBaseUrl: trimmed }),
@@ -208,7 +210,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
     setBaseUrlMessage(null);
     setRemovingUrl(url);
     try {
-      const res = await fetch(`/api/dashboard/tools/${toolId}/form-settings`, {
+      const res = await api(`/api/dashboard/tools/${toolId}/form-settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ removeBaseUrl: url }),
@@ -237,7 +239,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
     setVerifyResult(null);
     setVerifyingDomain(true);
     try {
-      const res = await fetch(`/api/dashboard/tools/${toolId}/verify-domain`, { method: 'POST' });
+      const res = await api(`/api/dashboard/tools/${toolId}/verify-domain`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) {
         setVerifyResult({ verified: false, message: data.error || 'Verification failed' });

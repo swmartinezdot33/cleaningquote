@@ -19,8 +19,10 @@ export type GHLContextResult =
 
 /**
  * Resolve locationId + location token for dashboard API calls.
- * LocationId: header, then query, then session; if none, GET /locations/search or GET /oauth/installedLocations.
- * Token: KV only via getOrFetchTokenForLocation(locationId). No agency fallback; if KV has no install, returns needsConnect.
+ * Single source of truth for "is this location authed in KV?" — use this for any route that calls GHL API.
+ * - LocationId: header (x-ghl-location-id), then query (locationId), then session; if none, search/installedLocations.
+ * - Client must send user context (effectiveLocationId) via useDashboardApi() so header/query are set.
+ * - Token: KV only via getOrFetchTokenForLocation(locationId). No agency fallback; if KV has no install, returns needsConnect.
  */
 export async function resolveGHLContext(request: NextRequest): Promise<GHLContextResult> {
   try {

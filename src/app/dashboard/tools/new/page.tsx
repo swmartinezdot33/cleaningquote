@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { slugToSafe } from '@/lib/supabase/tools';
+import { useDashboardApi } from '@/lib/dashboard-api';
 
 export default function NewToolPage() {
   const router = useRouter();
+  const { api } = useDashboardApi();
   const [orgId, setOrgId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
@@ -14,11 +16,12 @@ export default function NewToolPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch('/api/dashboard/orgs/selected')
+    if (!api) return;
+    api('/api/dashboard/orgs/selected')
       .then((r) => r.json())
       .then((d) => setOrgId(d.org?.id ?? null))
       .catch(() => {});
-  }, []);
+  }, [api]);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value;
@@ -44,7 +47,7 @@ export default function NewToolPage() {
         setLoading(false);
         return;
       }
-      const res = await fetch('/api/dashboard/tools', {
+      const res = await api('/api/dashboard/tools', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useDashboardApi } from '@/lib/dashboard-api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,7 @@ function GhlHelpIcon({ anchor }: { anchor: string }) {
 }
 
 export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: string; toolSlug?: string }) {
+  const { api } = useDashboardApi();
   const [widget, setWidget] = useState({ title: '', subtitle: '', primaryColor: '#7c3aed' });
   const [form, setForm] = useState<Record<string, string>>({});
   const [ghlStatus, setGhlStatus] = useState<{ configured: boolean; connected?: boolean; locationId?: string } | null>(null);
@@ -120,11 +122,11 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
     const load = async () => {
       try {
         const [wRes, fRes, ghlRes, trackRes, configRes] = await Promise.all([
-          fetch(`/api/dashboard/tools/${toolId}/widget-settings`),
-          fetch(`/api/dashboard/tools/${toolId}/form-settings`),
-          fetch(`/api/dashboard/tools/${toolId}/ghl-settings`),
-          fetch(`/api/dashboard/tools/${toolId}/tracking-codes`),
-          fetch(`/api/dashboard/tools/${toolId}/ghl-config`),
+          api(`/api/dashboard/tools/${toolId}/widget-settings`),
+          api(`/api/dashboard/tools/${toolId}/form-settings`),
+          api(`/api/dashboard/tools/${toolId}/ghl-settings`),
+          api(`/api/dashboard/tools/${toolId}/tracking-codes`),
+          api(`/api/dashboard/tools/${toolId}/ghl-config`),
         ]);
         if (wRes.ok) {
           const w = await wRes.json();
@@ -148,16 +150,16 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
           const { config } = await configRes.json();
           if (config) setGhlConfig((prev) => ({ ...prev, ...config }));
         }
-        const toolRes = await fetch(`/api/dashboard/tools/${toolId}`);
+        const toolRes = await api(`/api/dashboard/tools/${toolId}`);
         if (toolRes.ok) {
           const { tool: toolData } = await toolRes.json();
           const oid = toolData?.org_id;
           if (oid) {
             setOrgId(oid);
             const [areasRes, assignRes, pricingRes] = await Promise.all([
-              fetch(`/api/dashboard/orgs/${oid}/service-areas`),
-              fetch(`/api/dashboard/tools/${toolId}/service-area-assignments`),
-              fetch(`/api/dashboard/tools/${toolId}/pricing-structures`),
+              api(`/api/dashboard/orgs/${oid}/service-areas`),
+              api(`/api/dashboard/tools/${toolId}/service-area-assignments`),
+              api(`/api/dashboard/tools/${toolId}/pricing-structures`),
             ]);
             if (areasRes.ok) {
               const areasData = await areasRes.json();
@@ -181,7 +183,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
       }
     };
     load();
-  }, [toolId]);
+  }, [toolId, api]);
 
   useEffect(() => {
     if (!ghlStatus?.connected) return;
@@ -189,11 +191,11 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
       setLoadingGhlLists(true);
       try {
         const [pipeRes, usrRes, calRes, tagRes, fieldsRes] = await Promise.all([
-          fetch(`/api/dashboard/tools/${toolId}/ghl-pipelines`),
-          fetch(`/api/dashboard/tools/${toolId}/ghl-users`),
-          fetch(`/api/dashboard/tools/${toolId}/ghl-calendars`),
-          fetch(`/api/dashboard/tools/${toolId}/ghl-tags`),
-          fetch(`/api/dashboard/tools/${toolId}/ghl-custom-fields`),
+          api(`/api/dashboard/tools/${toolId}/ghl-pipelines`),
+          api(`/api/dashboard/tools/${toolId}/ghl-users`),
+          api(`/api/dashboard/tools/${toolId}/ghl-calendars`),
+          api(`/api/dashboard/tools/${toolId}/ghl-tags`),
+          api(`/api/dashboard/tools/${toolId}/ghl-custom-fields`),
         ]);
         if (pipeRes.ok) {
           const d = await pipeRes.json();
@@ -220,7 +222,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
       }
     };
     loadLists();
-  }, [toolId, ghlStatus?.connected]);
+  }, [toolId, ghlStatus?.connected, api]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -236,7 +238,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
     setSavingSection('widget');
     clearMessage('widget');
     try {
-      const res = await fetch(`/api/dashboard/tools/${toolId}/widget-settings`, {
+      const res = await api(`/api/dashboard/tools/${toolId}/widget-settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(widget),
@@ -269,7 +271,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
     setSavingSection('form');
     clearMessage('form');
     try {
-      const res = await fetch(`/api/dashboard/tools/${toolId}/form-settings`, {
+      const res = await api(`/api/dashboard/tools/${toolId}/form-settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -291,7 +293,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
     setSavingSection('tracking');
     clearMessage('tracking');
     try {
-      const res = await fetch(`/api/dashboard/tools/${toolId}/tracking-codes`, {
+      const res = await api(`/api/dashboard/tools/${toolId}/tracking-codes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -318,12 +320,12 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
     clearMessage('form-tracking');
     try {
       const [formRes, trackingRes] = await Promise.all([
-        fetch(`/api/dashboard/tools/${toolId}/form-settings`, {
+        api(`/api/dashboard/tools/${toolId}/form-settings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(form),
         }),
-        fetch(`/api/dashboard/tools/${toolId}/tracking-codes`, {
+        api(`/api/dashboard/tools/${toolId}/tracking-codes`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -353,7 +355,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
     setSavingSection('ghl-config');
     clearMessage('ghl-config');
     try {
-      const res = await fetch(`/api/dashboard/tools/${toolId}/ghl-config`, {
+      const res = await api(`/api/dashboard/tools/${toolId}/ghl-config`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(ghlConfig),
@@ -361,7 +363,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
       const data = await res.json();
       if (res.ok) {
         // Also persist form (e.g. internalToolOnly) when saving from Advanced Config
-        const formRes = await fetch(`/api/dashboard/tools/${toolId}/form-settings`, {
+        const formRes = await api(`/api/dashboard/tools/${toolId}/form-settings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(form),
@@ -389,7 +391,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
         serviceAreaId,
         pricingStructureId: null as string | null,
       }));
-      const res = await fetch(`/api/dashboard/tools/${toolId}/service-area-assignments`, {
+      const res = await api(`/api/dashboard/tools/${toolId}/service-area-assignments`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assignments }),
@@ -399,7 +401,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
         setSectionMessage({ card: 'service-area', type: 'error', text: data.error ?? 'Failed to save assignments' });
         return;
       }
-      const formRes = await fetch(`/api/dashboard/tools/${toolId}/form-settings`, {
+      const formRes = await api(`/api/dashboard/tools/${toolId}/form-settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -420,7 +422,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
     setSavingSection('pricing-structure');
     clearMessage('pricing-structure');
     try {
-      const res = await fetch(`/api/dashboard/tools/${toolId}/pricing-structures`, {
+      const res = await api(`/api/dashboard/tools/${toolId}/pricing-structures`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pricingStructureId: selectedPricingStructureId || null }),

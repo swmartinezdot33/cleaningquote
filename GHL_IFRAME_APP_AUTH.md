@@ -2,6 +2,13 @@
 
 This document is the **source of truth** for the CleanQuote marketplace app auth flow. Storage is **KV only** (no Supabase for install sessions or location installations). The flow binds each OAuth completion to a **location** using state → KV and cookies.
 
+## User context rule (dashboard)
+
+- **Every dashboard page** must rely on user context: `effectiveLocationId` from postMessage (iframe), URL, or session. Use `useEffectiveLocationId()` or `useDashboardApi()`.
+- **Every call to `/api/dashboard/*`** must send that locationId (header `x-ghl-location-id` and query `locationId`) via `useDashboardApi().api()` or `dashboardApiFetch()` so the backend uses the same context and can look up auth in KV for that location when needed.
+- **Do not use raw `fetch()`** for dashboard API routes — use `api()` from `useDashboardApi()` so locationId and credentials are always attached.
+- Backend: routes that need GHL API use `resolveGHLContext(request)` (resolves locationId from request, then looks up token in KV); other routes read locationId from request (header/query) then session for org resolution.
+
 ## 1. Overview
 
 - **Callback URL**: `https://www.cleanquote.io/api/auth/connect/callback` (or your app base + `/api/auth/connect/callback`).
