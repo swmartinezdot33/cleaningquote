@@ -11,7 +11,7 @@
 import { NextRequest } from 'next/server';
 import { getSession } from '@/lib/ghl/session';
 import { getOrFetchTokenForLocation } from '@/lib/ghl/token-store';
-import { searchLocations, getInstalledLocations } from '@/lib/ghl/agency';
+import { searchLocations, getInstalledLocations, getLocationTokenFromAgency } from '@/lib/ghl/agency';
 
 export type GHLContextResult =
   | { locationId: string; token: string }
@@ -66,6 +66,23 @@ export async function resolveGHLContext(request: NextRequest): Promise<GHLContex
 
     if (token) {
       return { locationId, token };
+    }
+
+    // Fallback: when KV has no install for this location, try Agency (Company) token to get a location token.
+    // This covers sub-account locations when the app was installed as Agency and user opens from that location.
+    const session = await getSession();
+    const companyId = session?.companyId?.trim();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'api-context.ts:resolveGHLContext:noKv', message: 'KV had no token; agency fallback check', data: { locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`, hasSession: !!session, hasCompanyId: !!companyId, companyIdPreview: companyId ? `${companyId.slice(0, 8)}..` : null }, timestamp: Date.now(), hypothesisId: 'H1-H3' }) }).catch(() => {});
+    // #endregion
+    if (companyId) {
+      const agencyResult = await getLocationTokenFromAgency(locationId, companyId);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'api-context.ts:resolveGHLContext:agencyResult', message: 'getLocationTokenFromAgency result', data: { success: agencyResult.success, hasToken: !!(agencyResult as { accessToken?: string }).accessToken, error: agencyResult.success ? null : (agencyResult as { error?: string }).error }, timestamp: Date.now(), hypothesisId: 'H2-H3' }) }).catch(() => {});
+      // #endregion
+      if (agencyResult.success && agencyResult.accessToken) {
+        return { locationId, token: agencyResult.accessToken };
+      }
     }
 
     const reason =

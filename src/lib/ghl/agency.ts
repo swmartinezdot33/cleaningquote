@@ -223,11 +223,14 @@ export async function getLocationTokenFromAgency(
   const { getAgencyInstall } = await import('./token-store');
   const agencyInstall = await getAgencyInstall();
   const token = agencyInstall?.accessToken ?? (await getAgencyTokenForLocationToken());
+  const companyId = companyIdOrOptional?.trim() ?? agencyInstall?.companyId?.trim() ?? process.env.GHL_COMPANY_ID?.trim();
+  // #region agent log
+  agencyDebugLog('getLocationTokenFromAgency: entry', { locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`, hasAgencyToken: !!token, hasCompanyId: !!companyId, hypothesisId: 'H2-H3' });
+  // #endregion
   if (!token) {
     agencyDebugLog('getLocationTokenFromAgency: no agency token (install app as Agency so OAuth returns Company token)', { hypothesisId: 'H1' });
     return { success: false, error: 'No agency token. Install the app as Agency (Target User: Agency); the OAuth Access Token from that install is the Agency token.' };
   }
-  const companyId = companyIdOrOptional?.trim() ?? agencyInstall?.companyId?.trim() ?? process.env.GHL_COMPANY_ID?.trim();
   if (!companyId) {
     return { success: false, error: 'Company ID required for POST /oauth/locationToken. Install as Agency (Company) so we store Company ID, or set GHL_COMPANY_ID.' };
   }
@@ -301,6 +304,7 @@ export async function getLocationTokenFromAgency(
           userType: 'Location',
         });
         console.log('[CQ Agency] stored location token in KV', { locationId: locId.slice(0, 12) + '..' });
+        agencyDebugLog('getLocationTokenFromAgency: stored in KV', { locationIdPreview: `${locId.slice(0, 8)}..${locId.slice(-4)}`, hypothesisId: 'H3' });
       } catch (storeErr) {
         console.warn('[CQ Agency] store location token in KV failed (will use token for this request only)', storeErr instanceof Error ? storeErr.message : storeErr);
       }

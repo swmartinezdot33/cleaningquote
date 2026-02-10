@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useDashboardApi } from '@/lib/dashboard-api';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Loader2, Wrench, Users, FileText, MapPin, DollarSign, ArrowRight } from 'lucide-react';
 
 interface CrmStats {
@@ -13,6 +13,16 @@ interface CrmStats {
 /**
  * Dashboard home: analytics cards and quick links. Shown when landing on /dashboard.
  */
+function fetchDashboardData(api: (path: string) => Promise<Response>) {
+  return Promise.all([
+    api('/api/dashboard/tools').then((r) => (r.ok ? r.json() : { tools: [] })),
+    api('/api/dashboard/crm/stats').then((r) => (r.ok ? r.json() : { counts: {}, total: 0 })),
+    api('/api/dashboard/quotes').then((r) => (r.ok ? r.json() : { quotes: [] })),
+    api('/api/dashboard/service-areas').then((r) => (r.ok ? r.json() : { serviceAreas: [] })),
+    api('/api/dashboard/pricing-structures').then((r) => (r.ok ? r.json() : { pricingStructures: [] })),
+  ]);
+}
+
 export default function DashboardHomeClient() {
   const { api, locationId } = useDashboardApi();
   const [toolsCount, setToolsCount] = useState<number | null>(null);
@@ -21,26 +31,19 @@ export default function DashboardHomeClient() {
   const [serviceAreasCount, setServiceAreasCount] = useState<number | null>(null);
   const [pricingCount, setPricingCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const lastFetchedLocationId = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (!locationId) {
-      setLoading(false);
-      return;
-    }
+  const loadData = useCallback(() => {
+    if (!locationId || !api) return;
     setLoading(true);
-    Promise.all([
-      api('/api/dashboard/tools').then((r) => (r.ok ? r.json() : { tools: [] })),
-      api('/api/dashboard/crm/stats').then((r) => (r.ok ? r.json() : { counts: {}, total: 0 })),
-      api('/api/dashboard/quotes').then((r) => (r.ok ? r.json() : { quotes: [] })),
-      api('/api/dashboard/service-areas').then((r) => (r.ok ? r.json() : { serviceAreas: [] })),
-      api('/api/dashboard/pricing-structures').then((r) => (r.ok ? r.json() : { pricingStructures: [] })),
-    ])
+    fetchDashboardData(api)
       .then(([toolsRes, statsRes, quotesRes, serviceAreasRes, pricingRes]) => {
         setToolsCount((toolsRes.tools ?? []).length);
         setCrmStats({ counts: statsRes.counts ?? {}, total: statsRes.total ?? 0 });
         setQuotesCount((quotesRes.quotes ?? []).length);
         setServiceAreasCount((serviceAreasRes.serviceAreas ?? []).length);
         setPricingCount((pricingRes.pricingStructures ?? []).length);
+        lastFetchedLocationId.current = locationId;
       })
       .catch(() => {
         setToolsCount(0);
@@ -51,6 +54,44 @@ export default function DashboardHomeClient() {
       })
       .finally(() => setLoading(false));
   }, [locationId, api]);
+
+  useEffect(() => {
+    if (!locationId) {
+      setLoading(false);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'DashboardHomeClient.tsx:effect', message: 'dashboard effect ran, no locationId', data: { hasApi: !!api }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+      // #endregion
+      return;
+    }
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'DashboardHomeClient.tsx:effect', message: 'dashboard effect running fetch', data: { locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}` }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
+    // #endregion
+    loadData();
+  }, [locationId, api, loadData]);
+
+  // Refetch when user returns to the tab (fixes race where locationId arrived after first mount)
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible' || !locationId || !api) return;
+      if (lastFetchedLocationId.current === locationId) return;
+      loadData();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [locationId, api, loadData]);
+
+  // Safety net: if we have locationId but never successfully fetched (e.g. effect ran with null first), fetch now
+  useEffect(() => {
+    if (!locationId || !api || loading) return;
+    if (lastFetchedLocationId.current === locationId) return;
+    const hasNoData =
+      toolsCount === null &&
+      crmStats === null &&
+      quotesCount === null &&
+      serviceAreasCount === null &&
+      pricingCount === null;
+    if (hasNoData) loadData();
+  }, [locationId, api, loading, toolsCount, crmStats, quotesCount, serviceAreasCount, pricingCount, loadData]);
 
   if (loading) {
     return (
