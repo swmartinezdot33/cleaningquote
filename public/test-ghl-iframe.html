@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Local GHL iframe test – CleanQuote</title>
+  <title>Local iframe test – CleanQuote</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 920px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
     .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.1); margin-bottom: 20px; }
@@ -14,8 +14,6 @@
     .row > * { flex: 1 1 auto; min-width: 140px; }
     button { padding: 10px 16px; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; }
     button:hover { background: #1d4ed8; }
-    button.secondary { background: #64748b; }
-    button.secondary:hover { background: #475569; }
     iframe { width: 100%; height: 72vh; border: 1px solid #ddd; border-radius: 6px; background: #fff; }
     .hint { font-size: 0.875rem; color: #666; margin-top: 8px; }
     code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; }
@@ -24,14 +22,14 @@
 </head>
 <body>
   <div class="card">
-    <h1>Local GHL iframe test</h1>
-    <p>Test the app <strong>as if</strong> it were embedded in GoHighLevel: same iframe + <code>locationId</code> context. Run dev server, then open this file or <code>/test-ghl-iframe.html</code>.</p>
+    <h1>Local iframe test</h1>
+    <p>Test CleanQuote locally by <strong>mimicking postMessage</strong>: the app is loaded in an iframe with <em>no</em> URL params. This window sends a postMessage with the location ID so the app receives context the same way it does in production.</p>
     <label for="base">App base URL</label>
     <input type="text" id="base" value="http://localhost:3000" placeholder="http://localhost:3000">
-    <label for="locationId" style="margin-top:12px">Location ID (GHL sub-account)</label>
-    <input type="text" id="locationId" placeholder="e.g. ve9EPM428h8vShlRW1KT" value="1uDcMtL7LgPvpYwaQtdq">
-    <p class="hint">From GHL: open a sub-account; URL has <code>.../location/XXXXXXXX/...</code>. Use that id (case-sensitive).</p>
-    <label for="page" style="margin-top:12px">Open page</label>
+    <label for="locationId" style="margin-top:12px">Location ID</label>
+    <input type="text" id="locationId" placeholder="e.g. tCqS9npFPtO0DSuYVvzb" value="">
+    <p class="hint">Your sub-account location ID (case-sensitive).</p>
+    <label for="page" style="margin-top:12px">Initial page</label>
     <select id="page">
       <option value="/dashboard">Dashboard</option>
       <option value="/dashboard/crm">Leads</option>
@@ -42,31 +40,26 @@
       <option value="/dashboard/pricing-structures">Pricing</option>
     </select>
     <div class="row" style="margin-top:16px; gap:8px;">
-      <button type="button" id="load">Load in iframe</button>
-      <button type="button" id="openWindow" class="secondary">Open app in new tab (no iframe)</button>
+      <button type="button" id="load">Load app in iframe + send postMessage</button>
     </div>
     <p class="url-preview" id="urlPreview"></p>
   </div>
   <div class="card" id="frameWrap" style="display:none">
     <h2>App (iframe)</h2>
-    <iframe id="appFrame" title="CleanQuote Dashboard"></iframe>
+    <iframe id="appFrame" title="CleanQuote"></iframe>
   </div>
 
   <script>
     function getBase() { return (document.getElementById('base').value || '').replace(/\/$/, ''); }
     function getLocationId() { return (document.getElementById('locationId').value || '').trim(); }
     function getPath() { return (document.getElementById('page').value || '/dashboard'); }
-    function buildUrl() {
+    function getIframeUrl() {
       var base = getBase();
-      var locationId = getLocationId();
       var path = getPath();
-      if (!locationId) return '';
-      var sep = path.indexOf('?') !== -1 ? '&' : '?';
-      return base + path + sep + 'locationId=' + encodeURIComponent(locationId);
+      return base + path;
     }
     function updatePreview() {
-      var u = buildUrl();
-      document.getElementById('urlPreview').textContent = u ? 'URL: ' + u : '';
+      document.getElementById('urlPreview').textContent = 'Iframe URL (no params): ' + getIframeUrl() + ' — locationId is sent via postMessage.';
     }
     function loadIframe() {
       var locationId = getLocationId();
@@ -74,29 +67,35 @@
         alert('Enter a Location ID');
         return;
       }
-      var url = buildUrl();
-      document.getElementById('appFrame').src = url;
+      var iframe = document.getElementById('appFrame');
+      var base = getBase();
+      var url = getIframeUrl();
+      iframe.src = url;
       document.getElementById('frameWrap').style.display = 'block';
       updatePreview();
-    }
-    function openInNewTab() {
-      var locationId = getLocationId();
-      if (!locationId) {
-        alert('Enter a Location ID');
-        return;
+
+      function sendPostMessage() {
+        try {
+          var targetOrigin = base;
+          var payload = { locationId: locationId };
+          var msg = { message: 'REQUEST_USER_DATA_RESPONSE', payload: payload };
+          iframe.contentWindow.postMessage(msg, targetOrigin);
+          console.log('[test-ghl-iframe] postMessage sent', { targetOrigin, locationId: locationId.slice(0, 8) + '...' });
+        } catch (e) {
+          console.warn('[test-ghl-iframe] postMessage error', e);
+        }
       }
-      window.open(buildUrl(), '_blank', 'noopener');
-      updatePreview();
+      iframe.onload = function () {
+        sendPostMessage();
+        setTimeout(sendPostMessage, 200);
+        setTimeout(sendPostMessage, 600);
+      };
     }
     document.getElementById('load').onclick = loadIframe;
-    document.getElementById('openWindow').onclick = openInNewTab;
     document.getElementById('base').oninput = updatePreview;
     document.getElementById('locationId').oninput = updatePreview;
     document.getElementById('page').onchange = updatePreview;
     updatePreview();
-    (function () {
-      if (getLocationId()) loadIframe();
-    })();
   </script>
 </body>
 </html>

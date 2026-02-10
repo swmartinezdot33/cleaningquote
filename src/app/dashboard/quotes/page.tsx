@@ -443,7 +443,7 @@ export default function DashboardQuotesPage() {
           {effectiveLocationId ? (
             <>
               <p className="text-muted-foreground">
-                No quotes yet. Quotes from your tools (saved to the GoHighLevel Quote custom object) will appear here.
+                No quotes yet. Quotes from your tools will appear here.
               </p>
               <Link href="/dashboard" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
                 Back to dashboard
