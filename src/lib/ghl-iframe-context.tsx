@@ -259,10 +259,22 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
           if (postMessageResponseHandledRef.current) return;
           postMessageResponseHandledRef.current = true;
           console.log('[CQ Iframe] REQUEST_USER_DATA_RESPONSE received');
-          // GHL sends encrypted string or array; extract raw encrypted data
+          // GHL sends encrypted string or array; extract raw encrypted data. Local test page sends plain { locationId }.
           const rawPayload = Array.isArray(data.payload) ? data.payload[0] : data.payload;
           if (!rawPayload) {
             console.warn('[GHL Iframe] REQUEST_USER_DATA_RESPONSE has empty payload');
+            return;
+          }
+          const plainPayload = typeof rawPayload === 'object' && rawPayload !== null ? (rawPayload as Record<string, unknown>) : null;
+          const plainId = typeof plainPayload?.locationId === 'string' ? plainPayload.locationId.trim() : '';
+          if (plainId) {
+            hasLocationIdRef.current = true;
+            console.log('[CQ Iframe] ✅ Plain payload locationId (local test)', { locationId: String(plainId).slice(0, 12) + '...' });
+            setLocationIdFromPostMessage(plainId as string);
+            apply({
+              locationId: plainId as string,
+              ...(typeof rawPayload === 'object' && rawPayload !== null ? (rawPayload as Record<string, unknown>) : {}),
+            });
             return;
           }
 

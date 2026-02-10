@@ -6,8 +6,8 @@ export const dynamic = 'force-dynamic';
 
 /**
  * PATCH /api/dashboard/crm/opportunities/[id]
- * Body: { pipelineStageId?: string }
- * Updates the opportunity (e.g. move to another stage). Uses OAuth location token.
+ * Body: { name?: string; monetaryValue?: number; status?: string; pipelineStageId?: string }
+ * Updates the opportunity in GHL. At least one field required. Uses OAuth location token.
  */
 export async function PATCH(
   request: NextRequest,
@@ -33,18 +33,27 @@ export async function PATCH(
       return NextResponse.json({ error: 'Opportunity ID required' }, { status: 400 });
     }
 
-    const body = await request.json().catch(() => ({}));
-    const { pipelineStageId } = body as { pipelineStageId?: string };
-    if (!pipelineStageId || typeof pipelineStageId !== 'string') {
+    const body = (await request.json().catch(() => ({}))) as {
+      name?: string;
+      monetaryValue?: number;
+      status?: string;
+      pipelineStageId?: string;
+    };
+    const payload: { name?: string; monetaryValue?: number; status?: string; pipelineStageId?: string } = {};
+    if (typeof body.name === 'string') payload.name = body.name;
+    if (typeof body.monetaryValue === 'number') payload.monetaryValue = body.monetaryValue;
+    if (typeof body.status === 'string') payload.status = body.status;
+    if (typeof body.pipelineStageId === 'string') payload.pipelineStageId = body.pipelineStageId;
+    if (Object.keys(payload).length === 0) {
       return NextResponse.json(
-        { error: 'pipelineStageId is required' },
+        { error: 'At least one of name, monetaryValue, status, pipelineStageId is required' },
         { status: 400 }
       );
     }
 
     const opportunity = await updateGHLOpportunity(
       id,
-      { pipelineStageId },
+      payload,
       ctx.locationId,
       { token: ctx.token, locationId: ctx.locationId }
     );

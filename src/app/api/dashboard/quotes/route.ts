@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveGHLContext } from '@/lib/ghl/api-context';
-import { listGHLQuoteRecords, getContactIdForQuoteRecord } from '@/lib/ghl/client';
+import { listGHLQuoteRecords, getContactIdForQuoteRecord, getContactById } from '@/lib/ghl/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -234,11 +234,35 @@ export async function GET(request: NextRequest) {
         );
       }
       const withToolInfo = mapQuotesToResponse(records);
+      // Resolve contact names from GHL for display (contactId -> name)
+      const contactIds = [...new Set(withToolInfo.map((q: any) => q.contactId).filter(Boolean))] as string[];
+      const contactNameById: Record<string, string> = {};
+      const CONCURRENCY = 10;
+      for (let i = 0; i < contactIds.length; i += CONCURRENCY) {
+        const chunk = contactIds.slice(i, i + CONCURRENCY);
+        const results = await Promise.allSettled(
+          chunk.map((cid) => getContactById(cid, undefined, undefined, credentials))
+        );
+        results.forEach((res, idx) => {
+          const cid = chunk[idx];
+          if (res.status === 'fulfilled' && res.value) {
+            const c = res.value as { firstName?: string; lastName?: string; first_name?: string; last_name?: string; email?: string };
+            const first = c.firstName ?? c.first_name ?? '';
+            const last = c.lastName ?? c.last_name ?? '';
+            const name = [first, last].filter(Boolean).join(' ') || c.email || '';
+            if (name) contactNameById[cid] = name;
+          }
+        });
+      }
+      const quotesWithContactNames = withToolInfo.map((q: any) => ({
+        ...q,
+        contactName: q.contactId ? (contactNameById[q.contactId] ?? null) : null,
+      }));
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quotes/route.ts:GET:afterMap', message: 'mapQuotesToResponse done', data: { total: withToolInfo.length, withContactId: withToolInfo.filter((q: any) => q.contactId).length }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});
+      fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quotes/route.ts:GET:afterMap', message: 'mapQuotesToResponse done', data: { total: quotesWithContactNames.length, withContactId: quotesWithContactNames.filter((q: any) => q.contactId).length, contactNamesResolved: Object.keys(contactNameById).length }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});
       // #endregion
       return NextResponse.json({
-        quotes: withToolInfo,
+        quotes: quotesWithContactNames,
         isSuperAdmin: false,
         isOrgAdmin: false,
       });

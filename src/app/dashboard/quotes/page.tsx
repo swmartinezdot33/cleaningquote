@@ -33,6 +33,8 @@ interface QuoteRow {
   status?: string | null;
   disqualifiedOptionLabel?: string | null;
   contactId?: string | null;
+  /** Resolved from GHL contact when contactId is set */
+  contactName?: string | null;
 }
 
 function formatDate(iso: string) {
@@ -579,15 +581,16 @@ export default function DashboardQuotesPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {[q.first_name, q.last_name].filter(Boolean).join(' ') || q.email || '—'}
-                      {q.contactId && (
+                      {q.contactId ? (
                         <Link
                           href={`/dashboard/crm/contacts/${q.contactId}`}
-                          className="ml-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                          className="inline-flex items-center gap-1.5 text-primary hover:underline"
                         >
-                          <User className="h-3.5 w-3.5" />
-                          View contact
+                          <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          {q.contactName || [q.first_name, q.last_name].filter(Boolean).join(' ') || q.email || 'Contact'}
                         </Link>
+                      ) : (
+                        <span className="text-muted-foreground">— No contact</span>
                       )}
                     </td>
                     <td className="px-4 py-3">

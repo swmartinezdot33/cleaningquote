@@ -7,9 +7,9 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get('host') ?? '';
 
-  // cleanquote.io/login → my.cleanquote.io (app/dashboard lives there)
-  if (pathname === '/login' && (host === 'cleanquote.io' || host === 'www.cleanquote.io')) {
-    return NextResponse.redirect('https://my.cleanquote.io/login', 302);
+  // /login → https://my.cleanquote.io (canonical app URL, no /login)
+  if (pathname === '/login') {
+    return NextResponse.redirect('https://my.cleanquote.io', 302);
   }
 
   let response = NextResponse.next({ request });

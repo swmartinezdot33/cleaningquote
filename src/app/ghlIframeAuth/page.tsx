@@ -42,8 +42,7 @@ export default function GHLIframeAuthTestPage() {
     const iframe = iframeRef.current;
     const onLoad = () => {
       sendPostMessage();
-      setTimeout(sendPostMessage, 200);
-      setTimeout(sendPostMessage, 600);
+      [100, 300, 600, 1000].forEach((ms) => setTimeout(sendPostMessage, ms));
     };
     iframe.addEventListener('load', onLoad);
     if (iframe.contentDocument?.readyState === 'complete') onLoad();
@@ -109,6 +108,9 @@ export default function GHLIframeAuthTestPage() {
           <p className="text-xs text-gray-500 mt-2 break-all">
             Iframe URL (no params): {iframeUrl} — locationId is sent via postMessage.
           </p>
+          <p className="text-xs text-amber-700 mt-1">
+            Use the same origin as this page (e.g. {typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}) so the iframe loads CSS and scripts correctly.
+          </p>
         </div>
 
         {showFrame && (
@@ -118,6 +120,7 @@ export default function GHLIframeAuthTestPage() {
               ref={iframeRef}
               src={iframeUrl}
               title="CleanQuote"
+              allow="same-origin"
               className="w-full border border-gray-200 rounded-md bg-white"
               style={{ height: '72vh' }}
             />

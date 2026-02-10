@@ -24,6 +24,16 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 /** Install URL (opens in new tab): sets cookie then redirects to GHL install so callback gets correct locationId. */
 function getConnectInstallUrl(locationId: string | null): string {
@@ -178,8 +188,25 @@ export default function CRMDashboardPage() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loadingOpportunities, setLoadingOpportunities] = useState(false);
   const [modalOpportunity, setModalOpportunity] = useState<Opportunity | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editValue, setEditValue] = useState<string>('');
+  const [editStatus, setEditStatus] = useState<string>('open');
+  const [editStageId, setEditStageId] = useState<string>('');
+  const [savingOpportunity, setSavingOpportunity] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [movingId, setMovingId] = useState<string | null>(null);
   const dragJustEndedRef = useRef(false);
+
+  // Sync form when modal opens
+  useEffect(() => {
+    if (modalOpportunity) {
+      setEditName(modalOpportunity.name ?? '');
+      setEditValue(modalOpportunity.value != null ? String(modalOpportunity.value) : '');
+      setEditStatus(modalOpportunity.status ?? 'open');
+      setEditStageId(modalOpportunity.pipelineStageId ?? '');
+      setSaveError(null);
+    }
+  }, [modalOpportunity]);
 
   const runVerify = useCallback(async () => {
     setTestingConnection(true);
@@ -318,6 +345,63 @@ export default function CRMDashboardPage() {
     if (dragJustEndedRef.current) return;
     setModalOpportunity(o);
   }, []);
+
+  const saveOpportunityEdits = useCallback(async () => {
+    if (!modalOpportunity || !api) return;
+    setSavingOpportunity(true);
+    setSaveError(null);
+    try {
+      const payload: { name?: string; monetaryValue?: number; status?: string; pipelineStageId?: string } = {};
+      if (editName.trim() !== modalOpportunity.name) payload.name = editName.trim();
+      const numVal = editValue.trim() === '' ? undefined : Number(editValue);
+      if (numVal !== undefined && numVal !== modalOpportunity.value) payload.monetaryValue = numVal;
+      if (editStatus !== modalOpportunity.status) payload.status = editStatus;
+      if (editStageId && editStageId !== modalOpportunity.pipelineStageId) payload.pipelineStageId = editStageId;
+      if (Object.keys(payload).length === 0) {
+        setSavingOpportunity(false);
+        return;
+      }
+      const r = await api(`/api/dashboard/crm/opportunities/${encodeURIComponent(modalOpportunity.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setSaveError(data?.error ?? 'Failed to update opportunity');
+        return;
+      }
+      const updated = data?.opportunity;
+      setOpportunities((prev) =>
+        prev.map((o) =>
+          o.id === modalOpportunity.id
+            ? {
+                ...o,
+                name: updated?.name ?? editName.trim(),
+                value: updated?.monetaryValue ?? updated?.value ?? (numVal ?? o.value),
+                status: updated?.status ?? editStatus,
+                pipelineStageId: updated?.pipelineStageId ?? (editStageId || o.pipelineStageId),
+              }
+            : o
+        )
+      );
+      setModalOpportunity((prev) =>
+        prev
+          ? {
+              ...prev,
+              name: updated?.name ?? editName.trim(),
+              value: updated?.monetaryValue ?? updated?.value ?? numVal ?? prev.value,
+              status: updated?.status ?? editStatus,
+              pipelineStageId: updated?.pipelineStageId ?? (editStageId || prev.pipelineStageId),
+            }
+          : null
+      );
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Failed to save');
+    } finally {
+      setSavingOpportunity(false);
+    }
+  }, [modalOpportunity, api, editName, editValue, editStatus, editStageId]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -594,39 +678,107 @@ export default function CRMDashboardPage() {
         </div>
       )}
 
-      {/* Opportunity detail modal */}
+      {/* Opportunity detail modal – view and edit GHL opportunity data */}
       <Dialog open={!!modalOpportunity} onOpenChange={(open) => !open && setModalOpportunity(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{modalOpportunity?.name || 'Opportunity'}</DialogTitle>
+            <DialogTitle>Opportunity</DialogTitle>
             <DialogDescription>
-              View contact and details in CRM.
+              View and edit opportunity data from GoHighLevel. Changes are saved to GHL.
             </DialogDescription>
           </DialogHeader>
           {modalOpportunity && (
-            <div className="space-y-4 py-2">
-              {modalOpportunity.value != null && (
-                <p className="flex items-center gap-2 text-sm">
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">${Number(modalOpportunity.value).toLocaleString()}</span>
-                </p>
+            <form
+              className="space-y-4 py-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                saveOpportunityEdits();
+              }}
+            >
+              <div className="space-y-2">
+                <Label htmlFor="opp-name">Name</Label>
+                <Input
+                  id="opp-name"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Opportunity name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="opp-value">Value ($)</Label>
+                <Input
+                  id="opp-value"
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={editStatus} onValueChange={setEditStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="won">Won</SelectItem>
+                    <SelectItem value="lost">Lost</SelectItem>
+                    <SelectItem value="abandoned">Abandoned</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {(() => {
+                const selectedPipeline = pipelines.find((p) => p.id === selectedPipelineId);
+                const stages = selectedPipeline?.stages ?? [];
+                if (stages.length === 0) return null;
+                return (
+                  <div className="space-y-2">
+                    <Label>Stage</Label>
+                    <Select value={editStageId || undefined} onValueChange={(v) => setEditStageId(v || '')}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select stage" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {stages.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                );
+              })()}
+              {saveError && (
+                <p className="text-sm text-destructive">{saveError}</p>
               )}
-              <p className="text-sm text-muted-foreground">
-                Status: <span className="capitalize">{modalOpportunity.status}</span>
-              </p>
-            </div>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  type="submit"
+                  disabled={savingOpportunity}
+                >
+                  {savingOpportunity ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Saving…
+                    </>
+                  ) : (
+                    'Save changes'
+                  )}
+                </Button>
+                <Link
+                  href={`/dashboard/crm/contacts/${modalOpportunity.contactId}`}
+                  className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  View contact
+                </Link>
+              </DialogFooter>
+            </form>
           )}
-          <DialogFooter>
-            {modalOpportunity && (
-              <Link
-                href={`/dashboard/crm/contacts/${modalOpportunity.contactId}`}
-                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                <ExternalLink className="h-4 w-4" />
-                View contact
-              </Link>
-            )}
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

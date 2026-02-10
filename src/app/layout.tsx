@@ -154,6 +154,32 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Critical baseline so iframe and local dev have styles even if main CSS is delayed or blocked */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          :root{
+            --background:0 0% 100%;--foreground:222.2 84% 4.9%;--card:0 0% 100%;--card-foreground:222.2 84% 4.9%;
+            --primary:270 65% 55%;--primary-foreground:0 0% 100%;--muted:210 40% 96.1%;--muted-foreground:215.4 16.3% 46.9%;
+            --border:214.3 31.8% 91.4%;--input:214.3 31.8% 91.4%;--ring:270 65% 55%;--radius:0.25rem;--primary-color:#7c3aed
+          }
+          *,*::before,*::after{box-sizing:border-box}
+          html{font-family:var(--font-sans,ui-sans-serif,system-ui,sans-serif);line-height:1.5;-webkit-text-size-adjust:100%}
+          body{margin:0;min-height:100vh;background-color:hsl(var(--background));color:hsl(var(--foreground))}
+          a{color:var(--primary-color,#7c3aed);text-decoration:none}
+          a:hover{text-decoration:underline}
+          button,input,select,textarea{font:inherit;color:inherit}
+          button{cursor:pointer}
+          input,select,textarea{border:1px solid hsl(var(--border));border-radius:var(--radius);padding:0.5rem 0.75rem;background:hsl(var(--background));width:100%}
+          .rounded-lg{border-radius:0.5rem}.rounded-md{border-radius:0.375rem}.rounded-xl{border-radius:0.75rem}
+          .border{border-width:1px;border-style:solid;border-color:hsl(var(--border))}
+          .bg-white{background-color:#fff}.bg-card{background-color:hsl(var(--card))}.bg-muted\\/30{background-color:hsl(var(--muted) / 0.3)}
+          .bg-background{background-color:hsl(var(--background))}.text-foreground{color:hsl(var(--foreground))}.text-muted-foreground{color:hsl(var(--muted-foreground))}
+          .shadow-sm{box-shadow:0 1px 2px 0 rgb(0 0 0 / 0.05)}.shadow-md{box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1),0 2px 4px -2px rgb(0 0 0 / 0.1)}
+          .p-4{padding:1rem}.p-5{padding:1.25rem}.px-4{padding-left:1rem;padding-right:1rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.py-8{padding-top:2rem;padding-bottom:2rem}
+          .mb-2{margin-bottom:0.5rem}.mb-4{margin-bottom:1rem}.mt-2{margin-top:0.5rem}.space-y-5 > * + *{margin-top:1.25rem}
+          .text-sm{font-size:0.875rem;line-height:1.25rem}.text-xs{font-size:0.75rem;line-height:1rem}.text-xl{font-size:1.25rem;line-height:1.75rem}
+          .font-medium{font-weight:500}.font-semibold{font-weight:600}.block{display:block}.w-full{width:100%}.max-w-920px{max-width:920px}.mx-auto{margin-left:auto;margin-right:auto}
+          .min-h-screen{min-height:100vh}
+        ` }} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
