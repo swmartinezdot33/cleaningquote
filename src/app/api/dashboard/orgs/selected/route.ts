@@ -8,7 +8,7 @@ import * as configStore from '@/lib/config/store';
 
 export const dynamic = 'force-dynamic';
 
-/** GET - Return the currently selected org. When request has locationId (GHL iframe), always resolve org from org_ghl_settings so each location sees only its org. Otherwise use Supabase user + cookie. */
+/** GET - Return the currently selected org. When request has locationId (GHL iframe), always resolve org from organizations.ghl_location_id so each location sees only its org. Otherwise use Supabase user + cookie. */
 export async function GET(request: NextRequest) {
   const headerLocationId = request.headers.get('x-ghl-location-id')?.trim() || null;
   const queryLocationId = request.nextUrl.searchParams.get('locationId')?.trim() || null;

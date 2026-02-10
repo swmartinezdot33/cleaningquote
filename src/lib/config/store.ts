@@ -218,12 +218,12 @@ async function getOrgGHLRow(
   if (!isSupabaseConfigured() || !orgId) return null;
   const supabase = createSupabaseServer();
   const { data, error } = await supabase
-    .from('org_ghl_settings')
+    .from('organizations')
     .select('ghl_token, ghl_location_id, ghl_use_oauth')
-    .eq('org_id', orgId)
+    .eq('id', orgId)
     .maybeSingle();
   if (error) {
-    console.error('org_ghl_settings getOrgGHLRow:', error);
+    console.error('organizations getOrgGHLRow:', error);
     return null;
   }
   const row = data as { ghl_token?: string | null; ghl_location_id?: string | null; ghl_use_oauth?: boolean } | null;
@@ -261,13 +261,12 @@ export async function setOrgGHL(orgId: string, token: string, locationId: string
   if (!isSupabaseConfigured()) return;
   const supabase = createSupabaseServer();
   const updated_at = new Date().toISOString();
-  // org_ghl_settings may not be in generated Supabase types
-  const { error } = await (supabase as any).from('org_ghl_settings').upsert(
-    { org_id: orgId, ghl_token: token, ghl_location_id: locationId, ghl_use_oauth: false, updated_at },
-    { onConflict: 'org_id' }
-  );
+  const { error } = await (supabase as any)
+    .from('organizations')
+    .update({ ghl_token: token, ghl_location_id: locationId, ghl_use_oauth: false, updated_at })
+    .eq('id', orgId);
   if (error) {
-    console.error('org_ghl_settings upsert:', error);
+    console.error('organizations setOrgGHL:', error);
     throw error;
   }
 }
@@ -277,12 +276,12 @@ export async function setOrgGHLOAuth(orgId: string, locationId: string): Promise
   if (!isSupabaseConfigured()) return;
   const supabase = createSupabaseServer();
   const updated_at = new Date().toISOString();
-  const { error } = await (supabase as any).from('org_ghl_settings').upsert(
-    { org_id: orgId, ghl_token: null, ghl_location_id: locationId, ghl_use_oauth: true, updated_at },
-    { onConflict: 'org_id' }
-  );
+  const { error } = await (supabase as any)
+    .from('organizations')
+    .update({ ghl_token: null, ghl_location_id: locationId, ghl_use_oauth: true, updated_at })
+    .eq('id', orgId);
   if (error) {
-    console.error('org_ghl_settings setOrgGHLOAuth:', error);
+    console.error('organizations setOrgGHLOAuth:', error);
     throw error;
   }
 }
@@ -291,36 +290,38 @@ export async function setOrgGHLOAuth(orgId: string, locationId: string): Promise
 export async function clearOrgGHL(orgId: string): Promise<void> {
   if (!isSupabaseConfigured()) return;
   const supabase = createSupabaseServer();
-  const { error } = await (supabase as any).from('org_ghl_settings').delete().eq('org_id', orgId);
+  const updated_at = new Date().toISOString();
+  const { error } = await (supabase as any)
+    .from('organizations')
+    .update({ ghl_location_id: null, ghl_token: null, ghl_use_oauth: false, updated_at })
+    .eq('id', orgId);
   if (error) {
-    console.error('org_ghl_settings clearOrgGHL:', error);
+    console.error('organizations clearOrgGHL:', error);
     throw error;
   }
 }
 
 /** Get org IDs linked to this GHL location (for listing tools, service areas, pricing when using GHL session).
- * Org and location are the same entity: we use org_id in Supabase, GHL uses LocationID; tied in org_ghl_settings.
+ * Org and location are the same entity: we use org id in Supabase, GHL uses LocationID; tied in organizations.ghl_location_id.
  * One org per ghl_location_id (enforced by unique constraint). Use ensureOrgForGHLLocation when no row exists. */
 export async function getOrgIdsByGHLLocationId(locationId: string): Promise<string[]> {
   if (!isSupabaseConfigured() || !locationId?.trim()) return [];
   const supabase = createSupabaseServer();
   const loc = locationId.trim();
 
-  const { data: settingsRows, error: settingsError } = await (supabase as any)
-    .from('org_ghl_settings')
-    .select('org_id')
+  const { data: rows, error } = await supabase
+    .from('organizations')
+    .select('id')
     .eq('ghl_location_id', loc);
-  if (!settingsError && Array.isArray(settingsRows) && settingsRows.length > 0) {
-    const fromSettings = (settingsRows as Array<{ org_id: string }>)
-      .map((r) => r?.org_id)
-      .filter((id): id is string => !!id);
-    if (fromSettings.length > 0) return [fromSettings[0]];
+  if (!error && Array.isArray(rows) && rows.length > 0) {
+    const ids = (rows as Array<{ id: string }>).map((r) => r?.id).filter((id): id is string => !!id);
+    if (ids.length > 0) return [ids[0]];
   }
 
   return [];
 }
 
-/** Ensure exactly one org exists for this GHL location (1 org = 1 GHL sub-account). Creates org + org_ghl_settings if none. Returns org id or null. */
+/** Ensure exactly one org exists for this GHL location (1 org = 1 GHL sub-account). Creates org with ghl_location_id if none. Returns org id or null. */
 export async function ensureOrgForGHLLocation(locationId: string): Promise<string | null> {
   if (!isSupabaseConfigured() || !locationId?.trim()) return null;
   const existing = await getOrgIdsByGHLLocationId(locationId);
@@ -328,6 +329,7 @@ export async function ensureOrgForGHLLocation(locationId: string): Promise<strin
 
   const supabase = createSupabaseServer();
   const loc = locationId.trim();
+  const updated_at = new Date().toISOString();
   const slugBase = 'loc-' + loc.replace(/[^a-zA-Z0-9]/g, '').slice(0, 24) || loc.slice(0, 28);
   let slug = slugBase;
   let attempt = 0;
@@ -335,28 +337,25 @@ export async function ensureOrgForGHLLocation(locationId: string): Promise<strin
     const { data: existingOrg } = await supabase.from('organizations').select('id').eq('slug', slug).maybeSingle();
     if (existingOrg && (existingOrg as { id: string }).id) {
       const orgId = (existingOrg as { id: string }).id;
-      await (supabase as any).from('org_ghl_settings').upsert(
-        { org_id: orgId, ghl_token: null, ghl_location_id: loc, ghl_use_oauth: true, updated_at: new Date().toISOString() },
-        { onConflict: 'org_id' }
-      );
+      await (supabase as any)
+        .from('organizations')
+        .update({ ghl_location_id: loc, ghl_token: null, ghl_use_oauth: true, updated_at })
+        .eq('id', orgId);
       return orgId;
     }
     const { data: inserted, error: insertError } = await (supabase as any)
       .from('organizations')
-      .insert({ name: 'Location', slug })
+      .insert({
+        name: 'Location',
+        slug,
+        ghl_location_id: loc,
+        ghl_token: null,
+        ghl_use_oauth: true,
+        updated_at,
+      })
       .select('id')
       .single();
-    if (!insertError && inserted?.id) {
-      const orgId = (inserted as { id: string }).id;
-      const { error: settingsError } = await (supabase as any).from('org_ghl_settings').insert({
-        org_id: orgId,
-        ghl_token: null,
-        ghl_location_id: loc,
-        ghl_use_oauth: true,
-        updated_at: new Date().toISOString(),
-      });
-      if (!settingsError) return orgId;
-    }
+    if (!insertError && inserted?.id) return (inserted as { id: string }).id;
     attempt++;
     slug = `${slugBase}-${attempt}`;
   }

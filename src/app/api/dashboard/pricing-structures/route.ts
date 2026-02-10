@@ -14,7 +14,7 @@ function locationIdFromRequest(request: NextRequest): string | null {
 /**
  * GET /api/dashboard/pricing-structures
  * Same pattern as /api/dashboard/tools and /api/dashboard/crm/stats: locationId from request,
- * resolve org from org_ghl_settings, return list + orgId for mutates.
+ * resolve org from organizations.ghl_location_id, return list + orgId for mutates.
  */
 export async function GET(request: NextRequest) {
   const requestLocationId = locationIdFromRequest(request);

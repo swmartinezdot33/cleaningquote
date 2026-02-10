@@ -11,7 +11,7 @@ import { getSession } from '@/lib/ghl/session';
 
 export const dynamic = 'force-dynamic';
 
-/** GET - List tools for the current GHL location. Uses org_id: resolve location → org(s) via org_ghl_settings, then list all tools for that org. Accepts locationId from request (user context) so iframe location switch refetches correctly. */
+/** GET - List tools for the current GHL location. Uses org_id: resolve location → org(s) via organizations.ghl_location_id, then list all tools for that org. Accepts locationId from request (user context) so iframe location switch refetches correctly. */
 export async function GET(request: NextRequest) {
   const headerLocationId = request.headers.get('x-ghl-location-id')?.trim() || null;
   const queryLocationId = request.nextUrl.searchParams.get('locationId')?.trim() || null;

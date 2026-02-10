@@ -23,7 +23,7 @@ function locationIdFromRequest(request: NextRequest): string | null {
   return header ?? query ?? null;
 }
 
-/** GET - List service areas for org. Org is resolved from locationId via org_ghl_settings (1 org = 1 GHL location). */
+/** GET - List service areas for org. Org is resolved from locationId via organizations.ghl_location_id (1 org = 1 GHL location). */
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ orgId: string }> }

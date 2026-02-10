@@ -9,7 +9,7 @@ import type { PricingTable } from '@/lib/pricing/types';
 
 export const dynamic = 'force-dynamic';
 
-/** True if this org is linked to the given GHL location (org_ghl_settings). */
+/** True if this org is linked to the given GHL location (organizations.ghl_location_id). */
 async function canAccessOrgViaGHLLocation(orgId: string, locationId: string): Promise<boolean> {
   const orgIds = await configStore.getOrgIdsByGHLLocationId(locationId);
   return orgIds.includes(orgId);
