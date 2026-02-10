@@ -13,10 +13,10 @@ const ALLOWED_PAGES: Record<string, string> = {
 };
 
 /**
- * GHL-style path: /v2/location/{locationId}/dashboard
- * Redirects to dashboard with locationId. If parent sets iframe URL with ?page=contacts (or ?path=...), redirect to that page.
+ * GHL loads iframe at /v2/location/{locationId} (no trailing path). Redirect to dashboard;
+ * if URL has ?page=contacts (or ?path=...), redirect to that page so parent can open Contacts directly.
  */
-export default async function V2LocationDashboardPage({
+export default async function V2LocationPage({
   params,
   searchParams,
 }: {
