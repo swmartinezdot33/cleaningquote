@@ -4,9 +4,15 @@ import { verifySessionToken, GHL_SESSION_COOKIE } from '@/lib/ghl/session';
 // Dashboard auth: use postMessage context (locationId) for token lookup; session cookie is optional.
 // Allow dashboard when from GHL so the iframe loads and sends locationId on every API call; token comes from KV.
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  const { pathname } = request.nextUrl;
+  const host = request.headers.get('host') ?? '';
 
-  const { pathname, search } = request.nextUrl;
+  // cleanquote.io/login → my.cleanquote.io (app/dashboard lives there)
+  if (pathname === '/login' && (host === 'cleanquote.io' || host === 'www.cleanquote.io')) {
+    return NextResponse.redirect('https://my.cleanquote.io/login', 302);
+  }
+
+  let response = NextResponse.next({ request });
   const isDashboard = pathname.startsWith('/dashboard') || pathname.startsWith('/api/dashboard');
 
   if (isDashboard) {
@@ -40,5 +46,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/api/dashboard/:path*'],
+  matcher: ['/login', '/dashboard/:path*', '/api/dashboard/:path*'],
 };

@@ -11,7 +11,7 @@ import { getSession } from '@/lib/ghl/session';
 
 export const dynamic = 'force-dynamic';
 
-/** GET - List tools for the current GHL location (tools whose tool_config.ghl_location_id matches). Accepts locationId from request (user context) so iframe location switch refetches correctly. */
+/** GET - List tools for the current GHL location. Uses org_id: resolve location → org(s) via org_ghl_settings, then list all tools for that org. Accepts locationId from request (user context) so iframe location switch refetches correctly. */
 export async function GET(request: NextRequest) {
   const headerLocationId = request.headers.get('x-ghl-location-id')?.trim() || null;
   const queryLocationId = request.nextUrl.searchParams.get('locationId')?.trim() || null;
@@ -19,8 +19,8 @@ export async function GET(request: NextRequest) {
   if (!locationId) {
     return NextResponse.json({ error: 'No location context. Open CleanQuote from your location in GoHighLevel.' }, { status: 401 });
   }
-  const toolIds = await configStore.getToolIdsByGHLLocationId(locationId);
-  if (toolIds.length === 0) {
+  const orgIds = await configStore.getOrgIdsByGHLLocationId(locationId);
+  if (orgIds.length === 0) {
     return NextResponse.json({ tools: [] });
   }
   try {
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from('tools')
       .select('id, name, slug, org_id')
-      .in('id', toolIds)
+      .in('org_id', orgIds)
       .order('name');
     if (error) {
       return NextResponse.json({ tools: [] });
