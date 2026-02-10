@@ -147,10 +147,14 @@ function DroppableStageColumn({
         {stage.name}
         <span className="text-xs font-normal text-muted-foreground">({opportunities.length})</span>
       </h4>
-      <div className="space-y-2">
-        {opportunities.map((o) => (
-          <DraggableOpportunityCard key={o.id} opportunity={o} onOpenModal={onOpenModal} />
-        ))}
+      <div className="space-y-2 min-h-[60px]">
+        {opportunities.length > 0 ? (
+          opportunities.map((o) => (
+            <DraggableOpportunityCard key={o.id} opportunity={o} onOpenModal={onOpenModal} />
+          ))
+        ) : (
+          <p className="text-xs text-muted-foreground/70 py-2">Drop here</p>
+        )}
       </div>
     </div>
   );
@@ -451,10 +455,6 @@ export default function CRMDashboardPage() {
 
       {/* Pipeline selector + GHL opportunities Kanban */}
       <div className="rounded-xl border border-border bg-card p-4">
-        <h2 className="text-lg font-semibold text-foreground">Your GHL leads</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Opportunity leads for this location (from GoHighLevel). Select a pipeline to view opportunities by stage.
-        </p>
         {pipelines.length > 0 ? (
           <>
             <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -532,6 +532,18 @@ export default function CRMDashboardPage() {
               </p>
             )}
           </>
+        ) : needsConnect ? (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+            <span className="font-medium">Connect this location to load pipelines and opportunities.</span>
+            <a
+              href={getConnectInstallUrl(effectiveLocationId)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700"
+            >
+              Connect via OAuth
+            </a>
+          </div>
         ) : (
           <p className="mt-4 text-sm text-muted-foreground">No pipelines found for this location.</p>
         )}
