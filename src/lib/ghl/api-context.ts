@@ -2,16 +2,15 @@
  * GHL dashboard API context.
  *
  * Flow (simple):
- * 1. We have the access token (from OAuth callback, stored in KV).
- * 2. Resolve locationId: header, else GET /locations/search (companyId), else GET /oauth/installedLocations, else query/session.
- * 3. Get location access token from agency token → POST /oauth/locationToken.
- * 4. Use the location access token for all calls: contacts, location objects, etc. Never use the company token for those.
+ * 1. Resolve locationId: header, then query, then session; else GET /locations/search or GET /oauth/installedLocations when no locationId.
+ * 2. Get location token from KV only (from OAuth callback / Connect step for that location). No agency fallback.
+ * 3. Use that token for all GHL API calls for the location.
  */
 
 import { NextRequest } from 'next/server';
 import { getSession } from '@/lib/ghl/session';
 import { getOrFetchTokenForLocation } from '@/lib/ghl/token-store';
-import { searchLocations, getInstalledLocations, getLocationTokenFromAgency } from '@/lib/ghl/agency';
+import { searchLocations, getInstalledLocations } from '@/lib/ghl/agency';
 
 export type GHLContextResult =
   | { locationId: string; token: string }
@@ -20,9 +19,8 @@ export type GHLContextResult =
 
 /**
  * Resolve locationId + location token for dashboard API calls.
- * User context (postMessage / iframe) must win: header, then query, then session. Agency fallback only when request has no locationId.
- * Step 2: locationId from x-ghl-location-id header, else locationId query param, else session; only then GET /locations/search or GET /oauth/installedLocations.
- * Step 3+4: getOrFetchTokenForLocation(locationId) → POST /oauth/locationToken when needed.
+ * LocationId: header, then query, then session; if none, GET /locations/search or GET /oauth/installedLocations.
+ * Token: KV only via getOrFetchTokenForLocation(locationId). No agency fallback; if KV has no install, returns needsConnect.
  */
 export async function resolveGHLContext(request: NextRequest): Promise<GHLContextResult> {
   try {
@@ -60,29 +58,9 @@ export async function resolveGHLContext(request: NextRequest): Promise<GHLContex
     }
 
     const token = await getOrFetchTokenForLocation(locationId);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'api-context.ts:resolveGHLContext:result', message: 'final locationId and token', data: { locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`, hasToken: !!token }, timestamp: Date.now(), hypothesisId: 'H4-H5' }) }).catch(() => {});
-    // #endregion
 
     if (token) {
       return { locationId, token };
-    }
-
-    // Fallback: when KV has no install for this location, try Agency (Company) token to get a location token.
-    // This covers sub-account locations when the app was installed as Agency and user opens from that location.
-    const session = await getSession();
-    const companyId = session?.companyId?.trim();
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'api-context.ts:resolveGHLContext:noKv', message: 'KV had no token; agency fallback check', data: { locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`, hasSession: !!session, hasCompanyId: !!companyId, companyIdPreview: companyId ? `${companyId.slice(0, 8)}..` : null }, timestamp: Date.now(), hypothesisId: 'H1-H3' }) }).catch(() => {});
-    // #endregion
-    if (companyId) {
-      const agencyResult = await getLocationTokenFromAgency(locationId, companyId);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'api-context.ts:resolveGHLContext:agencyResult', message: 'getLocationTokenFromAgency result', data: { success: agencyResult.success, hasToken: !!(agencyResult as { accessToken?: string }).accessToken, error: agencyResult.success ? null : (agencyResult as { error?: string }).error }, timestamp: Date.now(), hypothesisId: 'H2-H3' }) }).catch(() => {});
-      // #endregion
-      if (agencyResult.success && agencyResult.accessToken) {
-        return { locationId, token: agencyResult.accessToken };
-      }
     }
 
     const reason =
