@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveGHLContext } from '@/lib/ghl/api-context';
-import { listGHLQuoteRecords } from '@/lib/ghl/client';
+import { listGHLQuoteRecords, getContactIdForQuoteRecord } from '@/lib/ghl/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -214,6 +214,25 @@ export async function GET(request: NextRequest) {
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quotes/route.ts:GET:afterList', message: 'listGHLQuoteRecords returned', data: { recordCount: records?.length ?? 0, locationIdPreview: `${ctx.locationId.slice(0, 8)}..${ctx.locationId.slice(-4)}` }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});
       // #endregion
+      // Enrich records with contact id from GHL associations when not on the record
+      const BATCH = 15;
+      for (let i = 0; i < records.length; i += BATCH) {
+        const chunk = records.slice(i, i + BATCH);
+        await Promise.all(
+          chunk.map(async (r: any) => {
+            const existing =
+              r.contactId ??
+              r.contact_id ??
+              r.properties?.contactId ??
+              r.properties?.['custom_objects.quotes.contactId'] ??
+              r.customFields?.contactId ??
+              r.customFields?.['custom_objects.quotes.contact_id'];
+            if (existing) return;
+            const cid = await getContactIdForQuoteRecord(r.id, ctx.locationId, credentials);
+            if (cid) r.contactId = cid;
+          })
+        );
+      }
       const withToolInfo = mapQuotesToResponse(records);
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quotes/route.ts:GET:afterMap', message: 'mapQuotesToResponse done', data: { total: withToolInfo.length, withContactId: withToolInfo.filter((q: any) => q.contactId).length }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});

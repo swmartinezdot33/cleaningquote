@@ -1107,6 +1107,56 @@ export async function getAssociationByObjectKey(
 }
 
 /**
+ * Get all relations for a record (e.g. a quote custom object record).
+ * GET /associations/relations/{recordId}?locationId=...&skip=0&limit=100
+ * Used to resolve contact association for quotes (contact ↔ custom_objects.quotes).
+ * @see https://marketplace.gohighlevel.com/docs/ghl/associations/get-relations-by-record-id
+ */
+export async function getRelationsForRecord(
+  recordId: string,
+  locationId: string,
+  credentials?: GHLCredentials | null
+): Promise<Array<{ firstRecordId?: string; secondRecordId?: string; firstObjectKey?: string; secondObjectKey?: string }>> {
+  const res = await makeGHLRequest<{ relations?: any[]; data?: any[] } | any[]>(
+    `/associations/relations/${encodeURIComponent(recordId)}?locationId=${encodeURIComponent(locationId)}&skip=0&limit=100`,
+    'GET',
+    undefined,
+    locationId,
+    undefined,
+    credentials
+  );
+  const list = Array.isArray(res) ? res : res?.relations ?? res?.data ?? [];
+  return Array.isArray(list) ? list : [];
+}
+
+/**
+ * Resolve contact id for a quote record via GHL associations (when not on the record).
+ * Returns the first related contact id from getRelationsForRecord, or null.
+ */
+export async function getContactIdForQuoteRecord(
+  quoteRecordId: string,
+  locationId: string,
+  credentials?: GHLCredentials | null
+): Promise<string | null> {
+  const relations = await getRelationsForRecord(quoteRecordId, locationId, credentials);
+  for (const r of relations) {
+    const first = r.firstRecordId ?? (r as any).firstRecordId;
+    const second = r.secondRecordId ?? (r as any).secondRecordId;
+    const firstKey = String((r.firstObjectKey ?? (r as any).firstObjectKey) ?? '').toLowerCase();
+    const secondKey = String((r.secondObjectKey ?? (r as any).secondObjectKey) ?? '').toLowerCase();
+    const isContact = (k: string) => k === 'contact' || k === 'contacts';
+    if (first && second) {
+      if (isContact(firstKey)) return first;
+      if (isContact(secondKey)) return second;
+      // No object keys: assume the other id is contact (quote-contact has two sides)
+      if (first === quoteRecordId) return second;
+      if (second === quoteRecordId) return first;
+    }
+  }
+  return null;
+}
+
+/**
  * Associate a custom object with a contact (GHL highlevel-api-docs: associations.json)
  * - GET /associations/key/{key_name}?locationId= — get association by key name (preferred)
  * - POST /associations/relations — body createRelationReqDto: { locationId, associationId, firstRecordId, secondRecordId }
