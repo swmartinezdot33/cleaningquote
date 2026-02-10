@@ -199,6 +199,8 @@ export default function CRMDashboardPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [movingId, setMovingId] = useState<string | null>(null);
   const dragJustEndedRef = useRef(false);
+  /** Skip opportunities effect when we're already fetching from main data .then() (avoids duplicate request). */
+  const opportunitiesFetchPipelineIdRef = useRef<string | null>(null);
 
   // Sync form when modal opens
   useEffect(() => {
@@ -227,6 +229,9 @@ export default function CRMDashboardPage() {
 
   useEffect(() => {
     setApiError(null);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'crm/page.tsx:dataEffect', message: 'CRM data effect entry', data: { hasEffectiveLocationId: !!effectiveLocationId }, timestamp: Date.now(), hypothesisId: 'H1-H3' }) }).catch(() => {});
+    // #endregion
     if (!effectiveLocationId) {
       fetch('/api/dashboard/ghl/verify', { credentials: 'include' })
         .then((res) => res.json())
@@ -258,6 +263,9 @@ export default function CRMDashboardPage() {
         // Use verify as source of truth: if verify says ok, we're connected. Don't trust needsConnect from
         // stats/pipelines when returning to the page (avoids race where one request returns needsConnect before token is ready).
         setNeedsConnect(verifyRes?.ok === true ? false : !!(statsData?.needsConnect ?? pipelinesData?.needsConnect));
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'crm/page.tsx:dataEffect:then', message: 'CRM data loaded', data: { verifyOk: !!verifyRes?.ok, pipelineCount: pipelineList?.length ?? 0, hasApiError: !!(statsData?.apiError && statsData?.error), needsConnect: !!(statsData?.needsConnect ?? pipelinesData?.needsConnect) }, timestamp: Date.now(), hypothesisId: 'H2-H5' }) }).catch(() => {});
+        // #endregion
         const stored = typeof window !== 'undefined' ? sessionStorage.getItem('crm_selected_pipeline_id') : null;
         const validStored = pipelineList.find((p) => p.id === stored)?.id ?? null;
         const nextId = validStored || (pipelineList[0]?.id ?? null);
@@ -269,14 +277,35 @@ export default function CRMDashboardPage() {
           byStage[s] = stageRes[i]?.contacts ?? [];
         });
         setContactsByStage(byStage);
+        // Start opportunities fetch in same tick (no wait for effect) to speed load
+        if (nextId && api) {
+          setLoadingOpportunities(true);
+          opportunitiesFetchPipelineIdRef.current = nextId;
+          api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(nextId)}&limit=100`)
+            .then((r) => (r.ok ? r.json() : { opportunities: [] }))
+            .then((data: { opportunities?: Opportunity[] }) => {
+              setOpportunities(Array.isArray(data?.opportunities) ? data.opportunities : []);
+            })
+            .catch(() => setOpportunities([]))
+            .finally(() => {
+              setLoadingOpportunities(false);
+              opportunitiesFetchPipelineIdRef.current = null;
+            });
+        }
       })
-      .catch((e) => setError(e.message))
+      .catch((e) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'crm/page.tsx:dataEffect:catch', message: 'CRM data load failed', data: { error: e?.message ?? String(e) }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});
+        // #endregion
+        setError(e.message);
+      })
       .finally(() => setLoading(false));
   }, [effectiveLocationId, api, retryTrigger]);
 
-  // Fetch opportunities for the selected pipeline
+  // Fetch opportunities when user changes pipeline (initial load prefetched in main data .then())
   useEffect(() => {
     if (!effectiveLocationId || !selectedPipelineId || !api) return;
+    if (opportunitiesFetchPipelineIdRef.current === selectedPipelineId) return;
     setLoadingOpportunities(true);
     api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(selectedPipelineId)}&limit=100`)
       .then((r) => (r.ok ? r.json() : { opportunities: [] }))

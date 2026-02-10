@@ -1,33 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseServer, isSupabaseConfigured } from '@/lib/supabase/server';
-import * as configStore from '@/lib/config/store';
-import { getSession } from '@/lib/ghl/session';
+import { createSupabaseServer } from '@/lib/supabase/server';
 import { normalizeServiceAreaPolygons } from '@/lib/service-area/normalizePolygons';
+import { getDashboardLocationAndOrg } from '@/lib/dashboard-location';
 
 export const dynamic = 'force-dynamic';
 
-function locationIdFromRequest(request: NextRequest): string | null {
-  const header = request.headers.get('x-ghl-location-id')?.trim() || null;
-  const query = request.nextUrl.searchParams.get('locationId')?.trim() || null;
-  return header ?? query ?? null;
-}
-
-/**
- * GET /api/dashboard/service-areas
- * Same pattern as /api/dashboard/tools and /api/dashboard/crm/stats: locationId from request,
- * resolve org from organizations.ghl_location_id, return list + orgId for mutates.
- */
+/** GET /api/dashboard/service-areas - locationId from request/session → organizations.ghl_location_id → org → service areas. */
 export async function GET(request: NextRequest) {
-  const requestLocationId = locationIdFromRequest(request);
-  const ghlSession = await getSession();
-  const locationId = requestLocationId ?? ghlSession?.locationId ?? null;
-
-  if (!locationId || !isSupabaseConfigured()) {
-    return NextResponse.json({ error: 'No location context. Open CleanQuote from your location in GoHighLevel.' }, { status: 401 });
-  }
-
-  let orgId: string | null = (await configStore.getOrgIdsByGHLLocationId(locationId))[0] ?? null;
-  if (!orgId) orgId = await configStore.ensureOrgForGHLLocation(locationId);
+  const resolved = await getDashboardLocationAndOrg(request, { ensureOrg: true });
+  if (resolved instanceof NextResponse) return resolved;
+  const { orgId } = resolved;
   if (!orgId) {
     return NextResponse.json({ serviceAreas: [], orgId: null });
   }

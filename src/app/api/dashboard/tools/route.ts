@@ -8,18 +8,15 @@ import * as configStore from '@/lib/config/store';
 import { DEFAULT_WIDGET } from '@/lib/tools/config';
 import { DEFAULT_SURVEY_QUESTIONS } from '@/lib/survey/schema';
 import { getSession } from '@/lib/ghl/session';
+import { getDashboardLocationAndOrg } from '@/lib/dashboard-location';
 
 export const dynamic = 'force-dynamic';
 
-/** GET - List tools for the current GHL location. Uses org_id: resolve location → org(s) via organizations.ghl_location_id, then list all tools for that org. Accepts locationId from request (user context) so iframe location switch refetches correctly. */
+/** GET - List tools for the current GHL location. locationId from request/session → organizations.ghl_location_id → org → tools. */
 export async function GET(request: NextRequest) {
-  const headerLocationId = request.headers.get('x-ghl-location-id')?.trim() || null;
-  const queryLocationId = request.nextUrl.searchParams.get('locationId')?.trim() || null;
-  const locationId = headerLocationId ?? queryLocationId ?? (await getSession())?.locationId ?? null;
-  if (!locationId) {
-    return NextResponse.json({ error: 'No location context. Open CleanQuote from your location in GoHighLevel.' }, { status: 401 });
-  }
-  const orgIds = await configStore.getOrgIdsByGHLLocationId(locationId);
+  const resolved = await getDashboardLocationAndOrg(request);
+  if (resolved instanceof NextResponse) return resolved;
+  const { orgIds } = resolved;
   if (orgIds.length === 0) {
     return NextResponse.json({ tools: [] });
   }

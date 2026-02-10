@@ -60,7 +60,12 @@ export function dashboardApiFetch(
 export function useDashboardApi() {
   const locationId = useEffectiveLocationId();
   const api = useCallback(
-    (path: string, init?: RequestInit) => dashboardApiFetch(path, locationId, init),
+    (path: string, init?: RequestInit) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'dashboard-api.ts:api', message: 'api() called', data: { path, hasLocationId: !!locationId }, timestamp: Date.now(), hypothesisId: 'H2-H4' }) }).catch(() => {});
+      // #endregion
+      return dashboardApiFetch(path, locationId, init);
+    },
     [locationId]
   );
   return { api, locationId };

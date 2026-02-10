@@ -78,32 +78,37 @@ function setGHLContext(
   }
 }
 
+const DASHBOARD_ORIGIN = 'https://my.cleanquote.io';
+
 export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
   const [ghlData, setGhlData] = useState<GHLIframeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sessionLocationId, setSessionLocationId] = useState<string | null>(null);
-  /** When in iframe, only this unlocks the dashboard — set when REQUEST_USER_DATA_RESPONSE + decrypt returns locationId. */
+  /** In iframe only: set when REQUEST_USER_DATA_RESPONSE (decrypt) or sessionStorage from that. Never use locationId outside iframe. */
   const [locationIdFromPostMessage, setLocationIdFromPostMessage] = useState<string | null>(null);
   const hasLocationIdRef = useRef(false);
   const postMessageResponseHandledRef = useRef(false);
 
-  // App-wide user context: when not in iframe (or before iframe resolves), use session so same-tab OAuth works.
-  useEffect(() => {
-    if (ghlData?.locationId) return;
-    fetch('/api/dashboard/session')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.locationId) setSessionLocationId(data.locationId);
-      })
-      .catch(() => {});
-  }, [ghlData?.locationId]);
-
   const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
-  const effectiveLocationId = isInIframe
-    ? locationIdFromPostMessage
-    : (ghlData?.locationId ?? sessionLocationId);
+  // LocationId ONLY in iframe (postMessage decrypt or sessionStorage set from that). Never from URL/session/cookie outside iframe.
+  const effectiveLocationId = isInIframe ? (locationIdFromPostMessage ?? ghlData?.locationId ?? null) : null;
   const userContext: GHLUserContext | null = effectiveLocationId ? { locationId: effectiveLocationId } : null;
+
+  // Security: dashboard must only load inside GHL iframe. If opened directly (no iframe), redirect to my.cleanquote.io.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.self !== window.top) return;
+    const pathname = window.location.pathname ?? '';
+    if (pathname.startsWith('/dashboard')) {
+      window.location.replace(DASHBOARD_ORIGIN);
+    }
+  }, []);
+
+  // #region agent log
+  useEffect(() => {
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ghl-iframe-context.tsx:effectiveLocationId', message: 'effectiveLocationId state', data: { hasEffectiveLocationId: !!effectiveLocationId, isInIframe, pathname: typeof window !== 'undefined' ? window.location.pathname : '' }, timestamp: Date.now(), hypothesisId: 'H1-H3' }) }).catch(() => {});
+  }, [effectiveLocationId, isInIframe]);
+  // #endregion
 
   // Set cookie so server-rendered dashboard pages (e.g. tool detail) can read locationId without session.
   useEffect(() => {
@@ -118,126 +123,37 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
 
     console.log('[CQ Iframe] context resolution start', { isInIframe, pathname: typeof window !== 'undefined' ? window.location.pathname : '', hasReferrer: !!(typeof document !== 'undefined' && document.referrer) });
 
-    // 1. URL params (query + hash)
-    const urlParams = new URLSearchParams(window.location?.search ?? '');
-    const hashParams = new URLSearchParams((window.location?.hash ?? '').substring(1));
-    const pathname = window.location?.pathname ?? '';
-
-    // Only use location params — never companyId/company_id. Objects API requires sub-account (location) ID, not company ID.
-    let urlLocationId =
-      urlParams.get('locationId') ||
-      urlParams.get('location_id') ||
-      urlParams.get('location') ||
-      hashParams.get('locationId') ||
-      hashParams.get('location_id') ||
-      hashParams.get('location');
-
-    if (urlLocationId) console.log('[GHL Iframe] ✅ 1. From URL params/hash:', urlLocationId);
-
-    // 2. From current URL path (/location/{id}/) — skip if id is our app version_id (GHL sometimes puts that in the path instead of real locationId)
-    if (!urlLocationId) {
-      const pathMatch = pathname.match(/\/location\/([^/]+)/i);
-      if (pathMatch?.[1] && pathMatch[1] !== GHL_APP_VERSION_ID) {
-        urlLocationId = pathMatch[1];
-        console.log('[GHL Iframe] ✅ 2. From path:', urlLocationId);
-      }
-    }
-
-    // 3. From iframe src path (v1/v2/location/xxx) — same: ignore version_id so session/postMessage provide real locationId
-    if (!urlLocationId && isInIframe) {
-      const iframePathMatch = pathname.match(/\/(?:v\d+\/)?location\/([^/]+)/i);
-      if (iframePathMatch?.[1] && iframePathMatch[1] !== GHL_APP_VERSION_ID) {
-        urlLocationId = iframePathMatch[1];
-        console.log('[GHL Iframe] ✅ 3a. From iframe path (vN/location/xxx):', urlLocationId);
-      }
-      if (!urlLocationId) {
-        const parts = pathname.split('/');
-        const id = parts.find((p) => p.length >= 15 && p.length <= 30 && /^[a-zA-Z0-9]+$/.test(p) && p !== GHL_APP_VERSION_ID);
-        if (id) {
-          urlLocationId = id;
-          console.log('[GHL Iframe] ✅ 3b. From path parts (potential id):', urlLocationId);
-        }
-      }
-    }
-
-    // 4. Referrer (GHL parent) — reliable for custom menu links; ignore version_id
-    if (!urlLocationId && typeof document !== 'undefined' && document.referrer) {
-      try {
-        const referrerUrl = new URL(document.referrer);
-        console.log('[GHL Iframe] 4. Referrer hostname:', referrerUrl.hostname, 'pathname:', referrerUrl.pathname);
-        if (/gohighlevel|leadconnector|cleanquote\.io|ricochetbusinesssolutions/i.test(referrerUrl.hostname)) {
-          const refMatch = referrerUrl.pathname.match(/\/(?:v\d+\/)?location\/([^/]+)/i);
-          const refId = refMatch?.[1] ?? referrerUrl.searchParams.get('locationId') ?? referrerUrl.searchParams.get('location_id') ?? null;
-          if (refId && refId !== GHL_APP_VERSION_ID) urlLocationId = refId;
-          if (urlLocationId) console.log('[GHL Iframe] ✅ 4. From referrer:', urlLocationId);
-        } else {
-          console.log('[GHL Iframe] 4. Referrer not GHL hostname, skipping');
-        }
-      } catch (e) {
-        console.warn('[GHL Iframe] 4. Referrer parse error:', e);
-      }
-    } else if (!urlLocationId && typeof document !== 'undefined') {
-      console.log('[GHL Iframe] 4. document.referrer is empty (Referrer-Policy may block cross-origin)');
-    }
-
-    // 4b. window.name
-    if (!urlLocationId && typeof window !== 'undefined' && window.name) {
-      try {
-        const nameData = JSON.parse(window.name) as Record<string, unknown>;
-        const nid = nameData?.locationId ?? nameData?.location_id ?? nameData?.location;
-        if (nid && typeof nid === 'string') {
-          urlLocationId = nid;
-          console.log('[GHL Iframe] ✅ 4b. From window.name:', urlLocationId);
-        }
-      } catch {
-        if (typeof window.name === 'string' && window.name.length >= 15 && window.name.length <= 30 && /^[a-zA-Z0-9]+$/.test(window.name)) {
-          urlLocationId = window.name;
-          console.log('[GHL Iframe] ✅ 4b. window.name as plain locationId:', urlLocationId);
-        }
-      }
-    }
-
-    const urlUserId = urlParams.get('userId') || urlParams.get('user_id') || hashParams.get('userId') || hashParams.get('user_id');
-
-    if (urlLocationId && !isInIframe) {
-      hasLocationIdRef.current = true;
-      console.log('[CQ Iframe] locationId resolved (URL/path/referrer)', { locationId: urlLocationId.slice(0, 12) + '...' });
-      apply({ locationId: urlLocationId, userId: urlUserId || undefined });
-    }
-
-    // When in iframe, also use URL/path locationId immediately so we don't block on postMessage (e.g. parent URL has /location/xxx/).
-    if (urlLocationId && isInIframe) {
-      hasLocationIdRef.current = true;
-      console.log('[CQ Iframe] locationId from URL/path in iframe (no postMessage required)', { locationId: urlLocationId.slice(0, 12) + '...' });
-      setLocationIdFromPostMessage(urlLocationId);
-      apply({ locationId: urlLocationId, userId: urlUserId || undefined });
-      setLoading(false);
-    }
-
-    // 5. Session cache — when NOT in iframe we can use it; when in iframe we require postMessage (decrypt) only.
-    if (!hasLocationIdRef.current && typeof window !== 'undefined' && !isInIframe) {
+    // LocationId is ONLY used in iframe (from postMessage decrypt or sessionStorage set from that). Never from URL/session/cookie.
+    // 5. Session cache. Iframe only: sessionStorage is only ever written by setGHLContext from postMessage (decrypt).
+    if (!hasLocationIdRef.current && typeof window !== 'undefined' && isInIframe) {
       const cached = sessionStorage.getItem('ghl_iframeData');
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached) as GHLIframeData;
-          if (parsed.locationId) {
-            hasLocationIdRef.current = true;
-            console.log('[CQ Iframe] locationId from sessionStorage cache');
-            setGhlData(parsed);
-            setError(null);
-            setLoading(false);
+      const cachedId = sessionStorage.getItem('ghl_locationId');
+      const locationIdToUse = (() => {
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached) as GHLIframeData;
+            if (parsed.locationId) return { id: parsed.locationId, data: parsed };
+          } catch {
+            /* ignore */
           }
-        } catch {
-          /* ignore */
         }
+        if (cachedId && cachedId.trim()) return { id: cachedId.trim(), data: { locationId: cachedId.trim() } };
+        return null;
+      })();
+      if (locationIdToUse) {
+        hasLocationIdRef.current = true;
+        console.log('[CQ Iframe] locationId from sessionStorage (from previous decrypt)');
+        if (locationIdToUse.data && 'locationId' in locationIdToUse.data) {
+          setGhlData(locationIdToUse.data as GHLIframeData);
+        }
+        setLocationIdFromPostMessage(locationIdToUse.id);
+        setError(null);
+        setLoading(false);
       }
     }
 
     if (!isInIframe) {
-      if (!hasLocationIdRef.current) {
-        console.log('[CQ Iframe] not in iframe, no locationId');
-        setLoading(false);
-      }
+      setLoading(false);
       return;
     }
 
@@ -392,10 +308,15 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const showBlockingInIframe = isInIframe && !locationIdFromPostMessage;
+  const isDashboardDirectAccess = typeof window !== 'undefined' && window.self === window.top && (window.location.pathname ?? '').startsWith('/dashboard');
 
   return (
     <GHLIframeContext.Provider value={{ ghlData, loading, error, effectiveLocationId, userContext }}>
-      {showBlockingInIframe ? (
+      {isDashboardDirectAccess ? (
+        <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center text-sm text-muted-foreground">
+          <p>Opening CleanQuote…</p>
+        </div>
+      ) : showBlockingInIframe ? (
         <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
           {error ? (
             <p className="max-w-md text-center text-sm text-muted-foreground">
