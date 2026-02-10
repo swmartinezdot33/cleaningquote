@@ -1998,18 +1998,28 @@ export async function searchGHLOpportunities(
   });
   if (options.pipelineId) params.set('pipeline_id', options.pipelineId);
   if (options.status) params.set('status', options.status);
+  const queryString = params.toString();
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'client.ts:searchGHLOpportunities:before', message: 'GHL opportunities search params', data: { pipelineId: options.pipelineId ?? null, status: options.status ?? null, limit, queryKeys: Array.from(params.keys()) }, timestamp: Date.now(), hypothesisId: 'H1-H2' }) }).catch(() => {});
+  // #endregion
   const res = await makeGHLRequest<{
     opportunities?: GHLOpportunitySearchItem[];
     data?: GHLOpportunitySearchItem[];
     meta?: { total?: number };
   }>(
-    `/opportunities/search?${params}`,
+    `/opportunities/search?${queryString}`,
     'GET',
     undefined,
     undefined,
     undefined,
     credentials
   );
+  const resKeys = res && typeof res === 'object' && !Array.isArray(res) ? Object.keys(res as object) : [];
+  const fromOpps = Array.isArray((res as any)?.opportunities) ? (res as any).opportunities.length : 0;
+  const fromData = Array.isArray((res as any)?.data) ? (res as any).data.length : 0;
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'client.ts:searchGHLOpportunities:after', message: 'GHL opportunities search response', data: { responseKeys: resKeys, opportunitiesLength: fromOpps, dataLength: fromData, metaTotal: (res as any)?.meta?.total }, timestamp: Date.now(), hypothesisId: 'H3-H5' }) }).catch(() => {});
+  // #endregion
   const opportunities =
     res?.opportunities ?? res?.data ?? (Array.isArray(res) ? res : []);
   const list = Array.isArray(opportunities) ? opportunities : [];
