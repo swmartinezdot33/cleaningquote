@@ -2076,18 +2076,36 @@ export async function listGHLQuoteRecords(
     return [];
   }
 
-  try {
-    const res = await makeGHLRequest<{ records?: any[]; data?: any[] }>(
-      '/objects/custom_objects.quotes/records/search',
-      'POST',
-      { locationId, page: 1, pageLimit },
-      undefined,
-      undefined,
-      credentials
-    );
-    const records = parseRecords(res);
-    return Array.isArray(records) ? records : [];
-  } catch (_) {
-    return [];
+  const bodiesToTry = [
+    { location_id: locationId, page: 1, pageLimit },
+    { locationId, page: 1, pageLimit },
+  ];
+  let lastErr: unknown = null;
+  for (const body of bodiesToTry) {
+    try {
+      const res = await makeGHLRequest<{ records?: any[]; data?: any[] }>(
+        '/objects/custom_objects.quotes/records/search',
+        'POST',
+        body,
+        undefined,
+        undefined,
+        credentials
+      );
+      const records = parseRecords(res);
+      const out = Array.isArray(records) ? records : [];
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'client.ts:listGHLQuoteRecords', message: 'GHL quotes search ok', data: { recordCount: out.length, resKeys: res && typeof res === 'object' ? Object.keys(res) : [], firstRecordKeys: out[0] && typeof out[0] === 'object' ? Object.keys(out[0]) : [], hasContactIdOnFirst: !!(out[0] && (out[0].contactId ?? out[0].contact_id)) }, timestamp: Date.now(), hypothesisId: 'H3-H4' }) }).catch(() => {});
+      // #endregion
+      return out;
+    } catch (err) {
+      lastErr = err;
+      continue;
+    }
   }
+  const msg = lastErr instanceof Error ? lastErr.message : String(lastErr);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'client.ts:listGHLQuoteRecords', message: 'GHL quotes search error', data: { error: msg.slice(0, 200), hypothesisId: 'H2' }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
+  // #endregion
+  console.warn('[CQ GHL] listGHLQuoteRecords failed:', msg);
+  return [];
 }

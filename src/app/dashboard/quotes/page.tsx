@@ -580,6 +580,15 @@ export default function DashboardQuotesPage() {
                     </td>
                     <td className="px-4 py-3">
                       {[q.first_name, q.last_name].filter(Boolean).join(' ') || q.email || '—'}
+                      {q.contactId && (
+                        <Link
+                          href={`/dashboard/crm/contacts/${q.contactId}`}
+                          className="ml-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                        >
+                          <User className="h-3.5 w-3.5" />
+                          View contact
+                        </Link>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {q.service_type || '—'}

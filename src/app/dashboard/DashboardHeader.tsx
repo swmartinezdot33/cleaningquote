@@ -11,6 +11,8 @@ function isNavActive(href: string, pathname: string): boolean {
   const clean = pathname.replace(/\/$/, '') || '/';
   const base = href.replace(/\/$/, '') || '/';
   if (base === '/dashboard') return clean === '/dashboard';
+  // Leads is /dashboard/crm; only active on that exact path, not on /dashboard/crm/contacts
+  if (base === '/dashboard/crm') return clean === '/dashboard/crm';
   return clean === base || clean.startsWith(base + '/');
 }
 

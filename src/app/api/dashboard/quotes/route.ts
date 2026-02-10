@@ -48,16 +48,17 @@ function mapQuotesToResponse(records: any[]) {
       ...(price_recurring_high != null && !isDisqualified && { price_recurring_high }),
       toolName: 'Quote',
       toolSlug: null,
-      contactId: null,
+      contactId: q.contactId ?? null,
     };
   });
 }
 
-/** Map GHL quote record to dashboard quote shape */
+/** Map GHL quote record to dashboard quote shape. Preserves contactId when present on the record (GHL association). */
 function mapGHLQuoteToDashboard(record: any): any {
   const p = record.properties ?? record.customFields ?? record;
   const get = (key: string) => p[key] ?? p[`custom_objects.quotes.${key}`] ?? null;
   const quoteId = get('quote_id') ?? record.id;
+  const contactId = record.contactId ?? record.contact_id ?? get('contactId') ?? get('contact_id') ?? null;
   return {
     id: record.id,
     quote_id: quoteId,
@@ -80,6 +81,7 @@ function mapGHLQuoteToDashboard(record: any): any {
     created_at: record.createdAt ?? record.dateAdded ?? new Date().toISOString(),
     payload: typeof p.payload === 'object' ? p.payload : (p.payload ? JSON.parse(p.payload) : null),
     status: get('status') ?? 'quote',
+    contactId: contactId || null,
   };
 }
 
@@ -213,6 +215,9 @@ export async function GET(request: NextRequest) {
       fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quotes/route.ts:GET:afterList', message: 'listGHLQuoteRecords returned', data: { recordCount: records?.length ?? 0, locationIdPreview: `${ctx.locationId.slice(0, 8)}..${ctx.locationId.slice(-4)}` }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});
       // #endregion
       const withToolInfo = mapQuotesToResponse(records);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quotes/route.ts:GET:afterMap', message: 'mapQuotesToResponse done', data: { total: withToolInfo.length, withContactId: withToolInfo.filter((q: any) => q.contactId).length }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});
+      // #endregion
       return NextResponse.json({
         quotes: withToolInfo,
         isSuperAdmin: false,
