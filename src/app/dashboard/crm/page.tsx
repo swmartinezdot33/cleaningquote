@@ -11,6 +11,7 @@ import {
   useSensors,
   useDraggable,
   useDroppable,
+  pointerWithin,
 } from '@dnd-kit/core';
 import { Users, Loader2, TrendingUp, RefreshCw, GripVertical, ExternalLink, DollarSign } from 'lucide-react';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
@@ -184,7 +185,9 @@ export default function CRMDashboardPage() {
   const [testingConnection, setTestingConnection] = useState(false);
   const [retryTrigger, setRetryTrigger] = useState(0);
   const statusRef = useRef<HTMLParagraphElement | null>(null);
-  const [selectedPipelineId, setSelectedPipelineId] = useState<string | null>(null);
+  const [selectedPipelineId, setSelectedPipelineId] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? sessionStorage.getItem('crm_selected_pipeline_id') : null
+  );
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loadingOpportunities, setLoadingOpportunities] = useState(false);
   const [modalOpportunity, setModalOpportunity] = useState<Opportunity | null>(null);
@@ -252,8 +255,14 @@ export default function CRMDashboardPage() {
         setStats(statsRes ?? { counts: {}, total: 0, recentActivities: [] });
         setVerify(verifyRes);
         setPipelines(pipelineList);
-        setNeedsConnect(!!(statsData?.needsConnect ?? pipelinesData?.needsConnect));
-        setSelectedPipelineId((prev) => prev || (pipelineList[0]?.id ?? null));
+        // Use verify as source of truth: if verify says ok, we're connected. Don't trust needsConnect from
+        // stats/pipelines when returning to the page (avoids race where one request returns needsConnect before token is ready).
+        setNeedsConnect(verifyRes?.ok === true ? false : !!(statsData?.needsConnect ?? pipelinesData?.needsConnect));
+        const stored = typeof window !== 'undefined' ? sessionStorage.getItem('crm_selected_pipeline_id') : null;
+        const validStored = pipelineList.find((p) => p.id === stored)?.id ?? null;
+        const nextId = validStored || (pipelineList[0]?.id ?? null);
+        setSelectedPipelineId(nextId);
+        if (typeof window !== 'undefined' && nextId) sessionStorage.setItem('crm_selected_pipeline_id', nextId);
         setApiError(statsData?.apiError && statsData?.error ? statsData.error : null);
         const byStage: Record<string, Contact[]> = {};
         STAGES.forEach((s, i) => {
@@ -304,14 +313,18 @@ export default function CRMDashboardPage() {
         setMovingId(null);
         return;
       }
-      const opportunityId = active.id as string;
+      const opportunityId = String(active.id);
       const stages = pipelines.find((p) => p.id === selectedPipelineId)?.stages ?? [];
       const stageIds = new Set(stages.map((s) => s.id));
+      const overId = over.id != null ? String(over.id) : '';
+      const overStageId = (over.data?.current as { stageId?: string } | undefined)?.stageId;
       let newStageId: string | null = null;
-      if (stageIds.has(over.id as string)) {
-        newStageId = over.id as string;
+      if (stageIds.has(overId)) {
+        newStageId = overId;
+      } else if (overStageId && stageIds.has(overStageId)) {
+        newStageId = overStageId;
       } else {
-        const droppedOnOpp = opportunities.find((o) => o.id === over.id);
+        const droppedOnOpp = opportunities.find((o) => o.id === overId);
         newStageId = droppedOnOpp?.pipelineStageId ?? null;
       }
       const opp = opportunities.find((o) => o.id === opportunityId);
@@ -431,8 +444,9 @@ export default function CRMDashboardPage() {
     pipelines.length > 0 ||
     (stats?.total ?? 0) > 0 ||
     STAGES.some((s) => (contactsByStage[s]?.length ?? 0) > 0);
+  // Only show Connect when verify says not connected (!connectionOk). If verify says ok, we're connected — same as other pages.
   const needsConnectBanner =
-    (needsConnect || !connectionOk) && effectiveLocationId && !apiError && !hasData;
+    !connectionOk && effectiveLocationId && !apiError && !hasData;
 
   if (apiError && effectiveLocationId) {
     return (
@@ -548,7 +562,11 @@ export default function CRMDashboardPage() {
               <select
                 id="pipeline-select"
                 value={selectedPipelineId ?? ''}
-                onChange={(e) => setSelectedPipelineId(e.target.value || null)}
+                onChange={(e) => {
+                  const v = e.target.value || null;
+                  setSelectedPipelineId(v);
+                  if (typeof window !== 'undefined') sessionStorage.setItem('crm_selected_pipeline_id', v ?? '');
+                }}
                 className="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 min-w-[200px]"
               >
                 <option value="">Select a pipeline</option>
@@ -591,7 +609,12 @@ export default function CRMDashboardPage() {
                     )}
                   </div>
                   {stages.length ? (
-                    <DndContext sensors={sensors} onDragEnd={handleDragEnd} onDragStart={handleDragStart}>
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={pointerWithin}
+                      onDragEnd={handleDragEnd}
+                      onDragStart={handleDragStart}
+                    >
                       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                         {stages.map((stage) => (
                           <DroppableStageColumn
@@ -616,7 +639,7 @@ export default function CRMDashboardPage() {
               </p>
             )}
           </>
-        ) : needsConnect ? (
+        ) : needsConnect && !connectionOk ? (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
             <span className="font-medium">Connect this location to load pipelines and opportunities.</span>
             <a
