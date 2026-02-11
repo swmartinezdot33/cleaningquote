@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { getSiteUrl } from '@/lib/canonical-url';
+import * as configStore from '@/lib/config/store';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -31,52 +32,31 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = createSupabaseServer();
-    const { data, error } = await supabase
-      .from('tool_config')
-      .select('tool_id')
-      .eq('ghl_location_id', locationId)
-      .not('tool_id', 'is', null)
-      .limit(1)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Script config lookup:', error);
+    const orgIds = await configStore.getOrgIdsByGHLLocationId(locationId);
+    if (orgIds.length === 0) {
       return NextResponse.json(
-        { error: 'Config lookup failed' },
-        { status: 500, headers: CORS_HEADERS }
+        { error: 'No tool connected to this GHL location' },
+        { status: 404, headers: CORS_HEADERS }
       );
     }
+    const orgId = orgIds[0];
 
-    const toolId = data && typeof data === 'object' && 'tool_id' in data ? (data as { tool_id: string }).tool_id : null;
-    if (!toolId) {
+    const supabase = createSupabaseServer();
+    const { data: tools, error: toolsErr } = await supabase
+      .from('tools')
+      .select('id, slug, org_id')
+      .eq('org_id', orgId)
+      .limit(1)
+      .order('name');
+
+    if (toolsErr || !tools?.length) {
       return NextResponse.json(
         { error: 'No tool connected to this GHL location' },
         { status: 404, headers: CORS_HEADERS }
       );
     }
 
-    const { data: tool, error: toolErr } = await supabase
-      .from('tools')
-      .select('slug, org_id')
-      .eq('id', toolId)
-      .single();
-
-    if (toolErr || !tool) {
-      return NextResponse.json(
-        { error: 'Tool not found' },
-        { status: 404, headers: CORS_HEADERS }
-      );
-    }
-
-    const toolRow = tool as { slug?: string; org_id?: string };
-    const orgId = toolRow.org_id;
-    if (!orgId) {
-      return NextResponse.json(
-        { error: 'Tool has no organization' },
-        { status: 404, headers: CORS_HEADERS }
-      );
-    }
+    const toolRow = tools[0] as { id: string; slug?: string; org_id?: string };
 
     const { data: org, error: orgErr } = await supabase
       .from('organizations')

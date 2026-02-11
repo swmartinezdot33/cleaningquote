@@ -1,0 +1,115 @@
+'use client';
+
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Loader2 } from 'lucide-react';
+import { ServiceAreaMapDrawer, DEFAULT_ZONE_COLORS_6, type PolygonCoords, type ZoneDisplayItem } from '@/components/ServiceAreaMapDrawer';
+import { useDashboardApi } from '@/lib/dashboard-api';
+
+export interface ServiceAreaMapViewModalProps {
+  /** Address to pin on the map (e.g. contact or property address). */
+  address: string | null;
+  /** Called when the modal is closed. */
+  onClose: () => void;
+}
+
+interface MapDataArea {
+  id: string;
+  name: string;
+  polygons: PolygonCoords[];
+  zoneDisplay: ZoneDisplayItem[];
+}
+
+interface MapData {
+  officeAddress: string | null;
+  areas: MapDataArea[];
+}
+
+/**
+ * Modal that shows all org service areas on a map with office pin and the given address pinned.
+ * Fetches map data from /api/dashboard/service-areas/map-data.
+ */
+export function ServiceAreaMapViewModal({ address, onClose }: ServiceAreaMapViewModalProps) {
+  const { api } = useDashboardApi();
+  const [mapData, setMapData] = useState<MapData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadMapData = useCallback(() => {
+    if (!api) return;
+    setLoading(true);
+    setError(null);
+    api('/api/dashboard/service-areas/map-data')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load map data'))))
+      .then((d: { officeAddress?: string | null; areas?: MapDataArea[] }) => {
+        setMapData({
+          officeAddress: d.officeAddress ?? null,
+          areas: d.areas ?? [],
+        });
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load map'))
+      .finally(() => setLoading(false));
+  }, [api]);
+
+  useEffect(() => {
+    if (address != null) loadMapData();
+  }, [address, loadMapData]);
+
+  const open = address != null && address.trim() !== '';
+  const allPolygons: PolygonCoords[] = mapData
+    ? mapData.areas.flatMap((a) => a.polygons)
+    : [];
+  const allZoneDisplay: ZoneDisplayItem[] = mapData
+    ? mapData.areas.flatMap((a) =>
+        a.zoneDisplay.length > 0
+          ? a.zoneDisplay
+          : a.polygons.map((_, i) => ({
+              label: a.name + (a.polygons.length > 1 ? ` (${i + 1})` : ''),
+              color: DEFAULT_ZONE_COLORS_6[i % DEFAULT_ZONE_COLORS_6.length],
+            }))
+      )
+    : [];
+
+  return (
+    <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-2">
+          <DialogTitle>Service area map</DialogTitle>
+          <DialogDescription>
+            All service areas for your org. Office and the selected address are pinned.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex-1 min-h-[400px] px-6 pb-6">
+          {loading && (
+            <div className="flex items-center justify-center h-[420px] bg-muted/30 rounded-lg">
+              <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
+            </div>
+          )}
+          {error && (
+            <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive text-sm">
+              {error}
+            </div>
+          )}
+          {!loading && !error && mapData && (
+            <div className="rounded-lg overflow-hidden border border-border">
+              <ServiceAreaMapDrawer
+                initialPolygon={allPolygons.length > 0 ? allPolygons : undefined}
+                zoneDisplay={allZoneDisplay.length > 0 ? allZoneDisplay : undefined}
+                readOnly
+                height={420}
+                officeAddress={mapData.officeAddress}
+                pinnedAddress={address ?? undefined}
+              />
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

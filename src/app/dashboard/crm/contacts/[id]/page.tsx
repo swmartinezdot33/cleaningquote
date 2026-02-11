@@ -17,6 +17,7 @@ import {
 import { useDashboardApi } from '@/lib/dashboard-api';
 import { getVisibleDisplayFields } from '@/lib/crm/contact-display-fields';
 import { AddressMapLinks } from '@/components/AddressMapLinks';
+import { ServiceAreaMapViewModal } from '@/components/ServiceAreaMapViewModal';
 
 interface ContactDetail {
   contact: {
@@ -104,6 +105,7 @@ export default function ContactDetailPage({
   const [error, setError] = useState<string | null>(null);
   const [noteContent, setNoteContent] = useState('');
   const [addingNote, setAddingNote] = useState(false);
+  const [serviceAreaMapAddress, setServiceAreaMapAddress] = useState<string | null>(null);
 
   useEffect(() => {
     if (params && typeof (params as Promise<unknown>).then === 'function') {
@@ -253,10 +255,20 @@ export default function ContactDetailPage({
           </h2>
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
             <p className="text-foreground">{addressLine}</p>
-            <AddressMapLinks address={addressLine} showLabel size="sm" />
+            <AddressMapLinks
+              address={addressLine}
+              showLabel
+              size="sm"
+              onViewServiceAreaMap={setServiceAreaMapAddress}
+            />
           </div>
         </section>
       )}
+
+      <ServiceAreaMapViewModal
+        address={serviceAreaMapAddress}
+        onClose={() => setServiceAreaMapAddress(null)}
+      />
 
       {/* CleanQuote Home & Quote info (curated GHL custom fields) */}
       {(displayFields.quote.length > 0 || displayFields.home.length > 0 || displayFields.lead.length > 0) && (
@@ -323,7 +335,14 @@ export default function ContactDetailPage({
                       {p.nickname && <p className="font-medium text-foreground">{p.nickname}</p>}
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         <p className="text-sm text-muted-foreground">{addr || 'No address'}</p>
-                        {addr && <AddressMapLinks address={addr} showLabel size="sm" />}
+                        {addr && (
+                          <AddressMapLinks
+                            address={addr}
+                            showLabel
+                            size="sm"
+                            onViewServiceAreaMap={setServiceAreaMapAddress}
+                          />
+                        )}
                       </div>
                       <span className="mt-1 inline-flex rounded-md bg-muted px-1.5 py-0.5 text-xs capitalize">
                         {p.stage}

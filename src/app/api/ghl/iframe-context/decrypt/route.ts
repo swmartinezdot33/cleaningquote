@@ -90,8 +90,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid encrypted data format' }, { status: 400 });
     }
 
+    const contextType = userData.type as string | undefined;
+    const activeLocation = userData.activeLocation as string | undefined;
+
+    if (contextType === 'agency' && !activeLocation) {
+      console.warn('[Decrypt] Agency-only context rejected. Open from a location (sub-account).');
+      return NextResponse.json(
+        {
+          error: 'This app must be opened from a sub-account (location), not Agency view.',
+          hint: 'In GoHighLevel, open CleanQuote from a specific location dashboard so we receive location context (activeLocation).',
+        },
+        { status: 400 }
+      );
+    }
+
     const locationId =
-      (userData.activeLocation as string) ??
+      activeLocation ??
       (userData.locationId as string) ??
       (userData.location_id as string) ??
       (userData.location as { id?: string })?.id ??

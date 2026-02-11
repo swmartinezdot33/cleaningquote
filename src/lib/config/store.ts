@@ -73,30 +73,17 @@ async function upsertConfig(toolId: string | undefined, updates: Partial<ToolCon
 /**
  * Create or reset this tool's config row with preset only: site customization (title, subtitle, color) and survey questions.
  * Call once when a tool is created so every tool always has its own config. Never uses global row.
- * When ghlLocationId is provided, the tool is associated with that GHL location (visible in Tools list for that location).
+ * Tools are scoped by org_id only; no ghl_location_id on tool_config.
  */
 export async function createToolConfigPreset(
   toolId: string,
   widget: WidgetSettings,
-  surveyQuestions: unknown[],
-  ghlLocationId?: string | null
+  surveyQuestions: unknown[]
 ): Promise<void> {
   await upsertConfig(toolId, {
     widget_settings: widget as unknown as Json,
     survey_questions: surveyQuestions as unknown as Json,
-    ...(ghlLocationId ? { ghl_location_id: ghlLocationId } : {}),
   });
-}
-
-/**
- * Set the GHL location ID for a tool's config (so the tool appears in that location's Tools list).
- */
-export async function setToolConfigGhlLocationId(
-  toolId: string,
-  ghlLocationId: string | null
-): Promise<void> {
-  if (!isSupabaseConfigured()) return;
-  await upsertConfig(toolId, { ghl_location_id: ghlLocationId });
 }
 
 // ---- Widget ----
@@ -362,23 +349,6 @@ export async function ensureOrgForGHLLocation(locationId: string): Promise<strin
   return null;
 }
 
-/** Get tool IDs whose tool_config.ghl_location_id matches this GHL location (for Tools page visibility). */
-export async function getToolIdsByGHLLocationId(locationId: string): Promise<string[]> {
-  if (!isSupabaseConfigured() || !locationId?.trim()) return [];
-  const supabase = createSupabaseServer();
-  const { data, error } = await supabase
-    .from('tool_config')
-    .select('tool_id')
-    .eq('ghl_location_id', locationId.trim())
-    .not('tool_id', 'is', null);
-  if (error) {
-    console.warn('tool_config getToolIdsByGHLLocationId:', error);
-    return [];
-  }
-  const rows = (data ?? []) as Array<{ tool_id: string | null }>;
-  return rows.map((r) => r.tool_id).filter((id): id is string => typeof id === 'string' && id.length > 0);
-}
-
 /** Get GHL token: when toolId is provided, use org-level GHL for that tool's org; else legacy global tool_config. */
 export async function getGHLToken(toolId?: string): Promise<string | null> {
   if (toolId) {
@@ -400,7 +370,7 @@ export async function setGHLToken(token: string, toolId?: string): Promise<void>
   await upsertConfig(toolId, { ghl_token: token });
 }
 
-/** Get GHL location ID: when toolId is provided, use org-level GHL for that tool's org; else legacy global tool_config. */
+/** Get GHL location ID: when toolId is provided, use org-level GHL for that tool's org only; else legacy global tool_config. */
 export async function getGHLLocationId(toolId?: string): Promise<string | null> {
   if (toolId) {
     const orgId = await getOrgIdFromToolId(toolId);
@@ -408,17 +378,16 @@ export async function getGHLLocationId(toolId?: string): Promise<string | null> 
       const id = await getGHLLocationIdForOrg(orgId);
       if (id) return id;
     }
-    const row = await getConfigRow(toolId);
-    const id = row?.ghl_location_id;
-    return typeof id === 'string' ? id : null;
+    return null;
   }
-  const row = await getConfigRow(undefined);
+  const row = await getConfigRow(undefined) as Record<string, unknown> | null;
   const id = row?.ghl_location_id;
   return typeof id === 'string' ? id : null;
 }
 
-export async function setGHLLocationId(locationId: string, toolId?: string): Promise<void> {
-  await upsertConfig(toolId, { ghl_location_id: locationId });
+/** No-op: GHL location is on org only (organizations.ghl_location_id). Kept for API compatibility. */
+export async function setGHLLocationId(_locationId: string, _toolId?: string): Promise<void> {
+  // Tools and orgs use organizations.ghl_location_id; tool_config.ghl_location_id has been removed.
 }
 
 export async function ghlTokenExists(toolId?: string): Promise<boolean> {
@@ -611,7 +580,6 @@ export async function copyGlobalConfigToTool(toolId: string): Promise<void> {
     pricing_file_base64: row.pricing_file_base64,
     pricing_file_metadata: row.pricing_file_metadata,
     ghl_token: row.ghl_token,
-    ghl_location_id: row.ghl_location_id,
     ghl_config: row.ghl_config,
     updated_at,
   };
@@ -646,7 +614,6 @@ export async function copyToolConfig(sourceToolId: string, targetToolId: string)
     pricing_file_base64: row.pricing_file_base64,
     pricing_file_metadata: row.pricing_file_metadata,
     ghl_token: row.ghl_token,
-    ghl_location_id: row.ghl_location_id,
     ghl_config: row.ghl_config,
     updated_at,
   };

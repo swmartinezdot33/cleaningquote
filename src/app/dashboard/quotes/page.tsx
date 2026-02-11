@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ExternalLink, Loader2, RefreshCw, ArrowRightLeft, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import { useDashboardApi } from '@/lib/dashboard-api';
 import { AddressMapLinks } from '@/components/AddressMapLinks';
+import { ServiceAreaMapViewModal } from '@/components/ServiceAreaMapViewModal';
 
 interface QuoteRow {
   id: string;
@@ -108,6 +109,7 @@ export default function DashboardQuotesPage() {
   const [bulkReassigning, setBulkReassigning] = useState(false);
   const [bulkReassignMessage, setBulkReassignMessage] = useState<string | null>(null);
   const selectAllRef = useRef<HTMLInputElement | null>(null);
+  const [serviceAreaMapAddress, setServiceAreaMapAddress] = useState<string | null>(null);
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
@@ -408,6 +410,10 @@ export default function DashboardQuotesPage() {
 
   return (
     <div className="space-y-6">
+      <ServiceAreaMapViewModal
+        address={serviceAreaMapAddress}
+        onClose={() => setServiceAreaMapAddress(null)}
+      />
       <div>
         <h1 className="text-2xl font-bold text-foreground">Quotes</h1>
       </div>
@@ -607,7 +613,12 @@ export default function DashboardQuotesPage() {
                           <span className="truncate max-w-[180px] text-muted-foreground" title={quoteAddressLine(q)}>
                             {quoteAddressLine(q)}
                           </span>
-                          <AddressMapLinks address={quoteAddressLine(q)} showLabel={false} size="sm" />
+                          <AddressMapLinks
+                            address={quoteAddressLine(q)}
+                            showLabel={false}
+                            size="sm"
+                            onViewServiceAreaMap={setServiceAreaMapAddress}
+                          />
                         </div>
                       ) : (
                         <span className="text-muted-foreground">—</span>

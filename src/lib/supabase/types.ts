@@ -183,7 +183,6 @@ export interface Database {
           pricing_file_base64: string | null;
           pricing_file_metadata: Json | null;
           ghl_token: string | null;
-          ghl_location_id: string | null;
           ghl_config: Json | null;
           created_at: string;
           updated_at: string;
@@ -206,7 +205,6 @@ export interface Database {
           pricing_file_base64?: string | null;
           pricing_file_metadata?: Json | null;
           ghl_token?: string | null;
-          ghl_location_id?: string | null;
           ghl_config?: Json | null;
           created_at?: string;
           updated_at?: string;

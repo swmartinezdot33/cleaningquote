@@ -62,6 +62,8 @@ interface ServiceAreaMapDrawerProps {
   readOnly?: boolean;
   /** Optional office address; shown as a pin on the map (geocoded client-side). */
   officeAddress?: string | null;
+  /** Optional address to pin on the map (e.g. contact/property address). Shown as a distinct pin (geocoded client-side). */
+  pinnedAddress?: string | null;
 }
 
 export function ServiceAreaMapDrawer({
@@ -72,6 +74,7 @@ export function ServiceAreaMapDrawer({
   className = '',
   readOnly = false,
   officeAddress = null,
+  pinnedAddress = null,
 }: ServiceAreaMapDrawerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -79,6 +82,7 @@ export function ServiceAreaMapDrawer({
   const polygonRefs = useRef<any[]>([]);
   const labelMarkerRefs = useRef<any[]>([]);
   const officeMarkerRef = useRef<any>(null);
+  const pinnedAddressMarkerRef = useRef<any>(null);
   const mapIdleListenerRef = useRef<google.maps.MapsEventListener | null>(null);
   const onPolygonChangeRef = useRef(onPolygonChange);
   onPolygonChangeRef.current = onPolygonChange;
@@ -273,6 +277,50 @@ export function ServiceAreaMapDrawer({
             }
           });
         }
+
+        // Pinned address pin (e.g. contact/property address) – distinct style from office
+        const pinnedToGeocode = (typeof pinnedAddress === 'string' ? pinnedAddress.trim() : '') || null;
+        if (pinnedToGeocode && google.maps.Geocoder) {
+          const geocoder2 = new google.maps.Geocoder();
+          geocoder2.geocode({ address: pinnedToGeocode }, (results: any, status: string) => {
+            if (cancelled || status !== 'OK' || !results?.[0]?.geometry?.location || !mapRef.current) return;
+            const loc = results[0].geometry.location;
+            const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
+            const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
+            const prev = pinnedAddressMarkerRef.current as any;
+            if (prev?.setMap) prev.setMap(null);
+            else if (prev?.map != null) prev.map = null;
+            if (useMapId) {
+              const pinEl = document.createElement('div');
+              pinEl.style.cssText = 'width:22px;height:22px;background:#dc2626;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.3);';
+              pinnedAddressMarkerRef.current = new AdvancedMarkerElement({
+                map: mapRef.current,
+                position: { lat, lng },
+                content: pinEl,
+                title: 'Address',
+                zIndex: 201,
+              });
+            } else {
+              pinnedAddressMarkerRef.current = new google.maps.Marker({
+                map: mapRef.current,
+                position: { lat, lng },
+                title: 'Address',
+                zIndex: 201,
+              });
+            }
+            // Fit bounds to include office + polygons + pinned address
+            const allBounds = new google.maps.LatLngBounds();
+            allBounds.extend({ lat, lng });
+            if (initialPolygons.length > 0) {
+              initialPolygons.forEach((coords) => {
+                coords.forEach(([la, ln]) => allBounds.extend({ lat: la, lng: ln }));
+              });
+            }
+            if (allBounds.getNorthEast() && allBounds.getSouthWest()) {
+              mapRef.current.fitBounds(allBounds);
+            }
+          });
+        }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load map');
       } finally {
@@ -317,6 +365,12 @@ export function ServiceAreaMapDrawer({
         else if (m.map != null) m.map = null;
         officeMarkerRef.current = null;
       }
+      const pm = pinnedAddressMarkerRef.current as any;
+      if (pm) {
+        if (pm.setMap) pm.setMap(null);
+        else if (pm.map != null) pm.map = null;
+        pinnedAddressMarkerRef.current = null;
+      }
       if (terraDrawRef.current) {
         terraDrawRef.current.stop();
         terraDrawRef.current = null;
@@ -331,7 +385,7 @@ export function ServiceAreaMapDrawer({
       polygonRefs.current = [];
       mapRef.current = null;
     };
-  }, [initialPolygon, zoneDisplay, readOnly, officeAddress]);
+  }, [initialPolygon, zoneDisplay, readOnly, officeAddress, pinnedAddress]);
 
   const style = typeof height === 'number' ? { height: `${height}px` } : { height };
 

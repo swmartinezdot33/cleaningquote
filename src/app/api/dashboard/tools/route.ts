@@ -7,8 +7,8 @@ import { canAccessTool } from '@/lib/org-auth';
 import * as configStore from '@/lib/config/store';
 import { DEFAULT_WIDGET } from '@/lib/tools/config';
 import { DEFAULT_SURVEY_QUESTIONS } from '@/lib/survey/schema';
-import { getSession } from '@/lib/ghl/session';
 import { getDashboardLocationAndOrg } from '@/lib/dashboard-location';
+import { getSession } from '@/lib/ghl/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -116,18 +116,8 @@ export async function POST(request: NextRequest) {
     }
 
     const toolId = (tool as { id: string }).id;
-    // Set current GHL location on tool_config so the new tool appears in this location's Tools list.
-    const headerLocationId = request.headers.get('x-ghl-location-id')?.trim() || null;
-    const queryLocationId = request.nextUrl.searchParams.get('locationId')?.trim() || null;
-    const session = await getSession();
-    const locationIdForTool = headerLocationId ?? queryLocationId ?? session?.locationId ?? null;
     try {
-      await configStore.createToolConfigPreset(
-        toolId,
-        DEFAULT_WIDGET,
-        DEFAULT_SURVEY_QUESTIONS,
-        locationIdForTool
-      );
+      await configStore.createToolConfigPreset(toolId, DEFAULT_WIDGET, DEFAULT_SURVEY_QUESTIONS);
     } catch (configErr) {
       console.error('Tool created but failed to seed default config:', configErr);
       // Still return success; tool exists, user can configure in settings

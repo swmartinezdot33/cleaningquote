@@ -1,16 +1,15 @@
 /**
  * GHL dashboard API context.
  *
- * Flow (simple):
- * 1. Resolve locationId: header, then query, then session; else GET /locations/search or GET /oauth/installedLocations when no locationId.
- * 2. Get location token from KV only (from OAuth callback / Connect step for that location). No agency fallback.
+ * Flow (strict iframe + location-only):
+ * 1. Resolve locationId from header (x-ghl-location-id), then query (locationId), then session only. No agency/search fallback.
+ * 2. Get location token from KV only (from OAuth callback / Connect step for that location).
  * 3. Use that token for all GHL API calls for the location.
  */
 
 import { NextRequest } from 'next/server';
 import { getSession } from '@/lib/ghl/session';
 import { getOrFetchTokenForLocation } from '@/lib/ghl/token-store';
-import { searchLocations, getInstalledLocations } from '@/lib/ghl/agency';
 
 export type GHLContextResult =
   | { locationId: string; token: string }
@@ -20,36 +19,16 @@ export type GHLContextResult =
 /**
  * Resolve locationId + location token for dashboard API calls.
  * Single source of truth for "is this location authed in KV?" — use this for any route that calls GHL API.
- * - LocationId: header (x-ghl-location-id), then query (locationId), then session; if none, search/installedLocations.
+ * - LocationId: header (x-ghl-location-id), then query (locationId), then session only. No search/installedLocations fallback (strict iframe + location-only).
  * - Client must send user context (effectiveLocationId) via useDashboardApi() so header/query are set.
- * - Token: KV only via getOrFetchTokenForLocation(locationId). No agency fallback; if KV has no install, returns needsConnect.
+ * - Token: KV only via getOrFetchTokenForLocation(locationId). If KV has no install, returns needsConnect.
  */
 export async function resolveGHLContext(request: NextRequest): Promise<GHLContextResult> {
   try {
     const headerLocationId = request.headers.get('x-ghl-location-id')?.trim() || null;
     const queryLocationId = request.nextUrl.searchParams.get('locationId')?.trim() || null;
-
-    // User context first: header (postMessage/snippet), then query, then session. Agency only when none provided.
-    let rawLocationId: string | null = headerLocationId ?? queryLocationId;
-    if (!rawLocationId) {
-      const session = await getSession();
-      rawLocationId = session?.locationId ?? null;
-    }
-    if (!rawLocationId) {
-      const searched = await searchLocations({ limit: 10 });
-      if (searched.success && searched.locations?.length) {
-        const first = searched.locations[0];
-        rawLocationId = (first?.id ?? first?._id ?? (first as { locationId?: string }).locationId) ?? null;
-      }
-      if (!rawLocationId) {
-        const installed = await getInstalledLocations();
-        if (installed.success && installed.locations?.length) {
-          const first = installed.locations[0];
-          rawLocationId = (first?._id ?? first?.id ?? (first as { locationId?: string }).locationId) ?? null;
-        }
-      }
-    }
-
+    const session = await getSession();
+    const rawLocationId = headerLocationId ?? queryLocationId ?? session?.locationId ?? null;
     const locationId = rawLocationId ? rawLocationId.trim() : null;
 
     if (!locationId) {

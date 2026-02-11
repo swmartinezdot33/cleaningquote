@@ -1,11 +1,10 @@
 import { getSession } from '@/lib/ghl/session';
 import { getOrFetchCurrentUser } from '@/lib/ghl/user-cache';
-import { DashboardHeader } from '@/app/dashboard/DashboardHeader';
 import { DashboardGHLWrapper } from '@/app/dashboard/DashboardGHLWrapper';
 
 /**
  * Dashboard relies solely on GHL iframe context (locationId from postMessage or URL).
- * No NextAuth or Supabase user login required — we never gate on server-side session.
+ * Org and header are provided by DashboardContextProvider inside DashboardGHLWrapper.
  */
 export default async function DashboardLayout({
   children,
@@ -27,16 +26,8 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-muted/30">
-      <DashboardHeader
-        orgs={[]}
-        selectedOrgId={null}
-        selectedOrgRole={undefined}
-        userDisplayName={userDisplayName}
-        isSuperAdmin={false}
-        ghlSession={ghlSession ?? undefined}
-      />
-      <DashboardGHLWrapper>
-        <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 overflow-x-hidden">{children}</main>
+      <DashboardGHLWrapper userDisplayName={userDisplayName} ghlSession={ghlSession ?? undefined}>
+        {children}
       </DashboardGHLWrapper>
     </div>
   );

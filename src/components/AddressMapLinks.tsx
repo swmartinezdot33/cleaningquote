@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { MapPin, Home, Navigation, Map } from 'lucide-react';
+import { MapPin, Home, Map, MapPinned } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const MAP_LINKS = [
@@ -22,14 +22,6 @@ const MAP_LINKS = [
     className: 'text-[#006AFF] hover:text-[#0052CC]',
   },
   {
-    id: 'waze',
-    label: 'Open in Waze',
-    href: (address: string) =>
-      `https://waze.com/ul?q=${encodeURIComponent(address)}&navigate=yes`,
-    icon: Navigation,
-    className: 'text-[#33CCFF] hover:text-[#00B4E6]',
-  },
-  {
     id: 'apple',
     label: 'Open in Apple Maps',
     href: (address: string) =>
@@ -48,17 +40,20 @@ export interface AddressMapLinksProps {
   showLabel?: boolean;
   /** Size of icon buttons: 'sm' | 'md' (default 'sm') */
   size?: 'sm' | 'md';
+  /** When provided, show "View on service area map" button (dashboard only). Callback receives the address. */
+  onViewServiceAreaMap?: (address: string) => void;
 }
 
 /**
  * Renders "View maps:" with icon links to open the address in Google Maps,
- * Zillow, Waze, and Apple Maps. Use next to any displayed address.
+ * Zillow, and Apple Maps. Optionally a "View on service area map" button.
  */
 export function AddressMapLinks({
   address,
   className,
   showLabel = true,
   size = 'sm',
+  onViewServiceAreaMap,
 }: AddressMapLinksProps) {
   const trimmed = (address || '').trim();
   if (!trimmed) return null;
@@ -93,6 +88,21 @@ export function AddressMapLinks({
           <Icon className={iconSize} aria-hidden />
         </a>
       ))}
+      {onViewServiceAreaMap && (
+        <button
+          type="button"
+          onClick={() => onViewServiceAreaMap(trimmed)}
+          title="View on service area map"
+          className={cn(
+            'inline-flex items-center justify-center rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+            buttonSize,
+            'text-emerald-600 hover:text-emerald-700 dark:text-emerald-500 dark:hover:text-emerald-400'
+          )}
+          aria-label="View on service area map"
+        >
+          <MapPinned className={iconSize} aria-hidden />
+        </button>
+      )}
     </span>
   );
 }

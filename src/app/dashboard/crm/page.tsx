@@ -16,6 +16,7 @@ import {
 import { Users, Loader2, TrendingUp, RefreshCw, GripVertical, ExternalLink, DollarSign } from 'lucide-react';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 import { useDashboardApi } from '@/lib/dashboard-api';
+import { useDashboardPageStateNullable } from '@/lib/dashboard-page-state';
 import { getInstallUrlWithLocation } from '@/lib/ghl/oauth-utils';
 import {
   Dialog,
@@ -185,9 +186,9 @@ export default function CRMDashboardPage() {
   const [testingConnection, setTestingConnection] = useState(false);
   const [retryTrigger, setRetryTrigger] = useState(0);
   const statusRef = useRef<HTMLParagraphElement | null>(null);
-  const [selectedPipelineId, setSelectedPipelineId] = useState<string | null>(() =>
-    typeof window !== 'undefined' ? sessionStorage.getItem('crm_selected_pipeline_id') : null
-  );
+  const [selectedPipelineId, setSelectedPipelineId] = useDashboardPageStateNullable('crm', 'pipelineId', null, {
+    locationId: effectiveLocationId ?? undefined,
+  });
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loadingOpportunities, setLoadingOpportunities] = useState(false);
   const [modalOpportunity, setModalOpportunity] = useState<Opportunity | null>(null);
@@ -262,11 +263,8 @@ export default function CRMDashboardPage() {
         byStage[s] = (stageRes[i] as { contacts?: Contact[] })?.contacts ?? [];
       });
       setContactsByStage(byStage);
-      const stored = typeof window !== 'undefined' ? sessionStorage.getItem('crm_selected_pipeline_id') : null;
-      const validStored = pipelineList.find((p) => p.id === stored)?.id ?? null;
-      const nextId = validStored || (pipelineList[0]?.id ?? null);
+      const nextId = pipelineList.find((p) => p.id === selectedPipelineId)?.id ?? pipelineList[0]?.id ?? null;
       setSelectedPipelineId(nextId);
-      if (typeof window !== 'undefined' && nextId) sessionStorage.setItem('crm_selected_pipeline_id', nextId);
       if (nextId && api) {
         setLoadingOpportunities(true);
         opportunitiesFetchPipelineIdRef.current = nextId;
@@ -636,7 +634,6 @@ export default function CRMDashboardPage() {
                 onChange={(e) => {
                   const v = e.target.value || null;
                   setSelectedPipelineId(v);
-                  if (typeof window !== 'undefined') sessionStorage.setItem('crm_selected_pipeline_id', v ?? '');
                 }}
                 className="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 min-w-[200px]"
               >
