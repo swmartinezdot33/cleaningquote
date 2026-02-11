@@ -111,9 +111,6 @@ export default function ServiceAreasClient() {
   }, [api, effectiveLocationId]);
 
   const openDrawModal = (areaId?: string) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ServiceAreasClient:openDrawModal', message: 'openDrawModal called', data: { orgId, areaId: areaId ?? null }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
-    // #endregion
     if (!orgId) return;
     setEditingId(areaId ?? null);
     setEditName('');
@@ -149,9 +146,6 @@ export default function ServiceAreasClient() {
   const [previewZoneDisplay, setPreviewZoneDisplay] = useState<ZoneDisplayItem[]>([]);
 
   const openPreview = (areaId: string) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ServiceAreasClient:openPreview', message: 'openPreview called', data: { orgId, areaId }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
-    // #endregion
     if (!orgId) return;
     setPreviewOpen(true);
     setPreviewName('');

@@ -125,6 +125,11 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { ghlContactId: providedContactId, contactId: bodyContactId, toolSlug, toolId: bodyToolId } = body;
+    let ghlContactId: string | undefined = typeof providedContactId === 'string' && providedContactId.trim() ? providedContactId.trim() : undefined;
+    let quoteCustomFields: Record<string, string> = {};
+    const generatedQuoteId = generateReadableQuoteId();
+    let quoteId = generatedQuoteId;
+    let ghlQuoteCreated = false;
 
     // Resolve tool for multi-tenant: prefer toolId (unambiguous). If only toolSlug, resolve by slug but fail if multiple orgs use same slug.
     let toolId: string | undefined = typeof bodyToolId === 'string' && bodyToolId.trim() ? bodyToolId.trim() : undefined;
@@ -175,89 +180,34 @@ export async function POST(request: NextRequest) {
     if (isNaN(squareFootage)) {
       squareFootage = squareFootageRangeToNumber(String(body.squareFeet));
     }
-    
-    // #region agent log
-    const conditionKeys = Object.keys(body || {}).filter((k) => k.toLowerCase().includes('condition'));
-    const conditionFromBody =
-      body.condition ??
-      body.current_condition ??
-      body.currentCondition ??
-      body.homeCondition ??
-      (conditionKeys.length
-        ? conditionKeys
-            .map((k) => body[k])
-            .find((v) => v != null && typeof v === 'string' && String(v).trim())
-        : undefined);
-    const rawCondition =
-      typeof conditionFromBody === 'string' ? conditionFromBody.trim() || undefined : undefined;
-    const inputsCondition = normalizeConditionForPricing(rawCondition) ?? rawCondition;
+
+    const hasGHLToken = await ghlTokenExists(toolId).catch(() => false);
+
     const inputs: QuoteInputs = {
-      squareFeet: squareFootage,
+      squareFeet: Number.isFinite(squareFootage) ? squareFootage : 1500,
       bedrooms: Number(body.bedrooms) || 0,
       fullBaths: Number(body.fullBaths) || 0,
       halfBaths: Number(body.halfBaths) || 0,
       people: Number(body.people) || 0,
       pets: Number(body.pets) || 0,
-      sheddingPets: Number(body.sheddingPets) || 0,
-      condition: inputsCondition,
+      sheddingPets: Number(body.sheddingPets) ?? Number(body.pets) ?? 0,
+      condition: normalizeConditionForPricing(body.condition),
       hasPreviousService: body.hasPreviousService,
       cleanedWithin3Months: body.cleanedWithin3Months,
     };
+    const pricingStructureId = toolId ? await getPricingStructureIdFromConfig(toolId) : undefined;
+    const result = await calcQuote(inputs, toolId, pricingStructureId ?? undefined);
 
-    let pricingStructureId: string | undefined =
-      typeof body.pricingStructureId === 'string' && body.pricingStructureId.trim()
-        ? body.pricingStructureId.trim()
-        : undefined;
-    if (pricingStructureId === undefined) {
-      const fromConfig = await getPricingStructureIdFromConfig(toolId);
-      if (fromConfig) pricingStructureId = fromConfig;
-    }
-    const result = await calcQuote(inputs, toolId, pricingStructureId);
-
-    if (result.outOfLimits || !result.ranges) {
-      return NextResponse.json({
-        outOfLimits: true,
-        message: result.message || 'Unable to calculate quote.',
-      });
-    }
-
-    // At this point, TypeScript knows ranges is defined
-    // Use explicit range string for GHL note: from body (squareFeetDisplay or squareFeet string) or derive from numeric value
-    const squareFeetRangeFromBody =
-      (typeof body.squareFeetDisplay === 'string' && body.squareFeetDisplay.trim() !== '')
-        ? body.squareFeetDisplay.trim()
-        : typeof body.squareFeet === 'string' && body.squareFeet.includes('-')
-          ? body.squareFeet
-          : typeof body.squareFeet === 'string' && body.squareFeet.toLowerCase().includes('less than')
-            ? body.squareFeet
-            : undefined;
-    const squareFeetDisplayForNote = squareFeetRangeFromBody ?? getSquareFootageRangeDisplay(result.inputs?.squareFeet ?? (typeof body.squareFeet === 'number' ? body.squareFeet : 1500));
-    let summaryLabels: { serviceTypeLabels: Record<string, string>; frequencyLabels: Record<string, string> } | undefined;
-    try {
+    let summaryText = '';
+    let smsText = '';
+    if (result.ranges) {
       const surveyQuestions = await getSurveyQuestions(toolId);
-      summaryLabels = getSurveyDisplayLabels(surveyQuestions);
-    } catch (_) { /* use built-in labels */ }
-    const summaryText = generateSummaryText({ ...result, ranges: result.ranges }, body.serviceType, body.frequency, squareFeetDisplayForNote, summaryLabels);
-    const smsText = generateSmsText({ ...result, ranges: result.ranges }, summaryLabels);
+      const summaryLabels = getSurveyDisplayLabels(surveyQuestions);
+      const squareFeetDisplay = getSquareFootageRangeDisplay(result.inputs?.squareFeet ?? squareFootage);
+      summaryText = generateSummaryText({ ...result, ranges: result.ranges }, body.serviceType || '', body.frequency || '', squareFeetDisplay, summaryLabels);
+      smsText = generateSmsText({ ...result, ranges: result.ranges }, summaryLabels);
+    }
 
-    // Generate readable quoteId early for tracking/redirect purposes
-    // Format: QT-YYMMDD-XXXXX (e.g., QT-260124-A9F2X)
-    // This ensures we always have a quoteId even if GHL custom object creation fails
-    const generatedQuoteId = generateReadableQuoteId();
-    let quoteId: string | undefined = generatedQuoteId; // Use generated ID as default
-    
-    // Track whether GHL quote creation succeeded (for KV storage metadata)
-    let ghlQuoteCreated = false;
-    let quoteCustomFields: Record<string, string> = {};
-    
-    // Attempt GHL integration (non-blocking)
-    // If a contact was already created after address step or passed via contactId/ghlContactId param, use that ID
-    let ghlContactId: string | undefined = providedContactId || bodyContactId;
-    const hasGHLToken = await ghlTokenExists(toolId).catch(() => false);
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quote/route.ts:ghl-block', message: 'GHL block entry', data: { hasGHLToken, toolId: toolId ?? null }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H4-H5' }) }).catch(() => {});
-    // #endregion
     if (hasGHLToken) {
       try {
         const [ghlConfig, surveyQuestions, ghlToken, ghlLocationId] = await Promise.all([
@@ -554,9 +504,6 @@ export async function POST(request: NextRequest) {
 
         ghlContactId = contact.id;
 
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quote/route.ts:after-contact', message: 'contact created', data: { ghlContactId }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' }) }).catch(() => {});
-        // #endregion
 
         // Prepare promises for parallel execution (opportunity, custom object, note)
         let opportunityPromise: Promise<any> | null = null;
@@ -564,7 +511,7 @@ export async function POST(request: NextRequest) {
         let notePromise: Promise<any> | null = null;
 
         // Create opportunity if enabled
-        if (ghlConfig?.createOpportunity && ghlContactId) {
+        if (ghlConfig?.createOpportunity && ghlContactId && result.ranges) {
           // Get the selected price range first
           const selectedRange = getSelectedQuoteRange(result.ranges, body.serviceType, body.frequency);
           
@@ -724,7 +671,7 @@ export async function POST(request: NextRequest) {
             const serviceAddress = addressParts.join(', ') || '';
 
             // Get selected quote range for storing price ranges
-            const selectedRange = getSelectedQuoteRange(result.ranges, body.serviceType, body.frequency);
+            const selectedRange = result.ranges ? getSelectedQuoteRange(result.ranges, body.serviceType, body.frequency) : null;
 
             // Map all fields to Quote custom object
             // IMPORTANT: Use full fieldKey format: custom_objects.quotes.field_name
@@ -898,9 +845,6 @@ export async function POST(request: NextRequest) {
           notePromise,
         ].filter(Boolean) as Promise<any>[];
 
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quote/route.ts:ghl-ops', message: 'GHL ops queued', data: { noteIncluded: !!notePromise, opsCount: ghlOperations.length }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1-H2' }) }).catch(() => {});
-        // #endregion
 
         if (ghlOperations.length > 0) {
           const results = await Promise.allSettled(ghlOperations);
@@ -968,7 +912,7 @@ export async function POST(request: NextRequest) {
     const oneTimeTypes = ['move-in', 'move-out', 'deep'];
     const canonicalServiceType = toCanonicalServiceType(body.serviceType || '');
     const storedFrequency = oneTimeTypes.includes(canonicalServiceType) ? '' : (body.frequency ?? '');
-    const selectedRange = getSelectedQuoteRange(result.ranges, body.serviceType, body.frequency);
+    const selectedRange = result.ranges ? getSelectedQuoteRange(result.ranges, body.serviceType, body.frequency) : null;
 
     // Labels from stored survey (for payload and response) — compute before building payload
     let serviceTypeLabel = '';

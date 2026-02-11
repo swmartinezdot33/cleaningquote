@@ -3,8 +3,8 @@
 import './globals.css';
 import { useState, useEffect, Suspense } from 'react';
 
-function debugLog(location: string, message: string, data?: Record<string, unknown>) {
-  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location, message, data: data ?? {}, timestamp: Date.now() }) }).catch(() => {});
+function debugLog(_location: string, _message: string, _data?: Record<string, unknown>) {
+  // no-op (debug instrumentation removed)
 }
 import { createPortal } from 'react-dom';
 import Link from 'next/link';

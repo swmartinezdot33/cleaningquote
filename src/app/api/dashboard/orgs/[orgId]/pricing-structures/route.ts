@@ -38,17 +38,11 @@ export async function GET(
   } else {
     const ghlSession = await getSession();
     const locationId = requestLocationId ?? ghlSession?.locationId ?? null;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'orgs/[orgId]/pricing-structures:GET', message: 'GHL branch', data: { orgId, hasRequestLocationId: !!requestLocationId, hasSessionLocationId: !!ghlSession?.locationId, resolvedLocationId: !!locationId }, timestamp: Date.now(), hypothesisId: 'H2-H3' }) }).catch(() => {});
-    // #endregion
     if (locationId) {
       allowed = await canAccessOrgViaGHLLocation(orgId, locationId);
       if (allowed) client = createSupabaseServer();
     }
   }
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'orgs/[orgId]/pricing-structures:GET', message: 'access check', data: { orgId, hasRequestLocationId: !!requestLocationId, allowed }, timestamp: Date.now(), hypothesisId: 'H3' }) }).catch(() => {});
-  // #endregion
   if (!allowed) {
     return NextResponse.json(
       user ? { error: 'Only org admins can view pricing structures' } : { error: 'Unauthorized' },
@@ -63,9 +57,6 @@ export async function GET(
     .eq('org_id', orgId)
     .order('name');
 
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'orgs/[orgId]/pricing-structures:GET', message: 'query result', data: { listLength: (data ?? []).length, hasError: !!error, errorMessage: error?.message ?? null }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});
-  // #endregion
 
   if (error) {
     console.error('GET org pricing-structures:', error);

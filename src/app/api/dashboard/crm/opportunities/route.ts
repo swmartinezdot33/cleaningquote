@@ -32,17 +32,11 @@ export async function GET(request: NextRequest) {
       Math.max(1, parseInt(request.nextUrl.searchParams.get('limit') || '50', 10) || 50)
     );
     const statusFilter = 'open';
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'opportunities/route.ts:GET', message: 'opportunities request', data: { pipelineId: pipelineId ?? null, limit, statusFilter, locationIdPreview: `${ctx.locationId.slice(0, 8)}..${ctx.locationId.slice(-4)}` }, timestamp: Date.now(), hypothesisId: 'H4' }) }).catch(() => {});
-    // #endregion
     const { opportunities, total } = await searchGHLOpportunities(
       ctx.locationId,
       { pipelineId, limit, status: statusFilter },
       { token: ctx.token, locationId: ctx.locationId }
     );
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'opportunities/route.ts:GET:result', message: 'opportunities result', data: { count: opportunities.length, total: total ?? null }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});
-    // #endregion
     return NextResponse.json({
       opportunities,
       total: total ?? opportunities.length,

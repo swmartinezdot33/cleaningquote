@@ -11,18 +11,6 @@ import { OpenFromGHLLogger } from './OpenFromGHLLogger';
 export default async function OpenFromGHLPage() {
   const session = await getSession();
   console.log('[CQ open-from-ghl] getSession result', { hasSession: !!session, willRedirect: !!session });
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      location: 'open-from-ghl/page.tsx',
-      message: session ? 'open-from-ghl has session, client redirect to dashboard' : 'open-from-ghl no session, rendering',
-      data: { hasSession: !!session, hypothesisId: 'H1' },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
   if (session) {
     return <RedirectToDashboard />;
   }

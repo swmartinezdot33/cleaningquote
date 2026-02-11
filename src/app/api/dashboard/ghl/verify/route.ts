@@ -5,15 +5,6 @@ import { getInstallation } from '@/lib/ghl/token-store';
 
 export const dynamic = 'force-dynamic';
 
-// #region agent log
-function debugLog(message: string, data: Record<string, unknown>) {
-  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ location: 'verify/route.ts', message, data, timestamp: Date.now() }),
-  }).catch(() => {});
-}
-// #endregion
 
 /**
  * GET /api/dashboard/ghl/verify?locationId=...
@@ -39,14 +30,6 @@ export async function GET(request: NextRequest) {
       const lookedUpLocationId = ctx.locationId;
       const install = lookedUpLocationId ? await getInstallation(lookedUpLocationId) : null;
       const tokenExistsInKV = !!install;
-      // #region agent log
-      debugLog('verify needs_connect: KV proof for looked-up locationId', {
-        locationIdLookedUpPreview: lookedUpLocationId ? `${lookedUpLocationId.slice(0, 8)}..${lookedUpLocationId.slice(-4)}` : null,
-        locationIdLength: lookedUpLocationId?.length ?? 0,
-        tokenExistsInKV,
-        hypothesisId: 'H1-H5',
-      });
-      // #endregion
       const message =
         lookedUpLocationId
           ? 'This location is not connected yet. Click below to authorize CleanQuote for this location.'
@@ -63,13 +46,6 @@ export async function GET(request: NextRequest) {
       });
     }
     // We have token + locationId (from KV lookup by locationId); verify with a minimal GHL API call (same as CRM)
-    // #region agent log
-    debugLog('verify: about to call GHL listGHLContacts', {
-      locationIdPreview: `${ctx.locationId.slice(0, 8)}..${ctx.locationId.slice(-4)}`,
-      tokenLength: ctx.token?.length ?? 0,
-      hypothesisId: 'H1-H4-H5',
-    });
-    // #endregion
     try {
       const [install, { contacts }] = await Promise.all([
         getInstallation(ctx.locationId),
@@ -86,13 +62,6 @@ export async function GET(request: NextRequest) {
       });
     } catch (ghlErr) {
       const msg = ghlErr instanceof Error ? ghlErr.message : String(ghlErr);
-      // #region agent log
-      debugLog('verify: GHL call failed (listGHLContacts or getInstallation)', {
-        message: msg,
-        hasAuthClassInMessage: msg.includes('authClass') || msg.includes('scope'),
-        hypothesisId: 'H1-H5',
-      });
-      // #endregion
       return NextResponse.json({
         ok: false,
         hasToken: true,

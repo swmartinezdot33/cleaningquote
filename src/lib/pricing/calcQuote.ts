@@ -308,15 +308,6 @@ export async function calcQuote(inputs: QuoteInputs, toolId?: string, pricingStr
   const peopleMultiplier = getPeopleMultiplier(inputs.people, config.peopleMultiplier, peopleBase);
   const sheddingPetMultiplier = getSheddingPetMultiplier(inputs.sheddingPets, config.sheddingPetsMultiplier, sheddingPetsBase);
   const conditionMultiplier = getConditionMultiplier(inputs.condition);
-  // #region agent log
-  console.log('[calcQuote] condition multiplier', {
-    inputsCondition: inputs.condition,
-    conditionMultiplier,
-  });
-  if (typeof globalThis !== 'undefined' && (globalThis as any).fetch) {
-    (globalThis as any).fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calcQuote.ts:conditionMultiplier',message:'condition multiplier',data:{inputsCondition:inputs.condition,conditionMultiplier},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-  }
-  // #endregion
 
   // Check if condition is out of scope (multiplier >= 20)
   if (conditionMultiplier >= 20) {
@@ -341,11 +332,6 @@ export async function calcQuote(inputs: QuoteInputs, toolId?: string, pricingStr
   // Initial cleaning: base (general × config multiplier) then apply condition multiplier (first-time only)
   const initialBaseRange = calculateInitialCleaningPrice(generalRange, config.multiplier);
   const initialRange = applyMultiplier(initialBaseRange, conditionMultiplier);
-  // #region agent log
-  if (typeof globalThis !== 'undefined' && (globalThis as any).fetch) {
-    (globalThis as any).fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'calcQuote.ts:initialRange',message:'initial range after condition',data:{initialLow:initialRange.low,initialHigh:initialRange.high,conditionMultiplier},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-  }
-  // #endregion
 
   // Determine if Initial Cleaning is required (consider both condition and cleaning history)
   const initialCleaningRequired = isInitialCleaningRequired(inputs.condition, inputs.cleanedWithin3Months, config);

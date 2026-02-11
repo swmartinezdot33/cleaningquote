@@ -58,14 +58,8 @@ export default function DashboardHomeClient() {
   useEffect(() => {
     if (!locationId) {
       setLoading(false);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'DashboardHomeClient.tsx:effect', message: 'dashboard effect ran, no locationId', data: { hasApi: !!api }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-      // #endregion
       return;
     }
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'DashboardHomeClient.tsx:effect', message: 'dashboard effect running fetch', data: { locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}` }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
-    // #endregion
     loadData();
   }, [locationId, api, loadData]);
 

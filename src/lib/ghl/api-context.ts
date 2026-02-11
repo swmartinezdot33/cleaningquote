@@ -28,9 +28,6 @@ export async function resolveGHLContext(request: NextRequest): Promise<GHLContex
   try {
     const headerLocationId = request.headers.get('x-ghl-location-id')?.trim() || null;
     const queryLocationId = request.nextUrl.searchParams.get('locationId')?.trim() || null;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'api-context.ts:resolveGHLContext:entry', message: 'resolveGHLContext entry', data: { headerLocationId: headerLocationId ? `${headerLocationId.slice(0, 8)}..` : null, queryLocationId: queryLocationId ? `${queryLocationId.slice(0, 8)}..` : null }, timestamp: Date.now(), hypothesisId: 'H1-H2-H3' }) }).catch(() => {});
-    // #endregion
 
     // User context first: header (postMessage/snippet), then query, then session. Agency only when none provided.
     let rawLocationId: string | null = headerLocationId ?? queryLocationId;
@@ -67,9 +64,6 @@ export async function resolveGHLContext(request: NextRequest): Promise<GHLContex
 
     const reason =
       'Connect this location once: open CleanQuote from this location in GHL and complete the Connect step. We store the token in KV (no oauth scope needed).';
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'api-context.ts:resolveGHLContext:noToken', message: 'returning needsConnect (no token in KV)', data: { locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}` }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-    // #endregion
     return { needsConnect: true, locationId, reason };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

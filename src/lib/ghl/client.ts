@@ -117,21 +117,6 @@ export async function makeGHLRequest<T>(
           sentLocationIdHeader: sendLocationIdHeader,
         });
       }
-      // #region agent log
-      if (response.status === 401) {
-        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            location: 'client.ts:makeGHLRequest',
-            message: 'GHL 401',
-            data: { endpoint: endpoint.slice(0, 60), errorPreview: (errorData?.message || errorData?.error || responseText?.slice(0, 80)) ?? null, usedCredentials: !!credentials, hypothesisId: 'H1-H5' },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-      }
-      // #endregion
-
       // Enhanced error logging for 400/404 errors to help debug (skip for expected "user id is invalid")
       const isInvalidUserId = response.status === 400 && (errorData?.message === 'The user id is invalid.' || String(errorData?.message || '').includes('user id is invalid'));
       if ((response.status === 400 || response.status === 404) && !isInvalidUserId) {
@@ -2021,12 +2006,6 @@ export async function listGHLPipelines(
     undefined,
     credentials
   );
-  // #region agent log
-  const resKeys = res && typeof res === 'object' ? Object.keys(res as object) : [];
-  const fromPipelines = Array.isArray((res as any)?.pipelines) ? (res as any).pipelines.length : 0;
-  const fromData = Array.isArray((res as any)?.data) ? (res as any).data.length : 0;
-  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'lib/ghl/client.ts:listGHLPipelines', message: 'GHL pipelines raw response', data: { responseKeys: resKeys, pipelinesLength: fromPipelines, dataLength: fromData }, timestamp: Date.now(), hypothesisId: 'H1-H5' }) }).catch(() => {});
-  // #endregion
   const pipelines = res?.pipelines ?? res?.data ?? [];
   return Array.isArray(pipelines) ? pipelines : [];
 }
@@ -2049,9 +2028,6 @@ export async function searchGHLOpportunities(
   if (options.pipelineId) params.set('pipeline_id', options.pipelineId);
   if (options.status) params.set('status', options.status);
   const queryString = params.toString();
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'client.ts:searchGHLOpportunities:before', message: 'GHL opportunities search params', data: { pipelineId: options.pipelineId ?? null, status: options.status ?? null, limit, queryKeys: Array.from(params.keys()) }, timestamp: Date.now(), hypothesisId: 'H1-H2' }) }).catch(() => {});
-  // #endregion
   const res = await makeGHLRequest<{
     opportunities?: GHLOpportunitySearchItem[];
     data?: GHLOpportunitySearchItem[];
@@ -2067,9 +2043,6 @@ export async function searchGHLOpportunities(
   const resKeys = res && typeof res === 'object' && !Array.isArray(res) ? Object.keys(res as object) : [];
   const fromOpps = Array.isArray((res as any)?.opportunities) ? (res as any).opportunities.length : 0;
   const fromData = Array.isArray((res as any)?.data) ? (res as any).data.length : 0;
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'client.ts:searchGHLOpportunities:after', message: 'GHL opportunities search response', data: { responseKeys: resKeys, opportunitiesLength: fromOpps, dataLength: fromData, metaTotal: (res as any)?.meta?.total }, timestamp: Date.now(), hypothesisId: 'H3-H5' }) }).catch(() => {});
-  // #endregion
   const opportunities =
     res?.opportunities ?? res?.data ?? (Array.isArray(res) ? res : []);
   const list = Array.isArray(opportunities) ? opportunities : [];
@@ -2143,9 +2116,6 @@ export async function listGHLQuoteRecords(
       );
       const records = parseRecords(res);
       const out = Array.isArray(records) ? records : [];
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'client.ts:listGHLQuoteRecords', message: 'GHL quotes search ok', data: { recordCount: out.length, resKeys: res && typeof res === 'object' ? Object.keys(res) : [], firstRecordKeys: out[0] && typeof out[0] === 'object' ? Object.keys(out[0]) : [], hasContactIdOnFirst: !!(out[0] && (out[0].contactId ?? out[0].contact_id)) }, timestamp: Date.now(), hypothesisId: 'H3-H4' }) }).catch(() => {});
-      // #endregion
       return out;
     } catch (err) {
       lastErr = err;
@@ -2153,9 +2123,6 @@ export async function listGHLQuoteRecords(
     }
   }
   const msg = lastErr instanceof Error ? lastErr.message : String(lastErr);
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'client.ts:listGHLQuoteRecords', message: 'GHL quotes search error', data: { error: msg.slice(0, 200), hypothesisId: 'H2' }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
-  // #endregion
   console.warn('[CQ GHL] listGHLQuoteRecords failed:', msg);
   return [];
 }

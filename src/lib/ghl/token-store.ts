@@ -258,13 +258,6 @@ async function refreshAgencyToken(install: AgencyTokenInstall): Promise<AgencyTo
   }
 }
 
-// #region agent log
-function debugLog(message: string, data: Record<string, unknown>) {
-  const payload = { location: 'token-store.ts', message, data, timestamp: Date.now() };
-  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {});
-  console.log('[CQ-DEBUG]', JSON.stringify(payload));
-}
-// #endregion
 
 /**
  * Get installation data for a location (raw, no refresh).
@@ -285,29 +278,10 @@ export async function getInstallation(locationId: string): Promise<GHLInstallati
       return null;
     }
     console.log('[CQ token-store] KV result', { kvKey, found: !!resolved, hasToken: !!resolved?.accessToken, locationIdMatch: match });
-    // #region agent log
-    debugLog('getInstallation result', {
-      kvKey,
-      locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`,
-      hasData: !!data,
-      hasAccessToken: !!(data?.accessToken),
-      userType: data?.userType ?? null,
-      hypothesisId: 'H1-H2-H4',
-    });
-    // #endregion
     return resolved ?? null;
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     const kvNotConfigured = /KV_REST_API|required|not configured/i.test(errMsg);
-    // #region agent log
-    debugLog('getInstallation error', {
-      keyPreview: `${kvKey.slice(0, 18)}..`,
-      locationIdPreview: locationId?.slice(0, 8) + '..',
-      err: errMsg,
-      kvNotConfigured,
-      hypothesisId: 'H2',
-    });
-    // #endregion
     console.warn('[CQ token-store] getInstallation error', { locationIdPreview: locationId?.slice(0, 12) + '...', err: errMsg, kvNotConfigured });
     return null;
   }
@@ -330,9 +304,6 @@ export async function getOrFetchTokenForLocation(locationId: string): Promise<st
 export async function getTokenForLocation(locationId: string): Promise<string | null> {
   const install = await getInstallation(locationId);
   if (!install) {
-    // #region agent log
-    debugLog('getTokenForLocation: no install', { locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`, hypothesisId: 'H2' });
-    // #endregion
     return null;
   }
 
@@ -345,14 +316,6 @@ export async function getTokenForLocation(locationId: string): Promise<string | 
 
   // Refresh the token
   const refreshed = await refreshAccessToken(locationId, install);
-  // #region agent log
-  debugLog('getTokenForLocation after refresh', {
-    locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`,
-    needsRefresh,
-    refreshOk: !!refreshed,
-    hypothesisId: 'H3',
-  });
-  // #endregion
   if (!refreshed) return null;
 
   return refreshed.accessToken;

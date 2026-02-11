@@ -202,18 +202,12 @@ const emptyQuotes = () => NextResponse.json({ quotes: [], isSuperAdmin: false, i
 export async function GET(request: NextRequest) {
   try {
     const ctx = await resolveGHLContext(request);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quotes/route.ts:GET:afterResolve', message: 'quotes API ctx', data: { hasCtx: !!ctx, locationIdPreview: ctx && !('needsConnect' in ctx) ? `${ctx.locationId.slice(0, 8)}..${ctx.locationId.slice(-4)}` : null, needsConnect: ctx && 'needsConnect' in ctx }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});
-    // #endregion
     if (!ctx) return NextResponse.json({ quotes: [], isSuperAdmin: false, isOrgAdmin: false, locationIdRequired: true });
     if ('needsConnect' in ctx) return emptyQuotes();
 
     try {
       const credentials = { token: ctx.token, locationId: ctx.locationId };
       const records = await listGHLQuoteRecords(ctx.locationId, { limit: 2000 }, credentials);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quotes/route.ts:GET:afterList', message: 'listGHLQuoteRecords returned', data: { recordCount: records?.length ?? 0, locationIdPreview: `${ctx.locationId.slice(0, 8)}..${ctx.locationId.slice(-4)}` }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});
-      // #endregion
       // Enrich records with contact id from GHL associations when not on the record
       const BATCH = 15;
       for (let i = 0; i < records.length; i += BATCH) {
@@ -258,9 +252,6 @@ export async function GET(request: NextRequest) {
         ...q,
         contactName: q.contactId ? (contactNameById[q.contactId] ?? null) : null,
       }));
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quotes/route.ts:GET:afterMap', message: 'mapQuotesToResponse done', data: { total: quotesWithContactNames.length, withContactId: quotesWithContactNames.filter((q: any) => q.contactId).length, contactNamesResolved: Object.keys(contactNameById).length }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});
-      // #endregion
       return NextResponse.json({
         quotes: quotesWithContactNames,
         isSuperAdmin: false,

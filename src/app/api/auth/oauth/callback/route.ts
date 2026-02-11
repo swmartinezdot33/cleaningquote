@@ -8,15 +8,6 @@ export const dynamic = 'force-dynamic';
 
 const APP_BASE = getAppBaseUrl();
 
-// #region agent log
-function debugLog(message: string, data: Record<string, unknown>) {
-  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ location: 'oauth/callback/route.ts', message, data, timestamp: Date.now() }),
-  }).catch(() => {});
-}
-// #endregion
 
 function parseState(state: string | null): { redirect: string; orgId?: string } {
   const fallback = { redirect: '/dashboard' };
@@ -79,18 +70,6 @@ export async function GET(request: NextRequest) {
     });
 
     const callbackReferer = request.headers.get('referer') ?? '';
-    // #region agent log
-    debugLog('OAuth callback hit', {
-      hasCode: !!code,
-      hasState: !!state,
-      locationIdParam: locationId ?? null,
-      error: error ?? null,
-      paramKeys: Object.keys(allParams),
-      hasReferer: !!callbackReferer,
-      refererHost: callbackReferer ? (() => { try { return new URL(callbackReferer).host; } catch { return 'parse-fail'; } })() : null,
-      hypothesisId: 'H2-H3-H4-H5',
-    });
-    // #endregion
 
     if (error) {
       const errorDescription = request.nextUrl.searchParams.get('error_description') || 'No description provided';
@@ -177,7 +156,6 @@ export async function GET(request: NextRequest) {
       }
       console.error('[OAuth Callback] Token exchange error - Response body:', errorText);
       console.error('[OAuth Callback] Token exchange error parsed:', errorData);
-      debugLog('OAuth callback token exchange failed', { status: tokenResponse.status, error: errorData?.error });
       const errorUrl = new URL('/oauth-success', APP_BASE);
       errorUrl.searchParams.set('error', errorData.error || 'token_exchange_failed');
       errorUrl.searchParams.set('error_description', errorData.error_description || errorData.message || '');
@@ -289,7 +267,6 @@ export async function GET(request: NextRequest) {
 
     if (!finalLocationId) {
       console.error('[CQ Callback] STEP 6 — no locationId', { locationIdFromState: !!locationIdFromState, queryLocationId: !!locationId, tokenKeys: Object.keys(tokenData) });
-      debugLog('OAuth callback no locationId', { locationId, tokenKeys: Object.keys(tokenData) });
       const errorUrl = new URL('/oauth-success', APP_BASE);
       errorUrl.searchParams.set('error', 'no_location_id: Unable to determine location ID from OAuth response or API call');
       return NextResponse.redirect(errorUrl.toString());
@@ -332,7 +309,6 @@ export async function GET(request: NextRequest) {
       console.log('[CQ Callback] STEP 7 — storeInstallation() returned (no throw)');
     } catch (storeErr) {
       console.error('[OAuth Callback] ❌ STORAGE FAILED — tokens were NOT saved. Check KV (Vercel KV or KV_REST_API_* env vars).', storeErr);
-      debugLog('OAuth callback storeInstallation failed', { error: storeErr instanceof Error ? storeErr.message : String(storeErr) });
       const errorUrl = new URL('/oauth-success', APP_BASE);
       errorUrl.searchParams.set('error', 'storage_failed');
       errorUrl.searchParams.set('error_description', storeErr instanceof Error ? storeErr.message : 'Failed to save OAuth tokens. Check server logs and KV configuration.');
@@ -376,7 +352,6 @@ export async function GET(request: NextRequest) {
     if (orgId) {
       console.log('[CQ Callback] STEP 8a — setOrgGHLOAuth', { orgId, locationId: finalLocationId?.slice(0, 12) + '...' });
     }
-    debugLog('OAuth callback success redirect', { targetUrl, cookieSet: true });
     const res = NextResponse.redirect(targetUrl);
     const cookieOptions: { httpOnly: boolean; secure: boolean; sameSite: 'none'; maxAge: number; path: string; domain?: string } = {
       httpOnly: true,
@@ -403,7 +378,6 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.log('[CQ Callback] ========== CALLBACK EXCEPTION ==========');
     console.error('[CQ Callback] Error in OAuth callback:', error);
-    debugLog('OAuth callback exception', { error: error instanceof Error ? error.message : String(error) });
     const errorUrl = new URL('/oauth-success', APP_BASE);
     const msg = error instanceof Error ? error.message : 'oauth_callback_failed';
     errorUrl.searchParams.set('error', msg.includes('KV') || msg.includes('store') ? 'storage_failed' : 'oauth_callback_failed');

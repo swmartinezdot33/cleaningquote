@@ -124,9 +124,6 @@ export function ToolCardActions({ toolId, toolName, toolSlug, toolOrgId }: ToolC
   };
 
   const handleEdit = () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ToolCardActions.tsx:handleEdit', message: 'handleEdit called', data: { toolId, hypothesisId: 'H2' }, timestamp: Date.now(), sessionId: 'debug-session' }) }).catch(() => {});
-    // #endregion
     router.push(`/dashboard/tools/${toolId}`);
   };
 
@@ -134,9 +131,6 @@ export function ToolCardActions({ toolId, toolName, toolSlug, toolOrgId }: ToolC
     <div className="flex flex-wrap items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
       <IconButton
         onClick={() => {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ToolCardActions.tsx:editClick', message: 'edit button click fired', data: { toolId, hypothesisId: 'H1' }, timestamp: Date.now(), sessionId: 'debug-session' }) }).catch(() => {});
-          // #endregion
           handleEdit();
         }}
         title="Edit tool"

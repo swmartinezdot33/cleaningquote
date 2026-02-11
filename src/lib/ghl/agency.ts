@@ -192,15 +192,6 @@ export async function getInstalledLocations(options?: { companyId?: string; appI
  * @see https://marketplace.gohighlevel.com/docs/ghl/oauth/get-location-access-token
  * @param options.skipStore - If true, do not persist to KV (e.g. when using agency-only for dashboard).
  */
-// #region agent log
-function agencyDebugLog(message: string, data: Record<string, unknown>) {
-  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ location: 'agency.ts', message, data, timestamp: Date.now() }),
-  }).catch(() => {});
-}
-// #endregion
 
 /**
  * Resolve the Agency Access Token for POST /oauth/locationToken.
@@ -224,11 +215,7 @@ export async function getLocationTokenFromAgency(
   const agencyInstall = await getAgencyInstall();
   const token = agencyInstall?.accessToken ?? (await getAgencyTokenForLocationToken());
   const companyId = companyIdOrOptional?.trim() ?? agencyInstall?.companyId?.trim() ?? process.env.GHL_COMPANY_ID?.trim();
-  // #region agent log
-  agencyDebugLog('getLocationTokenFromAgency: entry', { locationIdPreview: `${locationId.slice(0, 8)}..${locationId.slice(-4)}`, hasAgencyToken: !!token, hasCompanyId: !!companyId, hypothesisId: 'H2-H3' });
-  // #endregion
   if (!token) {
-    agencyDebugLog('getLocationTokenFromAgency: no agency token (install app as Agency so OAuth returns Company token)', { hypothesisId: 'H1' });
     return { success: false, error: 'No agency token. Install the app as Agency (Target User: Agency); the OAuth Access Token from that install is the Agency token.' };
   }
   if (!companyId) {
@@ -266,7 +253,6 @@ export async function getLocationTokenFromAgency(
 
     if (!res.ok) {
       const errMsg = data.error ?? data.message ?? `GHL API ${res.status}`;
-      agencyDebugLog('getLocationTokenFromAgency: GHL API error', { status: res.status, error: errMsg, endpoint: '/oauth/locationToken', hypothesisId: 'H2-H3-H5' });
       console.error('GHL locationToken failed:', res.status, data);
       const isScopeError = res.status === 401 && (errMsg.includes('scope') || errMsg.includes('authorized'));
       if (isScopeError) {
@@ -304,7 +290,6 @@ export async function getLocationTokenFromAgency(
           userType: 'Location',
         });
         console.log('[CQ Agency] stored location token in KV', { locationId: locId.slice(0, 12) + '..' });
-        agencyDebugLog('getLocationTokenFromAgency: stored in KV', { locationIdPreview: `${locId.slice(0, 8)}..${locId.slice(-4)}`, hypothesisId: 'H3' });
       } catch (storeErr) {
         console.warn('[CQ Agency] store location token in KV failed (will use token for this request only)', storeErr instanceof Error ? storeErr.message : storeErr);
       }

@@ -123,9 +123,6 @@ export async function getOrgsForDashboard(userId: string, userEmail: string | un
 > {
   if (isSuperAdminEmail(userEmail)) {
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'org-auth.ts:getOrgsForDashboard', message: 'super admin path, before createSupabaseServer', data: {}, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' }) }).catch(() => {});
-      // #endregion
       const admin = createSupabaseServer();
       const { data: orgsRaw } = await admin
         .from('organizations')
@@ -134,9 +131,6 @@ export async function getOrgsForDashboard(userId: string, userEmail: string | un
       const orgs = (orgsRaw ?? []) as Organization[];
       return orgs.map((o) => ({ ...o, role: 'admin' as const }));
     } catch (err) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'org-auth.ts:getOrgsForDashboard:catch', message: 'super admin catch, falling back', data: { err: String(err) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' }) }).catch(() => {});
-      // #endregion
       // In dev, SUPABASE_SERVICE_ROLE_KEY is often missing from .env.local, so super admin only sees member orgs
       console.warn(
         '[getOrgsForDashboard] Super admin: could not load all orgs (check SUPABASE_SERVICE_ROLE_KEY in .env.local). Using member orgs only. Add SUPABASE_SERVICE_ROLE_KEY from Supabase Dashboard → Settings → API → service_role and restart dev server.'

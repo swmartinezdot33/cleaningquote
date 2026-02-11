@@ -109,13 +109,7 @@ export default function DashboardQuotesPage() {
 
   const loadQuotes = useCallback(() => {
     setError(null);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quotes/page.tsx:loadQuotes', message: 'loadQuotes entry', data: { hasEffectiveLocationId: !!effectiveLocationId }, timestamp: Date.now(), hypothesisId: 'H1-H3' }) }).catch(() => {});
-    // #endregion
     if (!effectiveLocationId) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quotes/page.tsx:loadQuotes:earlyReturn', message: 'loadQuotes early return', data: { reason: 'no effectiveLocationId' }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-      // #endregion
       setLoading(false);
       setQuotes([]);
       return;
@@ -126,9 +120,6 @@ export default function DashboardQuotesPage() {
       fetch('/api/dashboard/super-admin/tools'),
     ])
       .then(([quotesRes, toolsRes]) => {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quotes/page.tsx:loadQuotes:response', message: 'quotes API response', data: { status: quotesRes.status, ok: quotesRes.ok }, timestamp: Date.now(), hypothesisId: 'H3-H4' }) }).catch(() => {});
-        // #endregion
         return quotesRes.ok
           ? quotesRes.json().then((data: { quotes?: QuoteRow[]; isSuperAdmin?: boolean; isOrgAdmin?: boolean; error?: string }) => ({
               quotes: data.quotes ?? [],
@@ -140,18 +131,12 @@ export default function DashboardQuotesPage() {
           : quotesRes.json().then((data: { error?: string }) => Promise.reject(new Error(data?.error ?? 'Failed to load quotes')));
       })
       .then(({ quotes: list, isSuperAdminFromQuotes, isOrgAdminFromQuotes, toolsOk, apiError }) => {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quotes/page.tsx:loadQuotes:then', message: 'quotes loaded', data: { count: list?.length ?? 0, apiError: apiError ?? null }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});
-        // #endregion
         setQuotes(list);
         setIsSuperAdmin(!!isSuperAdminFromQuotes || !!toolsOk);
         setIsOrgAdmin(!!isOrgAdminFromQuotes);
         if (apiError) setError(apiError);
       })
       .catch((e) => {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quotes/page.tsx:loadQuotes:catch', message: 'quotes load failed', data: { error: e?.message ?? String(e) }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});
-        // #endregion
         setError(e?.message ?? 'Failed to load quotes');
       })
       .finally(() => setLoading(false));

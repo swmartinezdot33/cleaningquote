@@ -104,12 +104,6 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ghl-iframe-context.tsx:effectiveLocationId', message: 'effectiveLocationId state', data: { hasEffectiveLocationId: !!effectiveLocationId, isInIframe, pathname: typeof window !== 'undefined' ? window.location.pathname : '' }, timestamp: Date.now(), hypothesisId: 'H1-H3' }) }).catch(() => {});
-  }, [effectiveLocationId, isInIframe]);
-  // #endregion
-
   // Set cookie so server-rendered dashboard pages (e.g. tool detail) can read locationId without session.
   useEffect(() => {
     if (typeof document === 'undefined' || !effectiveLocationId) return;
@@ -149,6 +143,29 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
         setLocationIdFromPostMessage(locationIdToUse.id);
         setError(null);
         setLoading(false);
+      }
+    }
+
+    // Fallback: when in iframe and still no locationId, use URL (query ?locationId= or path /v2/location/XXX/) so Quotes/Leads load reliably when opened via GHL custom link.
+    if (!hasLocationIdRef.current && typeof window !== 'undefined' && isInIframe) {
+      const pathname = window.location.pathname ?? '';
+      const search = window.location.search ?? '';
+      const urlLocationId = new URLSearchParams(search).get('locationId')?.trim() || null;
+      const pathMatch = pathname.match(/^\/v2\/location\/([^/]+)/);
+      const pathLocationId = pathMatch?.[1]?.trim() || null;
+      const fromUrl = urlLocationId || pathLocationId;
+      if (fromUrl) {
+        hasLocationIdRef.current = true;
+        const ctx: GHLIframeData = { locationId: fromUrl };
+        setGhlData(ctx);
+        setLocationIdFromPostMessage(fromUrl);
+        setError(null);
+        setLoading(false);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('ghl_locationId', fromUrl);
+          sessionStorage.setItem('ghl_iframeData', JSON.stringify(ctx));
+          fetch('/api/ghl/iframe-context', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ctx) }).catch(() => {});
+        }
       }
     }
 
