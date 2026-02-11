@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { ExternalLink, Loader2, RefreshCw, ArrowRightLeft, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { ExternalLink, RefreshCw, ArrowRightLeft, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import { useDashboardApi } from '@/lib/dashboard-api';
 import { useDashboardPageState } from '@/lib/dashboard-page-state';
 import { AddressMapLinks } from '@/components/AddressMapLinks';
 import { ServiceAreaMapViewModal } from '@/components/ServiceAreaMapViewModal';
+import { LoadingDots } from '@/components/ui/loading-dots';
 
 interface QuoteRow {
   id: string;
@@ -468,7 +469,7 @@ export default function DashboardQuotesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <LoadingDots size="lg" className="text-muted-foreground" />
       </div>
     );
   }

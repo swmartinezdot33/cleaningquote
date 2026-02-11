@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createSupabaseBrowser } from '@/lib/supabase/client';
+import { LoadingDots } from '@/components/ui/loading-dots';
 
 interface InviteData {
   orgName: string;
@@ -91,7 +92,7 @@ export default function InviteAcceptPage() {
   if (!invite) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <LoadingDots size="lg" className="text-primary" />
       </div>
     );
   }

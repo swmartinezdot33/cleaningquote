@@ -13,7 +13,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Copy, ChevronLeft, ChevronRight, Sparkles, Calendar, Clock, Loader2, Check, AlertCircle } from 'lucide-react';
+import { Copy, ChevronLeft, ChevronRight, Sparkles, Calendar, Clock, Check, AlertCircle } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 import { SurveyQuestion } from '@/lib/survey/schema';
 import { type ToolConfig, DEFAULT_PRIMARY_COLOR } from '@/lib/tools/config';
 import { squareFootageRangeToNumber, getSquareFootageRangeDisplay } from '@/lib/pricing/format';
@@ -1909,7 +1910,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-gray-400 mb-4"></div>
+          <LoadingDots size="lg" className="mb-4 text-gray-400" />
           <p className="text-gray-600">Loading form...</p>
         </div>
       </div>
@@ -3520,7 +3521,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           >
             {isLoading ? (
               <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
+                <LoadingDots size="sm" className="mr-2 text-white" />
                 Calculating...
               </>
             ) : currentStep === visibleQuestions.length - 1 ? (

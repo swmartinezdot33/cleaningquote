@@ -23,12 +23,12 @@ import {
   RefreshCw,
   Link as LinkIcon,
   FileUp,
-  Loader2,
   Eye,
 } from 'lucide-react';
 import Link from 'next/link';
 import { ServiceAreaMapDrawer, DEFAULT_ZONE_COLORS_6, type PolygonCoords, type ZoneDisplayItem } from '@/components/ServiceAreaMapDrawer';
 import { normalizeServiceAreaPolygons } from '@/lib/service-area/normalizePolygons';
+import { LoadingDots } from '@/components/ui/loading-dots';
 
 interface ServiceAreaItem {
   id: string;
@@ -375,7 +375,7 @@ export default function ServiceAreasClient() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <LoadingDots size="lg" className="text-muted-foreground" />
       </div>
     );
   }
@@ -476,7 +476,7 @@ export default function ServiceAreasClient() {
                         disabled={refreshingId === area.id}
                         className="gap-1"
                       >
-                        {refreshingId === area.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                        {refreshingId === area.id ? <LoadingDots size="sm" className="text-current" /> : <RefreshCw className="h-3.5 w-3.5" />}
                         Refresh from link
                       </Button>
                     )}
@@ -516,7 +516,7 @@ export default function ServiceAreasClient() {
           <div className="mt-2 rounded-lg overflow-hidden border border-border min-h-[60vh]">
             {previewLoading ? (
               <div className="flex items-center justify-center py-24 text-muted-foreground">
-                <Loader2 className="h-8 w-8 animate-spin" />
+                <LoadingDots size="lg" />
               </div>
             ) : previewPolygons && previewPolygons.length > 0 ? (
               <ServiceAreaMapDrawer
@@ -579,7 +579,7 @@ export default function ServiceAreasClient() {
                 onClick={addZipToMap}
                 disabled={addZipLoading || addZipInput.trim().length !== 5}
               >
-                {addZipLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {addZipLoading ? <LoadingDots size="sm" className="text-current" /> : null}
                 Add ZIP to map
               </Button>
               {addZipError && <p className="text-sm text-destructive w-full">{addZipError}</p>}
@@ -674,7 +674,7 @@ export default function ServiceAreasClient() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDrawModalOpen(false)}>Cancel</Button>
             <Button onClick={saveDraw} disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {saving ? <LoadingDots size="sm" className="text-current" /> : null}
               {editingId ? 'Save changes' : 'Create area'}
             </Button>
           </DialogFooter>
@@ -713,7 +713,7 @@ export default function ServiceAreasClient() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setImportKmlModalOpen(false)}>Cancel</Button>
             <Button onClick={importFromKml} disabled={importing || !importName.trim() || !importKmlFile}>
-              {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {importing ? <LoadingDots size="sm" className="text-current" /> : null}
               Import
             </Button>
           </DialogFooter>
@@ -753,7 +753,7 @@ export default function ServiceAreasClient() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setImportLinkModalOpen(false)}>Cancel</Button>
             <Button onClick={importFromLink} disabled={importing || !importName.trim() || !importLinkUrl.trim()}>
-              {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {importing ? <LoadingDots size="sm" className="text-current" /> : null}
               Add area
             </Button>
           </DialogFooter>
@@ -799,7 +799,7 @@ export default function ServiceAreasClient() {
               onClick={createFromSingleZip}
               disabled={singleZipCreating || !singleZipName.trim() || singleZipCode.trim().length !== 5}
             >
-              {singleZipCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {singleZipCreating ? <LoadingDots size="sm" className="text-current" /> : null}
               Create area
             </Button>
           </DialogFooter>
@@ -841,7 +841,7 @@ export default function ServiceAreasClient() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setImportZipCsvModalOpen(false)}>Cancel</Button>
             <Button onClick={importFromZipCsv} disabled={importing || !importName.trim() || !importZipCsvFile}>
-              {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {importing ? <LoadingDots size="sm" className="text-current" /> : null}
               Import ZIPs
             </Button>
           </DialogFooter>

@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Check } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 
 function InviteSuccessContent() {
   const searchParams = useSearchParams();
@@ -56,7 +57,7 @@ export default function InviteSuccessPage() {
   return (
     <Suspense fallback={
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <LoadingDots size="lg" className="text-primary" />
       </div>
     }>
       <InviteSuccessContent />

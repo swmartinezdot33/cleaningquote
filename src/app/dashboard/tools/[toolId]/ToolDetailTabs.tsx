@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import type { Tool } from '@/lib/supabase/types';
 import ToolSettingsClient from './settings/ToolSettingsClient';
 import ToolSurveyClient from './survey/ToolSurveyClient';
-import { ExternalLink, Copy, Check, Loader2, Pencil, CodeXml, BookOpen, X } from 'lucide-react';
+import { ExternalLink, Copy, Check, Pencil, CodeXml, BookOpen, X } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 import { CloneToolButton } from '@/components/CloneToolButton';
 import { useDashboardApi } from '@/lib/dashboard-api';
 
@@ -337,7 +338,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
                 disabled={savingName || !nameInput.trim()}
                 className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
               >
-                {savingName ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                {savingName ? <LoadingDots size="sm" className="text-current" /> : <Check className="h-4 w-4" />}
                 Save
               </button>
               <button
@@ -450,7 +451,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
                 disabled={savingBaseUrl || !addInputValue.trim()}
                 className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
               >
-                {savingBaseUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                {savingBaseUrl ? <LoadingDots size="sm" className="text-current" /> : <Check className="h-4 w-4" />}
                 Add
               </button>
             </div>
@@ -481,7 +482,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
                       className="shrink-0 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
                       title="Remove from setup and from Vercel"
                     >
-                      {removingUrl === url ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                      {removingUrl === url ? <LoadingDots size="sm" className="text-current" /> : <X className="h-4 w-4" />}
                     </button>
                   </li>
                 ))}
@@ -505,7 +506,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
                       disabled={verifyingDomain}
                       className="mt-3 inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
                     >
-                      {verifyingDomain ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                      {verifyingDomain ? <LoadingDots size="sm" className="text-current" /> : null}
                       Verify
                     </button>
                     {verifyResult && (
@@ -531,7 +532,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
                       disabled={verifyingDomain}
                       className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
                     >
-                      {verifyingDomain ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                      {verifyingDomain ? <LoadingDots size="sm" className="text-current" /> : null}
                       Verify
                     </button>
                     {verifyResult && (
@@ -609,7 +610,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
                   disabled={savingSlug || slugInput.trim() === tool.slug}
                   className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
                 >
-                  {savingSlug ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  {savingSlug ? <LoadingDots size="sm" className="text-current" /> : <Check className="h-4 w-4" />}
                   {savingSlug ? 'Saving…' : 'Save slug'}
                 </button>
               </div>

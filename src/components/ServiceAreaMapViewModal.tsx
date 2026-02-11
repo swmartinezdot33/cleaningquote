@@ -8,8 +8,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2 } from 'lucide-react';
 import { ServiceAreaMapDrawer, DEFAULT_ZONE_COLORS_6, type PolygonCoords, type ZoneDisplayItem } from '@/components/ServiceAreaMapDrawer';
+import { LoadingDots } from '@/components/ui/loading-dots';
 import { useDashboardApi } from '@/lib/dashboard-api';
 
 export interface ServiceAreaMapViewModalProps {
@@ -88,7 +88,7 @@ export function ServiceAreaMapViewModal({ address, onClose }: ServiceAreaMapView
         <div className="flex-1 min-h-[400px] px-6 pb-6">
           {loading && (
             <div className="flex items-center justify-center h-[420px] bg-muted/30 rounded-lg">
-              <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
+              <LoadingDots size="lg" className="text-muted-foreground" />
             </div>
           )}
           {error && (

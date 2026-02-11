@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useGHLIframe, useEffectiveLocationId } from '@/lib/ghl-iframe-context';
-import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { CheckCircle, AlertCircle } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { getInstallUrlWithLocation } from '@/lib/ghl/oauth-utils';
@@ -52,7 +53,7 @@ export default function SetupPage() {
   if (loading || (effectiveLocationId && loadingOAuth)) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <LoadingDots size="lg" className="text-muted-foreground" />
       </div>
     );
   }

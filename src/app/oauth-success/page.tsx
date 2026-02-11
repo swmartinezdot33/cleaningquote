@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { LoadingDots } from '@/components/ui/loading-dots';
 
 const LOG = '[CQ OAuth]';
 const AUTO_REDIRECT_SEC = 3;
@@ -134,7 +135,7 @@ export default function OAuthSuccessPage() {
   return (
     <Suspense fallback={
       <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <LoadingDots size="lg" className="text-primary" />
       </div>
     }>
       <OAuthSuccessContent />

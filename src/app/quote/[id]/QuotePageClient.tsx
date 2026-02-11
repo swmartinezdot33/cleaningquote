@@ -5,7 +5,8 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Sparkles, Loader2, AlertCircle, Calendar, Clock, ChevronLeft } from 'lucide-react';
+import { Sparkles, AlertCircle, Calendar, Clock, ChevronLeft } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 import { CalendarBooking } from '@/components/CalendarBooking';
 import { PreauthCardForm } from '@/components/PreauthCardForm';
 import { getSquareFootageRangeDisplay } from '@/lib/pricing/format';
@@ -378,7 +379,7 @@ export default function QuotePageClient({
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-pink-600" />
+          <LoadingDots size="lg" className="mx-auto mb-4 text-pink-600" />
           <p className="text-gray-600">Loading quote...</p>
         </div>
       </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Pencil, Trash2, KeyRound, Link2, UserPlus } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 
 interface User {
   id: string;
@@ -309,7 +310,7 @@ export default function SuperAdminPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <LoadingDots size="lg" className="text-primary" />
       </div>
     );
   }

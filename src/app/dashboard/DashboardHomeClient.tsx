@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useDashboardApi } from '@/lib/dashboard-api';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Loader2, Wrench, Users, FileText, MapPin, DollarSign, ArrowRight } from 'lucide-react';
+import { Wrench, Users, FileText, MapPin, DollarSign, ArrowRight } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 
 interface CrmStats {
   counts: Record<string, number>;
@@ -90,7 +91,7 @@ export default function DashboardHomeClient() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <LoadingDots size="lg" className="text-muted-foreground" />
       </div>
     );
   }

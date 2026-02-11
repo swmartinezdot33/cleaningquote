@@ -8,12 +8,12 @@ import {
   Trash2,
   Reply,
   Flag,
-  Loader2,
   Mail,
   AlertCircle,
   Send,
   PenSquare,
 } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 
 type Filter = 'inbox' | 'flagged' | 'trash' | 'sent';
 
@@ -288,7 +288,7 @@ export default function SuperAdminInboxPage() {
         >
           {loading ? (
             <div className="flex flex-1 items-center justify-center p-4">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <LoadingDots size="lg" className="text-muted-foreground" />
             </div>
           ) : error ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center">
@@ -355,7 +355,7 @@ export default function SuperAdminInboxPage() {
             </div>
           ) : loadingEmail ? (
             <div className="flex flex-1 items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <LoadingDots size="lg" className="text-muted-foreground" />
             </div>
           ) : email ? (
             <>
@@ -386,7 +386,7 @@ export default function SuperAdminInboxPage() {
                   className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50 touch-manipulation"
                 >
                   {patchingMeta === email.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <LoadingDots size="sm" className="text-current" />
                   ) : (
                     <Flag className="h-4 w-4" />
                   )}
@@ -501,7 +501,7 @@ export default function SuperAdminInboxPage() {
                 disabled={sendingCompose}
                 className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 touch-manipulation"
               >
-                {sendingCompose && <Loader2 className="h-4 w-4 animate-spin" />}
+                {sendingCompose && <LoadingDots size="sm" className="text-current" />}
                 Send
               </button>
             </div>
@@ -564,7 +564,7 @@ export default function SuperAdminInboxPage() {
                 disabled={sendingReply}
                 className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 touch-manipulation"
               >
-                {sendingReply && <Loader2 className="h-4 w-4 animate-spin" />}
+                {sendingReply && <LoadingDots size="sm" className="text-current" />}
                 Send
               </button>
             </div>

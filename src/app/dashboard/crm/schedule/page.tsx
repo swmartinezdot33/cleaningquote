@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Loader2, Calendar } from 'lucide-react';
+import { Calendar } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 
 interface Schedule {
@@ -82,7 +83,7 @@ export default function CRMSchedulePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <LoadingDots size="lg" className="text-muted-foreground" />
       </div>
     );
   }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 import { TerraDraw } from 'terra-draw';
 import { TerraDrawGoogleMapsAdapter } from 'terra-draw-google-maps-adapter';
 import { TerraDrawPolygonMode } from 'terra-draw';
@@ -393,7 +393,7 @@ export function ServiceAreaMapDrawer({
     <div className={className} style={{ position: 'relative', ...style }}>
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <LoadingDots size="lg" className="text-muted-foreground" />
         </div>
       )}
       {error && (

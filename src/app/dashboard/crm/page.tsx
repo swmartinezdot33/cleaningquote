@@ -13,7 +13,7 @@ import {
   useDroppable,
   pointerWithin,
 } from '@dnd-kit/core';
-import { Users, Loader2, TrendingUp, RefreshCw, GripVertical, ExternalLink, DollarSign } from 'lucide-react';
+import { Users, TrendingUp, RefreshCw, GripVertical, ExternalLink, DollarSign } from 'lucide-react';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 import { useDashboardApi } from '@/lib/dashboard-api';
 import { useDashboardPageStateNullable } from '@/lib/dashboard-page-state';
@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { LoadingDots } from '@/components/ui/loading-dots';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -100,7 +101,7 @@ interface Opportunity {
 
 const STAGES = ['lead', 'quoted', 'booked', 'customer', 'churned'] as const;
 
-/** Draggable opportunity card for Kanban */
+/** Draggable opportunity card for Kanban. Drag from the grip handle; click anywhere to open details. */
 function DraggableOpportunityCard({
   opportunity,
   onOpenModal,
@@ -115,12 +116,16 @@ function DraggableOpportunityCard({
   return (
     <div
       ref={setNodeRef}
-      {...listeners}
-      {...attributes}
       onClick={() => onOpenModal(opportunity)}
-      className={`flex items-start gap-2 rounded-lg border border-border bg-card p-3 shadow-sm transition-colors cursor-grab active:cursor-grabbing hover:border-primary/40 hover:shadow-md ${isDragging ? 'opacity-80 shadow-lg ring-2 ring-primary/30' : ''}`}
+      className={`flex items-start gap-2 rounded-lg border border-border bg-card p-3 shadow-sm transition-colors hover:border-primary/40 hover:shadow-md ${isDragging ? 'opacity-80 shadow-lg ring-2 ring-primary/30' : ''}`}
     >
-      <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" aria-hidden />
+      <span
+        className="shrink-0 cursor-grab active:cursor-grabbing touch-none p-0.5 -m-0.5 rounded text-muted-foreground hover:text-foreground"
+        {...listeners}
+        {...attributes}
+      >
+        <GripVertical className="h-4 w-4 mt-0.5" aria-hidden />
+      </span>
       <div className="min-w-0 flex-1">
         <p className="font-medium text-foreground truncate">{opportunity.name || 'Opportunity'}</p>
         {opportunity.value != null && (
@@ -486,14 +491,14 @@ export default function CRMDashboardPage() {
   }, [modalOpportunity, api, editName, editValue, editStatus, editStageId]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor)
   );
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <LoadingDots size="lg" className="text-muted-foreground" />
       </div>
     );
   }
@@ -542,7 +547,7 @@ export default function CRMDashboardPage() {
               disabled={testingConnection}
               className="inline-flex items-center gap-2 rounded-md border border-muted-foreground/30 px-4 py-2 text-sm font-medium hover:bg-muted/50 disabled:opacity-50"
             >
-              {testingConnection ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {testingConnection ? <LoadingDots size="sm" className="text-current" /> : <RefreshCw className="h-4 w-4" />}
               Test connection
             </button>
           </div>
@@ -577,7 +582,7 @@ export default function CRMDashboardPage() {
             disabled={testingConnection}
             className="mt-4 inline-flex items-center gap-2 rounded-md border border-amber-600 px-4 py-2 text-sm font-medium hover:bg-amber-500/20 disabled:opacity-50"
           >
-            {testingConnection ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            {testingConnection ? <LoadingDots size="sm" className="text-current" /> : <RefreshCw className="h-4 w-4" />}
             Test connection
           </button>
         </div>
@@ -606,7 +611,7 @@ export default function CRMDashboardPage() {
               disabled={testingConnection}
               className="inline-flex items-center gap-1.5 rounded border border-amber-600/50 px-2.5 py-1 text-xs hover:bg-amber-500/20 disabled:opacity-50"
             >
-              {testingConnection ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              {testingConnection ? <LoadingDots size="sm" className="text-current" /> : <RefreshCw className="h-3.5 w-3.5" />}
               Test connection
             </button>
           </div>
@@ -668,7 +673,7 @@ export default function CRMDashboardPage() {
                 <span className="text-sm text-muted-foreground">
                   {loadingOpportunities ? (
                     <span className="inline-flex items-center gap-1">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <LoadingDots size="sm" className="text-current" />
                       Loading…
                     </span>
                   ) : (
@@ -691,7 +696,7 @@ export default function CRMDashboardPage() {
                     <h3 className="font-medium text-foreground">{selectedPipeline?.name ?? 'Pipeline'}</h3>
                     {loadingOpportunities && (
                       <span className="text-sm text-muted-foreground flex items-center gap-1">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <LoadingDots size="sm" className="text-current" />
                         Updating…
                       </span>
                     )}
@@ -853,7 +858,7 @@ export default function CRMDashboardPage() {
                 >
                   {savingOpportunity ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <LoadingDots size="sm" className="mr-2 text-current" />
                       Saving…
                     </>
                   ) : (

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useDashboardApi } from '@/lib/dashboard-api';
 import { useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 
 type ToolRow = { id: string; name: string; slug: string; org_id: string };
 
@@ -32,7 +32,7 @@ export default function ToolsListClient() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <LoadingDots size="lg" className="text-muted-foreground" />
       </div>
     );
   }

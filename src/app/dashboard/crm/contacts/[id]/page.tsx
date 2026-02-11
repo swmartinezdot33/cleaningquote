@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
-  Loader2,
   Mail,
   Phone,
   MapPin,
@@ -17,6 +16,7 @@ import {
 import { useDashboardApi } from '@/lib/dashboard-api';
 import { getVisibleDisplayFields } from '@/lib/crm/contact-display-fields';
 import { AddressMapLinks } from '@/components/AddressMapLinks';
+import { LoadingDots } from '@/components/ui/loading-dots';
 import { ServiceAreaMapViewModal } from '@/components/ServiceAreaMapViewModal';
 
 interface ContactDetail {
@@ -158,7 +158,7 @@ export default function ContactDetailPage({
   if (loading || !data) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <LoadingDots size="lg" className="text-muted-foreground" />
       </div>
     );
   }

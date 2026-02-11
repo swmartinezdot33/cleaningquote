@@ -5,7 +5,8 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { CheckCircle, Calendar, Loader2 } from 'lucide-react';
+import { CheckCircle, Calendar } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 
 export default function AppointmentConfirmedPage() {
   const params = useParams();
@@ -123,7 +124,7 @@ export default function AppointmentConfirmedPage() {
               >
                 {isLoadingAnotherQuote ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <LoadingDots size="sm" className="mr-2 text-current" />
                     Loading...
                   </>
                 ) : (

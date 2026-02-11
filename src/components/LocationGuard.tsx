@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useGHLIframe } from '@/lib/ghl-iframe-context';
-import { Loader2 } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 import { Button } from '@/components/ui/button';
 
 interface LocationGuardProps {
@@ -24,7 +24,7 @@ export function LocationGuard({ children, fallback, allowWithoutLocation }: Loca
       fallback ?? (
         <div className="flex min-h-[40vh] items-center justify-center">
           <div className="flex flex-col items-center gap-3 text-muted-foreground">
-            <Loader2 className="h-8 w-8 animate-spin" />
+            <LoadingDots size="lg" />
             <p className="text-sm">Waiting for location context from CRM…</p>
           </div>
         </div>

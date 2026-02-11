@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Clock, ChevronLeft, ChevronRight, Loader2, Check, X, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, ChevronLeft, ChevronRight, Check, X, AlertCircle } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -431,7 +432,7 @@ export function CalendarBooking({
 
           {isLoadingCalendar && (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin" style={{ color: primaryColor }} />
+              <LoadingDots size="lg" className="text-current" style={{ color: primaryColor }} />
               <span className="ml-2 text-gray-600">Loading available dates...</span>
             </div>
           )}
@@ -554,7 +555,7 @@ export function CalendarBooking({
 
           {isLoadingTimes ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin" style={{ color: primaryColor }} />
+              <LoadingDots size="lg" className="text-current" style={{ color: primaryColor }} />
               <span className="ml-2 text-gray-600">Loading available times...</span>
             </div>
           ) : availableTimeSlots.length === 0 ? (
@@ -669,7 +670,7 @@ export function CalendarBooking({
             >
               {isBooking ? (
                 <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  <LoadingDots size="sm" className="mr-2 text-current" />
                   Booking...
                 </>
               ) : (

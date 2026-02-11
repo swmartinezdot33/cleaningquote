@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertCircle, CheckCircle, XCircle, AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
+import { AlertCircle, CheckCircle, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 
 interface TestResult {
   name: string;
@@ -141,7 +142,7 @@ export function GHLTestWizard({ adminPassword }: { adminPassword: string }) {
           >
             {isRunning ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" />
+                <LoadingDots size="sm" className="text-current" />
                 Running Tests...
               </>
             ) : (

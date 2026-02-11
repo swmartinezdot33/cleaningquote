@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Loader2, Search, Filter } from 'lucide-react';
+import { Search, Filter } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 import { useDashboardApi } from '@/lib/dashboard-api';
 import { getInstallUrlWithLocation } from '@/lib/ghl/oauth-utils';
@@ -86,7 +87,7 @@ export default function CRMContactsPage() {
   if (loading && contacts.length === 0) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <LoadingDots size="lg" className="text-muted-foreground" />
       </div>
     );
   }

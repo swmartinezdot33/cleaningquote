@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
-import { ChevronDown, Code, FileText, Save, Loader2, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings, HelpCircle, Pencil, User, Briefcase, Calendar, Tag, LayoutTemplate, MapPin, DollarSign, Palette, Webhook } from 'lucide-react';
+import { ChevronDown, Code, FileText, Save, CheckCircle, AlertCircle, Copy, Upload, BookOpen, Settings, HelpCircle, Pencil, User, Briefcase, Calendar, Tag, LayoutTemplate, MapPin, DollarSign, Palette, Webhook } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 import { motion } from 'framer-motion';
 import { TagPicker } from '@/components/ui/TagPicker';
 import {
@@ -446,7 +447,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <LoadingDots size="lg" className="text-primary" />
       </div>
     );
   }
@@ -537,7 +538,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                   <p className="text-sm text-muted-foreground mt-2">Used for buttons and accents.</p>
                 </div>
                 <Button onClick={saveWidget} disabled={savingSection === 'widget'} className="w-full h-11 font-semibold flex items-center gap-2">
-                  {savingSection === 'widget' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Widget Settings</>}
+                  {savingSection === 'widget' ? <><LoadingDots size="sm" className="text-current" /> Saving...</> : <><Save className="h-4 w-4" /> Save Widget Settings</>}
                 </Button>
               </div>
             </CardContent>
@@ -600,7 +601,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                   )}
                 </div>
                 <Button onClick={savePricingStructure} disabled={savingSection === 'pricing-structure'} className="gap-2">
-                  {savingSection === 'pricing-structure' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {savingSection === 'pricing-structure' ? <LoadingDots size="sm" className="text-current" /> : <Save className="h-4 w-4" />}
                   {savingSection === 'pricing-structure' ? 'Saving…' : 'Save pricing structure'}
                 </Button>
               </div>
@@ -654,7 +655,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                       disabled={savingServiceAreaAssignments}
                       className="gap-2 mt-3"
                     >
-                      {savingServiceAreaAssignments ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      {savingServiceAreaAssignments ? <LoadingDots size="sm" className="text-current" /> : null}
                       Save service area settings
                     </Button>
                   </div>
@@ -689,7 +690,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                       disabled={savingServiceAreaAssignments}
                       className="gap-2"
                     >
-                      {savingServiceAreaAssignments ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      {savingServiceAreaAssignments ? <LoadingDots size="sm" className="text-current" /> : null}
                       Save service area assignments
                     </Button>
                   </>
@@ -849,7 +850,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                   })()}
                 </section>
                 <Button onClick={saveFormAndTracking} disabled={savingSection === 'form-tracking'} className="w-full h-11 font-semibold flex items-center gap-2">
-                  {savingSection === 'form-tracking' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save query parameters & tracking</>}
+                  {savingSection === 'form-tracking' ? <><LoadingDots size="sm" className="text-current" /> Saving...</> : <><Save className="h-4 w-4" /> Save query parameters & tracking</>}
                 </Button>
               </div>
             </CardContent>
@@ -1611,7 +1612,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
 
                 {loadingGhlLists && <p className="text-sm text-muted-foreground">Loading pipelines, users, calendars…</p>}
                 <Button onClick={saveGhlConfig} disabled={savingSection === 'ghl-config'} className="w-full h-11 font-semibold flex items-center gap-2 rounded-xl">
-                  {savingSection === 'ghl-config' ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Advanced Configuration</>}
+                  {savingSection === 'ghl-config' ? <><LoadingDots size="sm" className="text-current" /> Saving...</> : <><Save className="h-4 w-4" /> Save Advanced Configuration</>}
                 </Button>
               </div>
             </CardContent>
