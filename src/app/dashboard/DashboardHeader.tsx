@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { OrgSwitcher } from '@/components/OrgSwitcher';
-import { Menu, Settings, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 
 function isNavActive(href: string, pathname: string): boolean {
   const clean = pathname.replace(/\/$/, '') || '/';
@@ -149,20 +149,6 @@ export function DashboardHeader({
       >
         Pricing
       </Link>
-      {selectedOrgRole === 'admin' && (
-        <Link
-          href="/dashboard/settings"
-          onClick={closeMobileMenu}
-          className={`text-sm font-medium border-b-2 py-3.5 px-1 -mb-px rounded-md ${
-            isNavActive('/dashboard/settings', pathname)
-              ? 'text-purple-600 border-purple-600'
-              : 'text-muted-foreground border-transparent hover:text-foreground hover:border-border'
-          }`}
-          aria-label="Settings"
-        >
-          <Settings className="h-5 w-5" />
-        </Link>
-      )}
     </>
   );
 
@@ -292,16 +278,6 @@ export function DashboardHeader({
                 >
                   Pricing
                 </Link>
-                {selectedOrgRole === 'admin' && (
-                  <Link
-                    href="/dashboard/settings"
-                    onClick={closeMobileMenu}
-                    className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors flex items-center gap-2"
-                  >
-                    <Settings className="h-5 w-5" />
-                    Settings
-                  </Link>
-                )}
               </nav>
             </div>
           </div>,

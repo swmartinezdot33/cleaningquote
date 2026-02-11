@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-/** Legacy route: Team was renamed to Settings. */
+/** Legacy route: Team/Settings removed; redirect to dashboard. */
 export default function TeamPage() {
-  redirect('/dashboard/settings');
+  redirect('/dashboard');
 }

@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { getDashboardLocationAndOrg } from '@/lib/dashboard-location';
 import { normalizeServiceAreaPolygons } from '@/lib/service-area/normalizePolygons';
+import { getLocationContactDetails } from '@/lib/ghl/location-contact';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/dashboard/service-areas/map-data
  * Returns org office address and all service area polygons for the "View on service area map" modal.
- * Used to show full org service areas with office pin and a pinned address.
+ * Prefer GHL location (Business Profile) address when org has ghl_location_id.
  */
 export async function GET(request: NextRequest) {
   const resolved = await getDashboardLocationAndOrg(request, { ensureOrg: true });
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
   const client = createSupabaseServer();
 
   const [orgResult, areasResult] = await Promise.all([
-    client.from('organizations').select('office_address').eq('id', orgId).maybeSingle(),
+    client.from('organizations').select('office_address, ghl_location_id').eq('id', orgId).maybeSingle(),
     client
       .from('service_areas')
       .select('id, name, polygon, zone_display')
@@ -29,8 +30,13 @@ export async function GET(request: NextRequest) {
       .order('name'),
   ]);
 
-  const officeAddress =
-    (orgResult.data as { office_address?: string | null } | null)?.office_address ?? null;
+  const orgRow = orgResult.data as { office_address?: string | null; ghl_location_id?: string | null } | null;
+  let officeAddress: string | null = orgRow?.office_address ?? null;
+  const ghlLocationId = orgRow?.ghl_location_id?.trim() || null;
+  if (ghlLocationId) {
+    const fromGhl = await getLocationContactDetails(ghlLocationId);
+    if (fromGhl?.officeAddress) officeAddress = fromGhl.officeAddress;
+  }
   const areasRaw = (areasResult.data ?? []) as Array<{
     id: string;
     name: string;

@@ -24,11 +24,11 @@ export async function GET(request: NextRequest) {
       const admin = createSupabaseServer();
       const { data: orgRow } = await admin
         .from('organizations')
-        .select('id, name, slug')
+        .select('id, name, slug, contact_email, contact_phone, office_address')
         .eq('id', orgId)
         .maybeSingle();
       if (orgRow) {
-        const row = orgRow as { id: string; name: string; slug: string };
+        const row = orgRow as { id: string; name: string; slug: string; contact_email?: string | null; contact_phone?: string | null; office_address?: string | null };
         return NextResponse.json({ org: { ...row, role: 'admin' as const } });
       }
     }
@@ -62,11 +62,11 @@ export async function GET(request: NextRequest) {
   const admin = createSupabaseServer();
   const { data: orgRow } = await admin
     .from('organizations')
-    .select('id, name, slug')
+    .select('id, name, slug, contact_email, contact_phone, office_address')
     .eq('id', orgId)
     .maybeSingle();
   if (!orgRow) return NextResponse.json({ org: null });
-  const row = orgRow as { id: string; name: string; slug: string };
+  const row = orgRow as { id: string; name: string; slug: string; contact_email?: string | null; contact_phone?: string | null; office_address?: string | null };
   const org = { ...row, role: 'admin' as const };
   return NextResponse.json({ org });
 }

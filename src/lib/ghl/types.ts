@@ -106,6 +106,21 @@ export interface GHLLocation {
   timezone?: string;
 }
 
+/** Full location from GET /locations/{id} (Business Profile). */
+export interface GHLLocationFull {
+  id?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+  timezone?: string;
+  [key: string]: unknown;
+}
+
 export interface GHLPipeline {
   id: string;
   name: string;

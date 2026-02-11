@@ -17,6 +17,7 @@ import {
   GHLAppointment,
   GHLAppointmentResponse,
   GHLLocation,
+  GHLLocationFull,
   GHLPipeline,
   GHLAPIError,
   GHLConnectionTestResult,
@@ -1435,7 +1436,7 @@ export async function getCustomObjectByQuoteId(
 }
 
 /**
- * Get location details
+ * Get location details (uses global token from config/KV).
  */
 export async function getLocation(locationId: string): Promise<GHLLocation> {
   try {
@@ -1448,6 +1449,29 @@ export async function getLocation(locationId: string): Promise<GHLLocation> {
   } catch (error) {
     console.error('Failed to get location:', error);
     throw error;
+  }
+}
+
+/**
+ * Get full location (Business Profile) from GHL using a location token.
+ * Used for org contact (name, email, phone, address) when we have ghl_location_id.
+ */
+export async function getLocationWithToken(
+  locationId: string,
+  locationToken: string
+): Promise<GHLLocationFull | null> {
+  try {
+    const response = await makeGHLRequest<{ location: GHLLocationFull }>(
+      `/locations/${locationId}`,
+      'GET',
+      undefined,
+      undefined,
+      locationToken
+    );
+    return response?.location ?? null;
+  } catch (error) {
+    console.warn('Failed to get GHL location details:', error);
+    return null;
   }
 }
 
