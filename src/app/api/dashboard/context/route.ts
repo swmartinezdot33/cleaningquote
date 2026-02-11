@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
  * Client must send x-ghl-location-id and/or locationId query (useDashboardApi does this).
  */
 export async function GET(request: NextRequest) {
-  const resolved = await getDashboardLocationAndOrg(request, { ensureOrg: true });
+  const resolved = await getDashboardLocationAndOrg(request);
   if (resolved instanceof NextResponse) return resolved;
 
   const { locationId, orgId, orgIds } = resolved;

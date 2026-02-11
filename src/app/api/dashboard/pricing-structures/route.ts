@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 /** GET /api/dashboard/pricing-structures - locationId from request/session → organizations.ghl_location_id → org → pricing structures. */
 export async function GET(request: NextRequest) {
-  const resolved = await getDashboardLocationAndOrg(request, { ensureOrg: true });
+  const resolved = await getDashboardLocationAndOrg(request);
   if (resolved instanceof NextResponse) return resolved;
   const { orgId } = resolved;
   if (!orgId) {

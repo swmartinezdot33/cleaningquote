@@ -27,12 +27,11 @@ export type DashboardLocationResult = {
 };
 
 /**
- * Resolve locationId from request (header → query → session), then resolve org from organizations.ghl_location_id.
- * Returns result or a 401 NextResponse. Use for all dashboard data routes (tools, service-areas, pricing-structures).
+ * Resolve locationId from request (header → query → session), then resolve org from organizations.ghl_location_id only.
+ * No fallback: if no org exists in Supabase for this location, orgId is null (e.g. show connect/demo state).
  */
 export async function getDashboardLocationAndOrg(
-  request: NextRequest,
-  options?: { ensureOrg?: boolean }
+  request: NextRequest
 ): Promise<DashboardLocationResult | NextResponse> {
   const header = request.headers.get('x-ghl-location-id')?.trim() || null;
   const query = request.nextUrl.searchParams.get('locationId')?.trim() || null;
@@ -53,13 +52,8 @@ export async function getDashboardLocationAndOrg(
   }
 
   const loc = locationId.trim();
-  let orgIds = await configStore.getOrgIdsByGHLLocationId(loc);
-  let orgId: string | null = orgIds[0] ?? null;
-
-  if (!orgId && options?.ensureOrg) {
-    orgId = await configStore.ensureOrgForGHLLocation(loc);
-    if (orgId) orgIds = [orgId];
-  }
+  const orgIds = await configStore.getOrgIdsByGHLLocationId(loc);
+  const orgId: string | null = orgIds[0] ?? null;
 
   return { locationId: loc, orgId, orgIds };
 }

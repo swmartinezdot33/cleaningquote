@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
  * Prefer GHL location (Business Profile) address when org has ghl_location_id.
  */
 export async function GET(request: NextRequest) {
-  const resolved = await getDashboardLocationAndOrg(request, { ensureOrg: true });
+  const resolved = await getDashboardLocationAndOrg(request);
   if (resolved instanceof NextResponse) return resolved;
   const { orgId } = resolved;
   if (!orgId) {

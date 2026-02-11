@@ -14,12 +14,11 @@ export async function GET(request: NextRequest) {
   const queryLocationId = request.nextUrl.searchParams.get('locationId')?.trim() || null;
   const requestLocationId = headerLocationId ?? queryLocationId;
 
-  // When locationId is present (GHL iframe), always resolve org from location — never use cookie/user so each account sees only its data.
+  // When locationId is present (GHL iframe), resolve org from Supabase only. No fallback: if no org for this location, return null.
   if (requestLocationId && isSupabaseConfigured()) {
     const locationId = requestLocationId;
     const orgIdsFromLocation = await configStore.getOrgIdsByGHLLocationId(locationId);
-    let orgId: string | null = orgIdsFromLocation[0] ?? null;
-    if (!orgId) orgId = await configStore.ensureOrgForGHLLocation(locationId);
+    const orgId: string | null = orgIdsFromLocation[0] ?? null;
     if (orgId) {
       const admin = createSupabaseServer();
       const { data: orgRow } = await admin
@@ -47,17 +46,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ org });
   }
 
-  // No locationId in request and no user: try session location as fallback (e.g. server-side only).
+  // No locationId in request and no user: try session location (server-side only). No org creation — Supabase only.
   const ghlSession = await getSession();
   const locationId = ghlSession?.locationId ?? null;
   if (!locationId || !isSupabaseConfigured()) {
     return NextResponse.json({ org: null });
   }
   const orgIdsFromLocation = await configStore.getOrgIdsByGHLLocationId(locationId);
-  let orgId: string | null = orgIdsFromLocation[0] ?? null;
-  if (!orgId) {
-    orgId = await configStore.ensureOrgForGHLLocation(locationId);
-  }
+  const orgId: string | null = orgIdsFromLocation[0] ?? null;
   if (!orgId) return NextResponse.json({ org: null });
   const admin = createSupabaseServer();
   const { data: orgRow } = await admin

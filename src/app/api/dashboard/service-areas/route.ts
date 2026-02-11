@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 /** GET /api/dashboard/service-areas - locationId from request/session → organizations.ghl_location_id → org → service areas. */
 export async function GET(request: NextRequest) {
-  const resolved = await getDashboardLocationAndOrg(request, { ensureOrg: true });
+  const resolved = await getDashboardLocationAndOrg(request);
   if (resolved instanceof NextResponse) return resolved;
   const { orgId } = resolved;
   if (!orgId) {
