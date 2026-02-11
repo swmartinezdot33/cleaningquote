@@ -62,6 +62,77 @@ function quoteAddressLine(q: QuoteRow): string {
   return [q.address, q.city, q.state, q.postal_code].filter(Boolean).join(', ') || '';
 }
 
+type DateRangeKey = 'all' | 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'this_year';
+
+const DATE_RANGE_OPTIONS: { value: DateRangeKey; label: string }[] = [
+  { value: 'all', label: 'All time' },
+  { value: 'this_week', label: 'This week' },
+  { value: 'last_week', label: 'Last week' },
+  { value: 'this_month', label: 'This month' },
+  { value: 'last_month', label: 'Last month' },
+  { value: 'this_year', label: 'This year' },
+];
+
+function getDateRangeBounds(key: DateRangeKey): { start: number; end: number } | null {
+  if (key === 'all') return null;
+  const now = new Date();
+  const toMs = (d: Date) => d.getTime();
+
+  const startOfDay = (d: Date) => {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    return x;
+  };
+  const startOfWeek = (d: Date) => {
+    const x = startOfDay(d);
+    const day = x.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    x.setDate(x.getDate() + diff);
+    return x;
+  };
+  const endOfWeek = (d: Date) => {
+    const x = startOfWeek(d);
+    x.setDate(x.getDate() + 7);
+    return toMs(x) - 1;
+  };
+  const startOfMonth = (d: Date) => {
+    const x = new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
+    return x;
+  };
+  const endOfMonth = (d: Date) => {
+    const x = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+    return x;
+  };
+  const startOfYear = (d: Date) => new Date(d.getFullYear(), 0, 1, 0, 0, 0, 0);
+
+  switch (key) {
+    case 'this_week': {
+      const start = startOfWeek(now);
+      const end = endOfWeek(now);
+      return { start: toMs(start), end };
+    }
+    case 'last_week': {
+      const thisWeekStart = startOfWeek(now);
+      const lastWeekStart = new Date(thisWeekStart);
+      lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+      return { start: toMs(lastWeekStart), end: toMs(thisWeekStart) - 1 };
+    }
+    case 'this_month':
+      return { start: toMs(startOfMonth(now)), end: toMs(endOfMonth(now)) };
+    case 'last_month': {
+      const last = new Date(now.getFullYear(), now.getMonth() - 1);
+      return { start: toMs(startOfMonth(last)), end: toMs(endOfMonth(last)) };
+    }
+    case 'this_year': {
+      const start = startOfYear(now);
+      const end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+      return { start: toMs(start), end: toMs(end) };
+    }
+    default:
+      return null;
+  }
+}
+
 function formatPriceCell(q: QuoteRow) {
   const hasInitial = q.price_initial_low != null && q.price_initial_high != null;
   const hasRecurring = q.price_recurring_low != null && q.price_recurring_high != null;
@@ -105,6 +176,9 @@ export default function DashboardQuotesPage() {
     locationId: effectiveLocationId ?? undefined,
   });
   const [filterSearch, setFilterSearch] = useDashboardPageState<string>('quotes', 'filterSearch', '', {
+    locationId: effectiveLocationId ?? undefined,
+  });
+  const [filterDateRange, setFilterDateRange] = useDashboardPageState<DateRangeKey>('quotes', 'filterDateRange', 'all', {
     locationId: effectiveLocationId ?? undefined,
   });
   const [copiedQuoteId, setCopiedQuoteId] = useState<string | null>(null);
@@ -309,6 +383,7 @@ export default function DashboardQuotesPage() {
   }, [quotes]);
 
   const filteredQuotes = useMemo(() => {
+    const dateBounds = getDateRangeBounds(filterDateRange);
     return quotes.filter((q) => {
       if (filterToolId && q.tool_id !== filterToolId) return false;
       if (filterServiceType && (q.service_type || '').trim() !== filterServiceType) return false;
@@ -330,9 +405,13 @@ export default function DashboardQuotesPage() {
           .toLowerCase();
         if (!searchable.includes(term)) return false;
       }
+      if (dateBounds) {
+        const t = new Date(q.created_at).getTime();
+        if (t < dateBounds.start || t > dateBounds.end) return false;
+      }
       return true;
     });
-  }, [quotes, filterToolId, filterServiceType, filterSearch]);
+  }, [quotes, filterToolId, filterServiceType, filterSearch, filterDateRange]);
 
   const selectedQuotes = useMemo(
     () => filteredQuotes.filter((q) => selectedIds.has(q.id)),
@@ -362,7 +441,7 @@ export default function DashboardQuotesPage() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterToolId, filterServiceType, filterSearch]);
+  }, [filterToolId, filterServiceType, filterSearch, filterDateRange]);
 
   // Update select-all checkbox indeterminate state
   useEffect(() => {
@@ -484,16 +563,16 @@ export default function DashboardQuotesPage() {
         </div>
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
-            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3">
+            <span className="flex items-center gap-1.5 text-sm text-muted-foreground shrink-0">
               <Filter className="h-4 w-4" />
               Filters
             </span>
-            <div className="relative flex-1 min-w-[180px] max-w-xs">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <div className="relative min-w-[160px] max-w-[220px] flex-1">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               <input
                 type="search"
-                placeholder="Search quote ID, name, email, address…"
+                placeholder="Search (ID, name, email, address…)"
                 value={filterSearch}
                 onChange={(e) => setFilterSearch(e.target.value)}
                 className="w-full rounded-md border border-input bg-background py-2 pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
@@ -502,7 +581,7 @@ export default function DashboardQuotesPage() {
             <select
               value={filterToolId}
               onChange={(e) => setFilterToolId(e.target.value)}
-              className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring min-w-0 max-w-[160px]"
             >
               <option value="">All tools</option>
               {toolOptions.map((t) => (
@@ -514,7 +593,7 @@ export default function DashboardQuotesPage() {
             <select
               value={filterServiceType}
               onChange={(e) => setFilterServiceType(e.target.value)}
-              className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring min-w-0 max-w-[160px]"
             >
               <option value="">All service types</option>
               {serviceTypeOptions.map((s) => (
@@ -523,20 +602,37 @@ export default function DashboardQuotesPage() {
                 </option>
               ))}
             </select>
-            {(filterToolId || filterServiceType || filterSearch.trim()) && (
+            <div className="flex flex-wrap items-center gap-1 shrink-0">
+              {DATE_RANGE_OPTIONS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setFilterDateRange(value)}
+                  className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 ${
+                    filterDateRange === value
+                      ? 'bg-primary text-primary-foreground'
+                      : 'border border-input bg-background hover:bg-muted'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {(filterToolId || filterServiceType || filterSearch.trim() || filterDateRange !== 'all') && (
               <button
                 type="button"
                 onClick={() => {
                   setFilterToolId('');
                   setFilterServiceType('');
                   setFilterSearch('');
+                  setFilterDateRange('all');
                 }}
-                className="rounded-md border border-input px-3 py-2 text-sm hover:bg-muted"
+                className="rounded-md border border-input px-3 py-2 text-sm hover:bg-muted shrink-0"
               >
                 Clear filters
               </button>
             )}
-            <span className="text-sm text-muted-foreground">
+            <span className="text-sm text-muted-foreground shrink-0 ml-auto">
               {filteredQuotes.length === quotes.length
                 ? `${quotes.length} quote${quotes.length !== 1 ? 's' : ''}`
                 : `${filteredQuotes.length} of ${quotes.length} quote${quotes.length !== 1 ? 's' : ''}`}

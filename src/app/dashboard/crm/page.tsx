@@ -620,6 +620,26 @@ export default function CRMDashboardPage() {
         </p>
       </div>
 
+      {/* Quick stats (contact overview) – at top */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-muted-foreground" />
+            <span className="text-sm font-medium text-muted-foreground">Total</span>
+          </div>
+          <p className="mt-2 text-2xl font-bold">{stats?.total ?? 0}</p>
+        </div>
+        {STAGES.map((stage) => (
+          <div key={stage} className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-muted-foreground" />
+              <span className="text-sm font-medium text-muted-foreground capitalize">{stage}</span>
+            </div>
+            <p className="mt-2 text-2xl font-bold">{stats?.counts?.[stage] ?? 0}</p>
+          </div>
+        ))}
+      </div>
+
       {/* Pipeline selector + GHL opportunities Kanban */}
       <div className="rounded-xl border border-border bg-card p-4">
         {pipelines.length > 0 ? (
@@ -722,26 +742,6 @@ export default function CRMDashboardPage() {
         ) : (
           <p className="mt-4 text-sm text-muted-foreground">No pipelines found for this location.</p>
         )}
-      </div>
-
-      {/* Quick stats (contact overview) */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-muted-foreground" />
-            <span className="text-sm font-medium text-muted-foreground">Total</span>
-          </div>
-          <p className="mt-2 text-2xl font-bold">{stats?.total ?? 0}</p>
-        </div>
-        {STAGES.map((stage) => (
-          <div key={stage} className="rounded-xl border border-border bg-card p-4">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-muted-foreground" />
-              <span className="text-sm font-medium text-muted-foreground capitalize">{stage}</span>
-            </div>
-            <p className="mt-2 text-2xl font-bold">{stats?.counts?.[stage] ?? 0}</p>
-          </div>
-        ))}
       </div>
 
       {/* Recent activity */}
