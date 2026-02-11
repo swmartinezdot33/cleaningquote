@@ -785,6 +785,14 @@ export async function POST(request: NextRequest) {
               quoteCustomFields['price_low'] = String(selectedRange.low);
               quoteCustomFields['price_high'] = String(selectedRange.high);
             }
+            // Store minimal payload (ranges, serviceType, frequency) so dashboard can derive prices if price_low/price_high are missing or not returned by GHL
+            if (result.ranges && (body.serviceType || body.frequency !== undefined)) {
+              quoteCustomFields['payload'] = JSON.stringify({
+                ranges: result.ranges,
+                serviceType: body.serviceType ?? '',
+                frequency: body.frequency ?? '',
+              });
+            }
 
             // Sanitize all custom fields to ensure values are properly formatted
             quoteCustomFields = sanitizeCustomFields(quoteCustomFields);

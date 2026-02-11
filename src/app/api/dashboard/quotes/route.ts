@@ -66,6 +66,9 @@ function mapGHLQuoteToDashboard(record: any): any {
   const get = (key: string) => p[key] ?? p[`custom_objects.quotes.${key}`] ?? null;
   const quoteId = get('quote_id') ?? record.id;
   const contactId = record.contactId ?? record.contact_id ?? get('contactId') ?? get('contact_id') ?? null;
+  // Support multiple key variants for price (GHL may return different shapes)
+  const priceLow = parseNum(get('price_low') ?? get('priceLow') ?? (record as any).price_low ?? (record as any).priceLow);
+  const priceHigh = parseNum(get('price_high') ?? get('priceHigh') ?? (record as any).price_high ?? (record as any).priceHigh);
   return {
     id: record.id,
     quote_id: quoteId,
@@ -81,12 +84,22 @@ function mapGHLQuoteToDashboard(record: any): any {
     postal_code: get('postal_code') ?? get('zip'),
     service_type: get('service_type') ?? (Array.isArray(get('type')) ? get('type')[0] : get('type')),
     frequency: get('frequency'),
-    price_low: parseNum(get('price_low') ?? get('priceLow')),
-    price_high: parseNum(get('price_high') ?? get('priceHigh')),
+    price_low: priceLow,
+    price_high: priceHigh,
     square_feet: get('square_feet') ?? get('squareFootage'),
     bedrooms: get('bedrooms'),
     created_at: record.createdAt ?? record.dateAdded ?? new Date().toISOString(),
-    payload: typeof p.payload === 'object' ? p.payload : (p.payload ? JSON.parse(p.payload) : null),
+    payload: (() => {
+      const raw = p.payload;
+      if (raw == null) return null;
+      if (typeof raw === 'object' && raw !== null) return raw;
+      if (typeof raw !== 'string') return null;
+      try {
+        return JSON.parse(raw) as Record<string, unknown>;
+      } catch {
+        return null;
+      }
+    })(),
     status: get('status') ?? 'quote',
     contactId: contactId || null,
   };
