@@ -11,15 +11,15 @@ export default function CallbackConfirmedPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const quoteId = params.id as string;
-  const slug = typeof params.slug === 'string' ? params.slug : undefined;
-  const toolSlug = typeof params.toolSlug === 'string' ? params.toolSlug : undefined;
+  const quoteId = (params?.id as string) ?? '';
+  const slug = typeof params?.slug === 'string' ? params.slug : undefined;
+  const toolSlug = typeof params?.toolSlug === 'string' ? params.toolSlug : undefined;
   const [isLoadingAnotherQuote, setIsLoadingAnotherQuote] = useState(false);
 
   // Preserve UTM parameters for tracking
   const utmParams = new URLSearchParams();
   ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach(param => {
-    const value = searchParams.get(param);
+    const value = searchParams?.get(param);
     if (value) utmParams.set(param, value);
   });
 

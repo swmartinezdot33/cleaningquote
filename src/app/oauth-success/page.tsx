@@ -20,10 +20,10 @@ type KvCheckResult = {
 function OAuthSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const success = searchParams.get('success');
-  const locationId = searchParams.get('locationId');
-  const error = searchParams.get('error');
-  const errorDescription = searchParams.get('error_description');
+  const success = searchParams?.get('success');
+  const locationId = searchParams?.get('locationId');
+  const error = searchParams?.get('error');
+  const errorDescription = searchParams?.get('error_description');
 
   const isSuccess = success === 'oauth_installed' && locationId;
   const [countdown, setCountdown] = useState(AUTO_REDIRECT_SEC);

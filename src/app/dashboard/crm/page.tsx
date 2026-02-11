@@ -201,6 +201,8 @@ export default function CRMDashboardPage() {
   const dragJustEndedRef = useRef(false);
   /** Skip opportunities effect when we're already fetching from main data .then() (avoids duplicate request). */
   const opportunitiesFetchPipelineIdRef = useRef<string | null>(null);
+  /** Ignore stale results when effect re-runs (e.g. navigate away and back). */
+  const dataLoadGenRef = useRef(0);
 
   // Sync form when modal opens
   useEffect(() => {
@@ -227,11 +229,10 @@ export default function CRMDashboardPage() {
     }
   }, [api]);
 
+  // Load data: verify first (single source of truth), then fetch stats/pipelines/contacts.
+  // Retry pipelines once when verify is ok but pipelines came back empty (handles KV/race flakiness).
   useEffect(() => {
     setApiError(null);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'crm/page.tsx:dataEffect', message: 'CRM data effect entry', data: { hasEffectiveLocationId: !!effectiveLocationId }, timestamp: Date.now(), hypothesisId: 'H1-H3' }) }).catch(() => {});
-    // #endregion
     if (!effectiveLocationId) {
       fetch('/api/dashboard/ghl/verify', { credentials: 'include' })
         .then((res) => res.json())
@@ -240,66 +241,107 @@ export default function CRMDashboardPage() {
         .finally(() => setLoading(false));
       return;
     }
-    Promise.all([
-      api('/api/dashboard/crm/stats').then(async (r) => (r.ok ? r.json() : r.json().catch(() => null))),
-      api('/api/dashboard/ghl/verify').then((res) => res.json()),
-      api('/api/dashboard/crm/pipelines').then(async (r) => (r.ok ? r.json() : r.json().catch(() => ({ pipelines: [] })))),
-      ...STAGES.map((stage) =>
-        api(`/api/dashboard/crm/contacts?stage=${stage}&perPage=20`).then((r) =>
-          r.ok ? r.json() : { contacts: [] }
-        )
-      ),
-    ])
-      .then(([statsRes, verifyRes, pipelinesRes, ...stageRes]) => {
-        const statsData = statsRes as { needsConnect?: boolean; apiError?: boolean; error?: string } | null;
-        const pipelinesData = pipelinesRes as { pipelines?: GHLPipeline[]; needsConnect?: boolean } | undefined;
-        const pipelineList = pipelinesData?.pipelines ?? [];
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'dashboard/crm/page.tsx:Promise.then', message: 'pipelines response on client', data: { pipelinesDataKeys: pipelinesData ? Object.keys(pipelinesData) : [], pipelineListLength: pipelineList?.length ?? 0, needsConnect: pipelinesData?.needsConnect }, timestamp: Date.now(), hypothesisId: 'H4' }) }).catch(() => {});
-        // #endregion
-        setStats(statsRes ?? { counts: {}, total: 0, recentActivities: [] });
-        setVerify(verifyRes);
-        setPipelines(pipelineList);
-        // Use verify as source of truth: if verify says ok, we're connected. Don't trust needsConnect from
-        // stats/pipelines when returning to the page (avoids race where one request returns needsConnect before token is ready).
-        setNeedsConnect(verifyRes?.ok === true ? false : !!(statsData?.needsConnect ?? pipelinesData?.needsConnect));
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'crm/page.tsx:dataEffect:then', message: 'CRM data loaded', data: { verifyOk: !!verifyRes?.ok, pipelineCount: pipelineList?.length ?? 0, hasApiError: !!(statsData?.apiError && statsData?.error), needsConnect: !!(statsData?.needsConnect ?? pipelinesData?.needsConnect) }, timestamp: Date.now(), hypothesisId: 'H2-H5' }) }).catch(() => {});
-        // #endregion
-        const stored = typeof window !== 'undefined' ? sessionStorage.getItem('crm_selected_pipeline_id') : null;
-        const validStored = pipelineList.find((p) => p.id === stored)?.id ?? null;
-        const nextId = validStored || (pipelineList[0]?.id ?? null);
-        setSelectedPipelineId(nextId);
-        if (typeof window !== 'undefined' && nextId) sessionStorage.setItem('crm_selected_pipeline_id', nextId);
-        setApiError(statsData?.apiError && statsData?.error ? statsData.error : null);
-        const byStage: Record<string, Contact[]> = {};
-        STAGES.forEach((s, i) => {
-          byStage[s] = stageRes[i]?.contacts ?? [];
-        });
-        setContactsByStage(byStage);
-        // Start opportunities fetch in same tick (no wait for effect) to speed load
-        if (nextId && api) {
-          setLoadingOpportunities(true);
-          opportunitiesFetchPipelineIdRef.current = nextId;
-          api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(nextId)}&limit=100`)
-            .then((r) => (r.ok ? r.json() : { opportunities: [] }))
-            .then((data: { opportunities?: Opportunity[] }) => {
-              setOpportunities(Array.isArray(data?.opportunities) ? data.opportunities : []);
-            })
-            .catch(() => setOpportunities([]))
-            .finally(() => {
+
+    const gen = ++dataLoadGenRef.current;
+    const applyStatsContacts = (
+      statsRes: unknown,
+      stageRes: unknown[],
+      pipelineList: GHLPipeline[],
+      verifyRes: VerifyResult,
+      nextNeedsConnect: boolean
+    ) => {
+      if (gen !== dataLoadGenRef.current) return;
+      const statsData = statsRes as { needsConnect?: boolean; apiError?: boolean; error?: string } | null;
+      setStats((statsRes as Stats) ?? { counts: {}, total: 0, recentActivities: [] });
+      setVerify(verifyRes);
+      setPipelines(pipelineList);
+      setNeedsConnect(nextNeedsConnect);
+      setApiError(statsData?.apiError && statsData?.error ? statsData.error : null);
+      const byStage: Record<string, Contact[]> = {};
+      STAGES.forEach((s, i) => {
+        byStage[s] = (stageRes[i] as { contacts?: Contact[] })?.contacts ?? [];
+      });
+      setContactsByStage(byStage);
+      const stored = typeof window !== 'undefined' ? sessionStorage.getItem('crm_selected_pipeline_id') : null;
+      const validStored = pipelineList.find((p) => p.id === stored)?.id ?? null;
+      const nextId = validStored || (pipelineList[0]?.id ?? null);
+      setSelectedPipelineId(nextId);
+      if (typeof window !== 'undefined' && nextId) sessionStorage.setItem('crm_selected_pipeline_id', nextId);
+      if (nextId && api) {
+        setLoadingOpportunities(true);
+        opportunitiesFetchPipelineIdRef.current = nextId;
+        api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(nextId)}&limit=100`)
+          .then((r) => (r.ok ? r.json() : { opportunities: [] }))
+          .then((data: { opportunities?: Opportunity[] }) => {
+            if (gen !== dataLoadGenRef.current) return;
+            setOpportunities(Array.isArray(data?.opportunities) ? data.opportunities : []);
+          })
+          .catch(() => { if (gen === dataLoadGenRef.current) setOpportunities([]); })
+          .finally(() => {
+            if (gen === dataLoadGenRef.current) {
               setLoadingOpportunities(false);
               opportunitiesFetchPipelineIdRef.current = null;
-            });
-        }
+            }
+          });
+      }
+    };
+
+    // Step 1: Verify only (single source of truth for connection state).
+    api('/api/dashboard/ghl/verify')
+      .then((res) => res.json() as Promise<VerifyResult>)
+      .then((verifyRes) => {
+        if (gen !== dataLoadGenRef.current) return;
+        setVerify(verifyRes);
+        const connectionOk = verifyRes?.ok === true;
+        setNeedsConnect(!connectionOk);
+
+        // Step 2: Fetch stats, pipelines, and contacts in parallel (all use same auth context now).
+        const statsPromise = api('/api/dashboard/crm/stats').then(async (r) => (r.ok ? r.json() : r.json().catch(() => null)));
+        const pipelinesPromise = api('/api/dashboard/crm/pipelines').then(async (r) => (r.ok ? r.json() : r.json().catch(() => ({ pipelines: [] }))));
+        const stagePromises = STAGES.map((stage) =>
+          api(`/api/dashboard/crm/contacts?stage=${stage}&perPage=20`).then((r) => (r.ok ? r.json() : { contacts: [] }))
+        );
+
+        Promise.all([statsPromise, pipelinesPromise, ...stagePromises])
+          .then(([statsRes, pipelinesRes, ...stageRes]) => {
+            if (gen !== dataLoadGenRef.current) return;
+            const pipelinesData = pipelinesRes as { pipelines?: GHLPipeline[]; needsConnect?: boolean };
+            let pipelineList = pipelinesData?.pipelines ?? [];
+
+            // If verify said we're connected but pipelines came back empty, retry once (race/KV flakiness).
+            if (connectionOk && pipelineList.length === 0) {
+              return new Promise<GHLPipeline[]>((resolve) => {
+                setTimeout(() => {
+                  api('/api/dashboard/crm/pipelines')
+                    .then((r) => (r.ok ? r.json() : r.json().catch(() => ({ pipelines: [] }))))
+                    .then((retryRes: { pipelines?: GHLPipeline[] }) => {
+                      resolve(retryRes?.pipelines ?? []);
+                    })
+                    .catch(() => resolve([]));
+                }, 400);
+              }).then((retryList) => {
+                if (gen !== dataLoadGenRef.current) return;
+                pipelineList = retryList.length > 0 ? retryList : pipelineList;
+                applyStatsContacts(statsRes, stageRes, pipelineList, verifyRes, false);
+              });
+            }
+
+            applyStatsContacts(statsRes, stageRes, pipelineList, verifyRes, !connectionOk);
+          })
+          .catch((e) => {
+            if (gen === dataLoadGenRef.current) setError(e?.message ?? 'Failed to load');
+          })
+          .finally(() => {
+            if (gen === dataLoadGenRef.current) setLoading(false);
+          });
       })
       .catch((e) => {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'crm/page.tsx:dataEffect:catch', message: 'CRM data load failed', data: { error: e?.message ?? String(e) }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});
-        // #endregion
-        setError(e.message);
-      })
-      .finally(() => setLoading(false));
+        if (gen === dataLoadGenRef.current) {
+          setVerify({ ok: false, message: e?.message ?? 'Verify failed' });
+          setNeedsConnect(true);
+          setLoading(false);
+        }
+      });
   }, [effectiveLocationId, api, retryTrigger]);
 
   // Fetch opportunities when user changes pipeline (initial load prefetched in main data .then())

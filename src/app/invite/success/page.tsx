@@ -7,7 +7,7 @@ import { Check } from 'lucide-react';
 
 function InviteSuccessContent() {
   const searchParams = useSearchParams();
-  const org = searchParams.get('org') ?? 'the team';
+  const org = searchParams?.get('org') ?? 'the team';
   const [countdown, setCountdown] = useState(3);
 
   useEffect(() => {

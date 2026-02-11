@@ -107,9 +107,9 @@ export default function QuotePageClient({
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const quoteId = (params.id ?? (params as { quoteId?: string }).quoteId) as string;
-  const slug = typeof params.slug === 'string' ? params.slug : undefined;
-  const toolSlug = typeof params.toolSlug === 'string' ? params.toolSlug : undefined;
+  const quoteId = (params?.id ?? (params as { quoteId?: string })?.quoteId) as string;
+  const slug = typeof params?.slug === 'string' ? params.slug : undefined;
+  const toolSlug = typeof params?.toolSlug === 'string' ? params.toolSlug : undefined;
   // Org-scoped: /t/orgslug/toolslug/quote/id → start at /t/orgslug/toolslug
   const quoteStartPath = (slug && toolSlug) ? `/t/${slug}/${toolSlug}` : slug ? `/t/${slug}` : '/';
   const quoteBasePath = (slug && toolSlug) ? `/t/${slug}/${toolSlug}/quote/${quoteId}` : slug ? `/t/${slug}/quote/${quoteId}` : `/quote/${quoteId}`;
@@ -117,7 +117,7 @@ export default function QuotePageClient({
   // Preserve all query params (UTM, start, gclid, etc.) through appointment/callback redirects
   const getPassthroughParams = (): string => {
     const p = new URLSearchParams();
-    searchParams.forEach((value, key) => p.set(key, value));
+    searchParams?.forEach((value, key) => p.set(key, value));
     return p.toString();
   };
   

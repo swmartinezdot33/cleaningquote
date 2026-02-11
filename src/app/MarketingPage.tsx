@@ -566,7 +566,7 @@ function MarketingPageContent() {
 
   // Open signup modal when arriving from login "Sign up" link (?signup=1)
   useEffect(() => {
-    if (searchParams.get('signup') === '1') {
+    if (searchParams?.get('signup') === '1') {
       setSignupModalOpen(true);
       // Remove ?signup=1 from URL so the modal can be closed without it reopening
       const url = new URL(window.location.href);

@@ -11,9 +11,9 @@ export default function AppointmentConfirmedPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const quoteId = params.id as string;
-  const slug = typeof params.slug === 'string' ? params.slug : undefined;
-  const toolSlug = typeof params.toolSlug === 'string' ? params.toolSlug : undefined;
+  const quoteId = (params?.id as string) ?? '';
+  const slug = typeof params?.slug === 'string' ? params.slug : undefined;
+  const toolSlug = typeof params?.toolSlug === 'string' ? params.toolSlug : undefined;
   // Org-scoped: /t/orgslug/toolslug/quote/id → start at /t/orgslug/toolslug
   const startPath = slug && toolSlug ? `/t/${slug}/${toolSlug}` : slug ? `/t/${slug}` : '/';
   const [redirectAfterAppointment, setRedirectAfterAppointment] = useState<boolean>(false);
@@ -23,7 +23,7 @@ export default function AppointmentConfirmedPage() {
   // Preserve UTM parameters for tracking
   const utmParams = new URLSearchParams();
   ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach(param => {
-    const value = searchParams.get(param);
+    const value = searchParams?.get(param);
     if (value) utmParams.set(param, value);
   });
 

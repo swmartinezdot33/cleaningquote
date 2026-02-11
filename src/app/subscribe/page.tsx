@@ -12,7 +12,7 @@ import { CreditCard, ArrowRight, CheckCircle } from 'lucide-react';
 function SubscribePageContent() {
   const [signupModalOpen, setSignupModalOpen] = useState(false);
   const searchParams = useSearchParams();
-  const fromCheckout = searchParams.get('from_checkout') === '1';
+  const fromCheckout = searchParams?.get('from_checkout') === '1';
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-muted/30 px-4">
