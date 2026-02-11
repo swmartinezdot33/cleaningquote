@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useDashboardApi } from '@/lib/dashboard-api';
 import { getVisibleDisplayFields } from '@/lib/crm/contact-display-fields';
+import { AddressMapLinks } from '@/components/AddressMapLinks';
 
 interface ContactDetail {
   contact: {
@@ -250,7 +251,10 @@ export default function ContactDetailPage({
             <MapPin className="h-4 w-4" />
             Address
           </h2>
-          <p className="mt-2 text-foreground">{addressLine}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <p className="text-foreground">{addressLine}</p>
+            <AddressMapLinks address={addressLine} showLabel size="sm" />
+          </div>
         </section>
       )}
 
@@ -317,7 +321,10 @@ export default function ContactDetailPage({
                     <MapPin className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
                     <div className="min-w-0 flex-1">
                       {p.nickname && <p className="font-medium text-foreground">{p.nickname}</p>}
-                      <p className="text-sm text-muted-foreground">{addr || 'No address'}</p>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <p className="text-sm text-muted-foreground">{addr || 'No address'}</p>
+                        {addr && <AddressMapLinks address={addr} showLabel size="sm" />}
+                      </div>
                       <span className="mt-1 inline-flex rounded-md bg-muted px-1.5 py-0.5 text-xs capitalize">
                         {p.stage}
                       </span>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { AddressMapLinks } from '@/components/AddressMapLinks';
 import { motion } from 'framer-motion';
 import { AlertCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -224,9 +225,12 @@ export default function OutOfService() {
                         <strong>Phone:</strong> {locationData.phone}
                       </p>
                       {locationData.address && (
-                        <p>
-                          <strong>Address:</strong> {locationData.address}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <p>
+                            <strong>Address:</strong> {locationData.address}
+                          </p>
+                          <AddressMapLinks address={locationData.address} showLabel size="sm" />
+                        </div>
                       )}
                     </div>
                   </motion.div>

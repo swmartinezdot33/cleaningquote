@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import Link from 'next/link';
 import { ExternalLink, Loader2, RefreshCw, ArrowRightLeft, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import { useDashboardApi } from '@/lib/dashboard-api';
+import { AddressMapLinks } from '@/components/AddressMapLinks';
 
 interface QuoteRow {
   id: string;
@@ -53,6 +54,10 @@ function formatPrice(low: number | null, high: number | null) {
   if (low != null) return `$${low}+`;
   if (high != null) return `Up to $${high}`;
   return '—';
+}
+
+function quoteAddressLine(q: QuoteRow): string {
+  return [q.address, q.city, q.state, q.postal_code].filter(Boolean).join(', ') || '';
 }
 
 function formatPriceCell(q: QuoteRow) {
@@ -552,6 +557,7 @@ export default function DashboardQuotesPage() {
                   <th className="px-4 py-3 font-medium">Date</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Contact</th>
+                  <th className="min-w-[140px] px-4 py-3 font-medium">Address</th>
                   <th className="px-4 py-3 font-medium">Service</th>
                   <th className="px-4 py-3 font-medium">Price</th>
                   <th className="w-44 px-4 py-3 font-medium">Actions</th>
@@ -593,6 +599,18 @@ export default function DashboardQuotesPage() {
                         </Link>
                       ) : (
                         <span className="text-muted-foreground">— No contact</span>
+                      )}
+                    </td>
+                    <td className="min-w-[140px] px-4 py-3">
+                      {quoteAddressLine(q) ? (
+                        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                          <span className="truncate max-w-[180px] text-muted-foreground" title={quoteAddressLine(q)}>
+                            {quoteAddressLine(q)}
+                          </span>
+                          <AddressMapLinks address={quoteAddressLine(q)} showLabel={false} size="sm" />
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
