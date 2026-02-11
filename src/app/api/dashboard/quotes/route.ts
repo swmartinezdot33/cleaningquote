@@ -53,6 +53,13 @@ function mapQuotesToResponse(records: any[]) {
   });
 }
 
+function parseNum(v: unknown): number | null {
+  if (v == null) return null;
+  if (typeof v === 'number' && !Number.isNaN(v)) return v;
+  const n = typeof v === 'string' ? Number(v) : Number(v);
+  return Number.isNaN(n) ? null : n;
+}
+
 /** Map GHL quote record to dashboard quote shape. Preserves contactId when present on the record (GHL association). */
 function mapGHLQuoteToDashboard(record: any): any {
   const p = record.properties ?? record.customFields ?? record;
@@ -74,8 +81,8 @@ function mapGHLQuoteToDashboard(record: any): any {
     postal_code: get('postal_code') ?? get('zip'),
     service_type: get('service_type') ?? (Array.isArray(get('type')) ? get('type')[0] : get('type')),
     frequency: get('frequency'),
-    price_low: get('price_low') ?? get('priceLow'),
-    price_high: get('price_high') ?? get('priceHigh'),
+    price_low: parseNum(get('price_low') ?? get('priceLow')),
+    price_high: parseNum(get('price_high') ?? get('priceHigh')),
     square_feet: get('square_feet') ?? get('squareFootage'),
     bedrooms: get('bedrooms'),
     created_at: record.createdAt ?? record.dateAdded ?? new Date().toISOString(),

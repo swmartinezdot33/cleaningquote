@@ -780,12 +780,14 @@ export async function POST(request: NextRequest) {
             if (utmParams.gclid) {
               quoteCustomFields['gclid'] = utmParams.gclid;
             }
-            
+            // Store selected price so the dashboard Quotes table can display it (add price_low / price_high to your Quote custom object in GHL if missing)
+            if (selectedRange != null) {
+              quoteCustomFields['price_low'] = String(selectedRange.low);
+              quoteCustomFields['price_high'] = String(selectedRange.high);
+            }
+
             // Sanitize all custom fields to ensure values are properly formatted
             quoteCustomFields = sanitizeCustomFields(quoteCustomFields);
-            
-            // Note: quote_range_low and quote_range_high are not in the schema
-            // If you want to store these, you'll need to add them as fields in GHL first
 
             // Prepare custom object creation (will parallelize with opportunity and note)
             // Only call GHL when createQuoteObject is not explicitly disabled
