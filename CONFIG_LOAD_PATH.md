@@ -42,3 +42,5 @@
 | Legacy     | Server initialConfig + legacy APIs | Same as before.                |
 
 Every tool loads only its own config (`tool_config.tool_id = tool.id`). For `/t/[slug]`, we avoid showing wrong data by not using server `initialConfig` and showing loading until the client-fetched config is applied.
+
+**Dashboard and org:** One GHL location = one organization (`organizations.ghl_location_id`). Tools are scoped by `tools.org_id` only. Dashboard context is loaded once via `GET /api/dashboard/context`; all dashboard APIs resolve org from `locationId` via `organizations.ghl_location_id` only.

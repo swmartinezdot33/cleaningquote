@@ -45,6 +45,6 @@ When the dashboard loads inside the GHL iframe, `locationId` may be unavailable 
 ## References
 
 - Plan: `.cursor/plans/supabase_vs_ghl_architecture_alignment_*.plan.md`
-- Config/store: `src/lib/config/store.ts` — `getOrgIdsByGHLLocationId`, `getToolIdsByGHLLocationId`
+- Config/store: `src/lib/config/store.ts` — `getOrgIdsByGHLLocationId` (org resolution; tools are scoped by `org_id` only; no `tool_config.ghl_location_id`)
 - GHL context/client: `src/lib/ghl/api-context.ts`, `src/lib/ghl/client.ts`
 - Iframe/dashboard API: `src/lib/ghl-iframe-context.tsx`, `src/lib/dashboard-api.ts`

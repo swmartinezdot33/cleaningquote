@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import Link from 'next/link';
 import { ExternalLink, Loader2, RefreshCw, ArrowRightLeft, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import { useDashboardApi } from '@/lib/dashboard-api';
+import { useDashboardPageState } from '@/lib/dashboard-page-state';
 import { AddressMapLinks } from '@/components/AddressMapLinks';
 import { ServiceAreaMapViewModal } from '@/components/ServiceAreaMapViewModal';
 
@@ -96,10 +97,16 @@ export default function DashboardQuotesPage() {
   const [selectedToolId, setSelectedToolId] = useState<string>('');
   const [reassigning, setReassigning] = useState(false);
   const [reassignMessage, setReassignMessage] = useState<string | null>(null);
-  // Filters (client-side)
-  const [filterToolId, setFilterToolId] = useState<string>('');
-  const [filterServiceType, setFilterServiceType] = useState<string>('');
-  const [filterSearch, setFilterSearch] = useState<string>('');
+  // Filters (client-side, persisted per session)
+  const [filterToolId, setFilterToolId] = useDashboardPageState<string>('quotes', 'filterToolId', '', {
+    locationId: effectiveLocationId ?? undefined,
+  });
+  const [filterServiceType, setFilterServiceType] = useDashboardPageState<string>('quotes', 'filterServiceType', '', {
+    locationId: effectiveLocationId ?? undefined,
+  });
+  const [filterSearch, setFilterSearch] = useDashboardPageState<string>('quotes', 'filterSearch', '', {
+    locationId: effectiveLocationId ?? undefined,
+  });
   const [copiedQuoteId, setCopiedQuoteId] = useState<string | null>(null);
   // Bulk selection and actions
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
