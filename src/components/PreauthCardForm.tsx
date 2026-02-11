@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Lock, CreditCard, Loader2 } from 'lucide-react';
+import { Lock, CreditCard } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 
 const CARD_TYPES = [
   { value: 'Visa', label: 'Visa' },
@@ -235,7 +236,7 @@ export function PreauthCardForm({
           className="gap-2"
           style={{ backgroundColor: primaryColor }}
         >
-          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+          {isSubmitting ? <LoadingDots size="sm" className="text-current" /> : <Lock className="h-4 w-4" />}
           {isSubmitting ? 'Saving...' : 'Save card & confirm appointment'}
         </Button>
         {onSkip && (

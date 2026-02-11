@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Upload, Save, Plus, Trash2, Download, Eye, EyeOff, Loader2, Table, GripVertical, Copy, ArrowUp, ArrowDown, Sparkles, HelpCircle, CheckSquare, Square, Edit, Settings, FileText, ExternalLink, Zap } from 'lucide-react';
+import { Upload, Save, Plus, Trash2, Download, Eye, EyeOff, Table, GripVertical, Copy, ArrowUp, ArrowDown, Sparkles, HelpCircle, CheckSquare, Square, Edit, Settings, FileText, ExternalLink, Zap } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const priceRangeSchema = z.object({
@@ -506,7 +507,7 @@ export default function AdminPage() {
                 <Button type="submit" className="w-full" size="lg" disabled={!password || isLoggingIn}>
                   {isLoggingIn ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <LoadingDots size="sm" className="text-current" />
                       Logging in…
                     </>
                   ) : (
@@ -848,7 +849,7 @@ export default function AdminPage() {
                     </div>
                     {isLoading && (
                       <div className="flex items-center gap-2 text-gray-600">
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <LoadingDots size="sm" className="text-current" />
                         Uploading and parsing file...
                       </div>
                     )}
@@ -1346,7 +1347,7 @@ export default function AdminPage() {
                           >
                             {isSaving ? (
                               <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <LoadingDots size="sm" className="text-current" />
                                 Saving...
                               </>
                             ) : (
@@ -1547,7 +1548,7 @@ export default function AdminPage() {
                   >
                     {isSavingInitialCleaning ? (
                       <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <LoadingDots size="sm" className="text-current" />
                         Saving...
                       </>
                     ) : (

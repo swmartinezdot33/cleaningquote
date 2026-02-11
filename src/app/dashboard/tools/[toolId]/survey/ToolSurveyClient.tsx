@@ -18,13 +18,13 @@ import {
   Sparkles,
   Edit,
   X,
-  Loader2,
   CheckCircle,
   AlertCircle,
   BookOpen,
   Upload,
   ChevronRight,
 } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 import type { SurveyQuestion, SurveyQuestionOption } from '@/lib/survey/schema';
 import { CALCULATION_LOCKED_QUESTION_IDS } from '@/lib/survey/schema';
 
@@ -355,7 +355,7 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
       {isLoading ? (
         <Card>
           <CardContent className="pt-6 flex items-center justify-center">
-            <Loader2 className="w-6 h-6 animate-spin text-primary mr-3" />
+            <LoadingDots size="lg" className="text-primary mr-3" />
             Loading questions…
           </CardContent>
         </Card>
@@ -760,7 +760,7 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                                         />
                                       </label>
                                       {uploadingOptionIndex === idx && (
-                                        <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+                                        <LoadingDots size="sm" className="text-gray-500" />
                                       )}
                                     </div>
                                     <details className="text-xs">
@@ -1016,7 +1016,7 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                   }
                   className={fieldChangeImpact?.breaking ? 'bg-red-600 hover:bg-red-700' : ''}
                 >
-                  {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  {isSaving && <LoadingDots size="sm" className="mr-2 text-current" />}
                   {fieldChangeImpact?.breaking ? 'Cannot Save - Breaking Change' : 'Save Question'}
                 </Button>
               </div>

@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Save, Loader2, Sparkles, ExternalLink, Settings } from 'lucide-react';
+import { Save, Sparkles, ExternalLink, Settings } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 
 const CONDITIONS = ['excellent', 'good', 'average', 'fair', 'poor', 'very-poor'] as const;
 
@@ -81,7 +82,7 @@ export default function ToolPricingClient({ toolId }: { toolId: string }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <LoadingDots size="lg" className="text-primary" />
       </div>
     );
   }
@@ -273,7 +274,7 @@ export default function ToolPricingClient({ toolId }: { toolId: string }) {
             >
               {savingInitial ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <LoadingDots size="sm" className="text-current" />
                   Saving...
                 </>
               ) : (

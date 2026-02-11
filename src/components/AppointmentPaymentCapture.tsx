@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { Button } from '@/components/ui/button';
-import { Loader2, CreditCard } from 'lucide-react';
+import { CreditCard } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 
 const CARD_ELEMENT_OPTIONS = {
   style: {
@@ -75,7 +76,7 @@ function PaymentForm({
           className="gap-2"
           style={{ backgroundColor: primaryColor }}
         >
-          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+          {isSubmitting ? <LoadingDots size="sm" className="text-current" /> : <CreditCard className="h-4 w-4" />}
           {isSubmitting ? 'Saving...' : 'Save payment & confirm appointment'}
         </Button>
         {onSkip && (

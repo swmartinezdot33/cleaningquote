@@ -15,7 +15,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import Link from 'next/link';
-import { Plus, Trash2, Loader2, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Sparkles } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 
 interface PricingStructureItem {
   id: string;
@@ -141,7 +142,7 @@ export default function PricingStructuresClient() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <LoadingDots size="lg" className="text-primary" />
       </div>
     );
   }
@@ -252,7 +253,7 @@ export default function PricingStructuresClient() {
               Cancel
             </Button>
             <Button onClick={handleCreate} disabled={creating || !newName.trim()}>
-              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {creating ? <LoadingDots size="sm" className="text-current" /> : null}
               Create
             </Button>
           </DialogFooter>
@@ -273,7 +274,7 @@ export default function PricingStructuresClient() {
               Cancel
             </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {deleting ? <LoadingDots size="sm" className="text-current" /> : null}
               Delete
             </Button>
           </DialogFooter>

@@ -5,7 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, CheckCircle } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 
 interface SignupModalProps {
   open: boolean;
@@ -73,7 +74,7 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
                 {loadingState === 'redirecting' ? (
                   <CheckCircle className="h-8 w-8 text-primary" />
                 ) : (
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <LoadingDots size="lg" className="text-primary" />
                 )}
               </div>
             </div>

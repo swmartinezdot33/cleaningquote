@@ -15,9 +15,11 @@ const sizeClasses = {
 export function LoadingDots({
   className,
   size = 'md',
+  style,
 }: {
   className?: string;
   size?: 'sm' | 'md' | 'lg';
+  style?: React.CSSProperties;
 }) {
   const dotClass = sizeClasses[size];
   return (
@@ -25,6 +27,7 @@ export function LoadingDots({
       className={cn('inline-flex items-center justify-center gap-1', className)}
       role="status"
       aria-label="Loading"
+      style={style}
     >
       <span className={cn('rounded-full bg-current animate-loading-dots-bounce', dotClass)} />
       <span

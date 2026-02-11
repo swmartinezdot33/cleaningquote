@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, AlertCircle, Loader2, Save, RotateCw, Eye, EyeOff, Sparkles, ArrowLeft, Copy, Code, ChevronDown, FileText, Upload, MapPin, Plus, BookOpen } from 'lucide-react';
+import { CheckCircle, AlertCircle, Save, RotateCw, Eye, EyeOff, Sparkles, ArrowLeft, Copy, Code, ChevronDown, FileText, Upload, MapPin, Plus, BookOpen } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -1379,7 +1380,7 @@ export default function SettingsPage() {
                     )}
                     {connectionStatus === 'testing' && (
                       <>
-                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <LoadingDots size="sm" className="text-current" />
                         Testing
                       </>
                     )}
@@ -1505,7 +1506,7 @@ export default function SettingsPage() {
                       >
                         {isSaving ? (
                           <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <LoadingDots size="sm" className="text-current" />
                             Saving...
                           </>
                         ) : (
@@ -1524,7 +1525,7 @@ export default function SettingsPage() {
                       >
                         {isTesting ? (
                           <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <LoadingDots size="sm" className="text-current" />
                             Testing...
                           </>
                         ) : (
@@ -1661,7 +1662,7 @@ export default function SettingsPage() {
 
                           {isLoadingPipelines ? (
                             <div className="flex items-center gap-2 text-gray-600">
-                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <LoadingDots size="sm" className="text-current" />
                               Loading pipelines...
                             </div>
                           ) : pipelines.length === 0 ? (
@@ -2259,7 +2260,7 @@ export default function SettingsPage() {
                               }`}>
                                 {appointmentCalendarAvailability.checking ? (
                                   <>
-                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    <LoadingDots size="sm" className="text-current" />
                                     <span>{appointmentCalendarAvailability.message}</span>
                                   </>
                                 ) : appointmentCalendarAvailability.available ? (
@@ -2371,7 +2372,7 @@ export default function SettingsPage() {
                               }`}>
                                 {callCalendarAvailability.checking ? (
                                   <>
-                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    <LoadingDots size="sm" className="text-current" />
                                     <span>{callCalendarAvailability.message}</span>
                                   </>
                                 ) : callCalendarAvailability.available ? (
@@ -2509,7 +2510,7 @@ export default function SettingsPage() {
                                 disabled={isCreatingTag || !newAppointmentTagName.trim()}
                                 className="bg-blue-500 hover:bg-blue-600 text-white"
                               >
-                                {isCreatingTag ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                                {isCreatingTag ? <LoadingDots size="sm" className="text-current" /> : <Plus className="h-4 w-4" />}
                               </Button>
                             </div>
                           </div>
@@ -2580,7 +2581,7 @@ export default function SettingsPage() {
                                 disabled={isCreatingTag || !newQuoteTagName.trim()}
                                 className="bg-blue-500 hover:bg-blue-600 text-white"
                               >
-                                {isCreatingTag ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                                {isCreatingTag ? <LoadingDots size="sm" className="text-current" /> : <Plus className="h-4 w-4" />}
                               </Button>
                             </div>
                           </div>
@@ -2652,7 +2653,7 @@ export default function SettingsPage() {
                                   className="bg-emerald-500 hover:bg-emerald-600 text-white px-3"
                                   size="sm"
                                 >
-                                  {isCreatingTag ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                                  {isCreatingTag ? <LoadingDots size="sm" className="text-current" /> : <Plus className="h-4 w-4" />}
                                 </Button>
                               </div>
                             </div>
@@ -2723,7 +2724,7 @@ export default function SettingsPage() {
                                   className="bg-red-500 hover:bg-red-600 text-white px-3"
                                   size="sm"
                                 >
-                                  {isCreatingTag ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                                  {isCreatingTag ? <LoadingDots size="sm" className="text-current" /> : <Plus className="h-4 w-4" />}
                                 </Button>
                               </div>
                             </div>
@@ -2765,7 +2766,7 @@ export default function SettingsPage() {
                       >
                         {isSavingConfig ? (
                           <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <LoadingDots size="sm" className="text-current" />
                             Saving...
                           </>
                         ) : (
@@ -2908,7 +2909,7 @@ export default function SettingsPage() {
                     >
                       {isUploadingServiceArea ? (
                         <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <LoadingDots size="sm" className="text-current" />
                           Uploading...
                         </>
                       ) : (
@@ -3085,7 +3086,7 @@ export default function SettingsPage() {
                 >
                   {isSavingFormSettings ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <LoadingDots size="sm" className="text-current" />
                       Saving...
                     </>
                   ) : (
@@ -3175,7 +3176,7 @@ export default function SettingsPage() {
                 >
                   {isSavingTracking ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <LoadingDots size="sm" className="text-current" />
                       Saving...
                     </>
                   ) : (
@@ -3306,7 +3307,7 @@ export default function SettingsPage() {
                 >
                   {isSavingWidget ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <LoadingDots size="sm" className="text-current" />
                       Saving...
                     </>
                   ) : (

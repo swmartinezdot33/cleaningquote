@@ -18,12 +18,12 @@ import {
   Sparkles, 
   Edit, 
   X,
-  Loader2,
   CheckCircle,
   AlertCircle,
   ArrowLeft,
   RotateCw
 } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 import { SurveyQuestion, SurveyQuestionOption, CALCULATION_LOCKED_QUESTION_IDS } from '@/lib/survey/schema';
 
 export default function SurveyBuilderPage() {
@@ -534,7 +534,7 @@ export default function SurveyBuilderPage() {
           {isLoading ? (
             <Card>
               <CardContent className="pt-6 flex items-center justify-center">
-                <Loader2 className="w-6 h-6 animate-spin text-pink-600 mr-3" />
+                <LoadingDots size="lg" className="text-pink-600 mr-3" />
                 Loading questions...
               </CardContent>
             </Card>
@@ -1000,7 +1000,7 @@ export default function SurveyBuilderPage() {
                     disabled={isSaving || (fieldChangeImpact && fieldChangeImpact.breaking) || (schemaValidation && !schemaValidation.valid)}
                     className={fieldChangeImpact && fieldChangeImpact.breaking ? 'bg-red-600 hover:bg-red-700' : ''}
                   >
-                    {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    {isSaving && <LoadingDots size="sm" className="mr-2 text-current" />}
                     {fieldChangeImpact && fieldChangeImpact.breaking ? 'Cannot Save - Breaking Change' : 'Save Question'}
                   </Button>
                 </div>

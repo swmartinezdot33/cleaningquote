@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertCircle, CheckCircle, XCircle, Loader2, RefreshCw, Copy, ChevronDown, ChevronUp } from 'lucide-react';
+import { AlertCircle, CheckCircle, XCircle, RefreshCw, Copy, ChevronDown, ChevronUp } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -140,7 +141,7 @@ export function GHLCustomFieldsTest({ adminPassword }: { adminPassword: string }
         >
           {isRunning ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <LoadingDots size="sm" className="text-current" />
               Running Test...
             </>
           ) : (

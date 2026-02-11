@@ -17,7 +17,6 @@ import {
   Plus,
   Trash2,
   Download,
-  Loader2,
   Table,
   GripVertical,
   Copy,
@@ -28,6 +27,7 @@ import {
   Pencil,
   Check,
 } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/loading-dots';
 import type { PricingTable, PricingRow } from '@/lib/pricing/types';
 
 const priceRangeSchema = z.object({
@@ -292,7 +292,7 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
   if (loading && !currentPricing && !structureName) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <LoadingDots size="lg" className="text-primary" />
       </div>
     );
   }
@@ -354,7 +354,7 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
                   disabled={savingName || !nameInput.trim()}
                   className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
                 >
-                  {savingName ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  {savingName ? <LoadingDots size="sm" className="text-current" /> : <Check className="h-4 w-4" />}
                   Save
                 </button>
                 <button
@@ -530,7 +530,7 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
             </div>
           </div>
           <Button onClick={saveInitialCleaningConfig} disabled={savingInitialCleaning} className="gap-2">
-            {savingInitialCleaning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {savingInitialCleaning ? <LoadingDots size="sm" className="text-current" /> : <Save className="h-4 w-4" />}
             {savingInitialCleaning ? 'Saving…' : 'Save initial cleaning & multipliers'}
           </Button>
         </CardContent>
@@ -741,7 +741,7 @@ export function PricingStructureEditClient({ structureId }: { structureId: strin
                             Add Another Tier
                           </Button>
                           <Button type="submit" size="lg" disabled={saving} className="gap-2">
-                            {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</> : <><Save className="h-4 w-4" /> Save Pricing Structure</>}
+                            {saving ? <><LoadingDots size="sm" className="text-current" /> Saving…</> : <><Save className="h-4 w-4" /> Save Pricing Structure</>}
                           </Button>
                         </div>
                       </div>
