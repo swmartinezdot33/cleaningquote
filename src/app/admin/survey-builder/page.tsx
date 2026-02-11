@@ -732,6 +732,84 @@ export default function SurveyBuilderPage() {
                                 placeholder="Label"
                               />
                             </div>
+                            {!isCalculationLocked && (
+                              <div className="space-y-2">
+                                <Label className="text-xs">Option image (optional)</Label>
+                                <p className="text-xs text-gray-500">Paste an image URL to show a picture for this option. Use &quot;Remove image&quot; to clear.</p>
+                                {(option as SurveyQuestionOption).imageUrl?.trim() ? (
+                                  <div className="flex flex-wrap items-start gap-3 p-2 rounded-lg border border-gray-200 bg-white">
+                                    <div className="relative shrink-0">
+                                      <img
+                                        src={(option as SurveyQuestionOption).imageUrl}
+                                        alt="Option preview"
+                                        className="h-20 w-20 sm:h-24 sm:w-24 rounded-lg border border-gray-200 object-cover bg-gray-100"
+                                        onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96"><rect fill="#f3f4f6" width="96" height="96"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#9ca3af" font-size="12">?</text></svg>'); }}
+                                      />
+                                      <Button
+                                        type="button"
+                                        variant="secondary"
+                                        size="icon"
+                                        className="absolute -top-1.5 -right-1.5 h-7 w-7 rounded-full shadow border border-gray-200 bg-white hover:bg-red-50 hover:text-red-600 p-0"
+                                        onClick={() => {
+                                          const newOptions = [...(editingQuestion.options || [])];
+                                          const o = { ...newOptions[idx], imageUrl: undefined } as SurveyQuestionOption;
+                                          newOptions[idx] = o;
+                                          setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                        }}
+                                        aria-label="Clear image"
+                                      >
+                                        <X className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                    <div className="flex flex-col gap-1 min-w-0">
+                                      <span className="text-xs font-medium text-gray-700">Image preview</span>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-fit h-8 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => {
+                                          const newOptions = [...(editingQuestion.options || [])];
+                                          const o = { ...newOptions[idx], imageUrl: undefined } as SurveyQuestionOption;
+                                          newOptions[idx] = o;
+                                          setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                        }}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                        Remove image
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : null}
+                                <Input
+                                  value={(option as SurveyQuestionOption).imageUrl ?? ''}
+                                  onChange={(e) => {
+                                    const newOptions = [...(editingQuestion.options || [])];
+                                    const o = { ...newOptions[idx], imageUrl: e.target.value.trim() || undefined } as SurveyQuestionOption;
+                                    newOptions[idx] = o;
+                                    setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                  }}
+                                  placeholder="https://... (image URL)"
+                                  className="text-sm"
+                                />
+                                {((option as SurveyQuestionOption).imageUrl?.trim()) && (
+                                  <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={(option as SurveyQuestionOption).showLabel !== false}
+                                      onChange={(e) => {
+                                        const newOptions = [...(editingQuestion.options || [])];
+                                        const o = { ...newOptions[idx], showLabel: e.target.checked } as SurveyQuestionOption;
+                                        newOptions[idx] = o;
+                                        setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                      }}
+                                      className="h-4 w-4 rounded border-gray-300"
+                                    />
+                                    <span className="text-xs">Show label with image</span>
+                                  </label>
+                                )}
+                              </div>
+                            )}
                             <div>
                               <Label className="text-xs">Skip to question (optional):</Label>
                               <Select

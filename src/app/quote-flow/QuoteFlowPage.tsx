@@ -242,6 +242,11 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   const [bookingMessage, setBookingMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
   const [callConfirmed, setCallConfirmed] = useState(false);
+  // Internal tool: optional contact form after quote summary
+  const [internalSaveContactForm, setInternalSaveContactForm] = useState({ firstName: '', lastName: '', email: '', phone: '' });
+  const [internalSaveContactSaved, setInternalSaveContactSaved] = useState(false);
+  const [internalSaveContactLoading, setInternalSaveContactLoading] = useState(false);
+  const [internalSaveContactError, setInternalSaveContactError] = useState<string | null>(null);
   // Availability checking state
   const [appointmentAvailability, setAppointmentAvailability] = useState<{ available: boolean; message: string; checking: boolean; fallback?: boolean; warning?: string } | null>(null);
   const [callAvailability, setCallAvailability] = useState<{ available: boolean; message: string; checking: boolean; fallback?: boolean; warning?: string } | null>(null);
@@ -266,10 +271,9 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   const visibleQuestions = useMemo(() => {
     const filtered = questions.filter((q) => q.visible !== false);
     if (!internalToolOnly) return filtered;
+    // Internal tool: collect contact (first name, last name, email, phone) after quote summary, not before
     const contactIds = new Set(['firstName', 'lastName', 'email', 'phone', 'address']);
-    const contact = filtered.filter((q) => contactIds.has(q.id));
-    const rest = filtered.filter((q) => !contactIds.has(q.id));
-    return [...rest, ...contact];
+    return filtered.filter((q) => !contactIds.has(q.id));
   }, [questions, internalToolOnly]);
   const [formIsIframed, setFormIsIframed] = useState(false);
   const [resolvedToolId, setResolvedToolId] = useState<string | null>(null);
@@ -2657,23 +2661,152 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex justify-center"
+                    className="space-y-6"
                   >
-                    <Button
-                      className="w-full max-w-md h-24 md:h-28 text-xl md:text-2xl font-black shadow-2xl"
-                      style={{
-                        backgroundColor: primaryColor,
-                        boxShadow: `0 20px 40px -12px ${hexToRgba(primaryColor, 0.4)}`,
-                      }}
-                      onClick={() => {
-                        // Quote already saved on form submit; show brief confirmation if desired
-                      }}
-                    >
-                      <span className="flex items-center justify-center gap-3 text-white">
-                        <span className="text-3xl">✓</span>
-                        <span className="tracking-wide">Save quote</span>
-                      </span>
-                    </Button>
+                    <p className="text-center text-gray-600 text-sm">Optionally save this quote to a contact. You can also exit or start over without saving.</p>
+                    {internalSaveContactSaved ? (
+                      <div className="rounded-xl border-2 border-green-200 bg-green-50 p-6 text-center">
+                        <div className="flex items-center justify-center gap-2 text-green-800 font-semibold mb-2">
+                          <Check className="h-5 w-5" />
+                          Quote saved to contact
+                        </div>
+                        <p className="text-gray-600 text-sm mb-4">You can start over or close this page.</p>
+                        <Button
+                          variant="outline"
+                          className="gap-2"
+                          style={{ borderColor: primaryColor, color: primaryColor }}
+                          onClick={() => {
+                            setQuoteResult(null);
+                            setHouseDetails(null);
+                            setInternalSaveContactSaved(false);
+                            setInternalSaveContactForm({ firstName: '', lastName: '', email: '', phone: '' });
+                            setInternalSaveContactError(null);
+                            setCurrentStep(0);
+                          }}
+                        >
+                          Start over
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <Card className="border-2 shadow-sm">
+                          <CardContent className="pt-6 space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="internal-firstName">First name</Label>
+                                <Input
+                                  id="internal-firstName"
+                                  value={internalSaveContactForm.firstName}
+                                  onChange={(e) => setInternalSaveContactForm((f) => ({ ...f, firstName: e.target.value }))}
+                                  placeholder="First name"
+                                  className="border-2"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="internal-lastName">Last name</Label>
+                                <Input
+                                  id="internal-lastName"
+                                  value={internalSaveContactForm.lastName}
+                                  onChange={(e) => setInternalSaveContactForm((f) => ({ ...f, lastName: e.target.value }))}
+                                  placeholder="Last name"
+                                  className="border-2"
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="internal-email">Email</Label>
+                              <Input
+                                id="internal-email"
+                                type="email"
+                                value={internalSaveContactForm.email}
+                                onChange={(e) => setInternalSaveContactForm((f) => ({ ...f, email: e.target.value }))}
+                                placeholder="Email"
+                                className="border-2"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="internal-phone">Phone</Label>
+                              <Input
+                                id="internal-phone"
+                                type="tel"
+                                value={internalSaveContactForm.phone}
+                                onChange={(e) => setInternalSaveContactForm((f) => ({ ...f, phone: e.target.value }))}
+                                placeholder="Phone"
+                                className="border-2"
+                              />
+                            </div>
+                            {internalSaveContactError && (
+                              <p className="text-sm text-red-600 flex items-center gap-1">
+                                <AlertCircle className="h-4 w-4 shrink-0" />
+                                {internalSaveContactError}
+                              </p>
+                            )}
+                          </CardContent>
+                        </Card>
+                        <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                          <Button
+                            className="min-w-[200px] h-12 text-lg font-bold shadow-lg"
+                            style={{
+                              backgroundColor: primaryColor,
+                              boxShadow: `0 10px 20px -8px ${hexToRgba(primaryColor, 0.4)}`,
+                            }}
+                            disabled={internalSaveContactLoading || !internalSaveContactForm.firstName.trim() || !internalSaveContactForm.lastName.trim() || !internalSaveContactForm.email.trim()}
+                            onClick={async () => {
+                              setInternalSaveContactError(null);
+                              setInternalSaveContactLoading(true);
+                              try {
+                                const quoteId = quoteResult?.quoteId;
+                                if (!quoteId) {
+                                  setInternalSaveContactError('Quote not found.');
+                                  return;
+                                }
+                                const res = await fetch(`/api/quote/${encodeURIComponent(quoteId)}/save-contact`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    firstName: internalSaveContactForm.firstName.trim(),
+                                    lastName: internalSaveContactForm.lastName.trim(),
+                                    email: internalSaveContactForm.email.trim(),
+                                    phone: internalSaveContactForm.phone.trim() || undefined,
+                                  }),
+                                });
+                                const data = await res.json();
+                                if (!res.ok) {
+                                  setInternalSaveContactError(data.error || 'Failed to save.');
+                                  return;
+                                }
+                                setInternalSaveContactSaved(true);
+                              } catch {
+                                setInternalSaveContactError('Something went wrong. Please try again.');
+                              } finally {
+                                setInternalSaveContactLoading(false);
+                              }
+                            }}
+                          >
+                            {internalSaveContactLoading ? <LoadingDots /> : (
+                              <span className="flex items-center justify-center gap-2 text-white">
+                                <Check className="h-5 w-5" />
+                                Save quote to contact
+                              </span>
+                            )}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="gap-2 min-w-[140px]"
+                            style={{ borderColor: primaryColor, color: primaryColor }}
+                            onClick={() => {
+                              setQuoteResult(null);
+                              setHouseDetails(null);
+                              setInternalSaveContactForm({ firstName: '', lastName: '', email: '', phone: '' });
+                              setInternalSaveContactError(null);
+                              setCurrentStep(0);
+                            }}
+                          >
+                            Start over
+                          </Button>
+                        </div>
+                      </>
+                    )}
                   </motion.div>
                     ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

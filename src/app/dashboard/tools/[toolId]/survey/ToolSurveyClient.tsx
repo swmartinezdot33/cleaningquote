@@ -654,15 +654,10 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                               />
                             </div>
                             {!isSynced && !isCalculationLocked && (
-                            <details className="group mt-2">
-                              <summary className="flex items-center gap-2 cursor-pointer list-none text-sm text-muted-foreground hover:text-foreground select-none">
-                                <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-open:rotate-90" />
-                                <span>More</span>
-                              </summary>
-                              <div className="mt-2 pl-6 border-l-2 border-border space-y-3">
-                                <div>
+                              <>
+                                <div className="mt-2 space-y-2">
                                   <Label className="text-xs">Option image (optional)</Label>
-                                  <p className="text-xs text-muted-foreground mb-1">Show a picture for this option so users can select by image (e.g. condition of home). Uploads go to Supabase Storage (bucket cleaningquote-images). Or paste an image URL below.</p>
+                                  <p className="text-xs text-muted-foreground">Show a picture for this option (e.g. condition of home). Upload or paste a URL. Use &quot;Remove image&quot; to clear.</p>
                                   <div className="mt-1.5 flex flex-col gap-3">
                                     {(option as SurveyQuestionOption).imageUrl?.trim() && (
                                       <div className="flex flex-wrap items-start gap-3 p-2 rounded-lg border border-border bg-muted/30">
@@ -763,8 +758,8 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                                         <LoadingDots size="sm" className="text-gray-500" />
                                       )}
                                     </div>
-                                    <details className="text-xs">
-                                      <summary className="cursor-pointer text-gray-500 hover:text-gray-700">Or paste image URL</summary>
+                                    <div className="text-xs">
+                                      <Label className="text-xs text-muted-foreground">Or paste image URL</Label>
                                       <Input
                                         value={(option as SurveyQuestionOption).imageUrl ?? ''}
                                         onChange={(e) => {
@@ -774,29 +769,35 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                                           setEditingQuestion({ ...editingQuestion, options: newOptions });
                                         }}
                                         placeholder="https://..."
-                                        className="mt-1.5"
+                                        className="mt-1"
                                       />
-                                    </details>
+                                    </div>
+                                    {((option as SurveyQuestionOption).imageUrl?.trim()) && (
+                                      <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                          type="checkbox"
+                                          checked={(option as SurveyQuestionOption).showLabel !== false}
+                                          onChange={(e) => {
+                                            const newOptions = [...(editingQuestion.options || [])];
+                                            const o = newOptions[idx] as SurveyQuestionOption;
+                                            newOptions[idx] = { ...o, showLabel: e.target.checked };
+                                            setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                          }}
+                                          className="h-4 w-4 rounded border-gray-300"
+                                        />
+                                        <span className="text-xs">Show label with image</span>
+                                      </label>
+                                    )}
                                   </div>
                                 </div>
-                                {((option as SurveyQuestionOption).imageUrl?.trim()) && (
-                                  <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={(option as SurveyQuestionOption).showLabel !== false}
-                                      onChange={(e) => {
-                                        const newOptions = [...(editingQuestion.options || [])];
-                                        const o = newOptions[idx] as SurveyQuestionOption;
-                                        newOptions[idx] = { ...o, showLabel: e.target.checked };
-                                        setEditingQuestion({ ...editingQuestion, options: newOptions });
-                                      }}
-                                      className="h-4 w-4 rounded border-gray-300"
-                                    />
-                                    <span className="text-xs">Show label with image</span>
-                                  </label>
-                                )}
-                                <div>
-                                  <Label className="text-xs">Skip to question (optional)</Label>
+                                <details className="group mt-2">
+                                  <summary className="flex items-center gap-2 cursor-pointer list-none text-sm text-muted-foreground hover:text-foreground select-none">
+                                    <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-open:rotate-90" />
+                                    <span>More (skip to question)</span>
+                                  </summary>
+                                  <div className="mt-2 pl-6 border-l-2 border-border space-y-3">
+                                    <div>
+                                      <Label className="text-xs">Skip to question (optional)</Label>
                                   <Select
                                     value={(option as SurveyQuestionOption).skipToQuestionId || 'next'}
                                     onValueChange={(value) => {
@@ -825,9 +826,10 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                                         ))}
                                     </SelectContent>
                                   </Select>
-                                </div>
-                              </div>
-                            </details>
+                                  </div>
+                                  </div>
+                                </details>
+                              </>
                             )}
                             {!isSynced && !isCalculationLocked && (
                               <Button
