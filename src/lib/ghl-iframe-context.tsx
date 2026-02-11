@@ -148,6 +148,9 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
       })();
       if (locationIdToUse) {
         hasLocationIdRef.current = true;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ghl-iframe-context.tsx:session', message: 'locationId from sessionStorage', data: { source: 'sessionStorage', prefix: String(locationIdToUse.id).slice(0, 8) }, timestamp: Date.now(), hypothesisId: 'H4' }) }).catch(() => {});
+        // #endregion
         console.log('[CQ Iframe] locationId from sessionStorage (from previous decrypt)');
         if (locationIdToUse.data && 'locationId' in locationIdToUse.data) {
           setGhlData(locationIdToUse.data as GHLIframeData);
@@ -168,6 +171,9 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
       const fromUrl = urlLocationId || pathLocationId;
       if (fromUrl) {
         hasLocationIdRef.current = true;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ghl-iframe-context.tsx:url', message: 'locationId from URL', data: { source: 'url', pathname: pathname.slice(0, 40), prefix: fromUrl.slice(0, 8) }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(() => {});
+        // #endregion
         const ctx: GHLIframeData = { locationId: fromUrl };
         setGhlData(ctx);
         setLocationIdFromPostMessage(fromUrl);
@@ -232,6 +238,9 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
             .then((result) => {
               if (result?.success && result.locationId) {
                 hasLocationIdRef.current = true;
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ghl-iframe-context.tsx:postMessage', message: 'locationId from postMessage decrypt', data: { source: 'postMessageDecrypt', prefix: String(result.locationId).slice(0, 8) }, timestamp: Date.now(), hypothesisId: 'H6' }) }).catch(() => {});
+                // #endregion
                 console.log('[CQ Iframe] locationId from decrypt (postMessage)', { locationId: result.locationId?.slice(0, 12) + '...' });
                 setLocationIdFromPostMessage(result.locationId);
                 apply({
@@ -336,7 +345,8 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  const showBlockingInIframe = isInIframe && !locationIdFromPostMessage;
+  // Gate dashboard so it only renders when we have a locationId (avoids first-click race on Quotes etc.)
+  const showBlockingInIframe = isInIframe && !effectiveLocationId;
   const isDashboardDirectAccess = typeof window !== 'undefined' && window.self === window.top && (window.location.pathname ?? '').startsWith('/dashboard');
 
   return (

@@ -157,6 +157,11 @@ interface ToolOption {
 
 export default function DashboardQuotesPage() {
   const { api, locationId: effectiveLocationId } = useDashboardApi();
+  // #region agent log
+  useEffect(() => {
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quotes/page.tsx:render', message: 'Quotes page render', data: { hasEffectiveLocationId: !!effectiveLocationId, effectiveLocationIdPrefix: effectiveLocationId ? effectiveLocationId.slice(0, 8) : null }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+  }, [effectiveLocationId]);
+  // #endregion
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -196,8 +201,14 @@ export default function DashboardQuotesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
 
-  const loadQuotes = useCallback(() => {
+  const MAX_QUOTES_RETRIES = 3;
+  const RETRY_DELAYS_MS = [1000, 2000, 4000];
+
+  const loadQuotes = useCallback((attempt = 0) => {
     setError(null);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quotes/page.tsx:loadQuotes', message: 'loadQuotes called', data: { hasEffectiveLocationId: !!effectiveLocationId, willSkip: !effectiveLocationId, attempt }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
+    // #endregion
     if (!effectiveLocationId) {
       setLoading(false);
       setQuotes([]);
@@ -208,27 +219,49 @@ export default function DashboardQuotesPage() {
       api('/api/dashboard/quotes'),
       fetch('/api/dashboard/super-admin/tools'),
     ])
-      .then(([quotesRes, toolsRes]) => {
-        return quotesRes.ok
-          ? quotesRes.json().then((data: { quotes?: QuoteRow[]; isSuperAdmin?: boolean; isOrgAdmin?: boolean; error?: string }) => ({
-              quotes: data.quotes ?? [],
-              isSuperAdminFromQuotes: !!data.isSuperAdmin,
-              isOrgAdminFromQuotes: !!data.isOrgAdmin,
-              toolsOk: toolsRes.ok,
-              apiError: data.error,
-            }))
-          : quotesRes.json().then((data: { error?: string }) => Promise.reject(new Error(data?.error ?? 'Failed to load quotes')));
+      .then(async ([quotesRes, toolsRes]) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quotes/page.tsx:fetchDone', message: 'Quotes API response', data: { ok: quotesRes.ok, status: quotesRes.status }, timestamp: Date.now(), hypothesisId: 'H3' }) }).catch(() => {});
+        // #endregion
+        if (quotesRes.ok) {
+          const data = await quotesRes.json().catch(() => ({})) as { quotes?: QuoteRow[]; isSuperAdmin?: boolean; isOrgAdmin?: boolean; error?: string };
+          return {
+            quotes: data.quotes ?? [],
+            isSuperAdminFromQuotes: !!data.isSuperAdmin,
+            isOrgAdminFromQuotes: !!data.isOrgAdmin,
+            toolsOk: toolsRes.ok,
+            apiError: data.error,
+          };
+        }
+        const errText = await quotesRes.text();
+        let errMessage = `Failed to load quotes (${quotesRes.status})`;
+        try {
+          const parsed = JSON.parse(errText) as { error?: string };
+          if (parsed?.error && typeof parsed.error === 'string') errMessage = parsed.error;
+        } catch {
+          if (quotesRes.status >= 500) errMessage = 'Server error. Please try again in a moment.';
+          else if (quotesRes.status === 401 || quotesRes.status === 403) errMessage = 'Session expired or access denied. Please reopen CleanQuote from GoHighLevel.';
+        }
+        throw new Error(errMessage);
       })
       .then(({ quotes: list, isSuperAdminFromQuotes, isOrgAdminFromQuotes, toolsOk, apiError }) => {
         setQuotes(list);
         setIsSuperAdmin(!!isSuperAdminFromQuotes || !!toolsOk);
         setIsOrgAdmin(!!isOrgAdminFromQuotes);
         if (apiError) setError(apiError);
+        setLoading(false);
       })
       .catch((e) => {
+        const msg = e?.message ?? '';
+        const isRetryable = msg.includes('Server error') || msg.includes('Failed to load') || msg.includes('502') || msg.includes('500') || msg.includes('fetch') || e?.name === 'TypeError';
+        if (isRetryable && attempt < MAX_QUOTES_RETRIES) {
+          const delayMs = RETRY_DELAYS_MS[attempt] ?? 4000;
+          setTimeout(() => loadQuotes(attempt + 1), delayMs);
+          return;
+        }
         setError(e?.message ?? 'Failed to load quotes');
-      })
-      .finally(() => setLoading(false));
+        setLoading(false);
+      });
   }, [effectiveLocationId, api]);
 
   useEffect(() => {
