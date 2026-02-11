@@ -230,6 +230,13 @@ export function ServiceAreaMapDrawer({
             google.maps.event.removeListener(idleListener);
             mapIdleListenerRef.current = null;
             startTerraDraw();
+            // Trigger resize so map tiles paint correctly when drawer was mounted inside a dialog (container may have had 0 size at init)
+            const g = getGoogle();
+            if (g?.maps?.event?.trigger && mapRef.current) {
+              setTimeout(() => {
+                if (!cancelled && mapRef.current) g.maps.event.trigger(mapRef.current, 'resize');
+              }, 150);
+            }
           });
           mapIdleListenerRef.current = idleListener;
         }
@@ -386,6 +393,19 @@ export function ServiceAreaMapDrawer({
       mapRef.current = null;
     };
   }, [initialPolygon, zoneDisplay, readOnly, officeAddress, pinnedAddress]);
+
+  // When map is inside a dialog, container may get dimensions after open; trigger resize so tiles paint
+  useEffect(() => {
+    const container = containerRef.current;
+    const map = mapRef.current;
+    if (!container || !map || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      const g = getGoogle();
+      if (g?.maps?.event?.trigger && mapRef.current) g.maps.event.trigger(mapRef.current, 'resize');
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [loading, error]);
 
   const style = typeof height === 'number' ? { height: `${height}px` } : { height };
 

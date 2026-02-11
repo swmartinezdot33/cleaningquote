@@ -110,6 +110,7 @@ export default function ServiceAreasClient() {
       .finally(() => setLoading(false));
   }, [api, effectiveLocationId]);
 
+  const [drawModalLoadingId, setDrawModalLoadingId] = useState<string | null>(null);
   const openDrawModal = (areaId?: string) => {
     if (!orgId) return;
     setEditingId(areaId ?? null);
@@ -121,6 +122,7 @@ export default function ServiceAreasClient() {
     setAddZipInput('');
     setAddZipError(null);
     if (areaId) {
+      setDrawModalLoadingId(areaId);
       api(`/api/dashboard/orgs/${orgId}/service-areas/${areaId}`)
         .then((r) => r.json())
         .then((d) => {
@@ -137,10 +139,13 @@ export default function ServiceAreasClient() {
           setEditZoneDisplay(display);
           setInitialPolygonForDrawer(list.length > 0 ? list : null);
           setInitialZoneDisplayForDrawer(display);
+          setDrawModalOpen(true);
         })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => setDrawModalLoadingId(null));
+    } else {
+      setDrawModalOpen(true);
     }
-    setDrawModalOpen(true);
   };
 
   const [previewZoneDisplay, setPreviewZoneDisplay] = useState<ZoneDisplayItem[]>([]);
@@ -490,10 +495,10 @@ export default function ServiceAreasClient() {
                         Preview
                       </Button>
                     )}
-                    <Button variant="ghost" size="sm" onClick={() => openDrawModal(area.id)} className="gap-1">
-                      <Pencil className="h-3.5 w-3.5" />
-                      Edit
-                    </Button>
+<Button variant="ghost" size="sm" onClick={() => openDrawModal(area.id)} disabled={drawModalLoadingId === area.id} className="gap-1">
+                        {drawModalLoadingId === area.id ? <LoadingDots size="sm" className="text-current" /> : <Pencil className="h-3.5 w-3.5" />}
+                        Edit
+                      </Button>
                     <Button variant="ghost" size="sm" onClick={() => deleteArea(area.id)} className="gap-1 text-destructive hover:text-destructive">
                       <Trash2 className="h-3.5 w-3.5" />
                       Delete
