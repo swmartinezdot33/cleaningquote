@@ -2103,26 +2103,31 @@ export async function listGHLQuoteRecords(
     { location_id: locationId, page: 1, pageLimit },
     { locationId, page: 1, pageLimit },
   ];
+  // Try multiple schema keys (GHL accounts may use "Quote", "quotes", or custom_objects.quotes)
+  const schemaKeysToTry = ['custom_objects.quotes', 'Quote', 'quotes'];
   let lastErr: unknown = null;
-  for (const body of bodiesToTry) {
-    try {
-      const res = await makeGHLRequest<{ records?: any[]; data?: any[] }>(
-        '/objects/custom_objects.quotes/records/search',
-        'POST',
-        body,
-        undefined,
-        undefined,
-        credentials
-      );
-      const records = parseRecords(res);
-      const out = Array.isArray(records) ? records : [];
-      return out;
-    } catch (err) {
-      lastErr = err;
-      continue;
+  let lastMsg = '';
+  for (const schemaKey of schemaKeysToTry) {
+    for (const body of bodiesToTry) {
+      try {
+        const res = await makeGHLRequest<{ records?: any[]; data?: any[] }>(
+          `/objects/${schemaKey}/records/search`,
+          'POST',
+          body,
+          undefined,
+          undefined,
+          credentials
+        );
+        const records = parseRecords(res);
+        const out = Array.isArray(records) ? records : [];
+        return out;
+      } catch (err) {
+        lastErr = err;
+        lastMsg = err instanceof Error ? err.message : String(err);
+        continue;
+      }
     }
   }
-  const msg = lastErr instanceof Error ? lastErr.message : String(lastErr);
-  console.warn('[CQ GHL] listGHLQuoteRecords failed:', msg);
+  console.warn('[CQ GHL] listGHLQuoteRecords failed:', lastMsg);
   return [];
 }

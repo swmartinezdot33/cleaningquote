@@ -80,18 +80,30 @@ function setGHLContext(
 
 const DASHBOARD_ORIGIN = 'https://my.cleanquote.io';
 
+/** Derive locationId from URL on first render so dashboard API requests have it before any useEffect runs (avoids production first-paint requests without locationId). */
+function getLocationIdFromUrl(): string | null {
+  if (typeof window === 'undefined' || window.self === window.top) return null;
+  const pathname = window.location.pathname ?? '';
+  const fromQuery = new URLSearchParams(window.location.search ?? '').get('locationId')?.trim() || null;
+  const pathMatch = pathname.match(/^\/v2\/location\/([^/]+)/);
+  const fromPath = pathMatch?.[1]?.trim() || null;
+  return fromQuery || fromPath || null;
+}
+
 export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
   const [ghlData, setGhlData] = useState<GHLIframeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   /** In iframe only: set when REQUEST_USER_DATA_RESPONSE (decrypt) or sessionStorage from that. Never use locationId outside iframe. */
   const [locationIdFromPostMessage, setLocationIdFromPostMessage] = useState<string | null>(null);
+  /** Synchronous URL-derived locationId so first paint has locationId when path is /v2/location/XXX (production iframe). */
+  const [urlDerivedLocationId] = useState<string | null>(getLocationIdFromUrl);
   const hasLocationIdRef = useRef(false);
   const postMessageResponseHandledRef = useRef(false);
 
   const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
-  // LocationId ONLY in iframe (postMessage decrypt or sessionStorage set from that). Never from URL/session/cookie outside iframe.
-  const effectiveLocationId = isInIframe ? (locationIdFromPostMessage ?? ghlData?.locationId ?? null) : null;
+  // LocationId: postMessage/session first; then URL-derived so first render in iframe has it when path contains /v2/location/XXX.
+  const effectiveLocationId = isInIframe ? (locationIdFromPostMessage ?? ghlData?.locationId ?? urlDerivedLocationId ?? null) : null;
   const userContext: GHLUserContext | null = effectiveLocationId ? { locationId: effectiveLocationId } : null;
 
   // Security: dashboard must only load inside GHL iframe. If opened directly (no iframe), redirect to my.cleanquote.io.
