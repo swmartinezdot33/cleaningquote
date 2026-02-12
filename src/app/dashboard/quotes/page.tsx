@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { ExternalLink, RefreshCw, ArrowRightLeft, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User, Plus } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { ExternalLink, RefreshCw, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import { useDashboardApi } from '@/lib/dashboard-api';
 import { useDashboardPageState } from '@/lib/dashboard-page-state';
 import { AddressMapLinks } from '@/components/AddressMapLinks';
@@ -149,29 +150,17 @@ function formatPriceCell(q: QuoteRow) {
   return formatPrice(q.price_low, q.price_high);
 }
 
-interface ToolOption {
-  id: string;
-  name: string;
-  slug: string;
-  org_id: string;
-  org_name: string;
-}
-
 export default function DashboardQuotesPage() {
   const { api, locationId: effectiveLocationId } = useDashboardApi();
+  const searchParams = useSearchParams();
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const lastFetchedLocationIdRef = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isOrgAdmin, setIsOrgAdmin] = useState(false);
-  const [reassignQuote, setReassignQuote] = useState<QuoteRow | null>(null);
   const [deleteQuote, setDeleteQuote] = useState<QuoteRow | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [toolsForReassign, setToolsForReassign] = useState<ToolOption[]>([]);
-  const [selectedToolId, setSelectedToolId] = useState<string>('');
-  const [reassigning, setReassigning] = useState(false);
-  const [reassignMessage, setReassignMessage] = useState<string | null>(null);
   // Filters (client-side, persisted per session)
   const [filterToolId, setFilterToolId] = useDashboardPageState<string>('quotes', 'filterToolId', '', {
     locationId: effectiveLocationId ?? undefined,
@@ -188,11 +177,9 @@ export default function DashboardQuotesPage() {
   const [copiedQuoteId, setCopiedQuoteId] = useState<string | null>(null);
   // Bulk selection and actions
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkReassignOpen, setBulkReassignOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
-  const [bulkReassigning, setBulkReassigning] = useState(false);
-  const [bulkReassignMessage, setBulkReassignMessage] = useState<string | null>(null);
+  const [bulkDeleteMessage, setBulkDeleteMessage] = useState<string | null>(null);
   const selectAllRef = useRef<HTMLInputElement | null>(null);
   const [serviceAreaMapAddress, setServiceAreaMapAddress] = useState<string | null>(null);
   // New Quote modal (opens default quoter form in iframe)
@@ -275,37 +262,6 @@ export default function DashboardQuotesPage() {
     loadQuotes();
   }, [effectiveLocationId, api, loadQuotes]);
 
-  const openReassign = (q: QuoteRow) => {
-    setReassignQuote(q);
-    setSelectedToolId(q.tool_id ?? '');
-    setReassignMessage(null);
-    fetch('/api/dashboard/super-admin/tools')
-      .then((r) => (r.ok ? r.json() : { tools: [] }))
-      .then((d) => setToolsForReassign(d.tools ?? []));
-  };
-
-  const submitReassign = async () => {
-    if (!reassignQuote) return;
-    setReassigning(true);
-    setReassignMessage(null);
-    try {
-      const res = await fetch(`/api/dashboard/super-admin/quotes/${reassignQuote.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tool_id: selectedToolId || null }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setReassignQuote(null);
-        loadQuotes();
-      } else {
-        setReassignMessage(data.error ?? 'Failed to reassign');
-      }
-    } finally {
-      setReassigning(false);
-    }
-  };
-
   const canDelete = isSuperAdmin || isOrgAdmin;
 
   const copyQuoteLink = (q: QuoteRow) => {
@@ -336,7 +292,7 @@ export default function DashboardQuotesPage() {
   const confirmBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     setBulkDeleting(true);
-    setBulkReassignMessage(null);
+    setBulkDeleteMessage(null);
     try {
       const res = await api('/api/dashboard/quotes/bulk-delete', {
         method: 'POST',
@@ -349,43 +305,11 @@ export default function DashboardQuotesPage() {
         setSelectedIds(new Set());
         loadQuotes();
       } else {
-        setBulkReassignMessage(data.error ?? 'Failed to delete');
+        setBulkDeleteMessage(data.error ?? 'Failed to delete');
       }
     } finally {
       setBulkDeleting(false);
     }
-  };
-
-  const submitBulkReassign = async () => {
-    if (selectedIds.size === 0) return;
-    setBulkReassigning(true);
-    setBulkReassignMessage(null);
-    try {
-      const res = await api('/api/dashboard/quotes/bulk-reassign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: Array.from(selectedIds), tool_id: selectedToolId || null }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setBulkReassignOpen(false);
-        setSelectedIds(new Set());
-        loadQuotes();
-      } else {
-        setBulkReassignMessage(data.error ?? 'Failed to reassign');
-      }
-    } finally {
-      setBulkReassigning(false);
-    }
-  };
-
-  const openBulkReassign = () => {
-    setBulkReassignOpen(true);
-    setBulkReassignMessage(null);
-    setSelectedToolId('');
-    fetch('/api/dashboard/super-admin/tools')
-      .then((r) => (r.ok ? r.json() : { tools: [] }))
-      .then((d) => setToolsForReassign(d.tools ?? []));
   };
 
   const toggleSelection = useCallback((id: string) => {
@@ -500,6 +424,16 @@ export default function DashboardQuotesPage() {
       setNewQuoteLoading(false);
     }
   }, [api]);
+
+  // Open New Quote modal when header navigates with ?openNewQuote=1
+  useEffect(() => {
+    if (searchParams?.get('openNewQuote') === '1' && effectiveLocationId) {
+      openNewQuoteModal();
+      const url = new URL(window.location.href);
+      url.searchParams.delete('openNewQuote');
+      window.history.replaceState({}, '', url.pathname + (url.search || ''));
+    }
+  }, [searchParams?.get('openNewQuote'), effectiveLocationId, openNewQuoteModal]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -628,12 +562,8 @@ export default function DashboardQuotesPage() {
           </div>
         </DialogContent>
       </Dialog>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div>
         <h1 className="text-2xl font-bold text-foreground">Quotes</h1>
-        <Button onClick={openNewQuoteModal} className="shrink-0" variant="default">
-          <Plus className="h-4 w-4 mr-2" />
-          New Quote
-        </Button>
       </div>
 
       {selectedIds.size > 0 && (
@@ -641,16 +571,6 @@ export default function DashboardQuotesPage() {
           <span className="text-sm font-medium text-foreground">
             {selectedIds.size} selected
           </span>
-          {isSuperAdmin && (
-            <button
-              type="button"
-              onClick={openBulkReassign}
-              className="inline-flex items-center gap-2 rounded-md border border-amber-600/50 bg-amber-500/10 px-3 py-1.5 text-sm font-medium text-amber-700 hover:bg-amber-500/20 dark:text-amber-400"
-            >
-              <ArrowRightLeft className="h-4 w-4" />
-              Bulk reassign
-            </button>
-          )}
           {canDelete && (
             <button
               type="button"
@@ -839,13 +759,25 @@ export default function DashboardQuotesPage() {
                     </td>
                     <td className="px-4 py-3">
                       {q.contactId ? (
-                        <Link
-                          href={`/dashboard/crm/contacts/${q.contactId}`}
-                          className="inline-flex items-center gap-1.5 text-primary hover:underline"
-                        >
-                          <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                          {q.contactName || [q.first_name, q.last_name].filter(Boolean).join(' ') || q.email || 'Contact'}
-                        </Link>
+                        effectiveLocationId ? (
+                          <a
+                            href={`https://my.cleanquote.io/v2/location/${effectiveLocationId}/contacts/detail/${q.contactId}`}
+                            target="_top"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-primary hover:underline"
+                          >
+                            <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                            {q.contactName || [q.first_name, q.last_name].filter(Boolean).join(' ') || q.email || 'Contact'}
+                          </a>
+                        ) : (
+                          <Link
+                            href={`/dashboard/crm/contacts/${q.contactId}`}
+                            className="inline-flex items-center gap-1.5 text-primary hover:underline"
+                          >
+                            <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                            {q.contactName || [q.first_name, q.last_name].filter(Boolean).join(' ') || q.email || 'Contact'}
+                          </Link>
+                        )
                       ) : (
                         <span className="text-muted-foreground">— No contact</span>
                       )}
@@ -894,16 +826,6 @@ export default function DashboardQuotesPage() {
                             <Copy className="h-4 w-4" />
                           )}
                         </button>
-                        {isSuperAdmin && (
-                          <button
-                            type="button"
-                            onClick={() => openReassign(q)}
-                            className="inline-flex items-center justify-center rounded p-2 text-amber-700 hover:bg-amber-500/20 dark:text-amber-400"
-                            title="Reassign to another org’s tool"
-                          >
-                            <ArrowRightLeft className="h-4 w-4" />
-                          </button>
-                        )}
                         {canDelete && (
                           <button
                             type="button"
@@ -915,13 +837,25 @@ export default function DashboardQuotesPage() {
                           </button>
                         )}
                         {q.contactId && (
-                          <Link
-                            href={`/dashboard/crm/contacts/${q.contactId}`}
-                            className="inline-flex items-center justify-center rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-                            title="View in CRM"
-                          >
-                            <User className="h-4 w-4" />
-                          </Link>
+                          effectiveLocationId ? (
+                            <a
+                              href={`https://my.cleanquote.io/v2/location/${effectiveLocationId}/contacts/detail/${q.contactId}`}
+                              target="_top"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                              title="View in CRM"
+                            >
+                              <User className="h-4 w-4" />
+                            </a>
+                          ) : (
+                            <Link
+                              href={`/dashboard/crm/contacts/${q.contactId}`}
+                              className="inline-flex items-center justify-center rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                              title="View in CRM"
+                            >
+                              <User className="h-4 w-4" />
+                            </Link>
+                          )
                         )}
                       </div>
                     </td>
@@ -1014,94 +948,7 @@ export default function DashboardQuotesPage() {
         </div>
       )}
 
-      {reassignQuote && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-lg border border-border bg-card p-4 shadow-lg">
-            <h3 className="font-semibold text-foreground">Reassign quote to org</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {reassignQuote.first_name} {reassignQuote.last_name} · {reassignQuote.quote_id}
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Choose the tool (org) this quote should belong to. It will then show in that org’s quotes.
-            </p>
-            <select
-              value={selectedToolId}
-              onChange={(e) => setSelectedToolId(e.target.value)}
-              className="mt-3 w-full rounded border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="">— No tool (legacy) —</option>
-              {toolsForReassign.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.org_name} → {t.name}
-                </option>
-              ))}
-            </select>
-            {reassignMessage && (
-              <p className="mt-2 text-sm text-destructive">{reassignMessage}</p>
-            )}
-            <div className="mt-4 flex gap-2">
-              <button
-                type="button"
-                onClick={submitReassign}
-                disabled={reassigning}
-                className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
-              >
-                {reassigning ? 'Saving…' : 'Reassign'}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setReassignQuote(null); setReassignMessage(null); }}
-                className="rounded border border-input px-3 py-1.5 text-sm"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {bulkReassignOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-lg border border-border bg-card p-4 shadow-lg">
-            <h3 className="font-semibold text-foreground">Bulk reassign {selectedIds.size} quotes</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Choose the tool (org) these quotes should belong to. They will then show in that org's quotes.
-            </p>
-            <select
-              value={selectedToolId}
-              onChange={(e) => setSelectedToolId(e.target.value)}
-              className="mt-3 w-full rounded border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="">— No tool (legacy) —</option>
-              {toolsForReassign.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.org_name} → {t.name}
-                </option>
-              ))}
-            </select>
-            {bulkReassignMessage && (
-              <p className="mt-2 text-sm text-destructive">{bulkReassignMessage}</p>
-            )}
-            <div className="mt-4 flex gap-2">
-              <button
-                type="button"
-                onClick={submitBulkReassign}
-                disabled={bulkReassigning}
-                className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
-              >
-                {bulkReassigning ? 'Saving…' : 'Reassign'}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setBulkReassignOpen(false); setBulkReassignMessage(null); }}
-                className="rounded border border-input px-3 py-1.5 text-sm"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {bulkDeleteOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -1113,8 +960,8 @@ export default function DashboardQuotesPage() {
             <p className="mt-2 text-sm text-muted-foreground">
               Are you sure you want to delete these quotes? This action cannot be undone.
             </p>
-            {bulkReassignMessage && (
-              <p className="mt-2 text-sm text-destructive">{bulkReassignMessage}</p>
+            {bulkDeleteMessage && (
+              <p className="mt-2 text-sm text-destructive">{bulkDeleteMessage}</p>
             )}
             <div className="mt-4 flex gap-2">
               <button
@@ -1127,7 +974,7 @@ export default function DashboardQuotesPage() {
               </button>
               <button
                 type="button"
-                onClick={() => { setBulkDeleteOpen(false); setBulkReassignMessage(null); }}
+                onClick={() => { setBulkDeleteOpen(false); setBulkDeleteMessage(null); }}
                 disabled={bulkDeleting}
                 className="rounded border border-input px-3 py-1.5 text-sm"
               >

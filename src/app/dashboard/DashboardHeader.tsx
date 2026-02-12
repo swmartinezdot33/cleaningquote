@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { OrgSwitcher } from '@/components/OrgSwitcher';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 function isNavActive(href: string, pathname: string): boolean {
   const clean = pathname.replace(/\/$/, '') || '/';
@@ -63,6 +64,7 @@ export function DashboardHeader({
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
   const pathname = usePathname() ?? '';
+  const router = useRouter();
 
   const navLinkClass = (href: string) => {
     const active = isNavActive(href, pathname);
@@ -158,6 +160,18 @@ export function DashboardHeader({
         {/* Desktop nav — aligned left */}
         <div className="hidden md:flex md:items-center md:gap-4">
           {navLinks}
+        </div>
+        {/* Right: New Quote button (desktop) — same look as page button, not a nav link */}
+        <div className="hidden md:block">
+          <Button
+            variant="default"
+            size="sm"
+            className="shrink-0 gap-2"
+            onClick={() => router.push('/dashboard/quotes?openNewQuote=1')}
+          >
+            <Plus className="h-4 w-4" />
+            New Quote
+          </Button>
         </div>
         {/* Mobile: hamburger */}
         <button
@@ -278,6 +292,20 @@ export function DashboardHeader({
                 >
                   Pricing
                 </Link>
+                <div className="pt-3 mt-2 border-t border-gray-200">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="w-full gap-2"
+                    onClick={() => {
+                      closeMobileMenu();
+                      router.push('/dashboard/quotes?openNewQuote=1');
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
+                    New Quote
+                  </Button>
+                </div>
               </nav>
             </div>
           </div>,
