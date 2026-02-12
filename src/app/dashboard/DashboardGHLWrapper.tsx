@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { GHLIframeProvider } from '@/lib/ghl-iframe-context';
 import { DashboardContextProvider, useDashboardContext } from '@/lib/dashboard-context';
 import { DashboardHeader } from '@/app/dashboard/DashboardHeader';
+import { LoadingDots } from '@/components/ui/loading-dots';
 
 interface GHLSession {
   locationId: string;
@@ -18,16 +19,34 @@ interface DashboardGHLWrapperProps {
 }
 
 /**
- * Dashboard is only available when loaded inside a GHL iframe.
- * When not in iframe, do not load the dashboard at all — show a blocking message.
- * When in iframe: provides GHL + Dashboard context and renders header with org from context.
+ * Renders dashboard content (header + main) or a blocking/loading message.
+ * Always mounted when providers are mounted so hook order is stable (avoids React #310).
  */
 function DashboardContentWithHeader({
   children,
   userDisplayName,
   ghlSession,
-}: DashboardGHLWrapperProps) {
+  inIframe,
+}: DashboardGHLWrapperProps & { inIframe: boolean | null }) {
   const { orgs, selectedOrgId, org } = useDashboardContext();
+
+  if (inIframe === false) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
+        <p className="font-medium text-foreground">Open inside CleanQuote.io</p>
+        <p className="max-w-md text-sm text-muted-foreground">
+          Open this page inside of CleanQuote.io. Do not open this URL directly in a browser tab.
+        </p>
+      </div>
+    );
+  }
+  if (inIframe === null) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center">
+        <LoadingDots size="lg" className="text-muted-foreground" />
+      </div>
+    );
+  }
   return (
     <>
       <DashboardHeader
@@ -43,6 +62,10 @@ function DashboardContentWithHeader({
   );
 }
 
+/**
+ * Dashboard is only available when loaded inside a GHL iframe.
+ * We always mount the same provider + content tree so hook count is stable (avoids React error #310).
+ */
 export function DashboardGHLWrapper({ children, userDisplayName, ghlSession }: DashboardGHLWrapperProps) {
   const [inIframe, setInIframe] = useState<boolean | null>(null);
 
@@ -52,26 +75,17 @@ export function DashboardGHLWrapper({ children, userDisplayName, ghlSession }: D
     console.log('[CQ OAuth]', `[${Date.now()}] DashboardGHLWrapper: inIframe=${isInIframe}`, isInIframe ? 'showing dashboard' : 'blocked (not in iframe)');
   }, []);
 
-  if (inIframe === true) {
-    return (
-      <GHLIframeProvider>
-        <DashboardContextProvider>
-          <DashboardContentWithHeader userDisplayName={userDisplayName} ghlSession={ghlSession}>
-            {children}
-          </DashboardContentWithHeader>
-        </DashboardContextProvider>
-      </GHLIframeProvider>
-    );
-  }
-  if (inIframe === false) {
-    return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
-        <p className="font-medium text-foreground">Open inside CleanQuote.io</p>
-        <p className="max-w-md text-sm text-muted-foreground">
-          Open this page inside of CleanQuote.io. Do not open this URL directly in a browser tab.
-        </p>
-      </div>
-    );
-  }
-  return null;
+  return (
+    <GHLIframeProvider>
+      <DashboardContextProvider>
+        <DashboardContentWithHeader
+          userDisplayName={userDisplayName}
+          ghlSession={ghlSession}
+          inIframe={inIframe}
+        >
+          {children}
+        </DashboardContentWithHeader>
+      </DashboardContextProvider>
+    </GHLIframeProvider>
+  );
 }

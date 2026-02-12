@@ -506,15 +506,15 @@ export async function POST(request: NextRequest) {
 
         ghlContactId = contact.id;
 
-        // Build service address once for Property and Quote object
+        // Build full service address once for Property and Quote (Address is the unique/ID field for Property — use full address to avoid duplicates)
         const addressParts = [
-          body.address,
-          body.city,
-          body.state,
-          body.postalCode,
+          parsedStreetAddress,
+          parsedCity,
+          parsedState,
+          parsedPostalCode,
           body.country,
         ].filter(Boolean);
-        const serviceAddress = addressParts.join(', ') || '';
+        const serviceAddress = addressParts.join(', ').trim().replace(/\s+/g, ' ') || '';
 
         // Find or create GHL Property and link to Contact (so every quote goes into a property; same contact can have multiple quotes on multiple properties)
         let ghlPropertyId: string | null = null;

@@ -2243,8 +2243,17 @@ export interface GHLPropertyFields {
 }
 
 /**
+ * Normalize address for storage and dedup: trim and collapse internal spaces.
+ * Address is the unique/ID field for Property — we always store the full address.
+ */
+function normalizeAddressForStorage(address: string): string {
+  return (address || '').trim().replace(/\s+/g, ' ');
+}
+
+/**
  * Find or create a GHL Property record. If a record with the same address exists, return its id.
  * Otherwise create a new Property with the given fields and return its id.
+ * Address is the unique/ID field: we always store the full address (normalized) to avoid duplicates.
  * Requires Property custom object with fields: address, square_footage, bedrooms, bathrooms, half_baths.
  */
 export async function findOrCreateGHLProperty(
@@ -2252,11 +2261,14 @@ export async function findOrCreateGHLProperty(
   fields: GHLPropertyFields,
   tokenOverride?: string
 ): Promise<string | null> {
-  const existing = await findGHLPropertyByAddress(locationId, fields.address, tokenOverride);
+  const normalizedAddress = normalizeAddressForStorage(fields.address);
+  if (!normalizedAddress) return null;
+
+  const existing = await findGHLPropertyByAddress(locationId, normalizedAddress, tokenOverride);
   if (existing?.id) return existing.id;
 
   const customFields: Record<string, string> = {
-    address: fields.address.trim(),
+    address: normalizedAddress,
   };
   if (fields.squareFootage !== undefined && fields.squareFootage !== '')
     customFields.square_footage = String(fields.squareFootage);

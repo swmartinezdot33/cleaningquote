@@ -66,10 +66,10 @@ export function DashboardHeader({
 
   const navLinkClass = (href: string) => {
     const active = isNavActive(href, pathname);
-    return `text-sm font-medium border-b-2 py-3.5 px-0.5 -mb-px transition-colors ${
+    return `text-sm no-underline border-b-2 py-3.5 px-0.5 -mb-px transition-colors ${
       active
-        ? 'text-purple-600 border-purple-600'
-        : 'text-muted-foreground border-transparent hover:text-foreground hover:border-border'
+        ? 'text-purple-600 border-purple-600 font-semibold'
+        : 'text-muted-foreground border-transparent font-medium hover:text-foreground'
     }`;
   };
 
@@ -83,10 +83,10 @@ export function DashboardHeader({
           <Link
             href="/dashboard/super-admin"
             onClick={closeMobileMenu}
-            className={`text-sm font-medium border-b-2 py-3.5 px-0.5 -mb-px ${
+            className={`text-sm no-underline border-b-2 py-3.5 px-0.5 -mb-px transition-colors ${
               isNavActive('/dashboard/super-admin', pathname)
-                ? 'text-amber-600 border-amber-600'
-                : 'text-muted-foreground border-transparent hover:text-amber-700 hover:border-border'
+                ? 'text-amber-600 border-amber-600 font-semibold'
+                : 'text-muted-foreground border-transparent font-medium hover:text-amber-700'
             }`}
           >
             Super Admin
