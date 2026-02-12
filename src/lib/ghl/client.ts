@@ -6,6 +6,7 @@
 import { getGHLToken, getGHLLocationId } from '@/lib/kv';
 import type { GHLCredentials } from '@/lib/ghl/credentials';
 import { normalizeFieldValue } from './field-normalizer';
+import { request } from './request-client';
 import {
   GHLContact,
   GHLContactResponse,
@@ -24,6 +25,8 @@ import {
   GHLCustomObject,
   GHLCustomObjectResponse,
   GHLUserInfo,
+  GHLConversationSearchItem,
+  GHLConversationMessage,
 } from './types';
 
 const GHL_API_BASE = 'https://services.leadconnectorhq.com';
@@ -35,9 +38,9 @@ const KNOWN_OBJECT_IDS: Record<string, string> = {
 };
 
 /**
- * Make authenticated request to GHL API
- * When credentials is provided (from OAuth session), uses token store.
- * Otherwise uses tokenOverride or getGHLToken() from config.
+ * Make authenticated request to GHL API.
+ * Delegates to the centralized request-client (timeout, retries, queue, cache).
+ * When credentials is provided (from OAuth session), uses them; otherwise uses tokenOverride or getGHLToken().
  */
 export async function makeGHLRequest<T>(
   endpoint: string,
@@ -64,110 +67,42 @@ export async function makeGHLRequest<T>(
       throw new Error('GHL API token not configured. Please set it in the admin settings.');
     }
 
-    const url = `${GHL_API_BASE}${endpoint}`;
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      'Version': '2021-07-28', // GHL 2.0 API version
-    };
-    // When using OAuth credentials (location token), do NOT send Location-Id — GHL infers location from
-    // the token. Sending it causes 403 "The token does not have access to this location". Only add the
-    // header when using a non-credential token (e.g. agency/PIT) that may need it to scope the request.
-    const sendLocationIdHeader = Boolean(resolvedLocationId && !credentials?.token);
-    if (sendLocationIdHeader) {
-      headers['Location-Id'] = resolvedLocationId!;
-    }
-    
-    const options: RequestInit = {
+    const result = await request<T>({
       method,
-      headers,
-    };
+      path: endpoint,
+      body: body as Record<string, unknown> | undefined,
+      locationId: resolvedLocationId ?? undefined,
+      credentials: credentials ?? undefined,
+      tokenOverride: credentials?.token ? undefined : (tokenOverride ?? token),
+    });
 
-    if (body) {
-      options.body = JSON.stringify(body);
+    if (result.ok) {
+      return result.data as T;
     }
 
-    const GHL_429_MAX_RETRIES = 3;
-    const GHL_429_DELAYS_MS = [1000, 2000, 4000];
-
-    let response: Response;
-    let responseText: string;
-
-    for (let attempt = 0; attempt <= GHL_429_MAX_RETRIES; attempt++) {
-      response = await fetch(url, options);
-      responseText = await response.text();
-
-      if (response.ok) break;
-
-      if (response.status === 429 && attempt < GHL_429_MAX_RETRIES) {
-        const retryAfterSec = response.headers.get('Retry-After');
-        const waitMs = retryAfterSec
-          ? Math.min(parseInt(retryAfterSec, 10) * 1000, 15000)
-          : GHL_429_DELAYS_MS[attempt] ?? 4000;
-        console.warn(`[CQ GHL] 429 Too Many Requests, retry in ${waitMs}ms (attempt ${attempt + 1}/${GHL_429_MAX_RETRIES})`);
-        await new Promise((r) => setTimeout(r, waitMs));
-        continue;
-      }
-
-      // Non-ok and (not 429 or no retries left)
-      let errorData: any = null;
-      if (responseText?.trim().length) {
-        try {
-          errorData = JSON.parse(responseText) as GHLAPIError;
-        } catch {
-          /* ignore */
-        }
-      }
-
-      let errorMessage = `GHL API Error (${response.status})`;
-      if (responseText?.trim().length) {
-        try {
-          const parsed = errorData ?? JSON.parse(responseText);
-          errorMessage = `${errorMessage}: ${parsed.message || parsed.error || responseText.substring(0, 200)}`;
-        } catch {
-          errorMessage = `${errorMessage}: ${responseText.substring(0, 200)}`;
-        }
-      } else {
-        errorMessage = `${errorMessage}: Empty response from GHL API`;
-      }
-
-      if (response.status === 403) {
-        console.warn('[CQ GHL] 403', {
-          endpoint: endpoint.slice(0, 80),
-          message: errorData?.message || errorData?.error || responseText?.slice(0, 100),
-          usedCredentials: !!credentials?.token,
-          sentLocationIdHeader: sendLocationIdHeader,
-        });
-      }
-      const isInvalidUserId = response.status === 400 && (errorData?.message === 'The user id is invalid.' || String(errorData?.message || '').includes('user id is invalid'));
-      if ((response.status === 400 || response.status === 404) && !isInvalidUserId) {
-        console.error(`GHL API ${response.status} Error Details:`, {
-          url,
-          status: response.status,
-          responseText: responseText?.slice(0, 200) || '(empty)',
-          method: options.method || 'GET',
-        });
-      }
-
-      if (response.status === 429) {
-        throw new Error('Service is temporarily busy. Please try again in a moment.');
-      }
-      throw new Error(errorMessage);
+    const err = result.error;
+    if (err.status === 403) {
+      console.warn('[CQ GHL] 403', {
+        endpoint: endpoint.slice(0, 80),
+        message: err.message,
+        usedCredentials: !!credentials?.token,
+      });
     }
-
-    if (!responseText!.trim().length) {
-      throw new Error('Empty response from GHL API');
+    const isInvalidUserId =
+      err.status === 400 &&
+      (err.message.includes('user id is invalid') || err.message.includes('The user id is invalid'));
+    if ((err.status === 400 || err.status === 404) && !isInvalidUserId) {
+      console.error('GHL API Error Details:', {
+        endpoint: endpoint.slice(0, 120),
+        status: err.status,
+        message: err.message,
+        method,
+      });
     }
-
-    let data: T;
-    try {
-      data = JSON.parse(responseText!) as T;
-    } catch (parseError) {
-      console.error('Failed to parse GHL API response:', parseError);
-      throw new Error('Invalid response from GHL API - could not parse JSON');
+    if (err.status === 429) {
+      throw new Error('Service is temporarily busy. Please try again in a moment.');
     }
-
-    return data;
+    throw new Error(err.message);
   } catch (error) {
     const isInvalidUserId =
       error instanceof Error &&
@@ -2466,4 +2401,87 @@ export async function associateQuoteWithProperty(
   } catch (err) {
     console.error('Failed to associate Quote with Property:', err);
   }
+}
+
+/**
+ * Search conversations for a location.
+ * GET /conversations/search
+ * @see https://marketplace.gohighlevel.com/docs/ghl/conversations/search-conversation
+ */
+export async function searchConversations(
+  locationId: string,
+  options: { query?: string; limit?: number; status?: string; contactId?: string; sortBy?: string; sort?: string } = {},
+  credentials?: GHLCredentials | null
+): Promise<{ conversations: GHLConversationSearchItem[]; total?: number }> {
+  const params = new URLSearchParams({ locationId });
+  if (options.limit != null) params.set('limit', String(Math.min(100, Math.max(1, options.limit))));
+  if (options.query?.trim()) params.set('query', options.query.trim());
+  if (options.status) params.set('status', options.status);
+  if (options.contactId) params.set('contactId', options.contactId);
+  if (options.sortBy) params.set('sortBy', options.sortBy);
+  if (options.sort) params.set('sort', options.sort);
+
+  const res = await makeGHLRequest<{
+    conversations?: GHLConversationSearchItem[];
+    data?: GHLConversationSearchItem[];
+    total?: number;
+  }>(`/conversations/search?${params.toString()}`, 'GET', undefined, undefined, undefined, credentials);
+  const raw = res?.conversations ?? res?.data;
+  const conversations = Array.isArray(raw) ? raw : [];
+  return { conversations, total: res?.total ?? conversations.length };
+}
+
+/** Response shape from GET /conversations/:id/messages (nested messages object). */
+interface GHLMessagesResponse {
+  messages?: {
+    messages?: GHLConversationMessage[];
+    lastMessageId?: string;
+    nextPage?: boolean;
+  };
+}
+
+/**
+ * Get messages for a conversation.
+ * GET /conversations/:conversationId/messages
+ */
+export async function getConversationMessages(
+  conversationId: string,
+  options: { limit?: number; lastMessageId?: string; type?: string } = {},
+  credentials?: GHLCredentials | null
+): Promise<{ messages: GHLConversationMessage[]; lastMessageId?: string; nextPage?: boolean }> {
+  const params = new URLSearchParams();
+  if (options.limit != null) params.set('limit', String(Math.min(100, Math.max(1, options.limit))));
+  if (options.lastMessageId) params.set('lastMessageId', options.lastMessageId);
+  if (options.type) params.set('type', options.type);
+  const query = params.toString();
+  const endpoint = `/conversations/${encodeURIComponent(conversationId)}/messages${query ? `?${query}` : ''}`;
+
+  const res = await makeGHLRequest<GHLMessagesResponse>(endpoint, 'GET', undefined, undefined, undefined, credentials);
+  const inner = res?.messages;
+  const list = Array.isArray(inner?.messages) ? inner.messages : [];
+  return {
+    messages: list,
+    lastMessageId: inner?.lastMessageId,
+    nextPage: inner?.nextPage ?? false,
+  };
+}
+
+/**
+ * Send a new message (SMS or Email) to a contact.
+ * POST /conversations/messages
+ * @see https://marketplace.gohighlevel.com/docs/ghl/conversations/send-a-new-message
+ */
+export async function sendConversationMessage(
+  body: { type: 'SMS' | 'Email'; contactId: string; message: string; subject?: string; html?: string },
+  credentials?: GHLCredentials | null
+): Promise<{ conversationId?: string; messageId?: string; [key: string]: unknown }> {
+  const res = await makeGHLRequest<{ conversationId?: string; messageId?: string; [key: string]: unknown }>(
+    '/conversations/messages',
+    'POST',
+    body as Record<string, unknown>,
+    undefined,
+    undefined,
+    credentials
+  );
+  return res ?? {};
 }

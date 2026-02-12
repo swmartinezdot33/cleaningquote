@@ -12,6 +12,9 @@ import {
   User,
   Tag,
   ChevronLeft,
+  MessageSquare,
+  Send,
+  Loader2,
 } from 'lucide-react';
 import { useDashboardApi } from '@/lib/dashboard-api';
 import { getVisibleDisplayFields } from '@/lib/crm/contact-display-fields';
@@ -106,6 +109,17 @@ export default function ContactDetailPage({
   const [noteContent, setNoteContent] = useState('');
   const [addingNote, setAddingNote] = useState(false);
   const [serviceAreaMapAddress, setServiceAreaMapAddress] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<Array<{ id: string; contactId?: string }>>([]);
+  const [messages, setMessages] = useState<Array<{ id: string; body?: string; direction?: string; createdAt?: string; dateAdded?: string }>>([]);
+  const [messagesNextPage, setMessagesNextPage] = useState(false);
+  const [messagesLastId, setMessagesLastId] = useState<string | null>(null);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [loadingMoreMessages, setLoadingMoreMessages] = useState(false);
+  const [composeType, setComposeType] = useState<'SMS' | 'Email'>('SMS');
+  const [composeMessage, setComposeMessage] = useState('');
+  const [composeSubject, setComposeSubject] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [messagesError, setMessagesError] = useState<string | null>(null);
 
   useEffect(() => {
     if (params && typeof (params as Promise<unknown>).then === 'function') {
@@ -123,6 +137,101 @@ export default function ContactDetailPage({
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [resolvedParams?.id, api]);
+
+  useEffect(() => {
+    if (!resolvedParams?.id || !api) return;
+    setMessagesError(null);
+    api(`/api/dashboard/crm/contacts/${resolvedParams.id}/conversations`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load'))))
+      .then((d: { conversations?: Array<{ id: string; contactId?: string }>; error?: string }) => {
+        setMessagesError(d.error ?? null);
+        setConversations(d.conversations ?? []);
+      })
+      .catch(() => setConversations([]));
+  }, [resolvedParams?.id, api]);
+
+  const firstConversationId = conversations[0]?.id;
+  useEffect(() => {
+    if (!resolvedParams?.id || !api || !firstConversationId) {
+      setMessages([]);
+      return;
+    }
+    setLoadingMessages(true);
+    api(`/api/dashboard/crm/contacts/${resolvedParams.id}/conversations/${encodeURIComponent(firstConversationId)}/messages?limit=30`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load messages'))))
+      .then((d: { messages?: Array<{ id: string; body?: string; direction?: string; createdAt?: string; dateAdded?: string }>; lastMessageId?: string; nextPage?: boolean }) => {
+        const list = d.messages ?? [];
+        setMessages([...list].reverse());
+        setMessagesLastId(d.lastMessageId ?? null);
+        setMessagesNextPage(d.nextPage ?? false);
+      })
+      .catch(() => setMessages([]))
+      .finally(() => setLoadingMessages(false));
+  }, [resolvedParams?.id, api, firstConversationId]);
+
+  const loadOlderMessages = () => {
+    if (!resolvedParams?.id || !api || !firstConversationId || !messagesLastId || !messagesNextPage) return;
+    setLoadingMoreMessages(true);
+    api(`/api/dashboard/crm/contacts/${resolvedParams.id}/conversations/${encodeURIComponent(firstConversationId)}/messages?limit=30&lastMessageId=${encodeURIComponent(messagesLastId)}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed'))))
+      .then((d: { messages?: Array<{ id: string; body?: string; direction?: string; createdAt?: string; dateAdded?: string }>; lastMessageId?: string; nextPage?: boolean }) => {
+        const list = (d.messages ?? []).reverse();
+        setMessages((prev) => [...list, ...prev]);
+        setMessagesLastId(d.lastMessageId ?? null);
+        setMessagesNextPage(d.nextPage ?? false);
+      })
+      .finally(() => setLoadingMoreMessages(false));
+  };
+
+  const sendMessage = () => {
+    if (!resolvedParams?.id || !api || !composeMessage.trim()) return;
+    if (composeType === 'Email' && !composeSubject.trim()) return;
+    setSendingMessage(true);
+    api(`/api/dashboard/crm/contacts/${resolvedParams.id}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: composeType,
+        message: composeMessage.trim(),
+        subject: composeType === 'Email' ? composeSubject.trim() : undefined,
+      }),
+    })
+      .then((r) => {
+        if (!r.ok) return r.json().then((e: { error?: string }) => Promise.reject(new Error(e?.error ?? 'Send failed')));
+        setComposeMessage('');
+        setComposeSubject('');
+        return api(`/api/dashboard/crm/contacts/${resolvedParams.id}/conversations`).then((res) => (res.ok ? res.json() : Promise.reject(new Error('Failed'))));
+      })
+      .then((d: { conversations?: Array<{ id: string; contactId?: string }> }) => {
+        const list = d.conversations ?? [];
+        setConversations(list);
+        const convId = list[0]?.id;
+        if (convId) {
+          return api(`/api/dashboard/crm/contacts/${resolvedParams.id}/conversations/${encodeURIComponent(convId)}/messages?limit=30`)
+            .then((res) => (res.ok ? res.json() : Promise.reject(new Error('Failed'))))
+            .then((msgData: { messages?: Array<{ id: string; body?: string; direction?: string; createdAt?: string; dateAdded?: string }>; lastMessageId?: string; nextPage?: boolean }) => {
+              setMessages([...(msgData.messages ?? [])].reverse());
+              setMessagesLastId(msgData.lastMessageId ?? null);
+              setMessagesNextPage(msgData.nextPage ?? false);
+            });
+        }
+      })
+      .catch((e) => setMessagesError(e.message))
+      .finally(() => setSendingMessage(false));
+  };
+
+  function formatMessageDate(s: string | undefined): string {
+    if (!s) return '—';
+    try {
+      const d = new Date(s);
+      const now = new Date();
+      const sameDay = d.toDateString() === now.toDateString();
+      if (sameDay) return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
+    } catch {
+      return s;
+    }
+  }
 
   const addNote = () => {
     if (!noteContent.trim() || !resolvedParams?.id || !api) return;
@@ -458,6 +567,115 @@ export default function ContactDetailPage({
             </li>
           ))}
         </ul>
+      </section>
+
+      {/* Communications (SMS / Email) */}
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <MessageSquare className="h-4 w-4" />
+          Communications
+        </h2>
+        {messagesError && (
+          <p className="mt-2 text-sm text-destructive">{messagesError}</p>
+        )}
+        {loadingMessages ? (
+          <div className="mt-4 flex justify-center py-8">
+            <LoadingDots size="lg" className="text-muted-foreground" />
+          </div>
+        ) : (
+          <>
+            {messagesNextPage && (
+              <div className="mt-2 flex justify-center">
+                <button
+                  type="button"
+                  onClick={loadOlderMessages}
+                  disabled={loadingMoreMessages}
+                  className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
+                >
+                  {loadingMoreMessages ? 'Loading…' : 'Load older messages'}
+                </button>
+              </div>
+            )}
+            <ul className="mt-4 space-y-2 max-h-[320px] overflow-y-auto">
+              {messages.length === 0 && !loadingMessages ? (
+                <li className="text-sm text-muted-foreground">No messages yet. Send one below.</li>
+              ) : (
+                messages.map((msg) => (
+                  <li
+                    key={msg.id}
+                    className={`rounded-lg px-3 py-2 max-w-[85%] ${
+                      msg.direction === 'outbound' ? 'ml-auto bg-primary/10 text-foreground' : 'bg-muted/50 text-foreground'
+                    }`}
+                  >
+                    <p className="text-sm whitespace-pre-wrap break-words">{msg.body || '—'}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatMessageDate(msg.createdAt ?? msg.dateAdded)}
+                    </p>
+                  </li>
+                ))
+              )}
+            </ul>
+            <div className="mt-4 space-y-2 border-t border-border pt-4">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setComposeType('SMS')}
+                  className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
+                    composeType === 'SMS' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  SMS
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setComposeType('Email')}
+                  className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
+                    composeType === 'Email' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  Email
+                </button>
+              </div>
+              {composeType === 'Email' && (
+                <input
+                  type="text"
+                  value={composeSubject}
+                  onChange={(e) => setComposeSubject(e.target.value)}
+                  placeholder="Subject"
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                />
+              )}
+              <textarea
+                value={composeMessage}
+                onChange={(e) => setComposeMessage(e.target.value)}
+                placeholder={composeType === 'SMS' ? 'Type your message…' : 'Type your email…'}
+                className="w-full min-h-[72px] rounded-lg border border-input bg-background px-3 py-2 text-sm resize-y"
+                rows={2}
+              />
+              <button
+                type="button"
+                onClick={sendMessage}
+                disabled={
+                  sendingMessage ||
+                  !composeMessage.trim() ||
+                  (composeType === 'Email' && !composeSubject.trim()) ||
+                  (composeType === 'SMS' && !data.contact.phone) ||
+                  (composeType === 'Email' && !data.contact.email)
+                }
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {sendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                Send
+              </button>
+              {composeType === 'SMS' && !data.contact.phone && (
+                <p className="text-xs text-muted-foreground">This contact has no phone number on file.</p>
+              )}
+              {composeType === 'Email' && !data.contact.email && (
+                <p className="text-xs text-muted-foreground">This contact has no email on file.</p>
+              )}
+            </div>
+          </>
+        )}
       </section>
 
       {/* Activity */}

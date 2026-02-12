@@ -94,9 +94,9 @@ export function DashboardHeader({
             Super Admin
           </Link>
           <Link
-            href="/dashboard/super-admin/inbox"
+            href="/dashboard/crm/inbox"
             onClick={closeMobileMenu}
-            className={navLinkClass('/dashboard/super-admin/inbox')}
+            className={navLinkClass('/dashboard/crm/inbox')}
           >
             Inbox
           </Link>
@@ -129,6 +129,13 @@ export function DashboardHeader({
         className={navLinkClass('/dashboard/crm/contacts')}
       >
         Contacts
+      </Link>
+      <Link
+        href="/dashboard/crm/inbox"
+        onClick={closeMobileMenu}
+        className={navLinkClass('/dashboard/crm/inbox')}
+      >
+        Inbox
       </Link>
       <Link
         href="/dashboard/tools"
@@ -270,6 +277,13 @@ export function DashboardHeader({
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
                   Contacts
+                </Link>
+                <Link
+                  href="/dashboard/inbox"
+                  onClick={closeMobileMenu}
+                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                >
+                  Inbox
                 </Link>
                 <Link
                   href="/dashboard/tools"

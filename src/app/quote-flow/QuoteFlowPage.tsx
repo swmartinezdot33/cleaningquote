@@ -1266,11 +1266,15 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                   typeof propData?.halfBaths === 'number';
                 if (hasAny && propRes.ok) {
                   setPropertyLookupResult(propData);
-                  setShowPropertyConfirm(true);
-                  return;
+                } else {
+                  setPropertyLookupResult(null);
                 }
+                setShowPropertyConfirm(true);
+                return;
               } catch {
-                // fall through to advance to squareFeet
+                setPropertyLookupResult(null);
+                setShowPropertyConfirm(true);
+                return;
               }
             }
           }
@@ -1417,11 +1421,15 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                     typeof propData?.halfBaths === 'number';
                   if (hasAny && propRes.ok) {
                     setPropertyLookupResult(propData);
-                    setShowPropertyConfirm(true);
-                    return;
+                  } else {
+                    setPropertyLookupResult(null);
                   }
+                  setShowPropertyConfirm(true);
+                  return;
                 } catch {
-                  // fall through
+                  setPropertyLookupResult(null);
+                  setShowPropertyConfirm(true);
+                  return;
                 }
               }
             }
@@ -3219,41 +3227,43 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
             >
               <CardContent className="pt-8 pb-8 px-8">
                 <div className="space-y-6">
-                  {showPropertyConfirm && propertyLookupResult ? (
+                  {showPropertyConfirm ? (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.2 }}
                       className="space-y-6"
                     >
-                      <Label className="text-2xl font-semibold text-gray-900 block mb-4">
-                        We found this for your home. Is this correct?
-                      </Label>
-                      <div className="rounded-lg border-2 p-4 space-y-2" style={{ borderColor: `${primaryColor}33` }}>
-                        {typeof propertyLookupResult.squareFeet === 'number' && (
-                          <p className="text-lg">
-                            <span className="font-medium">Square footage:</span>{' '}
-                            {propertyLookupResult.squareFeet.toLocaleString()} sq ft
-                          </p>
-                        )}
-                        {typeof propertyLookupResult.bedrooms === 'number' && (
-                          <p className="text-lg">
-                            <span className="font-medium">Bedrooms:</span> {propertyLookupResult.bedrooms}
-                          </p>
-                        )}
-                        {(typeof propertyLookupResult.fullBaths === 'number' || typeof propertyLookupResult.halfBaths === 'number') && (
-                          <p className="text-lg">
-                            <span className="font-medium">Bathrooms:</span>{' '}
-                            {propertyLookupResult.fullBaths ?? 0} full, {propertyLookupResult.halfBaths ?? 0} half
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-3 pt-2">
-                        <Button
-                          size="lg"
-                          className="min-w-[120px]"
-                          style={{ backgroundColor: primaryColor, borderColor: primaryColor }}
-                          onClick={() => {
+                      {propertyLookupResult ? (
+                        <>
+                          <Label className="text-2xl font-semibold text-gray-900 block mb-4">
+                            We found this for your home. Is this correct?
+                          </Label>
+                          <div className="rounded-lg border-2 p-4 space-y-2" style={{ borderColor: `${primaryColor}33` }}>
+                            {typeof propertyLookupResult.squareFeet === 'number' && (
+                              <p className="text-lg">
+                                <span className="font-medium">Square footage:</span>{' '}
+                                {propertyLookupResult.squareFeet.toLocaleString()} sq ft
+                              </p>
+                            )}
+                            {typeof propertyLookupResult.bedrooms === 'number' && (
+                              <p className="text-lg">
+                                <span className="font-medium">Bedrooms:</span> {propertyLookupResult.bedrooms}
+                              </p>
+                            )}
+                            {(typeof propertyLookupResult.fullBaths === 'number' || typeof propertyLookupResult.halfBaths === 'number') && (
+                              <p className="text-lg">
+                                <span className="font-medium">Bathrooms:</span>{' '}
+                                {propertyLookupResult.fullBaths ?? 0} full, {propertyLookupResult.halfBaths ?? 0} half
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-3 pt-2">
+                            <Button
+                              size="lg"
+                              className="min-w-[120px]"
+                              style={{ backgroundColor: primaryColor, borderColor: primaryColor }}
+                              onClick={() => {
                             // Persist property lookup data into the form so it is carried to submit and stored in the quote (same fields used when user enters housing info manually)
                             const sqFt = propertyLookupResult.squareFeet;
                             const peopleIndex = visibleQuestions.findIndex((q) => q.id === 'people');
@@ -3301,7 +3311,33 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                         >
                           No, I&apos;ll enter it myself
                         </Button>
-                      </div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <Label className="text-2xl font-semibold text-gray-900 block mb-4">
+                            Home details
+                          </Label>
+                          <p className="text-lg text-gray-700">
+                            We couldn&apos;t find property details for this address. You&apos;ll enter your home details (square footage, bedrooms, baths) in the next steps.
+                          </p>
+                          <div className="pt-2">
+                            <Button
+                              size="lg"
+                              style={{ backgroundColor: primaryColor, borderColor: primaryColor }}
+                              onClick={() => {
+                                setShowPropertyConfirm(false);
+                                setPropertyLookupResult(null);
+                                const squareFeetIndex = visibleQuestions.findIndex((q) => q.id === 'squareFeet');
+                                setDirection(1);
+                                setCurrentStep(squareFeetIndex !== -1 ? squareFeetIndex : currentStep + 1);
+                              }}
+                            >
+                              Continue
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     </motion.div>
                   ) : (
                   <motion.div
@@ -3425,11 +3461,15 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                               typeof propData?.halfBaths === 'number';
                                             if (hasAny && propRes.ok) {
                                               setPropertyLookupResult(propData);
-                                              setShowPropertyConfirm(true);
-                                              return;
+                                            } else {
+                                              setPropertyLookupResult(null);
                                             }
+                                            setShowPropertyConfirm(true);
+                                            return;
                                           } catch {
-                                            // fall through
+                                            setPropertyLookupResult(null);
+                                            setShowPropertyConfirm(true);
+                                            return;
                                           }
                                         }
                                       }

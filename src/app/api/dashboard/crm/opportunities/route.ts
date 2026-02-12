@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveGHLContext } from '@/lib/ghl/api-context';
-import { searchGHLOpportunities } from '@/lib/ghl/client';
+import { getOpportunities } from '@/lib/ghl/ghl-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,14 +32,21 @@ export async function GET(request: NextRequest) {
       ? 1000
       : Math.min(1000, Math.max(1, parseInt(limitParam || '1000', 10) || 1000));
     const statusFilter = 'open';
-    const { opportunities, total } = await searchGHLOpportunities(
+    const result = await getOpportunities(
       ctx.locationId,
-      { pipelineId, limit, status: statusFilter },
-      { token: ctx.token, locationId: ctx.locationId }
+      { token: ctx.token, locationId: ctx.locationId },
+      { pipelineId, limit, status: statusFilter }
     );
+    if (!result.ok) {
+      const status = result.error.type === 'auth' ? 401 : 502;
+      return NextResponse.json(
+        { error: result.error.message, opportunities: [], retryable: result.error.retryable },
+        { status }
+      );
+    }
     return NextResponse.json({
-      opportunities,
-      total: total ?? opportunities.length,
+      opportunities: result.data.opportunities,
+      total: result.data.total ?? result.data.opportunities.length,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

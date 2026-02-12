@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveGHLContext } from '@/lib/ghl/api-context';
-import { listGHLPipelines } from '@/lib/ghl/client';
+import { getPipelines } from '@/lib/ghl/ghl-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
       );
     }
     if ('needsConnect' in ctx) {
-      // Return 200 so the client can parse the body and show Connect CTA (same pattern as stats).
       return NextResponse.json({
         pipelines: [],
         needsConnect: true,
@@ -28,12 +27,19 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const pipelines = await listGHLPipelines(ctx.locationId, {
+    const result = await getPipelines(ctx.locationId, {
       token: ctx.token,
       locationId: ctx.locationId,
     });
+    if (!result.ok) {
+      const status = result.error.type === 'auth' ? 401 : 502;
+      return NextResponse.json(
+        { error: result.error.message, pipelines: [] },
+        { status }
+      );
+    }
     return NextResponse.json({
-      pipelines: pipelines.map((p) => ({
+      pipelines: result.data.map((p: any) => ({
         id: p.id,
         name: p.name,
         stages: p.stages ?? [],

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveGHLContext } from '@/lib/ghl/api-context';
-import { listGHLQuoteRecords } from '@/lib/ghl/client';
+import { getQuoteRecords } from '@/lib/ghl/ghl-client';
 import * as configStore from '@/lib/config/store';
 import { createSupabaseServer } from '@/lib/supabase/server';
 
@@ -250,7 +250,15 @@ export async function GET(request: NextRequest) {
 
     try {
       const credentials = { token: ctx.token, locationId: ctx.locationId };
-      const records = await listGHLQuoteRecords(ctx.locationId, { limit: 2000 }, credentials);
+      const result = await getQuoteRecords(ctx.locationId, credentials, { limit: 2000 });
+      if (!result.ok) {
+        const status = result.error.type === 'auth' ? 401 : 502;
+        return NextResponse.json(
+          { quotes: [], error: result.error.message, isSuperAdmin: false, isOrgAdmin: false },
+          { status }
+        );
+      }
+      const records = result.data;
       const rawQuotes = records.map(mapGHLQuoteToDashboard);
 
       // Resolve tool_id → name for Tool column (org from ghl_location_id → tools)

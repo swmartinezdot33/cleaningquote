@@ -188,6 +188,14 @@ npm run build
 npm start
 ```
 
+## GHL integration
+
+Dashboard (Quotes, Contacts, Leads) and other flows call the GoHighLevel (LeadConnector) API through a **centralized client** with timeout, retries, per-location concurrency, and short-TTL caching. See [docs/ghl-client.md](docs/ghl-client.md) for:
+
+- How tokens are stored (per-location in KV, set by OAuth/Connect) and how the central client selects them
+- How token refresh works (token-store checks expiry and refreshes when needed)
+- Optional env: `GHL_REQUEST_TIMEOUT_MS`, `GHL_CACHE_TTL_SEC`, `DEBUG_GHL_HEADERS` (see `.env.example`)
+
 ## Notes
 
 - The pricing table is cached in memory after the first load for performance

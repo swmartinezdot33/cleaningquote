@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveGHLContext } from '@/lib/ghl/api-context';
-import { listGHLContacts } from '@/lib/ghl/client';
+import { getContacts } from '@/lib/ghl/ghl-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,12 +24,17 @@ async function fetchContactsFromGHL(locationId: string, token: string, searchPar
   const search = searchParams.get('search')?.trim();
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
   const perPage = Math.min(100, Math.max(1, parseInt(searchParams.get('perPage') ?? '25', 10)));
-  // POST /contacts/search with Location token (no Location-Id header). Same as verify/stats routes.
-  const { contacts: ghlContacts } = await listGHLContacts(
+  const result = await getContacts(
     locationId,
-    { limit: 1000, page: 1, search: search ?? undefined },
-    { token, locationId }
+    { token, locationId },
+    { limit: 1000, search: search ?? undefined }
   );
+  if (!result.ok) {
+    const e = new Error(result.error.message) as Error & { ghlError?: typeof result.error };
+    e.ghlError = result.error;
+    throw e;
+  }
+  const ghlContacts = result.data.contacts;
   let mapped = ghlContacts.map(mapGHLContactToCRM);
   if (stage && ['lead', 'quoted', 'booked', 'customer', 'churned'].includes(stage)) {
     mapped = mapped.filter((c) => c.stage === stage);
@@ -74,11 +79,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+      const ghlError = err && typeof err === 'object' && 'ghlError' in err ? (err as { ghlError: { type?: string } }).ghlError : undefined;
+      const status = ghlError?.type === 'auth' ? 401 : 502;
       console.warn('[CQ CRM contacts] fetchContactsFromGHL error', { locationId: ctx.locationId?.slice(0, 12) + '...', err: msg });
-      // We have a token; this is a GHL API error, not missing connection — don't tell user to reconnect.
       return NextResponse.json(
         { contacts: [], total: 0, page: 1, perPage: 25, error: msg },
-        { status: 502 }
+        { status }
       );
     }
   } catch (err) {

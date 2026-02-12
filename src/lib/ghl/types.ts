@@ -176,3 +176,28 @@ export interface GHLUserInfo {
   firstName?: string;
   lastName?: string;
 }
+
+/** Conversation item from GET /conversations/search */
+export interface GHLConversationSearchItem {
+  id: string;
+  contactId?: string;
+  locationId?: string;
+  lastMessageBody?: string;
+  lastMessageDate?: string;
+  lastMessageDirection?: string;
+  unreadCount?: number;
+  contact?: { name?: string; firstName?: string; lastName?: string; email?: string; phone?: string };
+  [key: string]: unknown;
+}
+
+/** Message item from GET /conversations/:id/messages */
+export interface GHLConversationMessage {
+  id: string;
+  type?: string;
+  body?: string;
+  direction?: string;
+  status?: string;
+  createdAt?: string;
+  dateAdded?: string;
+  [key: string]: unknown;
+}

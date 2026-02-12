@@ -62,6 +62,10 @@ export async function GET(request: NextRequest) {
       'calendars/resources.readonly',
       'opportunities.readonly',
       'opportunities.write',
+      'conversations.readonly',
+      'conversations.write',
+      'conversations/message.readonly',
+      'conversations/message.write',
       'oauth.write',
       'oauth.readonly',
     ].map((scope) => encodeURIComponent(scope)).join('+');
