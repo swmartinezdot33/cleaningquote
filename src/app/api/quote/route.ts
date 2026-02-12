@@ -820,6 +820,20 @@ export async function POST(request: NextRequest) {
                 frequency: body.frequency ?? '',
               });
             }
+            // Store tool_id so the dashboard can filter; store quote_tool_used (GHL custom field) with tool name for GHL workflows/display
+            if (toolId) {
+              quoteCustomFields['tool_id'] = toolId;
+              try {
+                const supabase = createSupabaseServer();
+                const { data: toolRow } = await supabase.from('tools').select('name').eq('id', toolId).maybeSingle();
+                const toolName = (toolRow as { name?: string } | null)?.name;
+                if (toolName && String(toolName).trim()) {
+                  quoteCustomFields['quote_tool_used'] = String(toolName).trim();
+                }
+              } catch {
+                // Non-fatal: GHL still gets tool_id; quote_tool_used may be empty
+              }
+            }
 
             // Sanitize all custom fields to ensure values are properly formatted
             quoteCustomFields = sanitizeCustomFields(quoteCustomFields);

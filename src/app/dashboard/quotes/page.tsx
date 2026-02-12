@@ -66,10 +66,11 @@ function quoteAddressLine(q: QuoteRow): string {
   return [q.address, q.city, q.state, q.postal_code].filter(Boolean).join(', ') || '';
 }
 
-type DateRangeKey = 'all' | 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'this_year';
+type DateRangeKey = 'all' | 'today' | 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'this_year';
 
 const DATE_RANGE_OPTIONS: { value: DateRangeKey; label: string }[] = [
   { value: 'all', label: 'All time' },
+  { value: 'today', label: 'Today' },
   { value: 'this_week', label: 'This week' },
   { value: 'last_week', label: 'Last week' },
   { value: 'this_month', label: 'This month' },
@@ -110,6 +111,11 @@ function getDateRangeBounds(key: DateRangeKey): { start: number; end: number } |
   const startOfYear = (d: Date) => new Date(d.getFullYear(), 0, 1, 0, 0, 0, 0);
 
   switch (key) {
+    case 'today': {
+      const start = startOfDay(now);
+      const end = toMs(start) + 24 * 60 * 60 * 1000 - 1;
+      return { start: toMs(start), end };
+    }
     case 'this_week': {
       const start = startOfWeek(now);
       const end = endOfWeek(now);
@@ -154,6 +160,7 @@ export default function DashboardQuotesPage() {
   const { api, locationId: effectiveLocationId } = useDashboardApi();
   const searchParams = useSearchParams();
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
+  const [orgTools, setOrgTools] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const lastFetchedLocationIdRef = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -206,16 +213,19 @@ export default function DashboardQuotesPage() {
     setLoading(true);
     Promise.all([
       api('/api/dashboard/quotes'),
+      api('/api/dashboard/tools'),
       fetch('/api/dashboard/super-admin/tools'),
     ])
-      .then(async ([quotesRes, toolsRes]) => {
+      .then(async ([quotesRes, orgToolsRes, superAdminToolsRes]) => {
         if (quotesRes.ok) {
           const data = await quotesRes.json().catch(() => ({})) as { quotes?: QuoteRow[]; isSuperAdmin?: boolean; isOrgAdmin?: boolean; error?: string };
+          const toolsData = orgToolsRes.ok ? await orgToolsRes.json().catch(() => ({})) as { tools?: { id: string; name: string }[] } : { tools: [] };
           return {
             quotes: data.quotes ?? [],
+            orgTools: Array.isArray(toolsData.tools) ? toolsData.tools : [],
             isSuperAdminFromQuotes: !!data.isSuperAdmin,
             isOrgAdminFromQuotes: !!data.isOrgAdmin,
-            toolsOk: toolsRes.ok,
+            toolsOk: superAdminToolsRes.ok,
             apiError: data.error,
           };
         }
@@ -230,8 +240,9 @@ export default function DashboardQuotesPage() {
         }
         throw new Error(errMessage);
       })
-      .then(({ quotes: list, isSuperAdminFromQuotes, isOrgAdminFromQuotes, toolsOk, apiError }) => {
+      .then(({ quotes: list, orgTools: toolsList, isSuperAdminFromQuotes, isOrgAdminFromQuotes, toolsOk, apiError }) => {
         setQuotes(list);
+        setOrgTools(toolsList ?? []);
         setIsSuperAdmin(!!isSuperAdminFromQuotes || !!toolsOk);
         setIsOrgAdmin(!!isOrgAdminFromQuotes);
         if (apiError) setError(apiError);
@@ -325,18 +336,10 @@ export default function DashboardQuotesPage() {
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
-  // Unique tool names and service types for filter dropdowns
+  // Tool filter: all tools for this org (from /api/dashboard/tools), so the dropdown is populated even when quotes lack tool_id
   const toolOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const list: { id: string; name: string }[] = [];
-    quotes.forEach((q) => {
-      if (q.tool_id && q.toolName && !seen.has(q.tool_id)) {
-        seen.add(q.tool_id);
-        list.push({ id: q.tool_id, name: q.toolName });
-      }
-    });
-    return list.sort((a, b) => a.name.localeCompare(b.name));
-  }, [quotes]);
+    return [...orgTools].sort((a, b) => a.name.localeCompare(b.name));
+  }, [orgTools]);
 
   const serviceTypeOptions = useMemo(() => {
     const seen = new Set<string>();

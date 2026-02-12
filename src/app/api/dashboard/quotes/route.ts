@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveGHLContext } from '@/lib/ghl/api-context';
 import { listGHLQuoteRecords } from '@/lib/ghl/client';
+import * as configStore from '@/lib/config/store';
+import { createSupabaseServer } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-function mapQuotesToResponse(records: any[]) {
-  const rawQuotes = records.map(mapGHLQuoteToDashboard);
+function mapQuotesToResponse(rawQuotes: any[], toolIdToName: Map<string, string> = new Map()) {
   return rawQuotes.map((q: any) => {
     const display = getDisplayServiceAndFrequency(q.payload, q.service_type, q.frequency);
     let service_type = q.service_type;
@@ -48,7 +49,8 @@ function mapQuotesToResponse(records: any[]) {
       ...(price_initial_high != null && !isDisqualified && { price_initial_high }),
       ...(price_recurring_low != null && !isDisqualified && { price_recurring_low }),
       ...(price_recurring_high != null && !isDisqualified && { price_recurring_high }),
-      toolName: 'Quote',
+      tool_id: q.tool_id ?? null,
+      toolName: (q.quote_tool_used && String(q.quote_tool_used).trim()) || (q.tool_id && toolIdToName.has(q.tool_id) ? toolIdToName.get(q.tool_id)! : null) || 'Quote',
       toolSlug: null,
       contactId: q.contactId ?? null,
       contactName: contactNameFromRecord,
@@ -84,13 +86,16 @@ function mapGHLQuoteToDashboard(record: any): any {
   const get = (key: string) => (p[key] ?? p[`custom_objects.quotes.${key}`] ?? null) as string | number | null | undefined;
   const quoteId = get('quote_id') ?? record.id;
   const contactId = record.contactId ?? record.contact_id ?? get('contactId') ?? get('contact_id') ?? null;
+  const toolId = (get('tool_id') ?? get('toolId') ?? (record as any).tool_id ?? (record as any).toolId) as string | null | undefined;
+  const quoteToolUsed = (get('quote_tool_used') ?? (record as any).quote_tool_used) as string | null | undefined;
   // Support multiple key variants for price (GHL may return different shapes)
   const priceLow = parseNum(get('price_low') ?? get('priceLow') ?? (record as any).price_low ?? (record as any).priceLow);
   const priceHigh = parseNum(get('price_high') ?? get('priceHigh') ?? (record as any).price_high ?? (record as any).priceHigh);
   return {
     id: record.id,
     quote_id: quoteId,
-    tool_id: null,
+    tool_id: toolId && String(toolId).trim() ? String(toolId).trim() : null,
+    quote_tool_used: quoteToolUsed && String(quoteToolUsed).trim() ? String(quoteToolUsed).trim() : null,
     property_id: null,
     first_name: get('first_name'),
     last_name: get('last_name'),
@@ -246,7 +251,49 @@ export async function GET(request: NextRequest) {
     try {
       const credentials = { token: ctx.token, locationId: ctx.locationId };
       const records = await listGHLQuoteRecords(ctx.locationId, { limit: 2000 }, credentials);
-      const withToolInfo = mapQuotesToResponse(records);
+      const rawQuotes = records.map(mapGHLQuoteToDashboard);
+
+      // Resolve tool_id → name for Tool column (org from ghl_location_id → tools)
+      let toolIdToName = new Map<string, string>();
+      try {
+        const orgIds = await configStore.getOrgIdsByGHLLocationId(ctx.locationId);
+        if (orgIds.length > 0) {
+          const supabase = createSupabaseServer();
+          const { data: tools } = await supabase
+            .from('tools')
+            .select('id, name')
+            .in('org_id', orgIds);
+          if (tools?.length) {
+            toolIdToName = new Map(tools.map((t: { id: string; name: string }) => [t.id, t.name]));
+          }
+        }
+      } catch {
+        // Non-fatal: show "Quote" when we can't resolve tool name
+      }
+
+      // Fill missing tool_id from Supabase quotes (for quotes created before we stored tool_id in GHL)
+      const missingToolQuoteIds = rawQuotes.filter((q: any) => !q.tool_id && q.quote_id).map((q: any) => q.quote_id);
+      if (missingToolQuoteIds.length > 0) {
+        try {
+          const supabase = createSupabaseServer();
+          const { data: rows } = await supabase
+            .from('quotes')
+            .select('quote_id, tool_id')
+            .in('quote_id', missingToolQuoteIds);
+          if (rows?.length) {
+            const quoteIdToToolId = new Map((rows as { quote_id: string; tool_id: string | null }[]).map((r) => [r.quote_id, r.tool_id]).filter(([, id]) => id));
+            rawQuotes.forEach((q: any) => {
+              if (!q.tool_id && q.quote_id && quoteIdToToolId.has(q.quote_id)) {
+                q.tool_id = quoteIdToToolId.get(q.quote_id);
+              }
+            });
+          }
+        } catch {
+          // Non-fatal
+        }
+      }
+
+      const withToolInfo = mapQuotesToResponse(rawQuotes, toolIdToName);
       return NextResponse.json({
         quotes: withToolInfo,
         isSuperAdmin: false,

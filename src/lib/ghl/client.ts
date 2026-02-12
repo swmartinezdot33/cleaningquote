@@ -1974,7 +1974,7 @@ export async function listContactNotes(
 /**
  * List contacts from GHL for a location.
  * Uses GET /contacts with query params: locationId, limit, optional query (search).
- * Paginates with startAfterId when the API returns a full page (up to requested limit or 5000).
+ * Single request only (GHL API does not reliably support startAfterId on this endpoint).
  * @see https://marketplace.gohighlevel.com/docs/api/contacts/get-contacts
  */
 export async function listGHLContacts(
@@ -1982,43 +1982,25 @@ export async function listGHLContacts(
   options?: { limit?: number; page?: number; search?: string },
   credentials?: GHLCredentials | null
 ): Promise<{ contacts: any[]; total: number }> {
-  const requestedLimit = Math.min(5000, Math.max(1, options?.limit ?? 1000));
-  const perPage = Math.min(1000, requestedLimit);
-  const all: any[] = [];
-  let total: number | undefined;
-  let startAfterId: string | undefined;
-
-  while (all.length < requestedLimit) {
-    const params = new URLSearchParams({
-      locationId,
-      limit: String(perPage),
-    });
-    if (options?.search?.trim()) {
-      params.set('query', options.search.trim());
-    }
-    if (startAfterId) {
-      params.set('startAfterId', startAfterId);
-    }
-    const res = await makeGHLRequest<{ contacts?: any[]; total?: number }>(
-      `/contacts?${params.toString()}`,
-      'GET',
-      undefined,
-      undefined,
-      undefined,
-      credentials
-    );
-    const contacts = Array.isArray(res?.contacts) ? res.contacts : [];
-    if (res?.total != null) total = res.total;
-    if (contacts.length === 0) break;
-    all.push(...contacts);
-    if (contacts.length < perPage) break;
-    const lastId = (contacts[contacts.length - 1] as { id?: string })?.id;
-    if (!lastId) break;
-    startAfterId = lastId;
-    if (all.length >= requestedLimit) break;
+  const limit = Math.min(1000, Math.max(1, options?.limit ?? 1000));
+  const params = new URLSearchParams({
+    locationId,
+    limit: String(limit),
+  });
+  if (options?.search?.trim()) {
+    params.set('query', options.search.trim());
   }
-
-  return { contacts: all.slice(0, requestedLimit), total: total ?? all.length };
+  const res = await makeGHLRequest<{ contacts?: any[]; total?: number }>(
+    `/contacts?${params.toString()}`,
+    'GET',
+    undefined,
+    undefined,
+    undefined,
+    credentials
+  );
+  const contacts = Array.isArray(res?.contacts) ? res.contacts : [];
+  const total = res?.total ?? contacts.length;
+  return { contacts, total };
 }
 
 /**
@@ -2073,7 +2055,8 @@ export async function searchGHLOpportunities(
   options: { pipelineId?: string; limit?: number; status?: string } = {},
   credentials?: GHLCredentials | null
 ): Promise<{ opportunities: GHLOpportunitySearchItem[]; total?: number }> {
-  const perPage = Math.min(1000, Math.max(1, options.limit ?? 100));
+  // GHL often caps at 100 per request; use 100 to avoid 400/422
+  const perPage = Math.min(100, Math.max(1, options.limit ?? 100));
   const maxTotal = 5000;
   const all: GHLOpportunitySearchItem[] = [];
   const seenIds = new Set<string>();
@@ -2088,18 +2071,25 @@ export async function searchGHLOpportunities(
     });
     if (options.pipelineId) params.set('pipeline_id', options.pipelineId);
     if (options.status) params.set('status', options.status);
-    const res = await makeGHLRequest<{
-      opportunities?: GHLOpportunitySearchItem[];
-      data?: GHLOpportunitySearchItem[];
-      meta?: { total?: number };
-    }>(
-      `/opportunities/search?${params.toString()}`,
-      'GET',
-      undefined,
-      undefined,
-      undefined,
-      credentials
-    );
+    let res: { opportunities?: GHLOpportunitySearchItem[]; data?: GHLOpportunitySearchItem[]; meta?: { total?: number } } | undefined;
+    try {
+      res = await makeGHLRequest<{
+        opportunities?: GHLOpportunitySearchItem[];
+        data?: GHLOpportunitySearchItem[];
+        meta?: { total?: number };
+      }>(
+        `/opportunities/search?${params.toString()}`,
+        'GET',
+        undefined,
+        undefined,
+        undefined,
+        credentials
+      );
+    } catch (err) {
+      // If pagination (skip > 0) fails, return what we have so Leads page still loads
+      if (skip > 0) break;
+      throw err;
+    }
     if (res && typeof res === 'object' && 'meta' in res && (res as { meta?: { total?: number } }).meta?.total != null) {
       metaTotal = (res as { meta: { total: number } }).meta.total;
     }
