@@ -281,7 +281,10 @@ export async function GET(request: NextRequest) {
             .select('quote_id, tool_id')
             .in('quote_id', missingToolQuoteIds);
           if (rows?.length) {
-            const quoteIdToToolId = new Map((rows as { quote_id: string; tool_id: string | null }[]).map((r) => [r.quote_id, r.tool_id]).filter(([, id]) => id));
+            const entries = (rows as { quote_id: string; tool_id: string | null }[])
+              .filter((r): r is { quote_id: string; tool_id: string } => r.tool_id != null)
+              .map((r) => [r.quote_id, r.tool_id] as [string, string]);
+            const quoteIdToToolId = new Map(entries);
             rawQuotes.forEach((q: any) => {
               if (!q.tool_id && q.quote_id && quoteIdToToolId.has(q.quote_id)) {
                 q.tool_id = quoteIdToToolId.get(q.quote_id);
