@@ -105,6 +105,8 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
   const [savingServiceAreaAssignments, setSavingServiceAreaAssignments] = useState(false);
   const [pricingStructures, setPricingStructures] = useState<{ id: string; name: string }[]>([]);
   const [selectedPricingStructureId, setSelectedPricingStructureId] = useState<string | null>(null);
+  const [isDefaultQuoter, setIsDefaultQuoter] = useState(false);
+  const [defaultQuoterSaving, setDefaultQuoterSaving] = useState(false);
 
   const toggleCard = (cardId: CardId) => {
     setExpandedCards((prev) => {
@@ -154,6 +156,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
         const toolRes = await api(`/api/dashboard/tools/${toolId}`);
         if (toolRes.ok) {
           const { tool: toolData } = await toolRes.json();
+          setIsDefaultQuoter(!!toolData?.isDefaultQuoter);
           const oid = toolData?.org_id;
           if (oid) {
             setOrgId(oid);
@@ -536,6 +539,49 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                     />
                   </div>
                   <p className="text-sm text-muted-foreground mt-2">Used for buttons and accents.</p>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/30 p-4">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isDefaultQuoter}
+                      disabled={defaultQuoterSaving}
+                      onChange={async (e) => {
+                        const checked = e.target.checked;
+                        setIsDefaultQuoter(checked);
+                        setDefaultQuoterSaving(true);
+                        try {
+                          const res = await api(`/api/dashboard/tools/${toolId}/default-quoter`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ set: checked }),
+                          });
+                          const data = await res.json();
+                          if (!res.ok) {
+                            setIsDefaultQuoter(!checked);
+                            setSectionMessage({ card: 'widget', type: 'error', text: data.error ?? 'Failed to update default quoter' });
+                          }
+                        } catch {
+                          setIsDefaultQuoter(!checked);
+                          setSectionMessage({ card: 'widget', type: 'error', text: 'Failed to update default quoter' });
+                        } finally {
+                          setDefaultQuoterSaving(false);
+                        }
+                      }}
+                      className="mt-1 h-4 w-4 rounded border-gray-300"
+                    />
+                    <div>
+                      <span className="font-medium text-foreground">Use as default quoter</span>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        When checked, this tool&apos;s quote form opens in a modal when users click &quot;New Quote&quot; on the Quotes page. Only one tool per organization can be the default.
+                      </p>
+                    </div>
+                  </label>
+                  {defaultQuoterSaving && (
+                    <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                      <LoadingDots size="sm" className="text-current" /> Updating...
+                    </p>
+                  )}
                 </div>
                 <Button onClick={saveWidget} disabled={savingSection === 'widget'} className="w-full h-11 font-semibold flex items-center gap-2">
                   {savingSection === 'widget' ? <><LoadingDots size="sm" className="text-current" /> Saving...</> : <><Save className="h-4 w-4" /> Save Widget Settings</>}

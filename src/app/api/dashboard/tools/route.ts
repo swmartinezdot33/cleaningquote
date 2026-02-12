@@ -123,6 +123,23 @@ export async function POST(request: NextRequest) {
       // Still return success; tool exists, user can configure in settings
     }
 
+    // Set as org's default quoter if this is the first tool (org has no default yet)
+    try {
+      const { data: orgRow } = await insertClient
+        .from('organizations')
+        .select('default_quoter_tool_id')
+        .eq('id', orgId)
+        .single();
+      if (orgRow && (orgRow as { default_quoter_tool_id: string | null }).default_quoter_tool_id == null) {
+        await insertClient
+          .from('organizations')
+          .update({ default_quoter_tool_id: toolId })
+          .eq('id', orgId);
+      }
+    } catch (defaultErr) {
+      console.error('Optional: set default quoter failed', defaultErr);
+    }
+
     return NextResponse.json({ tool });
   } catch (err) {
     console.error('POST /api/dashboard/tools:', err);

@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { ExternalLink, RefreshCw, ArrowRightLeft, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { ExternalLink, RefreshCw, ArrowRightLeft, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User, Plus } from 'lucide-react';
 import { useDashboardApi } from '@/lib/dashboard-api';
 import { useDashboardPageState } from '@/lib/dashboard-page-state';
 import { AddressMapLinks } from '@/components/AddressMapLinks';
 import { ServiceAreaMapViewModal } from '@/components/ServiceAreaMapViewModal';
 import { LoadingDots } from '@/components/ui/loading-dots';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 interface QuoteRow {
   id: string;
@@ -197,6 +199,11 @@ export default function DashboardQuotesPage() {
   const [bulkReassignMessage, setBulkReassignMessage] = useState<string | null>(null);
   const selectAllRef = useRef<HTMLInputElement | null>(null);
   const [serviceAreaMapAddress, setServiceAreaMapAddress] = useState<string | null>(null);
+  // New Quote modal (opens default quoter form in iframe)
+  const [newQuoteOpen, setNewQuoteOpen] = useState(false);
+  const [newQuoteUrl, setNewQuoteUrl] = useState<string | null>(null);
+  const [newQuoteError, setNewQuoteError] = useState<string | null>(null);
+  const [newQuoteLoading, setNewQuoteLoading] = useState(false);
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
@@ -528,14 +535,67 @@ export default function DashboardQuotesPage() {
     );
   }
 
+  const openNewQuoteModal = useCallback(async () => {
+    setNewQuoteOpen(true);
+    setNewQuoteError(null);
+    setNewQuoteUrl(null);
+    setNewQuoteLoading(true);
+    try {
+      const res = await api('/api/dashboard/default-quoter');
+      const data = await res.json().catch(() => ({}));
+      const quoter = data.defaultQuoter;
+      if (quoter?.newQuotePath) {
+        const base = typeof window !== 'undefined' ? window.location.origin : '';
+        setNewQuoteUrl(base + quoter.newQuotePath);
+      } else {
+        setNewQuoteError('No default quoter set. Go to Dashboard → Tools → choose a tool → Settings, then check "Use as default quoter."');
+      }
+    } catch {
+      setNewQuoteError('Could not load default quoter.');
+    } finally {
+      setNewQuoteLoading(false);
+    }
+  }, [api]);
+
   return (
     <div className="space-y-6">
       <ServiceAreaMapViewModal
         address={serviceAreaMapAddress}
         onClose={() => setServiceAreaMapAddress(null)}
       />
-      <div>
+      <Dialog open={newQuoteOpen} onOpenChange={(open) => { if (!open) { setNewQuoteOpen(false); setNewQuoteUrl(null); setNewQuoteError(null); } }}>
+        <DialogContent className="max-w-[95vw] w-full max-h-[95vh] flex flex-col gap-0 p-0 overflow-hidden" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader className="px-6 py-3 border-b border-border shrink-0">
+            <DialogTitle className="text-lg">New Quote</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 flex flex-col p-6 pt-4">
+            {newQuoteLoading && (
+              <div className="flex items-center justify-center py-24">
+                <LoadingDots size="lg" className="text-muted-foreground" />
+              </div>
+            )}
+            {!newQuoteLoading && newQuoteError && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 p-4 text-amber-800 dark:text-amber-200 text-sm">
+                <p>{newQuoteError}</p>
+                <Button variant="outline" size="sm" className="mt-3" onClick={() => setNewQuoteOpen(false)}>Close</Button>
+              </div>
+            )}
+            {!newQuoteLoading && newQuoteUrl && (
+              <iframe
+                src={newQuoteUrl}
+                title="New quote form"
+                className="w-full flex-1 min-h-[70vh] rounded-lg border border-border bg-background"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-foreground">Quotes</h1>
+        <Button onClick={openNewQuoteModal} className="shrink-0" variant="default">
+          <Plus className="h-4 w-4 mr-2" />
+          New Quote
+        </Button>
       </div>
 
       {selectedIds.size > 0 && (

@@ -160,6 +160,28 @@ export function getSquareFootageRangeDisplay(squareFeet: number): string {
   }
 }
 
+/**
+ * Map numeric square footage to the survey select option value string.
+ * Used when pre-filling from property lookup (e.g. Zillow). Matches schema option values.
+ */
+export function numberToSquareFootageRangeValue(squareFeet: number): string {
+  if (squareFeet < 1500) return '0-1500';
+  if (squareFeet < 2000) return '1501-2000';
+  if (squareFeet < 2500) return '2001-2500';
+  if (squareFeet < 3000) return '2501-3000';
+  if (squareFeet < 3500) return '3001-3500';
+  if (squareFeet < 4000) return '3501-4000';
+  if (squareFeet < 4500) return '4001-4500';
+  if (squareFeet < 5000) return '4501-5000';
+  if (squareFeet < 5500) return '5001-5500';
+  if (squareFeet < 6000) return '5501-6000';
+  if (squareFeet < 6500) return '6001-6500';
+  if (squareFeet < 7000) return '6501-7000';
+  if (squareFeet < 7500) return '7001-7500';
+  if (squareFeet < 8000) return '7501-8000';
+  return '8000+';
+}
+
 export type SummaryLabels = {
   serviceTypeLabels: Record<string, string>;
   frequencyLabels: Record<string, string>;

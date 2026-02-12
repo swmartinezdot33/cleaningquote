@@ -17,7 +17,7 @@ import { Copy, ChevronLeft, ChevronRight, Sparkles, Calendar, Clock, Check, Aler
 import { LoadingDots } from '@/components/ui/loading-dots';
 import { SurveyQuestion } from '@/lib/survey/schema';
 import { type ToolConfig, DEFAULT_PRIMARY_COLOR } from '@/lib/tools/config';
-import { squareFootageRangeToNumber, getSquareFootageRangeDisplay } from '@/lib/pricing/format';
+import { squareFootageRangeToNumber, getSquareFootageRangeDisplay, numberToSquareFootageRangeValue } from '@/lib/pricing/format';
 import type { PricingTierOption } from '@/lib/pricing/loadPricingTable';
 import { GooglePlacesAutocomplete, PlaceDetails } from '@/components/GooglePlacesAutocomplete';
 import { CalendarBooking } from '@/components/CalendarBooking';
@@ -263,10 +263,19 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   );
   const [addressCoordinates, setAddressCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [serviceAreaChecked, setServiceAreaChecked] = useState(false);
+  const [propertyLookupResult, setPropertyLookupResult] = useState<{
+    squareFeet?: number;
+    bedrooms?: number;
+    fullBaths?: number;
+    halfBaths?: number;
+  } | null>(null);
+  const [showPropertyConfirm, setShowPropertyConfirm] = useState(false);
+  const usedPropertyShortcutRef = useRef(false);
   const [pricingStructureId, setPricingStructureId] = useState<string | null>(null);
   const [tabOpened, setTabOpened] = useState(false); // Prevent multiple tab opens
   const [formSettings, setFormSettings] = useState<any>(useServerConfig ? (initialConfig?.formSettings ?? {}) : {});
   const [openSurveyInNewTab, setOpenSurveyInNewTab] = useState(useServerConfig ? !!(initialConfig?.formSettings as any)?.openSurveyInNewTab : false);
+  const usePropertyLookupShortcut = formSettings?.usePropertyLookupShortcut !== false;
   const internalToolOnly = !!(formSettings?.internalToolOnly === true || formSettings?.internalToolOnly === 'true');
   const visibleQuestions = useMemo(() => {
     const filtered = questions.filter((q) => q.visible !== false);

@@ -5,7 +5,7 @@ import { slugToSafe } from '@/lib/supabase/tools';
 
 export const dynamic = 'force-dynamic';
 
-/** GET - Return tool (for client to get org_id etc.). */
+/** GET - Return tool (for client to get org_id, isDefaultQuoter, etc.). */
 export async function GET(
   _request: Request,
   context: { params: Promise<{ toolId: string }> }
@@ -13,7 +13,18 @@ export async function GET(
   const { toolId } = await context.params;
   const auth = await getDashboardUserAndToolWithClient(toolId);
   if (auth instanceof NextResponse) return auth;
-  return NextResponse.json({ tool: auth.tool });
+  const { tool } = auth;
+  let isDefaultQuoter = false;
+  if (tool.org_id) {
+    const supabase = createSupabaseServer();
+    const { data: orgRow } = await supabase
+      .from('organizations')
+      .select('default_quoter_tool_id')
+      .eq('id', tool.org_id)
+      .single();
+    isDefaultQuoter = (orgRow as { default_quoter_tool_id: string | null } | null)?.default_quoter_tool_id === toolId;
+  }
+  return NextResponse.json({ tool: { ...tool, isDefaultQuoter } });
 }
 
 /** DELETE - Delete tool. Use service role so RLS never blocks after we've verified access. */
