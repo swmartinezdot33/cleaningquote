@@ -112,8 +112,10 @@ function getSelectedQuotePrice(ranges: any, serviceType: string, frequency: stri
       return Math.round((ranges.deep.low + ranges.deep.high) / 2);
     } else if (serviceType === 'general') {
       return Math.round((ranges.general.low + ranges.general.high) / 2);
-    } else if (serviceType === 'move-in' || serviceType === 'move-out') {
+    } else if (serviceType === 'move-in') {
       return Math.round((ranges.moveInOutBasic.low + ranges.moveInOutBasic.high) / 2);
+    } else if (serviceType === 'move-out') {
+      return Math.round((ranges.moveInOutFull.low + ranges.moveInOutFull.high) / 2);
     }
   }
 

@@ -603,7 +603,8 @@ export default function QuotePageClient({
                           ?? quoteResult.frequencyOptions?.find(o => o.value === value || o.value.toLowerCase() === value || (value === 'biweekly' && o.value === 'bi-weekly'))?.label
                           ?? freqLabelFallback[value?.toLowerCase()]
                           ?? (value ? value.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : value);
-                        // Map option value/label to canonical key for range lookup (mirrors server inference)
+                        // Map option value/label to canonical key for range lookup (mirrors server inference).
+                        // Check label for Basic vs Deep BEFORE value so "Move-In/Move-Out Deep Clean" always uses moveInOutFull even if value is "move-in".
                         const getCanonicalServiceKey = (value: string, label: string): string | null => {
                           const v = (value || '').toLowerCase().trim();
                           const l = (label || '').toLowerCase();
@@ -611,10 +612,11 @@ export default function QuotePageClient({
                           if (v === 'initial') return 'initial';
                           if (v === 'general') return 'general';
                           if (v === 'deep') return 'deep';
-                          if (v === 'move-in') return 'move-in';
-                          if (v === 'move-out') return 'move-out';
+                          // Move-in/move-out: use label to distinguish Basic (moveInOutBasic) vs Deep (moveInOutFull)
                           if (combined.includes('move-out') || combined.includes('move out') || (combined.includes('deep') && combined.includes('move'))) return 'move-out';
                           if (combined.includes('move-in') || combined.includes('move in') || (combined.includes('basic') && combined.includes('move'))) return 'move-in';
+                          if (v === 'move-out') return 'move-out';
+                          if (v === 'move-in') return 'move-in';
                           if (combined.includes('initial deep') || (combined.includes('initial') && combined.includes('deep') && !combined.includes('general'))) return 'initial';
                           if (combined.includes('initial general') || (combined.includes('initial') && combined.includes('general'))) return 'general';
                           if (combined.includes('one time deep') || combined.includes('one time clean') || (combined.includes('deep') && !combined.includes('move') && !combined.includes('initial'))) return 'deep';
