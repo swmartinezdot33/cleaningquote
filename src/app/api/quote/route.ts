@@ -88,39 +88,37 @@ function getSelectedQuoteRange(ranges: QuoteRanges, serviceType: string, frequen
     if (st === 'move-out') return ranges.moveInOutFull;
   }
 
+  console.warn('[Quote API] getSelectedQuoteRange: no matching column — price could not be determined', {
+    serviceType: String(serviceType ?? ''),
+    frequency: String(frequency ?? ''),
+    canonicalServiceType: canonical,
+    effectiveFreq,
+  });
   return null;
 }
 
 /**
- * Helper to get the selected quote price based on service type and frequency
+ * Helper to get the selected quote price based on service type and frequency.
+ * Returns null when no mapping matches (no fallback).
  */
-function getSelectedQuotePrice(ranges: any, serviceType: string, frequency: string): number {
-  // Handle frequency-based pricing first
-  if (frequency === 'weekly') {
-    return Math.round((ranges.weekly.low + ranges.weekly.high) / 2);
-  } else if (frequency === 'bi-weekly') {
-    return Math.round((ranges.biWeekly.low + ranges.biWeekly.high) / 2);
-  } else if (frequency === 'four-week' || frequency === 'monthly') {
-    return Math.round((ranges.fourWeek.low + ranges.fourWeek.high) / 2);
-  }
-  
-  // Handle one-time services
-  if (frequency === 'one-time' || !frequency) {
-    if (serviceType === 'initial') {
-      return Math.round((ranges.initial.low + ranges.initial.high) / 2);
-    } else if (serviceType === 'deep') {
-      return Math.round((ranges.deep.low + ranges.deep.high) / 2);
-    } else if (serviceType === 'general') {
-      return Math.round((ranges.general.low + ranges.general.high) / 2);
-    } else if (serviceType === 'move-in') {
-      return Math.round((ranges.moveInOutBasic.low + ranges.moveInOutBasic.high) / 2);
-    } else if (serviceType === 'move-out') {
-      return Math.round((ranges.moveInOutFull.low + ranges.moveInOutFull.high) / 2);
-    }
+function getSelectedQuotePrice(ranges: QuoteRanges, serviceType: string, frequency: string): number | null {
+  const canonical = toCanonicalServiceType(serviceType);
+  const freq = String(frequency ?? '').toLowerCase().trim();
+  const freqNorm = freq === 'biweekly' ? 'bi-weekly' : freq;
+
+  if (freqNorm === 'weekly') return Math.round((ranges.weekly.low + ranges.weekly.high) / 2);
+  if (freqNorm === 'bi-weekly') return Math.round((ranges.biWeekly.low + ranges.biWeekly.high) / 2);
+  if (freqNorm === 'four-week' || freqNorm === 'monthly') return Math.round((ranges.fourWeek.low + ranges.fourWeek.high) / 2);
+
+  if (freqNorm === 'one-time' || !freqNorm || ['move-in', 'move-out', 'deep'].includes(canonical)) {
+    if (canonical === 'initial') return Math.round((ranges.initial.low + ranges.initial.high) / 2);
+    if (canonical === 'deep') return Math.round((ranges.deep.low + ranges.deep.high) / 2);
+    if (canonical === 'general') return Math.round((ranges.general.low + ranges.general.high) / 2);
+    if (canonical === 'move-in') return Math.round((ranges.moveInOutBasic.low + ranges.moveInOutBasic.high) / 2);
+    if (canonical === 'move-out') return Math.round((ranges.moveInOutFull.low + ranges.moveInOutFull.high) / 2);
   }
 
-  // Fallback to the high end of general
-  return ranges.general.high;
+  return null;
 }
 
 export async function POST(request: NextRequest) {
@@ -559,15 +557,13 @@ export async function POST(request: NextRequest) {
           // Calculate opportunity value - use high end of range to show maximum potential value
           let opportunityValue = ghlConfig.opportunityMonetaryValue;
           
-          // If using dynamic pricing, use the high end of the selected range
-          if (ghlConfig.useDynamicPricingForValue !== false) {
-            if (selectedRange) {
-              // Use high end of range for opportunity value (shows maximum potential)
-              opportunityValue = selectedRange.high;
-            } else {
-              // Fallback to calculated price if range not found
-              opportunityValue = getSelectedQuotePrice(result.ranges, body.serviceType, body.frequency);
-            }
+          // If using dynamic pricing, use the high end of the selected range (no fallback to wrong price)
+          if (ghlConfig.useDynamicPricingForValue !== false && selectedRange) {
+            opportunityValue = selectedRange.high;
+          } else if (!selectedRange) {
+            const fallbackPrice = getSelectedQuotePrice(result.ranges, body.serviceType, body.frequency);
+            if (fallbackPrice != null) opportunityValue = fallbackPrice;
+            else console.warn('[Quote API] Opportunity value not set: selectedRange and getSelectedQuotePrice both null', { serviceType: body.serviceType, frequency: body.frequency });
           }
 
           // Use contact's name for opportunity name, fallback to service type if name not available
@@ -607,11 +603,11 @@ export async function POST(request: NextRequest) {
             serviceType: body.serviceType || 'Not specified',
             frequency: body.frequency || 'Not specified',
             
-            // Quote pricing - store the full range
-            quoteMin: String(selectedRange?.low || 0),
-            quoteMax: String(selectedRange?.high || 0),
-            quoteRange: selectedRange ? `$${selectedRange.low} - $${selectedRange.high}` : 'N/A',
-            quotePriceMiddle: String(opportunityValue || 0),
+            // Quote pricing - store the full range (no 0 when price could not be determined)
+            quoteMin: selectedRange ? String(selectedRange.low) : 'Unavailable',
+            quoteMax: selectedRange ? String(selectedRange.high) : 'Unavailable',
+            quoteRange: selectedRange ? `$${selectedRange.low} - $${selectedRange.high}` : 'Unavailable',
+            quotePriceMiddle: selectedRange ? String(selectedRange.low + Math.round((selectedRange.high - selectedRange.low) / 2)) : (opportunityValue != null && opportunityValue > 0 ? String(opportunityValue) : 'Unavailable'),
           };
 
           // Add quoted amount field if configured - store the range, not just a single value

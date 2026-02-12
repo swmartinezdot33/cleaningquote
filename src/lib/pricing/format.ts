@@ -38,35 +38,28 @@ export function getServiceTypeDisplayName(serviceType: string): string {
 }
 
 /**
- * Get the selected price range based on service type and frequency
+ * Get the selected price range based on service type and frequency.
+ * Normalizes frequency (biweekly → bi-weekly, monthly → four-week) to match API. Returns null when no match (no fallback).
  */
 function getSelectedQuoteRange(ranges: QuoteRanges, serviceType: string, frequency: string): { low: number; high: number } | null {
-  // Map frequency to the appropriate range
-  if (frequency === 'weekly') {
-    return ranges.weekly;
-  } else if (frequency === 'bi-weekly') {
-    return ranges.biWeekly;
-  } else if (frequency === 'monthly') {
-    return ranges.fourWeek;
-  } else if (serviceType === 'initial' && frequency === 'one-time') {
-    return ranges.initial;
-  } else if (serviceType === 'deep' && frequency === 'one-time') {
-    return ranges.deep;
-  } else if (serviceType === 'general' && frequency === 'one-time') {
-    return ranges.general;
-  } else if (serviceType === 'move-in' && frequency === 'one-time') {
-    return ranges.moveInOutBasic;
-  } else if (serviceType === 'move-out' && frequency === 'one-time') {
-    return ranges.moveInOutFull;
+  const st = String(serviceType ?? '').toLowerCase().trim();
+  const freq = String(frequency ?? '').toLowerCase().trim();
+  const freqNorm = freq === 'biweekly' ? 'bi-weekly' : freq;
+
+  if (freqNorm === 'weekly') return ranges.weekly;
+  if (freqNorm === 'bi-weekly') return ranges.biWeekly;
+  if (freqNorm === 'monthly' || freqNorm === 'four-week') return ranges.fourWeek;
+
+  const effectiveFreq = ['move-in', 'move-out', 'deep'].includes(st) ? '' : freqNorm;
+  if (effectiveFreq === 'one-time' || !effectiveFreq) {
+    if (st === 'initial') return ranges.initial;
+    if (st === 'deep') return ranges.deep;
+    if (st === 'general') return ranges.general;
+    if (st === 'move-in') return ranges.moveInOutBasic;
+    if (st === 'move-out') return ranges.moveInOutFull;
   }
-  
-  // Default to the service type
-  if (serviceType === 'initial') return ranges.initial;
-  if (serviceType === 'deep') return ranges.deep;
-  if (serviceType === 'general') return ranges.general;
-  if (serviceType === 'move-in') return ranges.moveInOutBasic;
-  if (serviceType === 'move-out') return ranges.moveInOutFull;
-  
+
+  console.warn('[format] getSelectedQuoteRange: no matching column', { serviceType, frequency, st, freqNorm });
   return null;
 }
 
@@ -225,7 +218,7 @@ export function generateSummaryText(
   summary += `Home Size: ${squareFeetDisplay} sq ft\n\n`;
 
   if (serviceType && (frequency === 'one-time' || !frequency)) {
-    const selectedRange = getSelectedQuoteRange(ranges, serviceType, frequency || 'one-time');
+    const selectedRange = getSelectedQuoteRange(ranges, serviceType, frequency ?? '');
 
     if (selectedRange) {
       summary += `🎯 ${serviceLabel(labels, serviceType)}: ${formatPriceRange(selectedRange)}\n\n`;
@@ -240,12 +233,18 @@ export function generateSummaryText(
         summary += `⭐ ${freqLabel(labels, 'bi-weekly')}: ${formatPriceRange(ranges.biWeekly)} (Most Popular)\n`;
         summary += `📅 ${freqLabel(labels, 'four-week')}: ${formatPriceRange(ranges.fourWeek)}\n\n`;
       }
+    } else {
+      summary += `Price could not be determined for the selected service and frequency.\n\n`;
+      console.warn('[format] generateSummaryText: selectedRange null for one-time path', { serviceType, frequency });
     }
   } else if (frequency && frequency !== 'one-time') {
-    const selectedRange = getSelectedQuoteRange(ranges, serviceType || 'recurring', frequency);
+    const selectedRange = getSelectedQuoteRange(ranges, serviceType ?? '', frequency);
 
     if (selectedRange) {
       summary += `🎯 ${freqLabel(labels, frequency)}: ${formatPriceRange(selectedRange)}\n\n`;
+    } else {
+      summary += `Price could not be determined for the selected service and frequency.\n\n`;
+      console.warn('[format] generateSummaryText: selectedRange null for recurring path', { serviceType, frequency });
     }
 
     summary += `ALL RECURRING OPTIONS\n\n`;

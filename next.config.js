@@ -2,6 +2,13 @@
 const nextConfig = {
   reactStrictMode: true,
 
+  // Serve favicon/icon via API so it's not blocked by Vercel Deployment Protection when possible
+  async rewrites() {
+    return [
+      { source: '/cleanquote_square_icon_padding.png', destination: '/api/icon' },
+    ];
+  },
+
   // Faster builds: skip ESLint during build (run "next lint" in CI or pre-commit)
   eslint: { ignoreDuringBuilds: true },
 

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ExternalLink, RefreshCw, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { ExternalLink, RefreshCw, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User, Plus } from 'lucide-react';
 import { useDashboardApi } from '@/lib/dashboard-api';
 import { useDashboardPageState } from '@/lib/dashboard-page-state';
 import { AddressMapLinks } from '@/components/AddressMapLinks';
@@ -462,38 +462,11 @@ export default function DashboardQuotesPage() {
     );
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <LoadingDots size="lg" className="text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (error) {
-    const isRateLimit = /429|too many requests|rate limit|temporarily busy/i.test(error);
-    const friendlyTitle = isRateLimit ? 'Service is busy' : "We couldn't load quotes";
-    const friendlyMessage = isRateLimit
-      ? 'Service is temporarily busy. Please try again in a moment.'
-      : "Something went wrong while loading quotes. Please try again.";
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-foreground">Quotes</h1>
-        <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-6 text-destructive">
-          <p className="font-medium">{friendlyTitle}</p>
-          <p className="mt-2 text-sm">{friendlyMessage}</p>
-          <button
-            type="button"
-            onClick={() => { setError(null); loadQuotes(); }}
-            className="mt-4 inline-flex items-center gap-2 rounded-md border border-destructive/50 px-4 py-2 text-sm font-medium hover:bg-destructive/20"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const isRateLimit = error ? /429|too many requests|rate limit|temporarily busy/i.test(error) : false;
+  const friendlyTitle = isRateLimit ? 'Service is busy' : "We couldn't load quotes";
+  const friendlyMessage = isRateLimit
+    ? 'Service is temporarily busy. Please try again in a moment.'
+    : "Something went wrong while loading quotes. Please try again.";
 
   return (
     <div className="space-y-6">
@@ -562,10 +535,33 @@ export default function DashboardQuotesPage() {
           </div>
         </DialogContent>
       </Dialog>
-      <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-foreground">Quotes</h1>
+        <Button onClick={openNewQuoteModal} className="shrink-0" variant="default">
+          <Plus className="h-4 w-4 mr-2" />
+          New Quote
+        </Button>
       </div>
 
+      {loading ? (
+        <div className="flex items-center justify-center py-24">
+          <LoadingDots size="lg" className="text-muted-foreground" />
+        </div>
+      ) : error ? (
+        <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-6 text-destructive">
+          <p className="font-medium">{friendlyTitle}</p>
+          <p className="mt-2 text-sm">{friendlyMessage}</p>
+          <button
+            type="button"
+            onClick={() => { setError(null); loadQuotes(); }}
+            className="mt-4 inline-flex items-center gap-2 rounded-md border border-destructive/50 px-4 py-2 text-sm font-medium hover:bg-destructive/20"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Retry
+          </button>
+        </div>
+      ) : (
+        <>
       {selectedIds.size > 0 && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
           <span className="text-sm font-medium text-foreground">
@@ -913,6 +909,8 @@ export default function DashboardQuotesPage() {
           )}
         </div>
           )}
+        </>
+      )}
         </>
       )}
 

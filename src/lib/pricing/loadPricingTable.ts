@@ -293,13 +293,15 @@ export async function loadPricingTable(toolId?: string, pricingStructureId?: str
       const moveInOutBasic = parsePriceRange(String(row[moveInOutBasicColIdx] || ''));
       const moveInOutFull = parsePriceRange(String(row[moveInOutFullColIdx] || ''));
 
-      // Skip rows where essential pricing is missing
+      // Skip rows where any required pricing column is missing or invalid (never use $0-$0)
       const missingPrices: string[] = [];
       if (!weekly) missingPrices.push('Weekly');
       if (!biWeekly) missingPrices.push('Bi-Weekly');
       if (!fourWeek) missingPrices.push('4 Week');
       if (!general) missingPrices.push('General');
       if (!deep) missingPrices.push('Deep');
+      if (!moveInOutBasic) missingPrices.push('Move In/Out Basic');
+      if (!moveInOutFull) missingPrices.push('Move In/Out Full');
 
       if (missingPrices.length > 0) {
         const sampleValues = missingPrices.map(p => {
@@ -309,27 +311,29 @@ export async function loadPricingTable(toolId?: string, pricingStructureId?: str
           else if (p === '4 Week') colIdx = fourWeekColIdx;
           else if (p === 'General') colIdx = generalColIdx;
           else if (p === 'Deep') colIdx = deepColIdx;
-          return `${p}: "${String(row[colIdx] || '').trim()}"`;
+          else if (p === 'Move In/Out Basic') colIdx = moveInOutBasicColIdx;
+          else if (p === 'Move In/Out Full') colIdx = moveInOutFullColIdx;
+          return `${p}: "${String(row[colIdx] ?? '').trim()}"`;
         }).join(', ');
 
-        skippedRowReasons.push({ 
-          row: rowIdx + 1, 
+        console.warn('[loadPricingTable] Skipping row: missing or invalid price(s)', { row: rowIdx + 1, missing: missingPrices, sample: sampleValues });
+        skippedRowReasons.push({
+          row: rowIdx + 1,
           reason: `Missing or invalid price ranges: ${missingPrices.join(', ')}`,
-          sample: sampleValues + `. Expected format: "$100-$200"`
+          sample: sampleValues + `. Expected format: "$100-$200"`,
         });
         continue;
       }
 
-      // Use fallback empty ranges for move-in/move-out if not found
       const pricingRow: PricingRow = {
         sqFtRange,
-        weekly: weekly || { low: 0, high: 0 },
-        biWeekly: biWeekly || { low: 0, high: 0 },
-        fourWeek: fourWeek || { low: 0, high: 0 },
-        general: general || { low: 0, high: 0 },
-        deep: deep || { low: 0, high: 0 },
-        moveInOutBasic: moveInOutBasic || { low: 0, high: 0 },
-        moveInOutFull: moveInOutFull || { low: 0, high: 0 },
+        weekly: weekly!,
+        biWeekly: biWeekly!,
+        fourWeek: fourWeek!,
+        general: general!,
+        deep: deep!,
+        moveInOutBasic: moveInOutBasic!,
+        moveInOutFull: moveInOutFull!,
       };
 
       rows.push(pricingRow);
@@ -483,16 +487,30 @@ export function parseExcelBufferToPricingTable(buffer: Buffer): PricingTable {
     const deep = parsePriceRange(String(row[deepColIdx] || ''));
     const moveInOutBasic = parsePriceRange(String(row[moveInOutBasicColIdx] || ''));
     const moveInOutFull = parsePriceRange(String(row[moveInOutFullColIdx] || ''));
-    if (!weekly || !biWeekly || !fourWeek || !general || !deep) continue;
+    if (!weekly || !biWeekly || !fourWeek || !general || !deep || !moveInOutBasic || !moveInOutFull) {
+      console.warn('[loadPricingTable] Skipping row: missing or invalid price(s)', {
+        row: rowIdx + 1,
+        missing: [
+          !weekly && 'Weekly',
+          !biWeekly && 'Bi-Weekly',
+          !fourWeek && '4 Week',
+          !general && 'General',
+          !deep && 'Deep',
+          !moveInOutBasic && 'Move In/Out Basic',
+          !moveInOutFull && 'Move In/Out Full',
+        ].filter(Boolean),
+      });
+      continue;
+    }
     rows.push({
       sqFtRange,
-      weekly: weekly || { low: 0, high: 0 },
-      biWeekly: biWeekly || { low: 0, high: 0 },
-      fourWeek: fourWeek || { low: 0, high: 0 },
-      general: general || { low: 0, high: 0 },
-      deep: deep || { low: 0, high: 0 },
-      moveInOutBasic: moveInOutBasic || { low: 0, high: 0 },
-      moveInOutFull: moveInOutFull || { low: 0, high: 0 },
+      weekly,
+      biWeekly,
+      fourWeek,
+      general,
+      deep,
+      moveInOutBasic,
+      moveInOutFull,
     });
   }
 

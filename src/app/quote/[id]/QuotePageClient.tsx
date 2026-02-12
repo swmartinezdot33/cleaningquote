@@ -646,8 +646,17 @@ export default function QuotePageClient({
                         else if (canonicalServiceType === 'move-in') selectedRange = quoteResult.ranges.moveInOutBasic;
                         else if (canonicalServiceType === 'move-out') selectedRange = quoteResult.ranges.moveInOutFull;
                         else if (canonicalServiceType === 'deep') selectedRange = quoteResult.ranges.deep;
-                        else selectedRange = quoteResult.ranges.general;
-                        
+                        if (!selectedRange) {
+                          console.warn('[Quote] Price could not be determined: no matching column for serviceType/frequency', {
+                            rawServiceType: quoteResult.serviceType,
+                            rawFrequency: quoteResult.frequency,
+                            canonicalServiceType,
+                            effectiveFrequency,
+                            selectedServiceKey,
+                            serviceTypeLabel: quoteResult.serviceTypeLabel,
+                          });
+                        }
+
                         // When range came from selectedServiceKey (e.g. move-out from label), show label for that key so name matches price
                         const selectedServiceName = (selectedServiceKey && getRangeForServiceKey(selectedServiceKey) && ['move-in', 'move-out', 'deep', 'initial', 'general'].includes(selectedServiceKey))
                           ? (quoteResult.serviceTypeLabel || getServiceLabel(selectedServiceKey))
@@ -663,7 +672,7 @@ export default function QuotePageClient({
                         return (
                           <>
                             {/* YOUR SELECTED SERVICE - Green Background */}
-                            {selectedRange && (
+                            {(
                               <motion.div
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
@@ -680,18 +689,24 @@ export default function QuotePageClient({
                                   <p className="text-xs font-semibold text-green-800 uppercase tracking-wide">YOUR SELECTED SERVICE</p>
                                 </div>
                                 <div className="ml-8 space-y-2">
-                                  {isInitialPlusFrequency && initialCleanRange ? (
-                                    <>
+                                  {selectedRange ? (
+                                    isInitialPlusFrequency && initialCleanRange ? (
+                                      <>
+                                        <p className="font-bold text-lg text-gray-900">
+                                          {initialCleanLabel}: <span className="text-gray-700">${initialCleanRange.low} to ${initialCleanRange.high}</span>
+                                        </p>
+                                        <p className="font-bold text-lg text-gray-900">
+                                          Your Selected Frequency: {quoteResult.frequencyLabel || getFreqLabel(frequency)}: <span className="text-gray-700">${selectedRange.low} to ${selectedRange.high}</span>
+                                        </p>
+                                      </>
+                                    ) : (
                                       <p className="font-bold text-lg text-gray-900">
-                                        {initialCleanLabel}: <span className="text-gray-700">${initialCleanRange.low} to ${initialCleanRange.high}</span>
+                                        {selectedServiceName}: <span className="text-gray-700">${selectedRange.low} to ${selectedRange.high}</span>
                                       </p>
-                                      <p className="font-bold text-lg text-gray-900">
-                                        Your Selected Frequency: {quoteResult.frequencyLabel || getFreqLabel(frequency)}: <span className="text-gray-700">${selectedRange.low} to ${selectedRange.high}</span>
-                                      </p>
-                                    </>
+                                    )
                                   ) : (
-                                    <p className="font-bold text-lg text-gray-900">
-                                      {selectedServiceName}: <span className="text-gray-700">${selectedRange.low} to ${selectedRange.high}</span>
+                                    <p className="font-bold text-lg text-amber-800">
+                                      Price could not be determined for this selection. Please contact us for a quote.
                                     </p>
                                   )}
                                 </div>
