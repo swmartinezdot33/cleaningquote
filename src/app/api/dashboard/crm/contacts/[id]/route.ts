@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { resolveGHLContext } from '@/lib/ghl/api-context';
 import { getContactById, listContactNotes, updateContact } from '@/lib/ghl/client';
+import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
+import { getOrgsForDashboard } from '@/lib/org-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,13 +37,104 @@ function mapGHLContactToDetail(ghl: any, notes: Array<{ id: string; body: string
       postal_code: ghl.postalCode ?? ghl.postal_code ?? null,
       country: ghl.country ?? null,
     },
-    properties: addr ? [{ id: 'ghl-addr', address: addr, city: ghl.city ?? null, state: ghl.state ?? null, postal_code: ghl.postalCode ?? ghl.postal_code ?? null, nickname: null, stage: 'active' }] : [],
-    quotes: [],
+    properties: [] as Array<{ id: string; address: string | null; city: string | null; state: string | null; postal_code: string | null; nickname: string | null; stage: string }>,
+    quotes: [] as Array<{ id: string; quote_id: string; service_type: string | null; frequency: string | null; price_low: number | null; price_high: number | null; created_at: string; property_id: string | null }>,
     schedules: [],
     appointments: [],
     activities: [],
     notes: notes.map((n) => ({ id: n.id, content: n.body ?? '', created_at: n.createdAt ?? new Date().toISOString() })),
   };
+}
+
+/** Load properties and quotes from Supabase for this GHL contact id so they show in their own sections. */
+async function loadSupabasePropertiesAndQuotes(
+  ghlContactId: string
+): Promise<{
+  properties: Array<{ id: string; address: string | null; city: string | null; state: string | null; postal_code: string | null; nickname: string | null; stage: string }>;
+  quotes: Array<{ id: string; quote_id: string; service_type: string | null; frequency: string | null; price_low: number | null; price_high: number | null; created_at: string; property_id: string | null }>;
+}> {
+  const supabase = await createSupabaseServerSSR();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { properties: [], quotes: [] };
+
+  const orgs = await getOrgsForDashboard(user.id, user.email ?? undefined);
+  const cookieStore = await cookies();
+  const selectedOrgId = cookieStore.get('selected_org_id')?.value ?? orgs[0]?.id;
+  if (!selectedOrgId) return { properties: [], quotes: [] };
+
+  // Find our contact by GHL contact id (so we can load properties by contact_id)
+  const { data: supabaseContact } = await (supabase as any)
+    .from('contacts')
+    .select('id')
+    .eq('ghl_contact_id', ghlContactId)
+    .eq('org_id', selectedOrgId)
+    .maybeSingle();
+
+  let properties: Array<{ id: string; address: string | null; city: string | null; state: string | null; postal_code: string | null; nickname: string | null; stage: string }> = [];
+  if (supabaseContact?.id) {
+    const { data: props } = await (supabase as any)
+      .from('properties')
+      .select('id, address, city, state, postal_code, nickname, stage')
+      .eq('contact_id', supabaseContact.id)
+      .eq('org_id', selectedOrgId)
+      .order('created_at', { ascending: false });
+    properties = (props ?? []).map((p: any) => ({
+      id: p.id,
+      address: p.address ?? null,
+      city: p.city ?? null,
+      state: p.state ?? null,
+      postal_code: p.postal_code ?? null,
+      nickname: p.nickname ?? null,
+      stage: p.stage ?? 'active',
+    }));
+  }
+
+  // Quotes: by ghl_contact_id, and also by property (for quotes linked only via property, e.g. internal tool)
+  const { data: tools } = await (supabase as any)
+    .from('tools')
+    .select('id')
+    .eq('org_id', selectedOrgId);
+  const toolIds = (tools ?? []).map((t: { id: string }) => t.id);
+  if (toolIds.length === 0) {
+    return { properties, quotes: [] };
+  }
+  const propertyIds = properties.map((p) => p.id);
+  let quoteRows: any[] = [];
+  const { data: byGhl } = await (supabase as any)
+    .from('quotes')
+    .select('id, quote_id, service_type, frequency, price_low, price_high, created_at, property_id')
+    .eq('ghl_contact_id', ghlContactId)
+    .in('tool_id', toolIds)
+    .order('created_at', { ascending: false });
+  quoteRows = byGhl ?? [];
+  if (propertyIds.length > 0) {
+    const { data: byProperty } = await (supabase as any)
+      .from('quotes')
+      .select('id, quote_id, service_type, frequency, price_low, price_high, created_at, property_id')
+      .in('property_id', propertyIds)
+      .in('tool_id', toolIds)
+      .order('created_at', { ascending: false });
+    const seen = new Set(quoteRows.map((q: any) => q.id));
+    for (const q of byProperty ?? []) {
+      if (!seen.has(q.id)) {
+        seen.add(q.id);
+        quoteRows.push(q);
+      }
+    }
+    quoteRows.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }
+  const quotes = quoteRows.map((q: any) => ({
+    id: q.id,
+    quote_id: q.quote_id,
+    service_type: q.service_type ?? null,
+    frequency: q.frequency ?? null,
+    price_low: q.price_low ?? null,
+    price_high: q.price_high ?? null,
+    created_at: q.created_at ?? new Date().toISOString(),
+    property_id: q.property_id ?? null,
+  }));
+
+  return { properties, quotes };
 }
 
 /** GET /api/dashboard/crm/contacts/[id] - contact detail with properties, quotes, schedules, activities */
@@ -62,6 +156,18 @@ export async function GET(
         listContactNotes(id, credentials),
       ]);
       const detail = mapGHLContactToDetail(ghlContact, ghlNotes);
+
+      // Enrich with Supabase properties and quotes so contact page has separate Quotes and Properties sections
+      try {
+        const { properties, quotes } = await loadSupabasePropertiesAndQuotes(id);
+        if (properties.length > 0 || quotes.length > 0) {
+          detail.properties = properties;
+          detail.quotes = quotes;
+        }
+      } catch (enrichErr) {
+        console.warn('CRM contact detail: Supabase enrich failed', id, enrichErr);
+      }
+
       return NextResponse.json(detail);
     } catch (err) {
       console.warn('CRM contact detail: GHL fetch error', id, err);

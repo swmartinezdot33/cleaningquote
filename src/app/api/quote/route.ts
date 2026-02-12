@@ -1046,6 +1046,7 @@ export async function POST(request: NextRequest) {
                 state: body.state,
                 postalCode: body.postalCode,
                 country: body.country,
+                ghlContactId: ghlContactId ?? undefined,
               }
             );
           }

@@ -161,6 +161,7 @@ export default function DashboardQuotesPage() {
   const { api, locationId: effectiveLocationId } = useDashboardApi();
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const lastFetchedLocationIdRef = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isOrgAdmin, setIsOrgAdmin] = useState(false);
@@ -245,6 +246,7 @@ export default function DashboardQuotesPage() {
         setIsSuperAdmin(!!isSuperAdminFromQuotes || !!toolsOk);
         setIsOrgAdmin(!!isOrgAdminFromQuotes);
         if (apiError) setError(apiError);
+        lastFetchedLocationIdRef.current = effectiveLocationId;
         setLoading(false);
       })
       .catch((e) => {
@@ -263,6 +265,13 @@ export default function DashboardQuotesPage() {
   useEffect(() => {
     loadQuotes();
   }, [loadQuotes]);
+
+  // Safety net: when locationId appears after we already ran with null (same pattern as DashboardHomeClient), fetch now
+  useEffect(() => {
+    if (!effectiveLocationId || !api) return;
+    if (lastFetchedLocationIdRef.current === effectiveLocationId) return;
+    loadQuotes();
+  }, [effectiveLocationId, api, loadQuotes]);
 
   const openReassign = (q: QuoteRow) => {
     setReassignQuote(q);

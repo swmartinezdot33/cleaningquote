@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { Search, Filter } from 'lucide-react';
 import { LoadingDots } from '@/components/ui/loading-dots';
@@ -34,6 +34,7 @@ export default function CRMContactsPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const perPage = 25;
+  const lastFetchedLocationIdRef = useRef<string | null>(null);
 
   const [needsConnect, setNeedsConnect] = useState(false);
   const [connectReason, setConnectReason] = useState<string | null>(null);
@@ -59,6 +60,7 @@ export default function CRMContactsPage() {
         setContacts(d.contacts ?? []);
         setTotal(d.total ?? 0);
         setNeedsConnect(!!d.needsConnect && !errMsg);
+        lastFetchedLocationIdRef.current = effectiveLocationId;
         const debug = (d as { _debug?: { reason?: string } })._debug;
         setConnectReason(debug?.reason ?? null);
         if (d.needsConnect && debug) {
@@ -75,6 +77,13 @@ export default function CRMContactsPage() {
   useEffect(() => {
     loadContacts();
   }, [loadContacts]);
+
+  // Safety net: when locationId appears after we already ran with null (same pattern as DashboardHomeClient), fetch now
+  useEffect(() => {
+    if (!effectiveLocationId || !api) return;
+    if (lastFetchedLocationIdRef.current === effectiveLocationId) return;
+    loadContacts();
+  }, [effectiveLocationId, api, loadContacts]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

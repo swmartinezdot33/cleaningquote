@@ -314,11 +314,45 @@ export default function ContactDetailPage({
         </div>
       )}
 
-      {/* Properties & Quotes */}
+      {/* Quotes associated with this contact */}
       <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
         <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          <User className="h-4 w-4" />
-          Properties & quotes
+          <DollarSign className="h-4 w-4" />
+          Quotes
+        </h2>
+        {data.quotes.length === 0 ? (
+          <p className="mt-4 text-sm text-muted-foreground">No quotes yet.</p>
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {data.quotes.map((q) => (
+              <li key={q.id} className="rounded-xl border border-border bg-muted/30 p-4">
+                <Link
+                  href={`/quote/${q.quote_id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium text-primary hover:underline"
+                >
+                  {q.quote_id}
+                </Link>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                  {q.service_type && <span className="capitalize">{q.service_type.replace(/-/g, ' ')}</span>}
+                  {q.frequency && <span>· {q.frequency.replace(/-/g, ' ')}</span>}
+                  {q.price_low != null && q.price_high != null && (
+                    <span>· ${q.price_low}–${q.price_high}</span>
+                  )}
+                  <span>· {new Date(q.created_at).toLocaleString()}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Properties associated with this contact */}
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <Home className="h-4 w-4" />
+          Properties
         </h2>
         {data.properties.length === 0 ? (
           <p className="mt-4 text-sm text-muted-foreground">No properties yet.</p>
@@ -326,7 +360,6 @@ export default function ContactDetailPage({
           <ul className="mt-4 space-y-4">
             {data.properties.map((p) => {
               const addr = [p.address, p.city, p.state, p.postal_code].filter(Boolean).join(', ');
-              const propQuotes = data.quotes.filter((q) => q.property_id === p.id);
               return (
                 <li key={p.id} className="rounded-xl border border-border bg-muted/30 p-4">
                   <div className="flex items-start gap-3">
@@ -347,23 +380,6 @@ export default function ContactDetailPage({
                       <span className="mt-1 inline-flex rounded-md bg-muted px-1.5 py-0.5 text-xs capitalize">
                         {p.stage}
                       </span>
-                      {propQuotes.length > 0 && (
-                        <ul className="mt-3 space-y-1">
-                          {propQuotes.map((q) => (
-                            <li key={q.id}>
-                              <Link
-                                href={`/quote/${q.quote_id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-sm text-primary hover:underline"
-                              >
-                                {q.quote_id} — {q.service_type || '—'}
-                                {q.price_low != null && q.price_high != null && ` ($${q.price_low}–$${q.price_high})`}
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
                     </div>
                   </div>
                 </li>

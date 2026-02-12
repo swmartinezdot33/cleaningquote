@@ -209,6 +209,8 @@ export default function CRMDashboardPage() {
   const opportunitiesFetchPipelineIdRef = useRef<string | null>(null);
   /** Ignore stale results when effect re-runs (e.g. navigate away and back). */
   const dataLoadGenRef = useRef(0);
+  /** Set when we successfully load data for this locationId; safety net refetches when locationId appears after first run with null. */
+  const lastLoadedLocationIdRef = useRef<string | null>(null);
 
   // Sync form when modal opens
   useEffect(() => {
@@ -248,6 +250,7 @@ export default function CRMDashboardPage() {
       return;
     }
 
+    lastLoadedLocationIdRef.current = effectiveLocationId;
     const gen = ++dataLoadGenRef.current;
     const applyStatsContacts = (
       statsRes: unknown,
@@ -346,6 +349,13 @@ export default function CRMDashboardPage() {
         }
       });
   }, [effectiveLocationId, api, retryTrigger]);
+
+  // Safety net: when locationId appears after we already ran with null (same pattern as DashboardHomeClient), trigger load
+  useEffect(() => {
+    if (!effectiveLocationId || !api) return;
+    if (lastLoadedLocationIdRef.current === effectiveLocationId) return;
+    setRetryTrigger((t) => t + 1);
+  }, [effectiveLocationId, api]);
 
   // Fetch opportunities when user changes pipeline (initial load prefetched in main data .then())
   useEffect(() => {

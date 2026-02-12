@@ -15,6 +15,8 @@ export interface QuoteContactData {
   state?: string | null;
   postalCode?: string | null;
   country?: string | null;
+  /** GHL contact id – set on our contact so CRM contact detail can find properties/quotes by GHL contact id */
+  ghlContactId?: string | null;
 }
 
 export interface UpsertResult {
@@ -60,31 +62,39 @@ export async function upsertContactAndPropertyFromQuote(
 
     if (existing?.id) {
       contactId = existing.id;
+      const updatePayload: Record<string, unknown> = {
+        first_name: data.firstName ?? undefined,
+        last_name: data.lastName ?? undefined,
+        phone: data.phone ?? undefined,
+        stage: 'quoted',
+        updated_at: new Date().toISOString(),
+      };
+      if (data.ghlContactId != null && String(data.ghlContactId).trim()) {
+        updatePayload.ghl_contact_id = String(data.ghlContactId).trim();
+      }
       await (supabase as any)
         .from('contacts')
-        .update({
-          first_name: data.firstName ?? undefined,
-          last_name: data.lastName ?? undefined,
-          phone: data.phone ?? undefined,
-          stage: 'quoted',
-          updated_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq('id', contactId);
     }
   }
 
   if (!contactId) {
+    const insertPayload: Record<string, unknown> = {
+      org_id: orgId,
+      first_name: data.firstName ?? null,
+      last_name: data.lastName ?? null,
+      email: email ?? null,
+      phone: data.phone ? String(data.phone).trim() || null : null,
+      source: 'Website Quote Form',
+      stage: 'quoted',
+    };
+    if (data.ghlContactId != null && String(data.ghlContactId).trim()) {
+      insertPayload.ghl_contact_id = String(data.ghlContactId).trim();
+    }
     const { data: inserted, error } = await (supabase as any)
       .from('contacts')
-      .insert({
-        org_id: orgId,
-        first_name: data.firstName ?? null,
-        last_name: data.lastName ?? null,
-        email: email ?? null,
-        phone: data.phone ? String(data.phone).trim() || null : null,
-        source: 'Website Quote Form',
-        stage: 'quoted',
-      })
+      .insert(insertPayload)
       .select('id')
       .single();
 
