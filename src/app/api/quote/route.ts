@@ -208,6 +208,13 @@ export async function POST(request: NextRequest) {
       const squareFeetDisplay = getSquareFootageRangeDisplay(result.inputs?.squareFeet ?? squareFootage);
       summaryText = generateSummaryText({ ...result, ranges: result.ranges }, body.serviceType || '', body.frequency || '', squareFeetDisplay, summaryLabels);
       smsText = generateSmsText({ ...result, ranges: result.ranges }, summaryLabels);
+      // #region agent log
+      console.log('[CQ-NOTE-DEBUG]', JSON.stringify({ location: 'quote/route.ts:after summaryText', message: 'summaryText set', data: { hasRanges: true, summaryTextLength: summaryText.length, summaryContainsDollar: summaryText.includes('$'), serviceType: body.serviceType, frequency: body.frequency }, hypothesisId: 'H1' }));
+      // #endregion
+    } else {
+      // #region agent log
+      console.log('[CQ-NOTE-DEBUG]', JSON.stringify({ location: 'quote/route.ts:no ranges', message: 'result.ranges missing', data: { hasRanges: false }, hypothesisId: 'H1' }));
+      // #endregion
     }
 
     if (hasGHLToken) {
@@ -865,6 +872,9 @@ export async function POST(request: NextRequest) {
           if (notePassthrough.length) {
             noteBody += '\n\n' + notePassthrough.map(k => `${k}: ${String(body[k]).trim()}`).join(', ');
           }
+          // #region agent log
+          console.log('[CQ-NOTE-DEBUG]', JSON.stringify({ location: 'quote/route.ts:noteBody before createNote', message: 'note body built', data: { noteBodyLength: noteBody.length, noteBodyContainsDollar: noteBody.includes('$'), summaryTextLength: summaryText.length, noteBodyPreview: noteBody.slice(0, 400) }, hypothesisId: 'H3' }));
+          // #endregion
           notePromise = createNote(
             { contactId: ghlContactId, body: noteBody },
             ghlLocationId ?? undefined,

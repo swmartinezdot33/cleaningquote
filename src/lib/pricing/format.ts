@@ -213,6 +213,9 @@ export function generateSummaryText(
   const { inputs, ranges, initialCleaningRequired } = result;
 
   if (!inputs || !ranges) {
+    // #region agent log
+    console.log('[CQ-NOTE-DEBUG]', JSON.stringify({ location: 'format.ts:generateSummaryText', message: 'early return no inputs/ranges', data: { hasInputs: !!inputs, hasRanges: !!ranges }, hypothesisId: 'H2' }));
+    // #endregion
     return '';
   }
 
@@ -273,6 +276,9 @@ export function generateSummaryText(
     summary += `This gets your home to our maintenance standards.\n`;
   }
 
+  // #region agent log
+  console.log('[CQ-NOTE-DEBUG]', JSON.stringify({ location: 'format.ts:generateSummaryText return', message: 'summary built', data: { summaryLength: summary.length, summaryContainsDollar: summary.includes('$'), serviceType, frequency }, hypothesisId: 'H5' }));
+  // #endregion
   return summary;
 }
 
