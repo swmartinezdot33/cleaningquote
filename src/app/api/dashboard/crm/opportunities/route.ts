@@ -27,10 +27,10 @@ export async function GET(request: NextRequest) {
     }
 
     const pipelineId = request.nextUrl.searchParams.get('pipelineId')?.trim() || undefined;
-    const limit = Math.min(
-      100,
-      Math.max(1, parseInt(request.nextUrl.searchParams.get('limit') || '50', 10) || 50)
-    );
+    const limitParam = request.nextUrl.searchParams.get('limit')?.trim();
+    const limit = limitParam === 'all' || limitParam === ''
+      ? 1000
+      : Math.min(1000, Math.max(1, parseInt(limitParam || '1000', 10) || 1000));
     const statusFilter = 'open';
     const { opportunities, total } = await searchGHLOpportunities(
       ctx.locationId,

@@ -257,7 +257,8 @@ export default function CRMDashboardPage() {
       stageRes: unknown[],
       pipelineList: GHLPipeline[],
       verifyRes: VerifyResult,
-      nextNeedsConnect: boolean
+      nextNeedsConnect: boolean,
+      opportunitiesRes?: { opportunities?: Opportunity[] }
     ) => {
       if (gen !== dataLoadGenRef.current) return;
       const statsData = statsRes as { needsConnect?: boolean; apiError?: boolean; error?: string } | null;
@@ -273,23 +274,11 @@ export default function CRMDashboardPage() {
       setContactsByStage(byStage);
       const nextId = pipelineList.find((p) => p.id === selectedPipelineId)?.id ?? pipelineList[0]?.id ?? null;
       setSelectedPipelineId(nextId);
-      if (nextId && api) {
-        setLoadingOpportunities(true);
+      if (opportunitiesRes) {
+        setOpportunities(Array.isArray(opportunitiesRes?.opportunities) ? opportunitiesRes.opportunities : []);
         opportunitiesFetchPipelineIdRef.current = nextId;
-        api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(nextId)}&limit=100`)
-          .then((r) => (r.ok ? r.json() : { opportunities: [] }))
-          .then((data: { opportunities?: Opportunity[] }) => {
-            if (gen !== dataLoadGenRef.current) return;
-            setOpportunities(Array.isArray(data?.opportunities) ? data.opportunities : []);
-          })
-          .catch(() => { if (gen === dataLoadGenRef.current) setOpportunities([]); })
-          .finally(() => {
-            if (gen === dataLoadGenRef.current) {
-              setLoadingOpportunities(false);
-              opportunitiesFetchPipelineIdRef.current = null;
-            }
-          });
       }
+      setLoadingOpportunities(false);
     };
 
     // Step 1: Verify only (single source of truth for connection state).
@@ -301,16 +290,27 @@ export default function CRMDashboardPage() {
         const connectionOk = verifyRes?.ok === true;
         setNeedsConnect(!connectionOk);
 
-        // Step 2: Fetch stats, pipelines, and contacts in parallel (all use same auth context now).
+        // Step 2: Fetch stats, pipelines, contacts, and opportunities in parallel (opportunities once pipelines resolve).
+        setLoadingOpportunities(true);
         const statsPromise = api('/api/dashboard/crm/stats').then(async (r) => (r.ok ? r.json() : r.json().catch(() => null)));
         const pipelinesPromise = api('/api/dashboard/crm/pipelines').then(async (r) => (r.ok ? r.json() : r.json().catch(() => ({ pipelines: [] }))));
         const stagePromises = STAGES.map((stage) =>
           api(`/api/dashboard/crm/contacts?stage=${stage}&perPage=20`).then((r) => (r.ok ? r.json() : { contacts: [] }))
         );
+        const opportunitiesPromise = pipelinesPromise.then((pipelinesRes: { pipelines?: GHLPipeline[] }) => {
+          const list = pipelinesRes?.pipelines ?? [];
+          const pipelineId = list.find((p) => p.id === selectedPipelineId)?.id ?? list[0]?.id;
+          if (!pipelineId || !api) return { opportunities: [] as Opportunity[] };
+          return api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(pipelineId)}&limit=1000`)
+            .then((r) => (r.ok ? r.json() : { opportunities: [] }))
+            .then((data: { opportunities?: Opportunity[] }) => data);
+        });
 
-        Promise.all([statsPromise, pipelinesPromise, ...stagePromises])
-          .then(([statsRes, pipelinesRes, ...stageRes]) => {
+        Promise.all([statsPromise, pipelinesPromise, ...stagePromises, opportunitiesPromise])
+          .then(([statsRes, pipelinesRes, ...rest]) => {
             if (gen !== dataLoadGenRef.current) return;
+            const stageRes = rest.slice(0, STAGES.length) as unknown[];
+            const opportunitiesRes = rest[STAGES.length] as { opportunities?: Opportunity[] };
             const pipelinesData = pipelinesRes as { pipelines?: GHLPipeline[]; needsConnect?: boolean };
             let pipelineList = pipelinesData?.pipelines ?? [];
 
@@ -328,17 +328,24 @@ export default function CRMDashboardPage() {
               }).then((retryList) => {
                 if (gen !== dataLoadGenRef.current) return;
                 pipelineList = retryList.length > 0 ? retryList : pipelineList;
-                applyStatsContacts(statsRes, stageRes, pipelineList, verifyRes, false);
+                const nextId = pipelineList.find((p) => p.id === selectedPipelineId)?.id ?? pipelineList[0]?.id;
+                const oppPromise = nextId && api
+                  ? api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(nextId)}&limit=1000`).then((r) => (r.ok ? r.json() : { opportunities: [] }))
+                  : Promise.resolve({ opportunities: [] });
+                return oppPromise.then((oppRes) => applyStatsContacts(statsRes, stageRes, pipelineList, verifyRes, false, oppRes));
               });
             }
 
-            applyStatsContacts(statsRes, stageRes, pipelineList, verifyRes, !connectionOk);
+            applyStatsContacts(statsRes, stageRes, pipelineList, verifyRes, !connectionOk, opportunitiesRes);
           })
           .catch((e) => {
             if (gen === dataLoadGenRef.current) setError(e?.message ?? 'Failed to load');
           })
           .finally(() => {
-            if (gen === dataLoadGenRef.current) setLoading(false);
+            if (gen === dataLoadGenRef.current) {
+              setLoading(false);
+              setLoadingOpportunities(false);
+            }
           });
       })
       .catch((e) => {
@@ -362,7 +369,7 @@ export default function CRMDashboardPage() {
     if (!effectiveLocationId || !selectedPipelineId || !api) return;
     if (opportunitiesFetchPipelineIdRef.current === selectedPipelineId) return;
     setLoadingOpportunities(true);
-    api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(selectedPipelineId)}&limit=100`)
+    api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(selectedPipelineId)}&limit=1000`)
       .then((r) => (r.ok ? r.json() : { opportunities: [] }))
       .then((data: { opportunities?: Opportunity[] }) => {
         setOpportunities(Array.isArray(data?.opportunities) ? data.opportunities : []);
@@ -374,7 +381,7 @@ export default function CRMDashboardPage() {
   const refetchOpportunities = useCallback(() => {
     if (!effectiveLocationId || !selectedPipelineId || !api) return;
     setLoadingOpportunities(true);
-    api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(selectedPipelineId)}&limit=100`)
+    api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(selectedPipelineId)}&limit=1000`)
       .then((r) => (r.ok ? r.json() : { opportunities: [] }))
       .then((data: { opportunities?: Opportunity[] }) => {
         setOpportunities(Array.isArray(data?.opportunities) ? data.opportunities : []);

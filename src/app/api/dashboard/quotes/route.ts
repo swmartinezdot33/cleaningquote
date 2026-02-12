@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveGHLContext } from '@/lib/ghl/api-context';
-import { listGHLQuoteRecords, getContactIdForQuoteRecord, getContactById } from '@/lib/ghl/client';
+import { listGHLQuoteRecords } from '@/lib/ghl/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +36,8 @@ function mapQuotesToResponse(records: any[]) {
     }
     const { payload: _p, ...rest } = q;
     const isDisqualified = q.status === 'disqualified';
+    const fromPayload = q.payload && typeof q.payload === 'object' ? [q.payload.firstName ?? q.payload.first_name, q.payload.lastName ?? q.payload.last_name].filter(Boolean).join(' ') : null;
+    const contactNameFromRecord = [q.first_name, q.last_name].filter(Boolean).join(' ') || fromPayload || q.email || (q.payload?.email ?? null) || null;
     return {
       ...rest,
       service_type: isDisqualified ? 'Disqualified' : service_type,
@@ -49,6 +51,7 @@ function mapQuotesToResponse(records: any[]) {
       toolName: 'Quote',
       toolSlug: null,
       contactId: q.contactId ?? null,
+      contactName: contactNameFromRecord,
     };
   });
 }
@@ -243,52 +246,9 @@ export async function GET(request: NextRequest) {
     try {
       const credentials = { token: ctx.token, locationId: ctx.locationId };
       const records = await listGHLQuoteRecords(ctx.locationId, { limit: 2000 }, credentials);
-      // Enrich records with contact id from GHL associations when not on the record
-      const BATCH = 15;
-      for (let i = 0; i < records.length; i += BATCH) {
-        const chunk = records.slice(i, i + BATCH);
-        await Promise.all(
-          chunk.map(async (r: any) => {
-            const existing =
-              r.contactId ??
-              r.contact_id ??
-              r.properties?.contactId ??
-              r.properties?.['custom_objects.quotes.contactId'] ??
-              r.customFields?.contactId ??
-              r.customFields?.['custom_objects.quotes.contact_id'];
-            if (existing) return;
-            const cid = await getContactIdForQuoteRecord(r.id, ctx.locationId, credentials);
-            if (cid) r.contactId = cid;
-          })
-        );
-      }
       const withToolInfo = mapQuotesToResponse(records);
-      // Resolve contact names from GHL for display (contactId -> name)
-      const contactIds = [...new Set(withToolInfo.map((q: any) => q.contactId).filter(Boolean))] as string[];
-      const contactNameById: Record<string, string> = {};
-      const CONCURRENCY = 10;
-      for (let i = 0; i < contactIds.length; i += CONCURRENCY) {
-        const chunk = contactIds.slice(i, i + CONCURRENCY);
-        const results = await Promise.allSettled(
-          chunk.map((cid) => getContactById(cid, undefined, undefined, credentials))
-        );
-        results.forEach((res, idx) => {
-          const cid = chunk[idx];
-          if (res.status === 'fulfilled' && res.value) {
-            const c = res.value as { firstName?: string; lastName?: string; first_name?: string; last_name?: string; email?: string };
-            const first = c.firstName ?? c.first_name ?? '';
-            const last = c.lastName ?? c.last_name ?? '';
-            const name = [first, last].filter(Boolean).join(' ') || c.email || '';
-            if (name) contactNameById[cid] = name;
-          }
-        });
-      }
-      const quotesWithContactNames = withToolInfo.map((q: any) => ({
-        ...q,
-        contactName: q.contactId ? (contactNameById[q.contactId] ?? null) : null,
-      }));
       return NextResponse.json({
-        quotes: quotesWithContactNames,
+        quotes: withToolInfo,
         isSuperAdmin: false,
         isOrgAdmin: false,
       });

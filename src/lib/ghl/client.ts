@@ -1974,7 +1974,7 @@ export async function listContactNotes(
 /**
  * List contacts from GHL for a location.
  * Uses GET /contacts with query params: locationId, limit, optional query (search).
- * API rejects skip; pagination uses limit only (first page). Version header required.
+ * Paginates with startAfterId when the API returns a full page (up to requested limit or 5000).
  * @see https://marketplace.gohighlevel.com/docs/api/contacts/get-contacts
  */
 export async function listGHLContacts(
@@ -1982,25 +1982,43 @@ export async function listGHLContacts(
   options?: { limit?: number; page?: number; search?: string },
   credentials?: GHLCredentials | null
 ): Promise<{ contacts: any[]; total: number }> {
-  const limit = Math.min(100, Math.max(1, options?.limit ?? 25));
-  const params = new URLSearchParams({
-    locationId,
-    limit: String(limit),
-  });
-  if (options?.search?.trim()) {
-    params.set('query', options.search.trim());
+  const requestedLimit = Math.min(5000, Math.max(1, options?.limit ?? 1000));
+  const perPage = Math.min(1000, requestedLimit);
+  const all: any[] = [];
+  let total: number | undefined;
+  let startAfterId: string | undefined;
+
+  while (all.length < requestedLimit) {
+    const params = new URLSearchParams({
+      locationId,
+      limit: String(perPage),
+    });
+    if (options?.search?.trim()) {
+      params.set('query', options.search.trim());
+    }
+    if (startAfterId) {
+      params.set('startAfterId', startAfterId);
+    }
+    const res = await makeGHLRequest<{ contacts?: any[]; total?: number }>(
+      `/contacts?${params.toString()}`,
+      'GET',
+      undefined,
+      undefined,
+      undefined,
+      credentials
+    );
+    const contacts = Array.isArray(res?.contacts) ? res.contacts : [];
+    if (res?.total != null) total = res.total;
+    if (contacts.length === 0) break;
+    all.push(...contacts);
+    if (contacts.length < perPage) break;
+    const lastId = (contacts[contacts.length - 1] as { id?: string })?.id;
+    if (!lastId) break;
+    startAfterId = lastId;
+    if (all.length >= requestedLimit) break;
   }
-  const res = await makeGHLRequest<{ contacts?: any[]; total?: number }>(
-    `/contacts?${params.toString()}`,
-    'GET',
-    undefined,
-    undefined,
-    undefined,
-    credentials
-  );
-  const contacts = res?.contacts ?? [];
-  const total = res?.total ?? contacts.length;
-  return { contacts, total };
+
+  return { contacts: all.slice(0, requestedLimit), total: total ?? all.length };
 }
 
 /**
@@ -2047,42 +2065,60 @@ export async function listGHLPipelines(
 
 /**
  * Search opportunities for a location, optionally filtered by pipeline.
- * GET /opportunities/search?locationId=...&pipeline_id=...&limit=...
- * @see https://marketplace.gohighlevel.com/docs/ghl/opportunities/search-opportunity
+ * Paginates with skip until all are fetched or safe max (5000) is reached.
+ * GET /opportunities/search?locationId=...&pipeline_id=...&limit=...&skip=...
  */
 export async function searchGHLOpportunities(
   locationId: string,
   options: { pipelineId?: string; limit?: number; status?: string } = {},
   credentials?: GHLCredentials | null
 ): Promise<{ opportunities: GHLOpportunitySearchItem[]; total?: number }> {
-  const limit = Math.min(100, Math.max(1, options.limit ?? 50));
-  const params = new URLSearchParams({
-    location_id: locationId,
-    limit: String(limit),
-  });
-  if (options.pipelineId) params.set('pipeline_id', options.pipelineId);
-  if (options.status) params.set('status', options.status);
-  const queryString = params.toString();
-  const res = await makeGHLRequest<{
-    opportunities?: GHLOpportunitySearchItem[];
-    data?: GHLOpportunitySearchItem[];
-    meta?: { total?: number };
-  }>(
-    `/opportunities/search?${queryString}`,
-    'GET',
-    undefined,
-    undefined,
-    undefined,
-    credentials
-  );
-  const resKeys = res && typeof res === 'object' && !Array.isArray(res) ? Object.keys(res as object) : [];
-  const fromOpps = Array.isArray((res as any)?.opportunities) ? (res as any).opportunities.length : 0;
-  const fromData = Array.isArray((res as any)?.data) ? (res as any).data.length : 0;
-  const opportunities =
-    res?.opportunities ?? res?.data ?? (Array.isArray(res) ? res : []);
-  const list = Array.isArray(opportunities) ? opportunities : [];
-  const total = (res as { meta?: { total?: number } })?.meta?.total;
-  return { opportunities: list, total };
+  const perPage = Math.min(1000, Math.max(1, options.limit ?? 100));
+  const maxTotal = 5000;
+  const all: GHLOpportunitySearchItem[] = [];
+  const seenIds = new Set<string>();
+  let skip = 0;
+  let metaTotal: number | undefined;
+
+  while (all.length < maxTotal) {
+    const params = new URLSearchParams({
+      location_id: locationId,
+      limit: String(perPage),
+      skip: String(skip),
+    });
+    if (options.pipelineId) params.set('pipeline_id', options.pipelineId);
+    if (options.status) params.set('status', options.status);
+    const res = await makeGHLRequest<{
+      opportunities?: GHLOpportunitySearchItem[];
+      data?: GHLOpportunitySearchItem[];
+      meta?: { total?: number };
+    }>(
+      `/opportunities/search?${params.toString()}`,
+      'GET',
+      undefined,
+      undefined,
+      undefined,
+      credentials
+    );
+    if (res && typeof res === 'object' && 'meta' in res && (res as { meta?: { total?: number } }).meta?.total != null) {
+      metaTotal = (res as { meta: { total: number } }).meta.total;
+    }
+    const opportunities = res?.opportunities ?? res?.data ?? (Array.isArray(res) ? res : []);
+    const list = Array.isArray(opportunities) ? opportunities : [];
+    let newCount = 0;
+    for (const o of list) {
+      const id = (o as { id?: string })?.id;
+      if (id && !seenIds.has(id)) {
+        seenIds.add(id);
+        all.push(o);
+        newCount++;
+      }
+    }
+    if (list.length < perPage || newCount === 0) break;
+    skip += list.length;
+  }
+
+  return { opportunities: all.slice(0, maxTotal), total: metaTotal ?? all.length };
 }
 
 /**
@@ -2112,14 +2148,15 @@ export async function updateGHLOpportunity(
 
 /**
  * List quote custom object records from GHL for a location.
- * Uses POST /objects/custom_objects.quotes/records/search with page + pageLimit (GHL does not support GET /objects/{id}/records for custom objects).
+ * Uses POST /objects/custom_objects.quotes/records/search with page + pageLimit.
+ * Paginates through all pages and returns the concatenated list.
  */
 export async function listGHLQuoteRecords(
   locationId: string,
   options?: { limit?: number },
   credentials?: GHLCredentials | null
 ): Promise<any[]> {
-  const pageLimit = Math.min(500, Math.max(1, options?.limit ?? 2000));
+  const pageLimit = Math.min(500, Math.max(1, options?.limit ?? 200));
 
   function parseRecords(res: any): any[] {
     if (Array.isArray(res)) return res;
@@ -2134,16 +2171,17 @@ export async function listGHLQuoteRecords(
     return [];
   }
 
-  const bodiesToTry = [
-    { location_id: locationId, page: 1, pageLimit },
-    { locationId, page: 1, pageLimit },
+  type BodyShape = { location_id?: string; locationId?: string; page: number; pageLimit: number };
+  const makeBody = (page: number): BodyShape[] => [
+    { location_id: locationId, page, pageLimit },
+    { locationId, page, pageLimit },
   ];
-  // Try multiple schema keys (GHL accounts may use "Quote", "quotes", or custom_objects.quotes)
   const schemaKeysToTry = ['custom_objects.quotes', 'Quote', 'quotes'];
   let lastErr: unknown = null;
   let lastMsg = '';
+
   for (const schemaKey of schemaKeysToTry) {
-    for (const body of bodiesToTry) {
+    for (const body of makeBody(1)) {
       try {
         const res = await makeGHLRequest<{ records?: any[]; data?: any[] }>(
           `/objects/${schemaKey}/records/search`,
@@ -2153,9 +2191,29 @@ export async function listGHLQuoteRecords(
           undefined,
           credentials
         );
-        const records = parseRecords(res);
-        const out = Array.isArray(records) ? records : [];
-        return out;
+        const firstPage = parseRecords(res);
+        if (!Array.isArray(firstPage)) continue;
+        const all: any[] = [...firstPage];
+        if (firstPage.length < pageLimit) return all;
+        const maxPages = 100;
+        for (let page = 2; page <= maxPages; page++) {
+          const nextBody = body.location_id != null
+            ? { location_id: locationId, page, pageLimit }
+            : { locationId, page, pageLimit };
+          const nextRes = await makeGHLRequest<{ records?: any[]; data?: any[] }>(
+            `/objects/${schemaKey}/records/search`,
+            'POST',
+            nextBody,
+            undefined,
+            undefined,
+            credentials
+          );
+          const nextRecords = parseRecords(nextRes);
+          const next = Array.isArray(nextRecords) ? nextRecords : [];
+          all.push(...next);
+          if (next.length < pageLimit) return all;
+        }
+        return all;
       } catch (err) {
         lastErr = err;
         lastMsg = err instanceof Error ? err.message : String(err);

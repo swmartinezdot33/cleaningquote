@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ExternalLink, RefreshCw, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User, Plus } from 'lucide-react';
+import { ExternalLink, RefreshCw, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import { useDashboardApi } from '@/lib/dashboard-api';
 import { useDashboardPageState } from '@/lib/dashboard-page-state';
 import { AddressMapLinks } from '@/components/AddressMapLinks';
@@ -535,12 +535,8 @@ export default function DashboardQuotesPage() {
           </div>
         </DialogContent>
       </Dialog>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div>
         <h1 className="text-2xl font-bold text-foreground">Quotes</h1>
-        <Button onClick={openNewQuoteModal} className="shrink-0" variant="default">
-          <Plus className="h-4 w-4 mr-2" />
-          New Quote
-        </Button>
       </div>
 
       {loading ? (
