@@ -25,8 +25,9 @@ export async function PATCH(
     const body = await request.json().catch(() => ({}));
     const set = body.set === true;
     const supabase = createSupabaseServer();
-    const { error } = await supabase
-      .from('organizations')
+    const orgTable = supabase.from('organizations');
+    const { error } = await orgTable
+      // @ts-expect-error - Supabase infers Update as never; Database.organizations.Update is correct
       .update({ default_quoter_tool_id: set ? toolId : null })
       .eq('id', orgId);
     if (error) {

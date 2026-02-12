@@ -1242,6 +1242,53 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           }
 
           setServiceAreaChecked(true);
+
+          if (usePropertyLookupShortcut) {
+            const data = getValues();
+            const addressValue = data[getFormFieldName(currentQuestion.id)] || data.address || '';
+            if (String(addressValue).trim()) {
+              try {
+                const propRes = await fetch('/api/property-lookup', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ address: addressValue }),
+                });
+                const propData = (await propRes.json()) as {
+                  squareFeet?: number;
+                  bedrooms?: number;
+                  fullBaths?: number;
+                  halfBaths?: number;
+                };
+                const hasAny =
+                  typeof propData?.squareFeet === 'number' ||
+                  typeof propData?.bedrooms === 'number' ||
+                  typeof propData?.fullBaths === 'number' ||
+                  typeof propData?.halfBaths === 'number';
+                if (hasAny && propRes.ok) {
+                  setPropertyLookupResult(propData);
+                  setShowPropertyConfirm(true);
+                  return;
+                }
+              } catch {
+                // fall through to advance to squareFeet
+              }
+            }
+          }
+
+          const nextIndex = getNextQuestionIndex(currentStep, fieldName);
+          if (nextIndex === DISQUALIFIED_NEXT_INDEX) {
+            const q = visibleQuestions[currentStep];
+            const val = getValues(fieldName);
+            const opt = q?.options?.find(o => o.value === val);
+            setDisqualifiedInfo({ questionLabel: q?.label ?? '', optionLabel: opt?.label ?? '' });
+            return;
+          }
+          if (nextIndex >= visibleQuestions.length) {
+            handleFormSubmit();
+          } else {
+            setCurrentStep(nextIndex);
+          }
+          return;
         } catch (error) {
           console.error('Error checking service area:', error);
           // Continue anyway if service area check fails
@@ -1347,6 +1394,37 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
               window.open(`/?contactId=${createdContactId}`, '_blank');
               return;
             }
+            if (usePropertyLookupShortcut) {
+              const formValues = getValues();
+              const addressValue = formValues[getFormFieldName(currentQuestion.id)] || formValues.address || '';
+              if (String(addressValue).trim()) {
+                try {
+                  const propRes = await fetch('/api/property-lookup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ address: addressValue }),
+                  });
+                  const propData = (await propRes.json()) as {
+                    squareFeet?: number;
+                    bedrooms?: number;
+                    fullBaths?: number;
+                    halfBaths?: number;
+                  };
+                  const hasAny =
+                    typeof propData?.squareFeet === 'number' ||
+                    typeof propData?.bedrooms === 'number' ||
+                    typeof propData?.fullBaths === 'number' ||
+                    typeof propData?.halfBaths === 'number';
+                  if (hasAny && propRes.ok) {
+                    setPropertyLookupResult(propData);
+                    setShowPropertyConfirm(true);
+                    return;
+                  }
+                } catch {
+                  // fall through
+                }
+              }
+            }
             setDirection(1);
             const nextIndex = getNextQuestionIndex(currentStep, fieldName);
             if (nextIndex === DISQUALIFIED_NEXT_INDEX) {
@@ -1393,6 +1471,21 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   };
 
   const prevStep = () => {
+    if (showPropertyConfirm) {
+      setShowPropertyConfirm(false);
+      setDirection(-1);
+      return;
+    }
+    const peopleIndex = visibleQuestions.findIndex((q) => q.id === 'people');
+    if (peopleIndex !== -1 && currentStep === peopleIndex && usedPropertyShortcutRef.current) {
+      const addressIndex = visibleQuestions.findIndex((q) => q.id === 'address');
+      if (addressIndex !== -1) {
+        setCurrentStep(addressIndex);
+        setShowPropertyConfirm(true);
+        setDirection(-1);
+        return;
+      }
+    }
     setDirection(-1);
     const prevIndex = getPreviousQuestionIndex(currentStep);
     if (prevIndex >= 0) {
@@ -3098,6 +3191,86 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
             >
               <CardContent className="pt-8 pb-8 px-8">
                 <div className="space-y-6">
+                  {showPropertyConfirm && propertyLookupResult ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                      className="space-y-6"
+                    >
+                      <Label className="text-2xl font-semibold text-gray-900 block mb-4">
+                        We found this for your home. Is this correct?
+                      </Label>
+                      <div className="rounded-lg border-2 p-4 space-y-2" style={{ borderColor: `${primaryColor}33` }}>
+                        {typeof propertyLookupResult.squareFeet === 'number' && (
+                          <p className="text-lg">
+                            <span className="font-medium">Square footage:</span>{' '}
+                            {propertyLookupResult.squareFeet.toLocaleString()} sq ft
+                          </p>
+                        )}
+                        {typeof propertyLookupResult.bedrooms === 'number' && (
+                          <p className="text-lg">
+                            <span className="font-medium">Bedrooms:</span> {propertyLookupResult.bedrooms}
+                          </p>
+                        )}
+                        {(typeof propertyLookupResult.fullBaths === 'number' || typeof propertyLookupResult.halfBaths === 'number') && (
+                          <p className="text-lg">
+                            <span className="font-medium">Bathrooms:</span>{' '}
+                            {propertyLookupResult.fullBaths ?? 0} full, {propertyLookupResult.halfBaths ?? 0} half
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-3 pt-2">
+                        <Button
+                          size="lg"
+                          className="min-w-[120px]"
+                          style={{ backgroundColor: primaryColor, borderColor: primaryColor }}
+                          onClick={() => {
+                            const sqFt = propertyLookupResult.squareFeet;
+                            const peopleIndex = visibleQuestions.findIndex((q) => q.id === 'people');
+                            if (typeof sqFt === 'number' && sqFt > 0) {
+                              setValue(getFormFieldName('squareFeet') as any, numberToSquareFootageRangeValue(sqFt), { shouldValidate: true, shouldDirty: true });
+                            }
+                            if (typeof propertyLookupResult.fullBaths === 'number') {
+                              setValue(getFormFieldName('fullBaths') as any, propertyLookupResult.fullBaths, { shouldValidate: true, shouldDirty: true });
+                            }
+                            if (typeof propertyLookupResult.halfBaths === 'number') {
+                              setValue(getFormFieldName('halfBaths') as any, propertyLookupResult.halfBaths, { shouldValidate: true, shouldDirty: true });
+                            }
+                            if (typeof propertyLookupResult.bedrooms === 'number') {
+                              setValue(getFormFieldName('bedrooms') as any, propertyLookupResult.bedrooms, { shouldValidate: true, shouldDirty: true });
+                            }
+                            setShowPropertyConfirm(false);
+                            setPropertyLookupResult(null);
+                            usedPropertyShortcutRef.current = true;
+                            setDirection(1);
+                            if (peopleIndex !== -1) {
+                              setCurrentStep(peopleIndex);
+                            } else {
+                              setCurrentStep(currentStep + 1);
+                            }
+                          }}
+                        >
+                          Yes, that&apos;s correct
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          className="min-w-[120px]"
+                          style={{ borderColor: primaryColor, color: primaryColor }}
+                          onClick={() => {
+                            setShowPropertyConfirm(false);
+                            setPropertyLookupResult(null);
+                            const squareFeetIndex = visibleQuestions.findIndex((q) => q.id === 'squareFeet');
+                            setDirection(1);
+                            setCurrentStep(squareFeetIndex !== -1 ? squareFeetIndex : currentStep + 1);
+                          }}
+                        >
+                          No, I&apos;ll enter it myself
+                        </Button>
+                      </div>
+                    </motion.div>
+                  ) : (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -3190,21 +3363,43 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                                     
                                     if (result.inServiceArea) {
                                       setPricingStructureId(result.pricingStructureId ?? null);
-                                      // Conversion fires only on /quote/[id] after form submit – not on landing.
-                                      // In service area - check if we should open survey in new tab
-                                      // Mark as checked BEFORE opening tab to prevent duplicate opens
                                       setServiceAreaChecked(true);
-                                      
-                                      // Only open new tab if we're in an iframe (widget mode)
                                       const isInIframe = window.self !== window.top;
-                                      
                                       if (openSurveyInNewTab && createdContactId && !tabOpened && isInIframe) {
                                         setTabOpened(true);
                                         window.open(`/?contactId=${createdContactId}`, '_blank');
                                         return;
                                       }
-                                      
-                                      // Advance to next step
+                                      if (usePropertyLookupShortcut) {
+                                        const addressValue = data[getFormFieldName(currentQuestion.id)] || data.address || '';
+                                        if (String(addressValue).trim()) {
+                                          try {
+                                            const propRes = await fetch('/api/property-lookup', {
+                                              method: 'POST',
+                                              headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify({ address: addressValue }),
+                                            });
+                                            const propData = (await propRes.json()) as {
+                                              squareFeet?: number;
+                                              bedrooms?: number;
+                                              fullBaths?: number;
+                                              halfBaths?: number;
+                                            };
+                                            const hasAny =
+                                              typeof propData?.squareFeet === 'number' ||
+                                              typeof propData?.bedrooms === 'number' ||
+                                              typeof propData?.fullBaths === 'number' ||
+                                              typeof propData?.halfBaths === 'number';
+                                            if (hasAny && propRes.ok) {
+                                              setPropertyLookupResult(propData);
+                                              setShowPropertyConfirm(true);
+                                              return;
+                                            }
+                                          } catch {
+                                            // fall through
+                                          }
+                                        }
+                                      }
                                       nextStep();
                                     } else {
                                       // Out of service area - redirect directly without advancing
@@ -3621,6 +3816,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                       </motion.p>
                     )}
                   </motion.div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -3648,7 +3844,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
 
           <Button
             onClick={nextStep}
-            disabled={isLoading}
+            disabled={isLoading || showPropertyConfirm}
             size="lg"
             className="flex items-center gap-2 min-w-[140px]"
             style={{ backgroundColor: primaryColor, borderColor: primaryColor }}

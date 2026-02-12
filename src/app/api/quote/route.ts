@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { calcQuote } from '@/lib/pricing/calcQuote';
 import { generateSummaryText, generateSmsText, getSquareFootageRangeDisplay, squareFootageRangeToNumber } from '@/lib/pricing/format';
 import { QuoteInputs, QuoteRanges } from '@/lib/pricing/types';
-import { createOrUpdateContact, updateContact, createOpportunity, createNote, createCustomObject } from '@/lib/ghl/client';
+import { createOrUpdateContact, updateContact, createOpportunity, createNote, createCustomObject, findOrCreateGHLProperty, associateContactWithProperty, associateQuoteWithProperty } from '@/lib/ghl/client';
 import { ghlTokenExists, getGHLConfig, getGHLToken, getGHLLocationId, getKV } from '@/lib/kv';
 import { getSurveyQuestions, getSurveyDisplayLabels } from '@/lib/survey/manager';
 import { createSupabaseServer } from '@/lib/supabase/server';
@@ -506,6 +506,38 @@ export async function POST(request: NextRequest) {
 
         ghlContactId = contact.id;
 
+        // Build service address once for Property and Quote object
+        const addressParts = [
+          body.address,
+          body.city,
+          body.state,
+          body.postalCode,
+          body.country,
+        ].filter(Boolean);
+        const serviceAddress = addressParts.join(', ') || '';
+
+        // Find or create GHL Property and link to Contact (so every quote goes into a property; same contact can have multiple quotes on multiple properties)
+        let ghlPropertyId: string | null = null;
+        if (ghlLocationId && serviceAddress) {
+          try {
+            ghlPropertyId = await findOrCreateGHLProperty(
+              ghlLocationId,
+              {
+                address: serviceAddress,
+                squareFootage: body.squareFeet,
+                bedrooms: body.bedrooms != null ? Number(body.bedrooms) : undefined,
+                fullBaths: body.fullBaths != null ? Number(body.fullBaths) : undefined,
+                halfBaths: body.halfBaths != null ? Number(body.halfBaths) : undefined,
+              },
+              ghlToken ?? undefined
+            );
+            if (ghlPropertyId) {
+              await associateContactWithProperty(ghlContactId, ghlPropertyId, ghlLocationId, ghlToken ?? undefined);
+            }
+          } catch (propErr) {
+            console.error('GHL Property find/create or Contact–Property association failed:', propErr);
+          }
+        }
 
         // Prepare promises for parallel execution (opportunity, custom object, note)
         let opportunityPromise: Promise<any> | null = null;
@@ -661,16 +693,6 @@ export async function POST(request: NextRequest) {
           try {
             // Use the already-generated quoteId for the quote_id field
             // This ensures consistency between the URL quoteId and the stored quote_id
-            
-            // Build service address string
-            const addressParts = [
-              body.address,
-              body.city,
-              body.state,
-              body.postalCode,
-              body.country,
-            ].filter(Boolean);
-            const serviceAddress = addressParts.join(', ') || '';
 
             // Get selected quote range for storing price ranges
             const selectedRange = result.ranges ? getSelectedQuoteRange(result.ranges, body.serviceType, body.frequency) : null;
@@ -870,6 +892,11 @@ export async function POST(request: NextRequest) {
             const ghlObjectId = quoteResult.value.id;
             quoteId = ghlObjectId; // For GHL-based retrieval
             ghlQuoteCreated = true;
+            if (ghlPropertyId && ghlLocationId) {
+              associateQuoteWithProperty(ghlObjectId, ghlPropertyId, ghlLocationId, ghlToken ?? undefined).catch((err) => {
+                console.error('Failed to associate Quote with Property:', err);
+              });
+            }
           } else if (quoteObjectPromise) {
             // Custom object creation failed - log detailed error for debugging
             const error = quoteResult?.status === 'rejected' ? quoteResult.reason : null;

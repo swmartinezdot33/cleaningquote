@@ -2155,3 +2155,244 @@ export async function listGHLQuoteRecords(
   console.warn('[CQ GHL] listGHLQuoteRecords failed:', lastMsg);
   return [];
 }
+
+/** Normalize address for matching (lowercase, trim, collapse spaces). */
+function normalizeAddressForMatch(address: string): string {
+  return (address || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+/**
+ * List Property custom object records from GHL for a location.
+ * Uses POST /objects/custom_objects.properties/records/search.
+ */
+export async function listGHLPropertyRecords(
+  locationId: string,
+  tokenOverride?: string
+): Promise<Array<{ id: string; [k: string]: unknown }>> {
+  function parseRecords(res: any): any[] {
+    if (Array.isArray(res)) return res;
+    if (res?.records && Array.isArray(res.records)) return res.records;
+    if (res?.data && Array.isArray(res.data)) return res.data;
+    if (res?.customObjects && Array.isArray(res.customObjects)) return res.customObjects;
+    if (typeof res === 'object') {
+      for (const key of Object.keys(res)) {
+        if (Array.isArray(res[key])) return res[key];
+      }
+    }
+    return [];
+  }
+
+  const schemaKeysToTry = ['custom_objects.properties', 'properties', 'Property'];
+  const bodiesToTry = [
+    { location_id: locationId, page: 1, pageLimit: 500 },
+    { locationId, page: 1, pageLimit: 500 },
+  ];
+
+  for (const schemaKey of schemaKeysToTry) {
+    for (const body of bodiesToTry) {
+      try {
+        const res = await makeGHLRequest<{ records?: any[]; data?: any[] }>(
+          `/objects/${schemaKey}/records/search`,
+          'POST',
+          body,
+          undefined,
+          tokenOverride
+        );
+        const records = parseRecords(res);
+        const list = Array.isArray(records) ? records : [];
+        return list.map((r: any) => ({ id: r.id ?? r._id ?? '', ...r }));
+      } catch {
+        continue;
+      }
+    }
+  }
+  return [];
+}
+
+/**
+ * Find a Property record in GHL by matching address (primary display field).
+ * Returns the first record whose address normalizes to the same value.
+ */
+export async function findGHLPropertyByAddress(
+  locationId: string,
+  address: string,
+  tokenOverride?: string
+): Promise<{ id: string; [k: string]: unknown } | null> {
+  const want = normalizeAddressForMatch(address);
+  if (!want) return null;
+
+  const records = await listGHLPropertyRecords(locationId, tokenOverride);
+  for (const r of records) {
+    const props = (r.properties ?? r.customFields ?? r) as Record<string, unknown>;
+    const addr =
+      (props.address as string | undefined) ??
+      (props['custom_objects.properties.address'] as string | undefined) ??
+      (props.service_address as string | undefined) ??
+      '';
+    if (normalizeAddressForMatch(String(addr)) === want) return r;
+  }
+  return null;
+}
+
+export interface GHLPropertyFields {
+  address: string;
+  squareFootage?: number | string;
+  bedrooms?: number | string;
+  fullBaths?: number | string;
+  halfBaths?: number | string;
+}
+
+/**
+ * Find or create a GHL Property record. If a record with the same address exists, return its id.
+ * Otherwise create a new Property with the given fields and return its id.
+ * Requires Property custom object with fields: address, square_footage, bedrooms, bathrooms, half_baths.
+ */
+export async function findOrCreateGHLProperty(
+  locationId: string,
+  fields: GHLPropertyFields,
+  tokenOverride?: string
+): Promise<string | null> {
+  const existing = await findGHLPropertyByAddress(locationId, fields.address, tokenOverride);
+  if (existing?.id) return existing.id;
+
+  const customFields: Record<string, string> = {
+    address: fields.address.trim(),
+  };
+  if (fields.squareFootage !== undefined && fields.squareFootage !== '')
+    customFields.square_footage = String(fields.squareFootage);
+  if (fields.bedrooms !== undefined && fields.bedrooms !== '')
+    customFields.bedrooms = String(fields.bedrooms);
+  if (fields.fullBaths !== undefined && fields.fullBaths !== '')
+    customFields.bathrooms = String(fields.fullBaths);
+  if (fields.halfBaths !== undefined && fields.halfBaths !== '')
+    customFields.half_baths = String(fields.halfBaths);
+
+  try {
+    const created = await createCustomObject(
+      'properties',
+      { customFields },
+      locationId,
+      tokenOverride
+    );
+    return created?.id ?? null;
+  } catch (err) {
+    console.error('Failed to create GHL Property record:', err);
+    return null;
+  }
+}
+
+/**
+ * Create an association relation between two records.
+ * POST /associations/relations with associationId, firstRecordId, secondRecordId, locationId.
+ */
+export async function createAssociationRelation(
+  associationId: string,
+  firstRecordId: string,
+  secondRecordId: string,
+  locationId: string,
+  tokenOverride?: string
+): Promise<void> {
+  await makeGHLRequest<any>(
+    '/associations/relations',
+    'POST',
+    { associationId, firstRecordId, secondRecordId, locationId },
+    undefined,
+    tokenOverride
+  );
+}
+
+async function getAssociationIdForContactProperty(
+  locationId: string,
+  tokenOverride?: string
+): Promise<string | null> {
+  try {
+    const keyRes = await getAssociationByKeyName('contact_property', locationId, undefined, tokenOverride);
+    if (keyRes?.id) return keyRes.id;
+  } catch {
+    // fall through
+  }
+  try {
+    const list = await getAssociationByObjectKey('custom_objects.properties', locationId, undefined, tokenOverride);
+    const contactProperty = list.find((a: any) => {
+      const first = String((a.firstEntityKey ?? a.firstObjectKey ?? '') ?? '').toLowerCase();
+      const second = String((a.secondEntityKey ?? a.secondObjectKey ?? '') ?? '').toLowerCase();
+      const isContact = (s: string) => s === 'contact' || s === 'contacts';
+      const isProp = (s: string) => s === 'properties' || s === 'property' || s.includes('custom_objects.properties');
+      return (isContact(first) && isProp(second)) || (isProp(first) && isContact(second));
+    });
+    if (contactProperty?.id) return contactProperty.id;
+  } catch {
+    // fall through
+  }
+  return null;
+}
+
+async function getAssociationIdForQuoteProperty(
+  locationId: string,
+  tokenOverride?: string
+): Promise<string | null> {
+  try {
+    const keyRes = await getAssociationByKeyName('quote_property', locationId, undefined, tokenOverride);
+    if (keyRes?.id) return keyRes.id;
+  } catch {
+    // fall through
+  }
+  try {
+    const list = await getAssociationByObjectKey('custom_objects.properties', locationId, undefined, tokenOverride);
+    const quoteProperty = list.find((a: any) => {
+      const first = String((a.firstEntityKey ?? a.firstObjectKey ?? '') ?? '').toLowerCase();
+      const second = String((a.secondEntityKey ?? a.secondObjectKey ?? '') ?? '').toLowerCase();
+      const isQuote = (s: string) => s.includes('quote') || s === 'quotes' || s === 'custom_objects.quotes';
+      const isProp = (s: string) => s === 'properties' || s === 'property' || s.includes('custom_objects.properties');
+      return (isQuote(first) && isProp(second)) || (isProp(first) && isQuote(second));
+    });
+    if (quoteProperty?.id) return quoteProperty.id;
+  } catch {
+    // fall through
+  }
+  return null;
+}
+
+/**
+ * Associate a Contact with a Property in GHL.
+ * Requires Contact–Property association to exist in GHL (Settings > Custom Objects > Property > Associations).
+ */
+export async function associateContactWithProperty(
+  contactId: string,
+  propertyRecordId: string,
+  locationId: string,
+  tokenOverride?: string
+): Promise<void> {
+  const associationId = await getAssociationIdForContactProperty(locationId, tokenOverride);
+  if (!associationId) {
+    console.warn('GHL Contact–Property association not found; skipping link. Create it in GHL: Settings > Custom Objects > Property > Associations.');
+    return;
+  }
+  try {
+    await createAssociationRelation(associationId, contactId, propertyRecordId, locationId, tokenOverride);
+  } catch (err) {
+    console.error('Failed to associate Contact with Property:', err);
+  }
+}
+
+/**
+ * Associate a Quote custom object record with a Property in GHL.
+ * Requires Quote–Property association to exist in GHL (Settings > Custom Objects > Property > Associations).
+ */
+export async function associateQuoteWithProperty(
+  quoteRecordId: string,
+  propertyRecordId: string,
+  locationId: string,
+  tokenOverride?: string
+): Promise<void> {
+  const associationId = await getAssociationIdForQuoteProperty(locationId, tokenOverride);
+  if (!associationId) {
+    console.warn('GHL Quote–Property association not found; skipping link. Create it in GHL: Settings > Custom Objects > Property > Associations.');
+    return;
+  }
+  try {
+    await createAssociationRelation(associationId, quoteRecordId, propertyRecordId, locationId, tokenOverride);
+  } catch (err) {
+    console.error('Failed to associate Quote with Property:', err);
+  }
+}

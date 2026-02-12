@@ -761,6 +761,25 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                       />
                     </div>
                   </div>
+                  <div className="flex items-center justify-between gap-4 mt-4 pt-4 border-t border-border">
+                    <div className="flex-1">
+                      <Label htmlFor="usePropertyLookupShortcut" className="text-base font-semibold cursor-pointer">
+                        Use property lookup shortcut (home info from address)
+                      </Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        When enabled, after the service area check we try to fetch square footage, bedrooms, and bathrooms for the address (using your Google Maps key to validate the address). If data is found, we show &quot;Is this correct?&quot; so the user can confirm or enter details. Google does not provide room counts; an additional property data source can be added later to populate these.
+                      </p>
+                    </div>
+                    <div className="flex-shrink-0">
+                      <input
+                        type="checkbox"
+                        id="usePropertyLookupShortcut"
+                        checked={form.usePropertyLookupShortcut === 'true'}
+                        onChange={(e) => setForm((f) => ({ ...f, usePropertyLookupShortcut: e.target.checked ? 'true' : 'false' }))}
+                        className="w-4 h-4 rounded border-input accent-primary"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>

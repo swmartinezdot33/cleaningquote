@@ -131,8 +131,9 @@ export async function POST(request: NextRequest) {
         .eq('id', orgId)
         .single();
       if (orgRow && (orgRow as { default_quoter_tool_id: string | null }).default_quoter_tool_id == null) {
-        await insertClient
-          .from('organizations')
+        const orgTable = insertClient.from('organizations');
+        await orgTable
+          // @ts-expect-error - Supabase infers Update as never; Database.organizations.Update is correct
           .update({ default_quoter_tool_id: toolId })
           .eq('id', orgId);
       }
