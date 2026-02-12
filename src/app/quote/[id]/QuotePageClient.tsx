@@ -604,7 +604,7 @@ export default function QuotePageClient({
                           ?? freqLabelFallback[value?.toLowerCase()]
                           ?? (value ? value.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : value);
                         // Map option value/label to canonical key for range lookup (mirrors server inference).
-                        // Check label for Basic vs Deep BEFORE value so "Move-In/Move-Out Deep Clean" always uses moveInOutFull even if value is "move-in".
+                        // Check Basic vs Deep in label FIRST so "Move-In/Move-Out Basic Clean" → moveInOutBasic, "Move-In/Move-Out Deep Clean" → moveInOutFull (different columns in pricing table).
                         const getCanonicalServiceKey = (value: string, label: string): string | null => {
                           const v = (value || '').toLowerCase().trim();
                           const l = (label || '').toLowerCase();
@@ -612,9 +612,11 @@ export default function QuotePageClient({
                           if (v === 'initial') return 'initial';
                           if (v === 'general') return 'general';
                           if (v === 'deep') return 'deep';
-                          // Move-in/move-out: use label to distinguish Basic (moveInOutBasic) vs Deep (moveInOutFull)
-                          if (combined.includes('move-out') || combined.includes('move out') || (combined.includes('deep') && combined.includes('move'))) return 'move-out';
-                          if (combined.includes('move-in') || combined.includes('move in') || (combined.includes('basic') && combined.includes('move'))) return 'move-in';
+                          // Move-in/move-out: distinguish Basic vs Deep by label first (both contain "move-out" in "Move-In/Move-Out")
+                          if ((combined.includes('basic') && combined.includes('move')) || (l.includes('basic') && l.includes('move'))) return 'move-in';
+                          if ((combined.includes('deep') && combined.includes('move')) || (l.includes('deep') && l.includes('move'))) return 'move-out';
+                          if (combined.includes('move-out') || combined.includes('move out')) return 'move-out';
+                          if (combined.includes('move-in') || combined.includes('move in')) return 'move-in';
                           if (v === 'move-out') return 'move-out';
                           if (v === 'move-in') return 'move-in';
                           if (combined.includes('initial deep') || (combined.includes('initial') && combined.includes('deep') && !combined.includes('general'))) return 'initial';
@@ -633,18 +635,25 @@ export default function QuotePageClient({
                         };
                         const selectedServiceKey = getCanonicalServiceKey(serviceType, quoteResult.serviceTypeLabel || serviceType || '') ?? (['move-in', 'move-out', 'deep', 'initial', 'general'].includes(canonicalServiceType) ? canonicalServiceType : null);
                         
+                        // Use label-derived key when available so "Move-In/Move-Out Deep Clean" gets correct range even if stored value was overwritten
                         let selectedRange: { low: number; high: number } | null = null;
-                        if (canonicalServiceType === 'move-in') selectedRange = quoteResult.ranges.moveInOutBasic;
-                        else if (canonicalServiceType === 'move-out') selectedRange = quoteResult.ranges.moveInOutFull;
-                        else if (canonicalServiceType === 'deep') selectedRange = quoteResult.ranges.deep;
-                        else if (effectiveFrequency === 'weekly') selectedRange = quoteResult.ranges.weekly;
+                        if (effectiveFrequency === 'weekly') selectedRange = quoteResult.ranges.weekly;
                         else if (effectiveFrequency === 'bi-weekly') selectedRange = quoteResult.ranges.biWeekly;
                         else if (effectiveFrequency === 'four-week') selectedRange = quoteResult.ranges.fourWeek;
+                        else if (selectedServiceKey && getRangeForServiceKey(selectedServiceKey)) selectedRange = getRangeForServiceKey(selectedServiceKey)!;
+                        else if (canonicalServiceType === 'initial') selectedRange = quoteResult.ranges.initial;
+                        else if (canonicalServiceType === 'general') selectedRange = quoteResult.ranges.general;
+                        else if (canonicalServiceType === 'move-in') selectedRange = quoteResult.ranges.moveInOutBasic;
+                        else if (canonicalServiceType === 'move-out') selectedRange = quoteResult.ranges.moveInOutFull;
+                        else if (canonicalServiceType === 'deep') selectedRange = quoteResult.ranges.deep;
                         else selectedRange = quoteResult.ranges.general;
                         
-                        const selectedServiceName = ['move-in', 'move-out', 'deep'].includes(canonicalServiceType)
-                          ? (quoteResult.serviceTypeLabel || getServiceLabel(canonicalServiceType))
-                          : (isRecurringService ? (quoteResult.frequencyLabel || getFreqLabel(frequency)) : (quoteResult.serviceTypeLabel || getServiceLabel(serviceType)));
+                        // When range came from selectedServiceKey (e.g. move-out from label), show label for that key so name matches price
+                        const selectedServiceName = (selectedServiceKey && getRangeForServiceKey(selectedServiceKey) && ['move-in', 'move-out', 'deep', 'initial', 'general'].includes(selectedServiceKey))
+                          ? (quoteResult.serviceTypeLabel || getServiceLabel(selectedServiceKey))
+                          : (['move-in', 'move-out', 'deep'].includes(canonicalServiceType)
+                            ? (quoteResult.serviceTypeLabel || getServiceLabel(canonicalServiceType))
+                            : (isRecurringService ? (quoteResult.frequencyLabel || getFreqLabel(frequency)) : (quoteResult.serviceTypeLabel || getServiceLabel(serviceType))));
                         const isOneTimeService = ['move-in', 'move-out', 'deep'].includes(canonicalServiceType);
                         // When they picked initial/general clean + a frequency, show BOTH in the green box
                         const isInitialPlusFrequency = (canonicalServiceType === 'general' || canonicalServiceType === 'initial') && hasRecurringFrequency;

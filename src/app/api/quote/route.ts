@@ -866,20 +866,30 @@ export async function POST(request: NextRequest) {
         }
 
         // Prepare note creation (will parallelize with opportunity and custom object)
+        // #region agent log
+        console.log('[CQ-NOTE-DEBUG]', JSON.stringify({ location: 'quote/route.ts:note decision', message: 'will we create note?', data: { createNoteEnabled: ghlConfig?.createNote !== false, hasGhlContactId: !!ghlContactId, bodyServiceType: body.serviceType ?? null, bodyFrequency: body.frequency ?? null, hasRanges: !!result.ranges }, hypothesisId: 'trigger' }));
+        // #endregion
         if (ghlConfig?.createNote !== false && ghlContactId) {
-          let noteBody = `Quote Generated from Website Form\n\n${summaryText}`;
+          // Put selected price at top so it stays visible when GHL Notes UI shows "Show less"
+          const noteSelectedRange = result.ranges ? getSelectedQuoteRange(result.ranges, body.serviceType, body.frequency) : null;
+          const priceLine = noteSelectedRange ? `Price: $${noteSelectedRange.low}–$${noteSelectedRange.high}\n\n` : '';
+          let noteBody = `Quote Generated from Website Form\n\n${priceLine}${summaryText}`;
           const notePassthrough = ['start', 'tashiane'].filter(k => body[k] && String(body[k]).trim());
           if (notePassthrough.length) {
             noteBody += '\n\n' + notePassthrough.map(k => `${k}: ${String(body[k]).trim()}`).join(', ');
           }
           // #region agent log
-          console.log('[CQ-NOTE-DEBUG]', JSON.stringify({ location: 'quote/route.ts:noteBody before createNote', message: 'note body built', data: { noteBodyLength: noteBody.length, noteBodyContainsDollar: noteBody.includes('$'), summaryTextLength: summaryText.length, noteBodyPreview: noteBody.slice(0, 400) }, hypothesisId: 'H3' }));
+          console.log('[CQ-NOTE-DEBUG]', JSON.stringify({ location: 'quote/route.ts:noteBody before createNote', message: 'note body built', data: { bodyServiceType: body.serviceType ?? null, bodyFrequency: body.frequency ?? null, hasPriceLine: !!noteSelectedRange, priceLinePreview: priceLine ? priceLine.slice(0, 50) : '(none)', noteBodyLength: noteBody.length, noteBodyContainsDollar: noteBody.includes('$'), noteBodyFirstLine: noteBody.split('\n').slice(0, 4).join(' | ') }, hypothesisId: 'H3' }));
           // #endregion
           notePromise = createNote(
             { contactId: ghlContactId, body: noteBody },
             ghlLocationId ?? undefined,
             ghlToken ?? undefined
           );
+        } else {
+          // #region agent log
+          console.log('[CQ-NOTE-DEBUG]', JSON.stringify({ location: 'quote/route.ts:note skipped', message: 'note NOT created', data: { createNoteDisabled: ghlConfig?.createNote === false, noGhlContactId: !ghlContactId, bodyServiceType: body.serviceType ?? null, bodyFrequency: body.frequency ?? null }, hypothesisId: 'trigger' }));
+          // #endregion
         }
 
         // Execute all GHL operations in parallel for faster response
