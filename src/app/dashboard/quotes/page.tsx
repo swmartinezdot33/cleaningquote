@@ -159,11 +159,6 @@ interface ToolOption {
 
 export default function DashboardQuotesPage() {
   const { api, locationId: effectiveLocationId } = useDashboardApi();
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quotes/page.tsx:render', message: 'Quotes page render', data: { hasEffectiveLocationId: !!effectiveLocationId, effectiveLocationIdPrefix: effectiveLocationId ? effectiveLocationId.slice(0, 8) : null }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-  }, [effectiveLocationId]);
-  // #endregion
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -213,9 +208,6 @@ export default function DashboardQuotesPage() {
 
   const loadQuotes = useCallback((attempt = 0) => {
     setError(null);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quotes/page.tsx:loadQuotes', message: 'loadQuotes called', data: { hasEffectiveLocationId: !!effectiveLocationId, willSkip: !effectiveLocationId, attempt }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
-    // #endregion
     if (!effectiveLocationId) {
       setLoading(false);
       setQuotes([]);
@@ -227,9 +219,6 @@ export default function DashboardQuotesPage() {
       fetch('/api/dashboard/super-admin/tools'),
     ])
       .then(async ([quotesRes, toolsRes]) => {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'quotes/page.tsx:fetchDone', message: 'Quotes API response', data: { ok: quotesRes.ok, status: quotesRes.status }, timestamp: Date.now(), hypothesisId: 'H3' }) }).catch(() => {});
-        // #endregion
         if (quotesRes.ok) {
           const data = await quotesRes.json().catch(() => ({})) as { quotes?: QuoteRow[]; isSuperAdmin?: boolean; isOrgAdmin?: boolean; error?: string };
           return {
