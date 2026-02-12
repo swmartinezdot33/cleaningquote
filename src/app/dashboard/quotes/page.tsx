@@ -479,6 +479,28 @@ export default function DashboardQuotesPage() {
     });
   }, [paginatedQuotes, selectedIds]);
 
+  const openNewQuoteModal = useCallback(async () => {
+    setNewQuoteOpen(true);
+    setNewQuoteError(null);
+    setNewQuoteUrl(null);
+    setNewQuoteLoading(true);
+    try {
+      const res = await api('/api/dashboard/default-quoter');
+      const data = await res.json().catch(() => ({}));
+      const quoter = data.defaultQuoter;
+      if (quoter?.newQuotePath) {
+        const base = typeof window !== 'undefined' ? window.location.origin : '';
+        setNewQuoteUrl(base + quoter.newQuotePath);
+      } else {
+        setNewQuoteError('No default quoter set. Go to Dashboard → Tools → choose a tool → Settings, then check "Use as default quoter."');
+      }
+    } catch {
+      setNewQuoteError('Could not load default quoter.');
+    } finally {
+      setNewQuoteLoading(false);
+    }
+  }, [api]);
+
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
@@ -534,28 +556,6 @@ export default function DashboardQuotesPage() {
       </div>
     );
   }
-
-  const openNewQuoteModal = useCallback(async () => {
-    setNewQuoteOpen(true);
-    setNewQuoteError(null);
-    setNewQuoteUrl(null);
-    setNewQuoteLoading(true);
-    try {
-      const res = await api('/api/dashboard/default-quoter');
-      const data = await res.json().catch(() => ({}));
-      const quoter = data.defaultQuoter;
-      if (quoter?.newQuotePath) {
-        const base = typeof window !== 'undefined' ? window.location.origin : '';
-        setNewQuoteUrl(base + quoter.newQuotePath);
-      } else {
-        setNewQuoteError('No default quoter set. Go to Dashboard → Tools → choose a tool → Settings, then check "Use as default quoter."');
-      }
-    } catch {
-      setNewQuoteError('Could not load default quoter.');
-    } finally {
-      setNewQuoteLoading(false);
-    }
-  }, [api]);
 
   return (
     <div className="space-y-6">
