@@ -69,7 +69,7 @@ export function DashboardHeader({
     return `text-sm no-underline border-b-2 py-3.5 px-0.5 -mb-px transition-colors ${
       active
         ? 'text-purple-600 border-purple-600 font-semibold'
-        : 'text-muted-foreground border-transparent font-medium hover:text-foreground'
+        : 'text-muted-foreground border-transparent font-medium hover:text-foreground hover:no-underline hover:border-purple-600'
     }`;
   };
 
@@ -153,7 +153,7 @@ export function DashboardHeader({
   );
 
   return (
-    <header className="border-b border-border bg-card">
+    <header className="dashboard-header border-b border-border bg-card">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Desktop nav — aligned left */}
         <div className="hidden md:flex md:items-center md:gap-4">
