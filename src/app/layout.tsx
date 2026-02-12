@@ -166,6 +166,7 @@ export default async function RootLayout({
           a{color:var(--primary-color,#7c3aed);text-decoration:none}
           a:hover{text-decoration:underline}
           .dashboard-header a:hover{text-decoration:none}
+          .dashboard-root a,.dashboard-root a:hover{text-decoration:none}
           button,input,select,textarea{font:inherit;color:inherit}
           button{cursor:pointer}
           input,select,textarea{border:1px solid hsl(var(--border));border-radius:var(--radius);padding:0.5rem 0.75rem;background:hsl(var(--background));width:100%}
