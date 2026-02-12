@@ -60,10 +60,25 @@ function parseNum(v: unknown): number | null {
   return Number.isNaN(n) ? null : n;
 }
 
+/** Normalize GHL record properties: API can return properties as array of { key, valueString } or as object. */
+function propertiesToObject(record: any): Record<string, unknown> {
+  const raw = record.properties ?? record.customFields ?? record;
+  if (Array.isArray(raw)) {
+    const obj: Record<string, unknown> = {};
+    for (const item of raw) {
+      const k = item?.key ?? item?.name;
+      const v = item?.valueString ?? item?.value ?? item?.values?.[0];
+      if (k != null) obj[String(k)] = v;
+    }
+    return obj;
+  }
+  return typeof raw === 'object' && raw !== null ? raw : {};
+}
+
 /** Map GHL quote record to dashboard quote shape. Preserves contactId when present on the record (GHL association). */
 function mapGHLQuoteToDashboard(record: any): any {
-  const p = record.properties ?? record.customFields ?? record;
-  const get = (key: string) => p[key] ?? p[`custom_objects.quotes.${key}`] ?? null;
+  const p = propertiesToObject(record);
+  const get = (key: string) => (p[key] ?? p[`custom_objects.quotes.${key}`] ?? null) as string | number | null | undefined;
   const quoteId = get('quote_id') ?? record.id;
   const contactId = record.contactId ?? record.contact_id ?? get('contactId') ?? get('contact_id') ?? null;
   // Support multiple key variants for price (GHL may return different shapes)
@@ -82,7 +97,7 @@ function mapGHLQuoteToDashboard(record: any): any {
     city: get('city'),
     state: get('state'),
     postal_code: get('postal_code') ?? get('zip'),
-    service_type: get('service_type') ?? (Array.isArray(get('type')) ? get('type')[0] : get('type')),
+    service_type: get('service_type') ?? (() => { const t = get('type'); return Array.isArray(t) ? t[0] : t; })(),
     frequency: get('frequency'),
     price_low: priceLow,
     price_high: priceHigh,
@@ -90,7 +105,7 @@ function mapGHLQuoteToDashboard(record: any): any {
     bedrooms: get('bedrooms'),
     created_at: record.createdAt ?? record.dateAdded ?? new Date().toISOString(),
     payload: (() => {
-      const raw = p.payload;
+      const raw = get('payload') ?? p.payload;
       if (raw == null) return null;
       if (typeof raw === 'object' && raw !== null) return raw;
       if (typeof raw !== 'string') return null;

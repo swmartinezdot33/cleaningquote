@@ -200,6 +200,8 @@ export default function DashboardQuotesPage() {
   const [newQuoteUrl, setNewQuoteUrl] = useState<string | null>(null);
   const [newQuoteError, setNewQuoteError] = useState<string | null>(null);
   const [newQuoteLoading, setNewQuoteLoading] = useState(false);
+  // View quote summary in modal (no new tab)
+  const [viewQuoteModal, setViewQuoteModal] = useState<QuoteRow | null>(null);
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
@@ -565,6 +567,40 @@ export default function DashboardQuotesPage() {
         address={serviceAreaMapAddress}
         onClose={() => setServiceAreaMapAddress(null)}
       />
+      {/* View quote summary in modal */}
+      <Dialog open={!!viewQuoteModal} onOpenChange={(open) => { if (!open) setViewQuoteModal(null); }}>
+        <DialogContent className="max-w-[95vw] w-full max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader className="px-4 py-3 border-b border-border shrink-0 flex flex-row items-center justify-between gap-2">
+            <DialogTitle className="text-lg">
+              Quote {viewQuoteModal?.quote_id ?? ''}
+            </DialogTitle>
+            <div className="flex items-center gap-2">
+              {viewQuoteModal && (
+                <a
+                  href={`${typeof window !== 'undefined' ? window.location.origin : ''}/quote/${viewQuoteModal.quote_id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary hover:underline inline-flex items-center gap-1"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Open in new tab
+                </a>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => setViewQuoteModal(null)}>Close</Button>
+            </div>
+          </DialogHeader>
+          {viewQuoteModal && (
+            <div className="flex-1 min-h-0 flex flex-col relative">
+              <iframe
+                src={`${typeof window !== 'undefined' ? window.location.origin : ''}/quote/${viewQuoteModal.quote_id}`}
+                title={`Quote ${viewQuoteModal.quote_id}`}
+                className="w-full flex-1 min-h-[70vh] rounded-b-lg border-0 bg-background"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={newQuoteOpen} onOpenChange={(open) => { if (!open) { setNewQuoteOpen(false); setNewQuoteUrl(null); setNewQuoteError(null); } }}>
         <DialogContent className="max-w-[95vw] w-full max-h-[95vh] flex flex-col gap-0 p-0 overflow-hidden" onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader className="px-6 py-3 border-b border-border shrink-0">
@@ -781,7 +817,15 @@ export default function DashboardQuotesPage() {
                         />
                       </label>
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs">{q.quote_id}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => setViewQuoteModal(q)}
+                        className="font-mono text-xs text-primary hover:underline text-left"
+                      >
+                        {q.quote_id}
+                      </button>
+                    </td>
                     <td className="px-4 py-3">{q.toolName}</td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(q.created_at)}</td>
                     <td className="px-4 py-3">
@@ -830,15 +874,14 @@ export default function DashboardQuotesPage() {
                     <td className="px-4 py-3">{q.status === 'disqualified' ? '—' : formatPriceCell(q)}</td>
                     <td className="w-44 px-4 py-3">
                       <div className="flex items-center gap-1.5">
-                        <a
-                          href={`${baseUrl}/quote/${q.quote_id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => setViewQuoteModal(q)}
                           className="inline-flex items-center justify-center rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
                           title="View quote"
                         >
                           <ExternalLink className="h-4 w-4" />
-                        </a>
+                        </button>
                         <button
                           type="button"
                           onClick={() => copyQuoteLink(q)}
