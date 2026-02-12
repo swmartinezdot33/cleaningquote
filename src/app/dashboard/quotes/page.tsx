@@ -535,13 +535,17 @@ export default function DashboardQuotesPage() {
   }
 
   if (error) {
+    const isRateLimit = /429|too many requests|rate limit|temporarily busy/i.test(error);
+    const friendlyTitle = isRateLimit ? 'Service is busy' : "We couldn't load quotes";
+    const friendlyMessage = isRateLimit
+      ? 'Service is temporarily busy. Please try again in a moment.'
+      : "Something went wrong while loading quotes. Please try again.";
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-foreground">Quotes</h1>
         <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-6 text-destructive">
-          <p className="font-medium">Could not load quotes</p>
-          <p className="mt-2 text-sm">{error}</p>
-          <p className="mt-2 text-xs opacity-90">Quotes are loaded from your GoHighLevel custom object (Quote).</p>
+          <p className="font-medium">{friendlyTitle}</p>
+          <p className="mt-2 text-sm">{friendlyMessage}</p>
           <button
             type="button"
             onClick={() => { setError(null); loadQuotes(); }}

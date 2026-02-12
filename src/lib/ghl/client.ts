@@ -87,29 +87,50 @@ export async function makeGHLRequest<T>(
       options.body = JSON.stringify(body);
     }
 
-    const response = await fetch(url, options);
+    const GHL_429_MAX_RETRIES = 3;
+    const GHL_429_DELAYS_MS = [1000, 2000, 4000];
 
-    // Read response text once (can only read body once)
-    const responseText = await response.text();
+    let response: Response;
+    let responseText: string;
 
-    if (!response.ok) {
-      // Try to get error message from response
-      let errorMessage = `GHL API Error (${response.status})`;
+    for (let attempt = 0; attempt <= GHL_429_MAX_RETRIES; attempt++) {
+      response = await fetch(url, options);
+      responseText = await response.text();
+
+      if (response.ok) break;
+
+      if (response.status === 429 && attempt < GHL_429_MAX_RETRIES) {
+        const retryAfterSec = response.headers.get('Retry-After');
+        const waitMs = retryAfterSec
+          ? Math.min(parseInt(retryAfterSec, 10) * 1000, 15000)
+          : GHL_429_DELAYS_MS[attempt] ?? 4000;
+        console.warn(`[CQ GHL] 429 Too Many Requests, retry in ${waitMs}ms (attempt ${attempt + 1}/${GHL_429_MAX_RETRIES})`);
+        await new Promise((r) => setTimeout(r, waitMs));
+        continue;
+      }
+
+      // Non-ok and (not 429 or no retries left)
       let errorData: any = null;
-
-      if (responseText && responseText.trim().length > 0) {
+      if (responseText?.trim().length) {
         try {
           errorData = JSON.parse(responseText) as GHLAPIError;
-          errorMessage = `${errorMessage}: ${errorData.message || errorData.error || JSON.stringify(errorData)}`;
-        } catch (parseError) {
-          // Response is not valid JSON, include raw text
+        } catch {
+          /* ignore */
+        }
+      }
+
+      let errorMessage = `GHL API Error (${response.status})`;
+      if (responseText?.trim().length) {
+        try {
+          const parsed = errorData ?? JSON.parse(responseText);
+          errorMessage = `${errorMessage}: ${parsed.message || parsed.error || responseText.substring(0, 200)}`;
+        } catch {
           errorMessage = `${errorMessage}: ${responseText.substring(0, 200)}`;
         }
       } else {
         errorMessage = `${errorMessage}: Empty response from GHL API`;
       }
 
-      // Log 403 with auth context so we can confirm Location-Id header is not sent when using location token
       if (response.status === 403) {
         console.warn('[CQ GHL] 403', {
           endpoint: endpoint.slice(0, 80),
@@ -118,41 +139,31 @@ export async function makeGHLRequest<T>(
           sentLocationIdHeader: sendLocationIdHeader,
         });
       }
-      // Enhanced error logging for 400/404 errors to help debug (skip for expected "user id is invalid")
       const isInvalidUserId = response.status === 400 && (errorData?.message === 'The user id is invalid.' || String(errorData?.message || '').includes('user id is invalid'));
       if ((response.status === 400 || response.status === 404) && !isInvalidUserId) {
         console.error(`GHL API ${response.status} Error Details:`, {
           url,
           status: response.status,
-          statusText: response.statusText,
-          responseText: responseText || '(empty)',
-          errorData: errorData || '(not JSON)',
+          responseText: responseText?.slice(0, 200) || '(empty)',
           method: options.method || 'GET',
-          payload: (options.method === 'POST' && body) ? {
-            hasLocationId: !!body.locationId,
-            locationId: body.locationId,
-            hasContactId: !!body.contactId,
-            customFieldsCount: body.customFields?.length || 0,
-            customFieldsKeys: body.customFields?.map((f: any) => f.key) || [],
-            customFieldsSample: body.customFields?.slice(0, 3) || [],
-          } : undefined,
         });
       }
-      
+
+      if (response.status === 429) {
+        throw new Error('Service is temporarily busy. Please try again in a moment.');
+      }
       throw new Error(errorMessage);
     }
 
-    // Parse successful response
-    if (!responseText || responseText.trim().length === 0) {
+    if (!responseText!.trim().length) {
       throw new Error('Empty response from GHL API');
     }
 
-    let data;
+    let data: T;
     try {
-      data = JSON.parse(responseText) as T;
+      data = JSON.parse(responseText!) as T;
     } catch (parseError) {
       console.error('Failed to parse GHL API response:', parseError);
-      console.error('Response text:', responseText.substring(0, 500));
       throw new Error('Invalid response from GHL API - could not parse JSON');
     }
 

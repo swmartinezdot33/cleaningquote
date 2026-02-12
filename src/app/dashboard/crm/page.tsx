@@ -514,9 +514,27 @@ export default function CRMDashboardPage() {
   }
 
   if (error) {
+    const isRateLimit = /429|too many requests|rate limit|temporarily busy/i.test(error);
+    const friendlyMessage = isRateLimit
+      ? 'Service is temporarily busy. Please try again in a moment.'
+      : "We couldn't load this data. Please try again.";
     return (
-      <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-destructive">
-        <p>Could not load CRM: {error}</p>
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-foreground">Leads</h1>
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-destructive">
+          <p className="font-medium">{isRateLimit ? 'Service is busy' : "We couldn't load this data"}</p>
+          <p className="mt-2 text-sm">{friendlyMessage}</p>
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => { setLoading(true); setError(null); setRetryTrigger((t) => t + 1); }}
+              className="inline-flex items-center gap-2 rounded-md border border-destructive px-4 py-2 text-sm font-medium hover:bg-destructive/10"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Retry
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -533,15 +551,17 @@ export default function CRMDashboardPage() {
     !connectionOk && effectiveLocationId && !apiError && !hasData;
 
   if (apiError && effectiveLocationId) {
+    const isRateLimit = /429|too many requests|rate limit|temporarily busy/i.test(apiError);
+    const friendlyTitle = isRateLimit ? 'Service is busy' : "We couldn't load this data";
+    const friendlyMessage = isRateLimit
+      ? 'The service is temporarily busy. Please try again in a moment.'
+      : "Something went wrong while loading leads. Please try again or test your connection.";
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-foreground">Leads</h1>
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-destructive">
-          <p className="font-medium">API call failed</p>
-          <p className="mt-2 text-sm">{apiError}</p>
-          <p className="mt-3 text-xs opacity-90">
-            Location is connected via OAuth; the request to GHL failed. Check the error above (e.g. invalid parameters or rate limits).
-          </p>
+          <p className="font-medium">{friendlyTitle}</p>
+          <p className="mt-2 text-sm">{friendlyMessage}</p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               type="button"
