@@ -417,59 +417,77 @@ export function ServiceAreaMapDrawer({
       return;
     }
     let cancelled = false;
-    const map = mapRef.current;
-    if (!map) return;
     const google = getGoogle();
     if (!google?.maps?.Geocoder) return;
 
-    (async () => {
-      try {
-        const { AdvancedMarkerElement } = (await google.maps.importLibrary(
-          'marker'
-        )) as google.maps.MarkerLibrary;
-        if (cancelled) return;
-        const geocoder = new google.maps.Geocoder();
-        const newMarkers: any[] = [];
-        for (const address of list) {
-          if (cancelled) break;
-          await new Promise<void>((resolve) => {
-            geocoder.geocode({ address: String(address).trim() }, (results: any, status: string) => {
-              if (cancelled) {
+    const runGeocode = () => {
+      const map = mapRef.current;
+      if (!map) return;
+      (async () => {
+        try {
+          const { AdvancedMarkerElement } = (await google.maps.importLibrary(
+            'marker'
+          )) as google.maps.MarkerLibrary;
+          if (cancelled) return;
+          const geocoder = new google.maps.Geocoder();
+          const newMarkers: any[] = [];
+          for (const address of list) {
+            if (cancelled) break;
+            await new Promise<void>((resolve) => {
+              geocoder.geocode({ address: String(address).trim() }, (results: any, status: string) => {
+                if (cancelled) {
+                  resolve();
+                  return;
+                }
+                if (status === 'OK' && results?.[0]?.geometry?.location && mapRef.current) {
+                  const loc = results[0].geometry.location;
+                  const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
+                  const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
+                  const pinEl = document.createElement('div');
+                  pinEl.style.cssText =
+                    'width:16px;height:16px;background:#16a34a;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,0.3);';
+                  const marker = new AdvancedMarkerElement({
+                    map: mapRef.current,
+                    position: { lat, lng },
+                    content: pinEl,
+                    title: 'Customer',
+                    zIndex: 199,
+                  });
+                  newMarkers.push(marker);
+                }
                 resolve();
-                return;
-              }
-              if (status === 'OK' && results?.[0]?.geometry?.location && mapRef.current) {
-                const loc = results[0].geometry.location;
-                const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
-                const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
-                const pinEl = document.createElement('div');
-                pinEl.style.cssText =
-                  'width:16px;height:16px;background:#16a34a;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,0.3);';
-                const marker = new AdvancedMarkerElement({
-                  map: mapRef.current,
-                  position: { lat, lng },
-                  content: pinEl,
-                  title: 'Customer',
-                  zIndex: 199,
-                });
-                newMarkers.push(marker);
-              }
-              resolve();
+              });
             });
-          });
-          await new Promise((r) => setTimeout(r, 80));
+            await new Promise((r) => setTimeout(r, 80));
+          }
+          if (!cancelled) {
+            customerMarkersRef.current.forEach((m: any) => {
+              if (m?.setMap) m.setMap(null);
+              else if (m?.map != null) m.map = null;
+            });
+            customerMarkersRef.current = newMarkers;
+          }
+        } catch (_) {
+          // ignore
         }
-        if (!cancelled) {
-          customerMarkersRef.current.forEach((m: any) => {
-            if (m?.setMap) m.setMap(null);
-            else if (m?.map != null) m.map = null;
-          });
-          customerMarkersRef.current = newMarkers;
-        }
-      } catch (_) {
-        // ignore
-      }
-    })();
+      })();
+    };
+
+    // Defer so map ref is set after main effect commits (modal/dialog may delay layout)
+    if (mapRef.current) {
+      runGeocode();
+    } else {
+      const t = setTimeout(runGeocode, 300);
+      return () => {
+        cancelled = true;
+        clearTimeout(t);
+        customerMarkersRef.current.forEach((m: any) => {
+          if (m?.setMap) m.setMap(null);
+          else if (m?.map != null) m.map = null;
+        });
+        customerMarkersRef.current = [];
+      };
+    }
 
     return () => {
       cancelled = true;

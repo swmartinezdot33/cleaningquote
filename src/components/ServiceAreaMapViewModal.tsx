@@ -137,6 +137,16 @@ export function ServiceAreaMapViewModal({ address, onClose }: ServiceAreaMapView
             <span className="text-xs text-muted-foreground">
               Show addresses of contacts tagged &quot;active&quot; or &quot;active client&quot;
             </span>
+            {showAllCustomers && !customersLoading && customerAddresses.length === 0 && (
+              <span className="text-xs text-amber-600 dark:text-amber-500">
+                No contacts with these tags (or no addresses) found.
+              </span>
+            )}
+            {showAllCustomers && !customersLoading && customerAddresses.length > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {customerAddresses.length} customer{customerAddresses.length !== 1 ? 's' : ''} on map
+              </span>
+            )}
           </div>
         )}
         <div className="flex-1 min-h-[400px] px-6 pb-6">

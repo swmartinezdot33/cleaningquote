@@ -76,8 +76,9 @@ export async function getContacts(
 export const ACTIVE_CUSTOMER_TAG_NAMES = ['active', 'active client'] as const;
 
 /**
- * Fetch contacts and filter by tags (client-side). Used for active-customer-addresses.
- * GET /contacts does not support tag filter; returns up to limit contacts, then we filter.
+ * Fetch contacts that have any of the given tag names.
+ * Tries POST /contacts/search with tag filter first (returns full contact including tags/address).
+ * Falls back to GET /contacts + client-side tag filter (GET may not include tags in response).
  */
 export async function getContactsWithTagFilter(
   locationId: string,
@@ -85,17 +86,53 @@ export async function getContactsWithTagFilter(
   tagNames: readonly string[],
   params?: { limit?: number }
 ): Promise<GetContactsResult | GetContactsError> {
+  if (!credentials?.token || !credentials?.locationId) {
+    return {
+      ok: false,
+      error: {
+        ok: false,
+        type: 'auth',
+        message: 'GHL credentials required',
+        retryable: false,
+      },
+    };
+  }
+
+  const tags = tagNames.map((t) => t.trim()).filter(Boolean);
+  if (tags.length === 0) {
+    return { ok: true, data: { contacts: [], total: 0 } };
+  }
+
+  // Try POST /contacts/search with tag filter (recommended; returns contacts with full fields)
+  const searchResult = await request<{ contacts?: any[]; total?: number }>({
+    method: 'POST',
+    path: '/contacts/search',
+    body: {
+      locationId,
+      tags,
+      limit: Math.min(100, Math.max(1, params?.limit ?? 100)),
+    },
+    locationId: credentials.locationId,
+    credentials,
+  });
+
+  if (searchResult.ok && Array.isArray(searchResult.data?.contacts)) {
+    const contacts = searchResult.data.contacts;
+    const total = searchResult.data?.total ?? contacts.length;
+    return { ok: true, data: { contacts, total } };
+  }
+
+  // Fallback: GET /contacts then filter by tags (GET may not return tags, so this can yield 0)
   const result = await getContacts(locationId, credentials, {
     limit: Math.min(100, Math.max(1, params?.limit ?? 100)),
   });
   if (!result.ok) return result;
-  const normalizedTags = tagNames.map((t) => t.trim().toLowerCase()).filter(Boolean);
+  const normalizedTags = tags.map((t) => t.toLowerCase());
   const filtered = result.data.contacts.filter((c: any) => {
-    const tags = Array.isArray(c.tags) ? c.tags : [];
-    const hasTag = tags.some(
+    const contactTags = Array.isArray(c.tags) ? c.tags : [];
+    return contactTags.some(
       (t: string) => normalizedTags.includes(String(t).trim().toLowerCase())
     );
-    return hasTag;
   });
   return {
     ok: true,

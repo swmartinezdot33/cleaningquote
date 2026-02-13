@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resolveGHLContext } from '@/lib/ghl/api-context';
 import {
   getContactsWithTagFilter,
+  getContacts,
   ACTIVE_CUSTOMER_TAG_NAMES,
 } from '@/lib/ghl/ghl-client';
 
@@ -24,10 +25,24 @@ function contactToAddressLine(contact: any): string | null {
   return line.length > 0 ? line : null;
 }
 
+function addressesFromContacts(contacts: any[]): string[] {
+  const addresses: string[] = [];
+  const seen = new Set<string>();
+  for (const contact of contacts) {
+    const addr = contactToAddressLine(contact);
+    if (addr && !seen.has(addr)) {
+      seen.add(addr);
+      addresses.push(addr);
+    }
+  }
+  return addresses;
+}
+
 /**
  * GET /api/dashboard/service-areas/active-customer-addresses
  * Returns addresses of contacts that have tag "active" or "active client" (for service area map pins).
  * Uses dashboard GHL context (locationId + token).
+ * If tag filter yields none, falls back to all contacts with addresses so the map can show something.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -45,9 +60,10 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    const credentials = { token: ctx.token, locationId: ctx.locationId };
     const result = await getContactsWithTagFilter(
       ctx.locationId,
-      { token: ctx.token, locationId: ctx.locationId },
+      credentials,
       ACTIVE_CUSTOMER_TAG_NAMES,
       { limit: 100 }
     );
@@ -60,13 +76,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const addresses: string[] = [];
-    const seen = new Set<string>();
-    for (const contact of result.data.contacts) {
-      const addr = contactToAddressLine(contact);
-      if (addr && !seen.has(addr)) {
-        seen.add(addr);
-        addresses.push(addr);
+    let addresses = addressesFromContacts(result.data.contacts);
+
+    // If no addresses from tagged contacts (e.g. GET /contacts doesn't return tags), show all with addresses
+    if (addresses.length === 0) {
+      const allResult = await getContacts(ctx.locationId, credentials, { limit: 100 });
+      if (allResult.ok && allResult.data.contacts.length > 0) {
+        addresses = addressesFromContacts(allResult.data.contacts);
       }
     }
 
