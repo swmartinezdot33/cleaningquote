@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 /**
  * GET /api/dashboard/crm/conversations
  * List conversations for the location (for Inbox middle column).
- * Query: limit, status, contactId (optional)
+ * Query: limit, status, contactId (optional), query (optional search string)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -19,11 +19,12 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '50', 10)));
     const status = searchParams.get('status')?.trim() || 'all';
     const contactId = searchParams.get('contactId')?.trim() || undefined;
+    const query = searchParams.get('query')?.trim() || undefined;
 
     const credentials = { token: ctx.token, locationId: ctx.locationId };
     const { conversations, total } = await searchConversations(
       ctx.locationId,
-      { limit, status, contactId, sortBy: 'last_message_date', sort: 'desc' },
+      { limit, status, contactId, query, sortBy: 'last_message_date', sort: 'desc' },
       credentials
     );
 

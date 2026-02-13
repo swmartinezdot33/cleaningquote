@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { ExternalLink, Eye, RefreshCw, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import { useDashboardApi } from '@/lib/dashboard-api';
 import { useDashboardPageState } from '@/lib/dashboard-page-state';
+import { copyToClipboard } from '@/lib/utils';
 import { AddressMapLinks } from '@/components/AddressMapLinks';
 import { ServiceAreaMapViewModal } from '@/components/ServiceAreaMapViewModal';
 import { LoadingDots } from '@/components/ui/loading-dots';
@@ -273,12 +274,13 @@ export default function DashboardQuotesPage() {
 
   const canDelete = isSuperAdmin || isOrgAdmin;
 
-  const copyQuoteLink = (q: QuoteRow) => {
+  const copyQuoteLink = async (q: QuoteRow) => {
     const url = `${baseUrl}/quote/${q.quote_id}`;
-    navigator.clipboard.writeText(url).then(() => {
+    const ok = await copyToClipboard(url);
+    if (ok) {
       setCopiedQuoteId(q.quote_id);
       setTimeout(() => setCopiedQuoteId(null), 2000);
-    });
+    }
   };
 
   const confirmDeleteQuote = async () => {

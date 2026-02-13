@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, AlertCircle, Save, RotateCw, Eye, EyeOff, Sparkles, ArrowLeft, Copy, Code, ChevronDown, FileText, Upload, MapPin, Plus, BookOpen } from 'lucide-react';
 import { LoadingDots } from '@/components/ui/loading-dots';
+import { copyToClipboard } from '@/lib/utils';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -479,12 +480,12 @@ export default function SettingsPage() {
   };
 
   const handleCopyEmbed = async () => {
-    try {
-      await navigator.clipboard.writeText(getEmbedCode());
+    const ok = await copyToClipboard(getEmbedCode());
+    if (ok) {
       setCopiedEmbed(true);
       setTimeout(() => setCopiedEmbed(false), 2000);
-    } catch (error) {
-      console.error('Failed to copy embed code:', error);
+    } else {
+      console.error('Failed to copy embed code');
     }
   };
 

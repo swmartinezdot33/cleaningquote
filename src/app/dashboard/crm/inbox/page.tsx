@@ -83,7 +83,7 @@ export default function CRMInboxPage() {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
 
-  const loadConversations = useCallback(() => {
+  const loadConversations = useCallback((search?: string) => {
     if (!effectiveLocationId) {
       setLoading(false);
       return;
@@ -94,6 +94,7 @@ export default function CRMInboxPage() {
     const params = new URLSearchParams();
     params.set('limit', '50');
     params.set('status', 'all');
+    if (search?.trim()) params.set('query', search.trim());
     api(`/api/dashboard/crm/conversations?${params}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status === 401 ? 'Unauthorized' : 'Failed to load'))))
       .then((d) => {
@@ -112,6 +113,20 @@ export default function CRMInboxPage() {
   useEffect(() => {
     loadConversations();
   }, [loadConversations]);
+
+  // Refetch when search changes (debounced) so server-side search runs
+  const isFirstSearchMount = React.useRef(true);
+  useEffect(() => {
+    if (!effectiveLocationId) return;
+    if (isFirstSearchMount.current) {
+      isFirstSearchMount.current = false;
+      return;
+    }
+    const t = setTimeout(() => {
+      loadConversations(searchInput.trim() || undefined);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [searchInput, effectiveLocationId, loadConversations]);
 
   const loadMessages = useCallback(
     (conv: Conversation, append = false) => {
@@ -196,15 +211,8 @@ export default function CRMInboxPage() {
       .finally(() => setSending(false));
   };
 
-  const filteredConversations = searchInput.trim()
-    ? conversations.filter((c) => {
-        const name = contactDisplayName(c.contact).toLowerCase();
-        const phone = (c.contact?.phone ?? '').toLowerCase();
-        const email = (c.contact?.email ?? '').toLowerCase();
-        const term = searchInput.toLowerCase();
-        return name.includes(term) || phone.includes(term) || email.includes(term);
-      })
-    : conversations;
+  // Search is handled server-side via query param; list shows what the API returned
+  const displayConversations = conversations;
 
   return (
     <div className="space-y-6">
@@ -266,14 +274,14 @@ export default function CRMInboxPage() {
                   <AlertCircle className="h-10 w-10 text-destructive" />
                   <p className="text-sm text-muted-foreground">{error}</p>
                 </div>
-              ) : filteredConversations.length === 0 ? (
+              ) : displayConversations.length === 0 ? (
                 <div className="flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center text-muted-foreground">
                   <MessageSquare className="h-10 w-10" />
                   <p className="text-sm">No conversations</p>
                 </div>
               ) : (
                 <ul className="flex-1 overflow-y-auto">
-                  {filteredConversations.map((c) => {
+                  {displayConversations.map((c) => {
                     const isSelected = selectedConv?.id === c.id;
                     return (
                       <li key={c.id}>

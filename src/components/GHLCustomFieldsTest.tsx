@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { AlertCircle, CheckCircle, XCircle, RefreshCw, Copy, ChevronDown, ChevronUp } from 'lucide-react';
 import { LoadingDots } from '@/components/ui/loading-dots';
+import { copyToClipboard } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -94,12 +95,14 @@ export function GHLCustomFieldsTest({ adminPassword }: { adminPassword: string }
     }
   };
 
-  const copyLogs = () => {
+  const copyLogs = async () => {
     if (!testResult?.logs) return;
     const logsText = testResult.logs.join('\n');
-    navigator.clipboard.writeText(logsText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    const ok = await copyToClipboard(logsText);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const resetTest = () => {

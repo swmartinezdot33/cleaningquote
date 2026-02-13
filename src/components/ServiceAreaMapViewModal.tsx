@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { ServiceAreaMapDrawer, DEFAULT_ZONE_COLORS_6, type PolygonCoords, type ZoneDisplayItem } from '@/components/ServiceAreaMapDrawer';
 import { LoadingDots } from '@/components/ui/loading-dots';
 import { useDashboardApi } from '@/lib/dashboard-api';
@@ -40,6 +41,9 @@ export function ServiceAreaMapViewModal({ address, onClose }: ServiceAreaMapView
   const [mapData, setMapData] = useState<MapData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAllCustomers, setShowAllCustomers] = useState(false);
+  const [customerAddresses, setCustomerAddresses] = useState<string[]>([]);
+  const [customersLoading, setCustomersLoading] = useState(false);
 
   const loadMapData = useCallback(() => {
     if (!api) return;
@@ -61,7 +65,34 @@ export function ServiceAreaMapViewModal({ address, onClose }: ServiceAreaMapView
     if (address != null) loadMapData();
   }, [address, loadMapData]);
 
+  const loadActiveCustomerAddresses = useCallback(() => {
+    if (!api) return;
+    setCustomersLoading(true);
+    api('/api/dashboard/service-areas/active-customer-addresses')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load customers'))))
+      .then((d: { addresses?: string[]; needsConnect?: boolean }) => {
+        setCustomerAddresses(Array.isArray(d.addresses) ? d.addresses : []);
+      })
+      .catch(() => setCustomerAddresses([]))
+      .finally(() => setCustomersLoading(false));
+  }, [api]);
+
+  const handleShowAllCustomersChange = (checked: boolean) => {
+    setShowAllCustomers(checked);
+    if (checked && customerAddresses.length === 0 && !customersLoading) {
+      loadActiveCustomerAddresses();
+    } else if (!checked) {
+      setCustomerAddresses([]);
+    }
+  };
+
   const open = address != null && address.trim() !== '';
+  const pinnedNorm = (address ?? '').trim().toLowerCase();
+  const customerAddressesForMap =
+    showAllCustomers && customerAddresses.length > 0
+      ? customerAddresses.filter((a) => a.trim().toLowerCase() !== pinnedNorm)
+      : undefined;
+
   const allPolygons: PolygonCoords[] = mapData
     ? mapData.areas.flatMap((a) => a.polygons)
     : [];
@@ -85,6 +116,29 @@ export function ServiceAreaMapViewModal({ address, onClose }: ServiceAreaMapView
             All service areas for your org. Office and the selected address are pinned.
           </DialogDescription>
         </DialogHeader>
+        {!loading && !error && mapData && (
+          <div className="px-6 pb-2 flex items-center gap-2">
+            <input
+              id="service-area-map-view-all-customers"
+              type="checkbox"
+              checked={showAllCustomers}
+              onChange={(e) => handleShowAllCustomersChange(e.target.checked)}
+              disabled={customersLoading}
+              className="h-4 w-4 rounded border-input"
+            />
+            <Label htmlFor="service-area-map-view-all-customers" className="text-sm font-medium cursor-pointer">
+              View all customers
+              {customersLoading && (
+                <span className="ml-2 text-muted-foreground font-normal">
+                  <LoadingDots size="sm" className="inline" />
+                </span>
+              )}
+            </Label>
+            <span className="text-xs text-muted-foreground">
+              Show addresses of contacts tagged &quot;active&quot; or &quot;active client&quot;
+            </span>
+          </div>
+        )}
         <div className="flex-1 min-h-[400px] px-6 pb-6">
           {loading && (
             <div className="flex items-center justify-center h-[420px] bg-muted/30 rounded-lg">
@@ -97,16 +151,22 @@ export function ServiceAreaMapViewModal({ address, onClose }: ServiceAreaMapView
             </div>
           )}
           {!loading && !error && mapData && (
-            <div className="rounded-lg overflow-hidden border border-border">
-              <ServiceAreaMapDrawer
-                initialPolygon={allPolygons.length > 0 ? allPolygons : undefined}
-                zoneDisplay={allZoneDisplay.length > 0 ? allZoneDisplay : undefined}
-                readOnly
-                height={420}
-                officeAddress={mapData.officeAddress}
-                pinnedAddress={address ?? undefined}
-              />
-            </div>
+            <>
+              <div className="rounded-lg overflow-hidden border border-border">
+                <ServiceAreaMapDrawer
+                  initialPolygon={allPolygons.length > 0 ? allPolygons : undefined}
+                  zoneDisplay={allZoneDisplay.length > 0 ? allZoneDisplay : undefined}
+                  readOnly
+                  height={420}
+                  officeAddress={mapData.officeAddress}
+                  pinnedAddress={address ?? undefined}
+                  customerAddresses={customerAddressesForMap}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Blue: office · Red: this address · Green: other customers
+              </p>
+            </>
           )}
         </div>
       </DialogContent>

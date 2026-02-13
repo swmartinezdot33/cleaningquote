@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ExternalLink, Share2, CopyPlus, Trash2, Check, Pencil } from 'lucide-react';
+import { copyToClipboard } from '@/lib/utils';
 interface Org {
   id: string;
   name: string;
@@ -59,11 +60,11 @@ export function ToolCardActions({ toolId, toolName, toolSlug, toolOrgId }: ToolC
   const surveyUrl = `${baseUrl}/t/${toolSlug}`;
 
   const handleShare = async () => {
-    try {
-      await navigator.clipboard.writeText(surveyUrl);
+    const ok = await copyToClipboard(surveyUrl);
+    if (ok) {
       setCopyId('share');
       setTimeout(() => setCopyId(null), 2000);
-    } catch {}
+    }
   };
 
   const handleCloneOpen = () => {

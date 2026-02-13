@@ -22,6 +22,7 @@ import type { PricingTierOption } from '@/lib/pricing/loadPricingTable';
 import { GooglePlacesAutocomplete, PlaceDetails } from '@/components/GooglePlacesAutocomplete';
 import { CalendarBooking } from '@/components/CalendarBooking';
 import { PreauthCardForm } from '@/components/PreauthCardForm';
+import { copyToClipboard } from '@/lib/utils';
 
 /**
  * Convert a select value (including "5+") to a number
@@ -1746,12 +1747,11 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
 
   const handleCopy = async () => {
     if (quoteResult?.smsText) {
-      try {
-        await navigator.clipboard.writeText(quoteResult.smsText);
+      const ok = await copyToClipboard(quoteResult.smsText);
+      if (ok) {
         setCopySuccess(true);
         setTimeout(() => setCopySuccess(false), 2000);
-      } catch (error) {
-        console.error('Failed to copy:', error);
+      } else {
         alert('Failed to copy text. Please select and copy manually.');
       }
     }

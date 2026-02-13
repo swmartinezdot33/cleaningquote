@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useDashboardApi } from '@/lib/dashboard-api';
+import { copyToClipboard } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -895,9 +896,11 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                             disabled={!queryLink}
                             onClick={async () => {
                               if (!queryLink) return;
-                              await navigator.clipboard.writeText(queryLink);
-                              setQueryLinkCopied(true);
-                              setTimeout(() => setQueryLinkCopied(false), 2000);
+                              const ok = await copyToClipboard(queryLink);
+                              if (ok) {
+                                setQueryLinkCopied(true);
+                                setTimeout(() => setQueryLinkCopied(false), 2000);
+                              }
                             }}
                             title={queryLinkCopied ? 'Copied!' : 'Copy query link'}
                           >

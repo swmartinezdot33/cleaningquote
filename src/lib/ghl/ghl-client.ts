@@ -72,6 +72,37 @@ export async function getContacts(
   };
 }
 
+/** Tag names that identify "active" customers for the service area map. */
+export const ACTIVE_CUSTOMER_TAG_NAMES = ['active', 'active client'] as const;
+
+/**
+ * Fetch contacts and filter by tags (client-side). Used for active-customer-addresses.
+ * GET /contacts does not support tag filter; returns up to limit contacts, then we filter.
+ */
+export async function getContactsWithTagFilter(
+  locationId: string,
+  credentials: GHLCredentials | null,
+  tagNames: readonly string[],
+  params?: { limit?: number }
+): Promise<GetContactsResult | GetContactsError> {
+  const result = await getContacts(locationId, credentials, {
+    limit: Math.min(100, Math.max(1, params?.limit ?? 100)),
+  });
+  if (!result.ok) return result;
+  const normalizedTags = tagNames.map((t) => t.trim().toLowerCase()).filter(Boolean);
+  const filtered = result.data.contacts.filter((c: any) => {
+    const tags = Array.isArray(c.tags) ? c.tags : [];
+    const hasTag = tags.some(
+      (t: string) => normalizedTags.includes(String(t).trim().toLowerCase())
+    );
+    return hasTag;
+  });
+  return {
+    ok: true,
+    data: { contacts: filtered, total: filtered.length },
+  };
+}
+
 export interface GetOpportunitiesParams {
   pipelineId?: string;
   limit?: number;

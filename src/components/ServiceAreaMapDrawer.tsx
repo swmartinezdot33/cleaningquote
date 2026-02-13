@@ -64,6 +64,8 @@ interface ServiceAreaMapDrawerProps {
   officeAddress?: string | null;
   /** Optional address to pin on the map (e.g. contact/property address). Shown as a distinct pin (geocoded client-side). */
   pinnedAddress?: string | null;
+  /** Optional list of addresses to show as "customer" pins (e.g. other active clients). Shown with a distinct style from office and pinned address. */
+  customerAddresses?: string[] | null;
 }
 
 export function ServiceAreaMapDrawer({
@@ -75,6 +77,7 @@ export function ServiceAreaMapDrawer({
   readOnly = false,
   officeAddress = null,
   pinnedAddress = null,
+  customerAddresses = null,
 }: ServiceAreaMapDrawerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -83,6 +86,7 @@ export function ServiceAreaMapDrawer({
   const labelMarkerRefs = useRef<any[]>([]);
   const officeMarkerRef = useRef<any>(null);
   const pinnedAddressMarkerRef = useRef<any>(null);
+  const customerMarkersRef = useRef<any[]>([]);
   const mapIdleListenerRef = useRef<google.maps.MapsEventListener | null>(null);
   const onPolygonChangeRef = useRef(onPolygonChange);
   onPolygonChangeRef.current = onPolygonChange;
@@ -378,6 +382,11 @@ export function ServiceAreaMapDrawer({
         else if (pm.map != null) pm.map = null;
         pinnedAddressMarkerRef.current = null;
       }
+      customerMarkersRef.current.forEach((m) => {
+        if (m?.setMap) m.setMap(null);
+        else if (m?.map != null) m.map = null;
+      });
+      customerMarkersRef.current = [];
       if (terraDrawRef.current) {
         terraDrawRef.current.stop();
         terraDrawRef.current = null;
@@ -393,6 +402,84 @@ export function ServiceAreaMapDrawer({
       mapRef.current = null;
     };
   }, [initialPolygon, zoneDisplay, readOnly, officeAddress, pinnedAddress]);
+
+  // Customer pins: geocode customerAddresses and add markers (read-only map only)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const list =
+      Array.isArray(customerAddresses) && customerAddresses.length > 0 ? customerAddresses : [];
+    if (!readOnly || list.length === 0) {
+      customerMarkersRef.current.forEach((m: any) => {
+        if (m?.setMap) m.setMap(null);
+        else if (m?.map != null) m.map = null;
+      });
+      customerMarkersRef.current = [];
+      return;
+    }
+    let cancelled = false;
+    const map = mapRef.current;
+    if (!map) return;
+    const google = getGoogle();
+    if (!google?.maps?.Geocoder) return;
+
+    (async () => {
+      try {
+        const { AdvancedMarkerElement } = (await google.maps.importLibrary(
+          'marker'
+        )) as google.maps.MarkerLibrary;
+        if (cancelled) return;
+        const geocoder = new google.maps.Geocoder();
+        const newMarkers: any[] = [];
+        for (const address of list) {
+          if (cancelled) break;
+          await new Promise<void>((resolve) => {
+            geocoder.geocode({ address: String(address).trim() }, (results: any, status: string) => {
+              if (cancelled) {
+                resolve();
+                return;
+              }
+              if (status === 'OK' && results?.[0]?.geometry?.location && mapRef.current) {
+                const loc = results[0].geometry.location;
+                const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
+                const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
+                const pinEl = document.createElement('div');
+                pinEl.style.cssText =
+                  'width:16px;height:16px;background:#16a34a;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,0.3);';
+                const marker = new AdvancedMarkerElement({
+                  map: mapRef.current,
+                  position: { lat, lng },
+                  content: pinEl,
+                  title: 'Customer',
+                  zIndex: 199,
+                });
+                newMarkers.push(marker);
+              }
+              resolve();
+            });
+          });
+          await new Promise((r) => setTimeout(r, 80));
+        }
+        if (!cancelled) {
+          customerMarkersRef.current.forEach((m: any) => {
+            if (m?.setMap) m.setMap(null);
+            else if (m?.map != null) m.map = null;
+          });
+          customerMarkersRef.current = newMarkers;
+        }
+      } catch (_) {
+        // ignore
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      customerMarkersRef.current.forEach((m: any) => {
+        if (m?.setMap) m.setMap(null);
+        else if (m?.map != null) m.map = null;
+      });
+      customerMarkersRef.current = [];
+    };
+  }, [loading, error, readOnly, customerAddresses]);
 
   // When map is inside a dialog, container may get dimensions after open; trigger resize so tiles paint
   useEffect(() => {

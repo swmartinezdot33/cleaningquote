@@ -1089,6 +1089,33 @@ export async function getContactIdForQuoteRecord(
 }
 
 /**
+ * Get quote custom object record ids associated with a contact via GHL relations.
+ * Used to show Quotes on the contact detail page when using GHL-only (no Supabase user).
+ */
+export async function getQuoteRecordIdsForContact(
+  contactId: string,
+  locationId: string,
+  credentials?: GHLCredentials | null
+): Promise<string[]> {
+  const relations = await getRelationsForRecord(contactId, locationId, credentials);
+  const isQuote = (k: string) => k.includes('quote') || k === 'quotes' || k === 'custom_objects.quotes';
+  const ids: string[] = [];
+  for (const r of relations) {
+    const first = r.firstRecordId ?? (r as any).firstRecordId;
+    const second = r.secondRecordId ?? (r as any).secondRecordId;
+    const firstKey = String((r.firstObjectKey ?? (r as any).firstObjectKey) ?? '').toLowerCase();
+    const secondKey = String((r.secondObjectKey ?? (r as any).secondObjectKey) ?? '').toLowerCase();
+    if (first && second) {
+      if (first === contactId && isQuote(secondKey)) ids.push(second);
+      else if (second === contactId && isQuote(firstKey)) ids.push(first);
+      else if (firstKey !== 'contact' && firstKey !== 'contacts' && second === contactId) ids.push(first);
+      else if (secondKey !== 'contact' && secondKey !== 'contacts' && first === contactId) ids.push(second);
+    }
+  }
+  return [...new Set(ids)];
+}
+
+/**
  * Associate a custom object with a contact (GHL highlevel-api-docs: associations.json)
  * - GET /associations/key/{key_name}?locationId= — get association by key name (preferred)
  * - POST /associations/relations — body createRelationReqDto: { locationId, associationId, firstRecordId, secondRecordId }

@@ -1,11 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { resolveGHLContext } from '@/lib/ghl/api-context';
-import { getContactById, listContactNotes, updateContact } from '@/lib/ghl/client';
+import { getContactById, listContactNotes, updateContact, getQuoteRecordIdsForContact } from '@/lib/ghl/client';
+import { getQuoteRecords } from '@/lib/ghl/ghl-client';
 import { createSupabaseServerSSR } from '@/lib/supabase/server-ssr';
 import { getOrgsForDashboard } from '@/lib/org-auth';
 
 export const dynamic = 'force-dynamic';
+
+/** Get a value from GHL quote record (properties array or flat keys). */
+function getQuoteRecordProp(record: any, key: string): string | number | null | undefined {
+  const raw = record.properties ?? record.customFields ?? record;
+  if (Array.isArray(raw)) {
+    const item = raw.find((p: any) => (p?.key ?? p?.name) === key || (p?.key ?? p?.name) === `custom_objects.quotes.${key}`);
+    const v = item?.valueString ?? item?.value ?? item?.values?.[0];
+    return v != null && v !== '' ? v : undefined;
+  }
+  if (typeof raw === 'object' && raw !== null) {
+    const v = raw[key] ?? raw[`custom_objects.quotes.${key}`];
+    return v != null && v !== '' ? v : undefined;
+  }
+  return (record[key] ?? undefined) ?? null;
+}
+
+/** Load quote custom object records from GHL that are associated with this contact (via relations). */
+async function loadGHLQuotesForContact(
+  contactId: string,
+  locationId: string,
+  credentials: { token: string; locationId: string }
+): Promise<Array<{ id: string; quote_id: string; service_type: string | null; frequency: string | null; price_low: number | null; price_high: number | null; created_at: string; property_id: string | null }>> {
+  const quoteIds = await getQuoteRecordIdsForContact(contactId, locationId, credentials);
+  if (quoteIds.length === 0) return [];
+
+  const result = await getQuoteRecords(locationId, credentials, { limit: 200 });
+  if (!result.ok || !Array.isArray(result.data)) return [];
+
+  const idSet = new Set(quoteIds);
+  const records = result.data.filter((r: any) => r.id && idSet.has(r.id));
+  const parseNum = (v: unknown): number | null => {
+    if (v == null) return null;
+    if (typeof v === 'number' && !Number.isNaN(v)) return v;
+    const n = typeof v === 'string' ? Number(v) : Number(v);
+    return Number.isNaN(n) ? null : n;
+  };
+
+  return records.map((r: any) => ({
+    id: r.id,
+    quote_id: String(getQuoteRecordProp(r, 'quote_id') ?? r.id),
+    service_type: (getQuoteRecordProp(r, 'service_type') ?? getQuoteRecordProp(r, 'type')) as string | null ?? null,
+    frequency: (getQuoteRecordProp(r, 'frequency') as string | null) ?? null,
+    price_low: parseNum(getQuoteRecordProp(r, 'price_low') ?? getQuoteRecordProp(r, 'priceLow')),
+    price_high: parseNum(getQuoteRecordProp(r, 'price_high') ?? getQuoteRecordProp(r, 'priceHigh')),
+    created_at: (r.createdAt ?? r.dateAdded ?? r.created_at ?? new Date().toISOString()) as string,
+    property_id: (getQuoteRecordProp(r, 'property_id') ?? getQuoteRecordProp(r, 'propertyId')) as string | null ?? null,
+  }));
+}
 
 /** Map GHL contact to ContactDetail shape (same pattern as contacts list). Includes customFields for CleanQuote home/quote display. */
 function mapGHLContactToDetail(ghl: any, notes: Array<{ id: string; body: string; createdAt?: string }>) {
@@ -166,6 +215,16 @@ export async function GET(
         }
       } catch (enrichErr) {
         console.warn('CRM contact detail: Supabase enrich failed', id, enrichErr);
+      }
+
+      // When no Supabase quotes, load GHL association custom objects (Quotes) for this contact
+      if (detail.quotes.length === 0) {
+        try {
+          const ghlQuotes = await loadGHLQuotesForContact(id, ctx.locationId, credentials);
+          if (ghlQuotes.length > 0) detail.quotes = ghlQuotes;
+        } catch (ghlErr) {
+          console.warn('CRM contact detail: GHL quotes for contact failed', id, ghlErr);
+        }
       }
 
       return NextResponse.json(detail);

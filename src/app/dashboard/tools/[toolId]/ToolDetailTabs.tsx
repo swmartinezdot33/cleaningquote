@@ -10,6 +10,7 @@ import { ExternalLink, Copy, Check, Pencil, CodeXml, BookOpen, X } from 'lucide-
 import { LoadingDots } from '@/components/ui/loading-dots';
 import { CloneToolButton } from '@/components/CloneToolButton';
 import { useDashboardApi } from '@/lib/dashboard-api';
+import { copyToClipboard as copyTextToClipboard } from '@/lib/utils';
 
 type TabId = 'overview' | 'survey' | 'settings';
 
@@ -292,19 +293,19 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
     domainVerifiedDomain.toLowerCase() === pendingHostname.toLowerCase();
 
   const copyToClipboard = async (text: string, id: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
+    const ok = await copyTextToClipboard(text);
+    if (ok) {
       setCopyId(id);
       setTimeout(() => setCopyId(null), 2000);
-    } catch {}
+    }
   };
 
   const handleShare = async () => {
-    try {
-      await navigator.clipboard.writeText(surveyFullUrl);
+    const ok = await copyTextToClipboard(surveyFullUrl);
+    if (ok) {
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 2000);
-    } catch {}
+    }
   };
 
   const tabs: { id: TabId; label: string }[] = [
