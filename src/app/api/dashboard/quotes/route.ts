@@ -102,20 +102,20 @@ function mapGHLQuoteToDashboard(record: any): any {
   const priceHigh = parseNum(get('price_high') ?? get('priceHigh') ?? (record as any).price_high ?? (record as any).priceHigh);
   const rawPayload = (() => {
     const raw = get('payload') ?? p.payload;
-    if (raw == null) return null;
-    if (typeof raw === 'object' && raw !== null) return raw;
-    if (typeof raw !== 'string') return null;
+    if (raw == null) return null as Record<string, unknown> | null;
+    if (typeof raw === 'object' && raw !== null) return raw as Record<string, unknown>;
+    if (typeof raw !== 'string') return null as Record<string, unknown> | null;
     try {
       return JSON.parse(raw) as Record<string, unknown>;
     } catch {
-      return null;
+      return null as Record<string, unknown> | null;
     }
   })();
   // Fallbacks from payload when top-level properties are missing (form data often stored only in payload)
-  const firstName = get('first_name') ?? getProp(p, 'First Name', 'firstName', 'first name') ?? (rawPayload?.firstName ?? rawPayload?.first_name) ?? null;
-  const lastName = get('last_name') ?? getProp(p, 'Last Name', 'lastName', 'last name') ?? (rawPayload?.lastName ?? rawPayload?.last_name) ?? null;
-  const emailVal = get('email') ?? getProp(p, 'Email', 'email') ?? (rawPayload?.email ?? null) ?? null;
-  const toolNameFromPayload = (rawPayload?.toolName ?? rawPayload?.quote_tool_used ?? rawPayload?.tool_name) as string | null | undefined;
+  const firstName = get('first_name') ?? getProp(p, 'First Name', 'firstName', 'first name') ?? (rawPayload?.['firstName'] ?? rawPayload?.['first_name']) ?? null;
+  const lastName = get('last_name') ?? getProp(p, 'Last Name', 'lastName', 'last name') ?? (rawPayload?.['lastName'] ?? rawPayload?.['last_name']) ?? null;
+  const emailVal = get('email') ?? getProp(p, 'Email', 'email') ?? (rawPayload?.['email'] ?? null) ?? null;
+  const toolNameFromPayload = (rawPayload?.['toolName'] ?? rawPayload?.['quote_tool_used'] ?? rawPayload?.['tool_name']) as string | null | undefined;
   const quoteToolUsedFinal = (quoteToolUsed && String(quoteToolUsed).trim()) || (toolNameFromPayload && String(toolNameFromPayload).trim()) || null;
   // Price from payload.ranges when not in top-level (getSelectedRangeFromPayload is called later in mapQuotesToResponse)
   let finalPriceLow = priceLow;

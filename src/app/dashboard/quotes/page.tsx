@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ExternalLink, RefreshCw, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { ExternalLink, Eye, RefreshCw, Search, Filter, Trash2, Copy, Check, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import { useDashboardApi } from '@/lib/dashboard-api';
 import { useDashboardPageState } from '@/lib/dashboard-page-state';
 import { AddressMapLinks } from '@/components/AddressMapLinks';
@@ -805,7 +805,7 @@ export default function DashboardQuotesPage() {
                           className="inline-flex items-center justify-center rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
                           title="View quote"
                         >
-                          <ExternalLink className="h-4 w-4" />
+                          <Eye className="h-4 w-4" />
                         </button>
                         <button
                           type="button"

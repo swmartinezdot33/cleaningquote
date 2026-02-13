@@ -775,11 +775,14 @@ export async function POST(request: NextRequest) {
             // Include contact name/email so dashboard Quotes table can show them (add first_name, last_name, email to your Quote custom object in GHL if missing)
             const contactFirstName = (contactData.firstName && contactData.firstName !== 'Unknown') ? contactData.firstName : (body.firstName || '');
             const contactLastName = (contactData.lastName && contactData.lastName !== 'Customer') ? contactData.lastName : (body.lastName || '');
+            const first = String(contactFirstName || '').trim();
+            const last = String(contactLastName || '').trim();
+            const emailVal = body.email ? String(body.email).trim() : '';
             quoteCustomFields = {
               'quote_id': generatedQuoteId, // Use the generated UUID for quote_id field
-              'first_name': String(contactFirstName || '').trim() || undefined,
-              'last_name': String(contactLastName || '').trim() || undefined,
-              'email': body.email ? String(body.email).trim() : undefined,
+              ...(first ? { 'first_name': first } : {}),
+              ...(last ? { 'last_name': last } : {}),
+              ...(emailVal ? { 'email': emailVal } : {}),
               'service_address': serviceAddress,
               'square_footage': String(body.squareFeet || ''),
               'type': mappedServiceType,
@@ -793,10 +796,6 @@ export async function POST(request: NextRequest) {
               'cleaning_service_prior': mappedCleaningServicePrior,
               'cleaned_in_last_3_months': mappedCleanedInLast3Months,
             };
-            // Remove undefined so we don't send empty strings for optional fields
-            if (quoteCustomFields['first_name'] === undefined) delete quoteCustomFields['first_name'];
-            if (quoteCustomFields['last_name'] === undefined) delete quoteCustomFields['last_name'];
-            if (quoteCustomFields['email'] === undefined) delete quoteCustomFields['email'];
             
             // Add UTM parameters for tracking (map to schema field names). Use utm_source only – never URL.
             if (effectiveUtmSource) {
