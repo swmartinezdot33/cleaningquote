@@ -20,11 +20,12 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')?.trim() || 'all';
     const contactId = searchParams.get('contactId')?.trim() || undefined;
     const query = searchParams.get('query')?.trim() || undefined;
+    const sortBy = status === 'recents' ? 'last_manual_message_date' : 'last_message_date';
 
     const credentials = { token: ctx.token, locationId: ctx.locationId };
     const { conversations, total } = await searchConversations(
       ctx.locationId,
-      { limit, status, contactId, query, sortBy: 'last_message_date', sort: 'desc' },
+      { limit, status, contactId, query, sortBy, sort: 'desc' },
       credentials
     );
 

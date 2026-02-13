@@ -64,8 +64,10 @@ interface ServiceAreaMapDrawerProps {
   officeAddress?: string | null;
   /** Optional address to pin on the map (e.g. contact/property address). Shown as a distinct pin (geocoded client-side). */
   pinnedAddress?: string | null;
-  /** Optional list of addresses to show as "customer" pins (e.g. other active clients). Shown with a distinct style from office and pinned address. */
+  /** Optional list of addresses to show as "customer" pins (geocoded client-side if no customerCoordinates). */
   customerAddresses?: string[] | null;
+  /** Pre-geocoded customer positions; when set, pins render instantly with no client-side geocoding. */
+  customerCoordinates?: Array<{ lat: number; lng: number }> | null;
 }
 
 export function ServiceAreaMapDrawer({
@@ -78,6 +80,7 @@ export function ServiceAreaMapDrawer({
   officeAddress = null,
   pinnedAddress = null,
   customerAddresses = null,
+  customerCoordinates = null,
 }: ServiceAreaMapDrawerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -403,26 +406,69 @@ export function ServiceAreaMapDrawer({
     };
   }, [initialPolygon, zoneDisplay, readOnly, officeAddress, pinnedAddress]);
 
-  // Customer pins: geocode customerAddresses and add markers (read-only map only)
+  // Customer pins: use customerCoordinates when provided (instant), else geocode customerAddresses (read-only only)
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const list =
-      Array.isArray(customerAddresses) && customerAddresses.length > 0 ? customerAddresses : [];
-    if (!readOnly || list.length === 0) {
+    const coords =
+      Array.isArray(customerCoordinates) && customerCoordinates.length > 0 ? customerCoordinates : null;
+    const addressList =
+      !coords && Array.isArray(customerAddresses) && customerAddresses.length > 0 ? customerAddresses : [];
+
+    const clearMarkers = () => {
       customerMarkersRef.current.forEach((m: any) => {
         if (m?.setMap) m.setMap(null);
         else if (m?.map != null) m.map = null;
       });
       customerMarkersRef.current = [];
+    };
+
+    if (!readOnly || (coords?.length ?? 0) === 0 && addressList.length === 0) {
+      clearMarkers();
       return;
     }
-    let cancelled = false;
-    const google = getGoogle();
-    if (!google?.maps?.Geocoder) return;
 
-    const runGeocode = () => {
+    const google = getGoogle();
+    if (!google?.maps) return;
+
+    let cancelled = false;
+
+    const addMarkersFromCoords = (map: any, AdvancedMarkerElement: any) => {
+      const list = coords ?? [];
+      const newMarkers: any[] = [];
+      for (const { lat, lng } of list) {
+        if (cancelled || !mapRef.current) break;
+        const pinEl = document.createElement('div');
+        pinEl.style.cssText =
+          'width:16px;height:16px;background:#16a34a;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,0.3);';
+        const marker = new AdvancedMarkerElement({
+          map: mapRef.current,
+          position: { lat, lng },
+          content: pinEl,
+          title: 'Customer',
+          zIndex: 199,
+        });
+        newMarkers.push(marker);
+      }
+      if (!cancelled) {
+        clearMarkers();
+        customerMarkersRef.current = newMarkers;
+      }
+    };
+
+    const run = () => {
       const map = mapRef.current;
       if (!map) return;
+
+      if (coords && coords.length > 0) {
+        google.maps.importLibrary('marker').then((lib: any) => {
+          if (cancelled) return;
+          addMarkersFromCoords(map, lib.AdvancedMarkerElement);
+        });
+        return;
+      }
+
+      if (addressList.length === 0 || !google.maps.Geocoder) return;
+      const list = addressList;
       (async () => {
         try {
           const { AdvancedMarkerElement } = (await google.maps.importLibrary(
@@ -461,10 +507,7 @@ export function ServiceAreaMapDrawer({
             await new Promise((r) => setTimeout(r, 80));
           }
           if (!cancelled) {
-            customerMarkersRef.current.forEach((m: any) => {
-              if (m?.setMap) m.setMap(null);
-              else if (m?.map != null) m.map = null;
-            });
+            clearMarkers();
             customerMarkersRef.current = newMarkers;
           }
         } catch (_) {
@@ -473,31 +516,22 @@ export function ServiceAreaMapDrawer({
       })();
     };
 
-    // Defer so map ref is set after main effect commits (modal/dialog may delay layout)
     if (mapRef.current) {
-      runGeocode();
+      run();
     } else {
-      const t = setTimeout(runGeocode, 300);
+      const t = setTimeout(run, 300);
       return () => {
         cancelled = true;
         clearTimeout(t);
-        customerMarkersRef.current.forEach((m: any) => {
-          if (m?.setMap) m.setMap(null);
-          else if (m?.map != null) m.map = null;
-        });
-        customerMarkersRef.current = [];
+        clearMarkers();
       };
     }
 
     return () => {
       cancelled = true;
-      customerMarkersRef.current.forEach((m: any) => {
-        if (m?.setMap) m.setMap(null);
-        else if (m?.map != null) m.map = null;
-      });
-      customerMarkersRef.current = [];
+      clearMarkers();
     };
-  }, [loading, error, readOnly, customerAddresses]);
+  }, [loading, error, readOnly, customerAddresses, customerCoordinates]);
 
   // When map is inside a dialog, container may get dimensions after open; trigger resize so tiles paint
   useEffect(() => {

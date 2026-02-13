@@ -251,6 +251,11 @@ export interface Database {
         Insert: { tool_id: string; service_area_id: string };
         Update: { tool_id?: string; service_area_id?: string };
       };
+      org_customer_map_cache: {
+        Row: { org_id: string; address_hash: string; lat: number; lng: number; updated_at: string };
+        Insert: { org_id: string; address_hash: string; lat: number; lng: number; updated_at?: string };
+        Update: { org_id?: string; address_hash?: string; lat?: number; lng?: number; updated_at?: string };
+      };
       contacts: {
         Row: {
           id: string;

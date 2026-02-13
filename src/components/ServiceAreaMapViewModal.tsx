@@ -43,6 +43,7 @@ export function ServiceAreaMapViewModal({ address, onClose }: ServiceAreaMapView
   const [error, setError] = useState<string | null>(null);
   const [showAllCustomers, setShowAllCustomers] = useState(false);
   const [customerAddresses, setCustomerAddresses] = useState<string[]>([]);
+  const [customerCoordinates, setCustomerCoordinates] = useState<Array<{ lat: number; lng: number }>>([]);
   const [customersLoading, setCustomersLoading] = useState(false);
 
   const loadMapData = useCallback(() => {
@@ -65,32 +66,45 @@ export function ServiceAreaMapViewModal({ address, onClose }: ServiceAreaMapView
     if (address != null) loadMapData();
   }, [address, loadMapData]);
 
-  const loadActiveCustomerAddresses = useCallback(() => {
-    if (!api) return;
-    setCustomersLoading(true);
-    api('/api/dashboard/service-areas/active-customer-addresses')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load customers'))))
-      .then((d: { addresses?: string[]; needsConnect?: boolean }) => {
+  const loadActiveCustomerAddresses = useCallback(
+    (pinnedAddressParam?: string | null) => {
+      if (!api) return;
+      setCustomersLoading(true);
+      const url =
+        pinnedAddressParam?.trim() != null
+          ? `/api/dashboard/service-areas/active-customer-addresses?pinnedAddress=${encodeURIComponent(pinnedAddressParam.trim())}`
+          : '/api/dashboard/service-areas/active-customer-addresses';
+      api(url)
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load customers'))))
+      .then((d: { addresses?: string[]; coordinates?: Array<{ lat: number; lng: number }>; needsConnect?: boolean }) => {
         setCustomerAddresses(Array.isArray(d.addresses) ? d.addresses : []);
+        setCustomerCoordinates(Array.isArray(d.coordinates) ? d.coordinates : []);
       })
-      .catch(() => setCustomerAddresses([]))
-      .finally(() => setCustomersLoading(false));
-  }, [api]);
+        .catch(() => {
+          setCustomerAddresses([]);
+          setCustomerCoordinates([]);
+        })
+        .finally(() => setCustomersLoading(false));
+    },
+    [api]
+  );
 
   const handleShowAllCustomersChange = (checked: boolean) => {
     setShowAllCustomers(checked);
     if (checked && customerAddresses.length === 0 && !customersLoading) {
-      loadActiveCustomerAddresses();
+      loadActiveCustomerAddresses(address ?? undefined);
     } else if (!checked) {
       setCustomerAddresses([]);
+      setCustomerCoordinates([]);
     }
   };
 
   const open = address != null && address.trim() !== '';
-  const pinnedNorm = (address ?? '').trim().toLowerCase();
+  const customerCoordinatesForMap =
+    showAllCustomers && customerCoordinates.length > 0 ? customerCoordinates : undefined;
   const customerAddressesForMap =
-    showAllCustomers && customerAddresses.length > 0
-      ? customerAddresses.filter((a) => a.trim().toLowerCase() !== pinnedNorm)
+    showAllCustomers && customerAddresses.length > 0 && customerCoordinates.length === 0
+      ? customerAddresses
       : undefined;
 
   const allPolygons: PolygonCoords[] = mapData
@@ -137,14 +151,14 @@ export function ServiceAreaMapViewModal({ address, onClose }: ServiceAreaMapView
             <span className="text-xs text-muted-foreground">
               Show addresses of contacts tagged &quot;active&quot; or &quot;active client&quot;
             </span>
-            {showAllCustomers && !customersLoading && customerAddresses.length === 0 && (
+            {showAllCustomers && !customersLoading && customerAddresses.length === 0 && customerCoordinates.length === 0 && (
               <span className="text-xs text-amber-600 dark:text-amber-500">
                 No contacts with these tags (or no addresses) found.
               </span>
             )}
-            {showAllCustomers && !customersLoading && customerAddresses.length > 0 && (
+            {showAllCustomers && !customersLoading && (customerAddresses.length > 0 || customerCoordinates.length > 0) && (
               <span className="text-xs text-muted-foreground">
-                {customerAddresses.length} customer{customerAddresses.length !== 1 ? 's' : ''} on map
+                {(customerCoordinates.length || customerAddresses.length)} customer{(customerCoordinates.length || customerAddresses.length) !== 1 ? 's' : ''} on map
               </span>
             )}
           </div>
@@ -171,6 +185,7 @@ export function ServiceAreaMapViewModal({ address, onClose }: ServiceAreaMapView
                   officeAddress={mapData.officeAddress}
                   pinnedAddress={address ?? undefined}
                   customerAddresses={customerAddressesForMap}
+                  customerCoordinates={customerCoordinatesForMap}
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-2">
