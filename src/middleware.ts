@@ -18,13 +18,17 @@ export async function middleware(request: NextRequest) {
   if (isDashboard) {
     const sessionToken = request.cookies.get(GHL_SESSION_COOKIE)?.value;
     if (sessionToken) {
-      const session = await verifySessionToken(sessionToken);
-      if (session) {
-        const reqHeaders = new Headers(request.headers);
-        reqHeaders.set('x-ghl-session', '1');
-        return NextResponse.next({
-          request: { headers: reqHeaders },
-        });
+      try {
+        const session = await verifySessionToken(sessionToken);
+        if (session) {
+          const reqHeaders = new Headers(request.headers);
+          reqHeaders.set('x-ghl-session', '1');
+          return NextResponse.next({
+            request: { headers: reqHeaders },
+          });
+        }
+      } catch {
+        // Invalid or expired token; continue without session header
       }
     }
 

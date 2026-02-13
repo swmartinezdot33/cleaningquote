@@ -12,6 +12,15 @@ export type WidgetSettings = { title: string; subtitle: string; primaryColor: st
 /** Brand purple – default when no color set or transparent */
 const BRAND_PRIMARY_COLOR = '#7c3aed';
 
+/** Sanitize Supabase/network errors for logging: avoid dumping full HTML (e.g. Cloudflare 522) into logs. */
+export function sanitizeConfigError(err: unknown): string {
+  const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : String(err);
+  if (msg.length > 500 || msg.trimStart().startsWith('<!')) {
+    return msg.slice(0, 200) + (msg.length > 200 ? '… [truncated, possible Supabase/522 timeout]' : '');
+  }
+  return msg;
+}
+
 /** Resolve config row: tool_id = toolId when provided, else tool_id is null (global). */
 async function getConfigRow(toolId?: string): Promise<ToolConfigRow | null> {
   if (!isSupabaseConfigured()) return null;
@@ -21,7 +30,7 @@ async function getConfigRow(toolId?: string): Promise<ToolConfigRow | null> {
     ? await query.eq('tool_id', toolId).maybeSingle()
     : await query.is('tool_id', null).maybeSingle();
   if (error) {
-    console.error('tool_config getConfigRow:', error);
+    console.error('tool_config getConfigRow:', sanitizeConfigError(error));
     return null;
   }
   return data;
@@ -45,14 +54,14 @@ async function upsertConfig(toolId: string | undefined, updates: Partial<ToolCon
       // @ts-expect-error Supabase generated types can infer 'never' for new table updates
       const { error } = await supabase.from('tool_config').update(payload).eq('id', existing.id);
       if (error) {
-        console.error('tool_config update global:', error);
+        console.error('tool_config update global:', sanitizeConfigError(error));
         throw error;
       }
     } else {
       // @ts-expect-error Supabase generated types can infer 'never' for new table inserts
       const { error } = await supabase.from('tool_config').insert({ ...payload, tool_id: null });
       if (error) {
-        console.error('tool_config insert global:', error);
+        console.error('tool_config insert global:', sanitizeConfigError(error));
         throw error;
       }
     }
@@ -65,7 +74,7 @@ async function upsertConfig(toolId: string | undefined, updates: Partial<ToolCon
     { onConflict: 'tool_id' }
   );
   if (error) {
-    console.error('tool_config upsert:', error);
+    console.error('tool_config upsert:', sanitizeConfigError(error));
     throw error;
   }
 }
@@ -293,13 +302,34 @@ export async function clearOrgGHL(orgId: string): Promise<void> {
  * One org per ghl_location_id (enforced by unique constraint). Use ensureOrgForGHLLocation when no row exists. */
 export async function getOrgIdsByGHLLocationId(locationId: string): Promise<string[]> {
   if (!isSupabaseConfigured() || !locationId?.trim()) return [];
-  const supabase = createSupabaseServer();
   const loc = locationId.trim();
+  let rows: unknown = null;
+  let error: { message?: string } | null = null;
 
-  const { data: rows, error } = await supabase
-    .from('organizations')
-    .select('id')
-    .eq('ghl_location_id', loc);
+  try {
+    const supabase = createSupabaseServer();
+    const result = await supabase
+      .from('organizations')
+      .select('id')
+      .eq('ghl_location_id', loc);
+    rows = result.data;
+    error = result.error;
+  } catch (err) {
+    error = err && typeof err === 'object' && 'message' in err ? (err as { message: string }) : { message: String(err) };
+  }
+
+  // #region agent log
+  const errObj = error && typeof error === 'object' ? error as { message?: string; code?: string } : null;
+  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'config/store.ts:getOrgIdsByGHLLocationId',message:'Supabase org lookup',data:{configured:isSupabaseConfigured(),locFirst12:loc.slice(0,12),rowCount:Array.isArray(rows)?rows.length:0,errorMsg:(errObj?.message??'').slice(0,120),errorCode:errObj?.code??null,hypothesisId:'H1_H3'},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+
+  if (error?.message?.includes('fetch failed')) {
+    console.warn('[CleanQuote] Supabase unreachable (fetch failed). Tools/Service areas/Pricing counts will be 0. Check NEXT_PUBLIC_SUPABASE_URL and that this machine can reach Supabase.');
+  }
+  if (error?.message?.toLowerCase().includes('invalid api key')) {
+    console.warn('[CleanQuote] Supabase returned "Invalid API key". Use the service_role key (not anon): Supabase Dashboard → Project Settings → API → service_role secret → set SUPABASE_SERVICE_ROLE_KEY in .env.local.');
+  }
+
   if (!error && Array.isArray(rows) && rows.length > 0) {
     const ids = (rows as Array<{ id: string }>).map((r) => r?.id).filter((id): id is string => !!id);
     if (ids.length > 0) return [ids[0]];
@@ -586,7 +616,7 @@ export async function copyGlobalConfigToTool(toolId: string): Promise<void> {
   // @ts-expect-error Supabase generated types
   const { error } = await supabase.from('tool_config').upsert(payload, { onConflict: 'tool_id' });
   if (error) {
-    console.error('tool_config copyGlobalConfigToTool:', error);
+    console.error('tool_config copyGlobalConfigToTool:', sanitizeConfigError(error));
     throw error;
   }
 }
@@ -620,7 +650,7 @@ export async function copyToolConfig(sourceToolId: string, targetToolId: string)
   // @ts-expect-error Supabase generated types
   const { error } = await supabase.from('tool_config').upsert(payload, { onConflict: 'tool_id' });
   if (error) {
-    console.error('tool_config copyToolConfig:', error);
+    console.error('tool_config copyToolConfig:', sanitizeConfigError(error));
     throw error;
   }
 }

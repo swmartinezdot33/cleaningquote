@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveGHLContext } from '@/lib/ghl/api-context';
 import { getQuoteRecords } from '@/lib/ghl/ghl-client';
+import { getContactIdForQuoteRecord, getContactById } from '@/lib/ghl/client';
 import * as configStore from '@/lib/config/store';
 import { createSupabaseServer } from '@/lib/supabase/server';
 
@@ -80,6 +81,15 @@ function propertiesToObject(record: any): Record<string, unknown> {
   return typeof raw === 'object' && raw !== null ? raw : {};
 }
 
+/** Try multiple property key variants (GHL may use display names or different casing). */
+function getProp(p: Record<string, unknown>, ...keys: string[]): string | number | null | undefined {
+  for (const key of keys) {
+    const v = p[key] ?? (key.includes('.') ? undefined : p[`custom_objects.quotes.${key}`]);
+    if (v != null && v !== '') return v as string | number;
+  }
+  return null;
+}
+
 /** Map GHL quote record to dashboard quote shape. Preserves contactId when present on the record (GHL association). */
 function mapGHLQuoteToDashboard(record: any): any {
   const p = propertiesToObject(record);
@@ -88,18 +98,45 @@ function mapGHLQuoteToDashboard(record: any): any {
   const contactId = record.contactId ?? record.contact_id ?? get('contactId') ?? get('contact_id') ?? null;
   const toolId = (get('tool_id') ?? get('toolId') ?? (record as any).tool_id ?? (record as any).toolId) as string | null | undefined;
   const quoteToolUsed = (get('quote_tool_used') ?? (record as any).quote_tool_used) as string | null | undefined;
-  // Support multiple key variants for price (GHL may return different shapes)
   const priceLow = parseNum(get('price_low') ?? get('priceLow') ?? (record as any).price_low ?? (record as any).priceLow);
   const priceHigh = parseNum(get('price_high') ?? get('priceHigh') ?? (record as any).price_high ?? (record as any).priceHigh);
+  const rawPayload = (() => {
+    const raw = get('payload') ?? p.payload;
+    if (raw == null) return null;
+    if (typeof raw === 'object' && raw !== null) return raw;
+    if (typeof raw !== 'string') return null;
+    try {
+      return JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  })();
+  // Fallbacks from payload when top-level properties are missing (form data often stored only in payload)
+  const firstName = get('first_name') ?? getProp(p, 'First Name', 'firstName', 'first name') ?? (rawPayload?.firstName ?? rawPayload?.first_name) ?? null;
+  const lastName = get('last_name') ?? getProp(p, 'Last Name', 'lastName', 'last name') ?? (rawPayload?.lastName ?? rawPayload?.last_name) ?? null;
+  const emailVal = get('email') ?? getProp(p, 'Email', 'email') ?? (rawPayload?.email ?? null) ?? null;
+  const toolNameFromPayload = (rawPayload?.toolName ?? rawPayload?.quote_tool_used ?? rawPayload?.tool_name) as string | null | undefined;
+  const quoteToolUsedFinal = (quoteToolUsed && String(quoteToolUsed).trim()) || (toolNameFromPayload && String(toolNameFromPayload).trim()) || null;
+  // Price from payload.ranges when not in top-level (getSelectedRangeFromPayload is called later in mapQuotesToResponse)
+  let finalPriceLow = priceLow;
+  let finalPriceHigh = priceHigh;
+  if ((finalPriceLow == null || finalPriceHigh == null) && rawPayload?.ranges && typeof rawPayload.ranges === 'object') {
+    const ranges = rawPayload.ranges as Record<string, { low?: number; high?: number } | undefined>;
+    const firstRange = ranges.general ?? ranges.weekly ?? ranges.biWeekly ?? ranges.fourWeek ?? ranges.deep ?? ranges.moveInOutBasic ?? ranges.moveInOutFull;
+    if (firstRange && typeof firstRange.low === 'number' && typeof firstRange.high === 'number') {
+      finalPriceLow = finalPriceLow ?? firstRange.low;
+      finalPriceHigh = finalPriceHigh ?? firstRange.high;
+    }
+  }
   return {
     id: record.id,
     quote_id: quoteId,
     tool_id: toolId && String(toolId).trim() ? String(toolId).trim() : null,
-    quote_tool_used: quoteToolUsed && String(quoteToolUsed).trim() ? String(quoteToolUsed).trim() : null,
+    quote_tool_used: quoteToolUsedFinal,
     property_id: null,
-    first_name: get('first_name'),
-    last_name: get('last_name'),
-    email: get('email'),
+    first_name: firstName,
+    last_name: lastName,
+    email: emailVal,
     phone: get('phone'),
     address: get('address') ?? get('service_address'),
     city: get('city'),
@@ -107,22 +144,12 @@ function mapGHLQuoteToDashboard(record: any): any {
     postal_code: get('postal_code') ?? get('zip'),
     service_type: get('service_type') ?? (() => { const t = get('type'); return Array.isArray(t) ? t[0] : t; })(),
     frequency: get('frequency'),
-    price_low: priceLow,
-    price_high: priceHigh,
+    price_low: finalPriceLow,
+    price_high: finalPriceHigh,
     square_feet: get('square_feet') ?? get('squareFootage'),
     bedrooms: get('bedrooms'),
     created_at: record.createdAt ?? record.dateAdded ?? new Date().toISOString(),
-    payload: (() => {
-      const raw = get('payload') ?? p.payload;
-      if (raw == null) return null;
-      if (typeof raw === 'object' && raw !== null) return raw;
-      if (typeof raw !== 'string') return null;
-      try {
-        return JSON.parse(raw) as Record<string, unknown>;
-      } catch {
-        return null;
-      }
-    })(),
+    payload: rawPayload,
     status: get('status') ?? 'quote',
     contactId: contactId || null,
   };
@@ -243,6 +270,9 @@ const emptyQuotes = () => NextResponse.json({ quotes: [], isSuperAdmin: false, i
 
 /** GET /api/dashboard/quotes - GHL only: quotes from GHL custom objects */
 export async function GET(request: NextRequest) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'quotes/route.ts:GET',message:'quotes GET entry',data:{hypothesisId:'H3'},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   try {
     const ctx = await resolveGHLContext(request);
     if (!ctx) return NextResponse.json({ quotes: [], isSuperAdmin: false, isOrgAdmin: false, locationIdRequired: true });
@@ -252,14 +282,56 @@ export async function GET(request: NextRequest) {
       const credentials = { token: ctx.token, locationId: ctx.locationId };
       const result = await getQuoteRecords(ctx.locationId, credentials, { limit: 2000 });
       if (!result.ok) {
-        const status = result.error.type === 'auth' ? 401 : 502;
-        return NextResponse.json(
-          { quotes: [], error: result.error.message, isSuperAdmin: false, isOrgAdmin: false },
-          { status }
-        );
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'quotes/route.ts',message:'quotes branch result not ok',data:{status:200,errorMsg:(result as {error?:{message?:string}}).error?.message?.slice(0,80),hypothesisId:'H3'},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+        console.warn('[CQ Quotes] GHL getQuoteRecords failed', { locationId: ctx.locationId?.slice(0, 12), error: result.error.message });
+        return NextResponse.json({
+          quotes: [],
+          error: result.error.message,
+          isSuperAdmin: false,
+          isOrgAdmin: false,
+        });
       }
       const records = result.data;
       const rawQuotes = records.map(mapGHLQuoteToDashboard);
+
+      // Resolve contact via GHL quote–contact association when not on the record
+      const contactIdsFromAssoc = await Promise.all(
+        rawQuotes.map((q, i) =>
+          q.contactId ? Promise.resolve(q.contactId) : getContactIdForQuoteRecord(records[i].id, ctx.locationId, credentials).then((id) => id ?? null)
+        )
+      );
+      rawQuotes.forEach((q, i) => {
+        if (!q.contactId && contactIdsFromAssoc[i]) q.contactId = contactIdsFromAssoc[i];
+      });
+
+      // Fetch contact details (name, email) for quotes that have contactId but no name on the record
+      const contactIdsNeedingName = [...new Set(rawQuotes.filter((q) => q.contactId && !q.first_name && !q.last_name && !q.email).map((q) => q.contactId!))];
+      const contactMap = new Map<string, { first_name: string | null; last_name: string | null; email: string | null }>();
+      await Promise.all(
+        contactIdsNeedingName.map(async (contactId) => {
+          try {
+            const contact = await getContactById(contactId, undefined, undefined, credentials);
+            const firstName = (contact as any).firstName ?? (contact as any).first_name ?? null;
+            const lastName = (contact as any).lastName ?? (contact as any).last_name ?? null;
+            const email = (contact as any).email ?? null;
+            contactMap.set(contactId, { first_name: firstName ?? null, last_name: lastName ?? null, email: email ?? null });
+          } catch {
+            contactMap.set(contactId, { first_name: null, last_name: null, email: null });
+          }
+        })
+      );
+      rawQuotes.forEach((q) => {
+        if (q.contactId && !q.first_name && !q.last_name && !q.email) {
+          const c = contactMap.get(q.contactId);
+          if (c) {
+            q.first_name = c.first_name;
+            q.last_name = c.last_name;
+            q.email = c.email;
+          }
+        }
+      });
 
       // Resolve tool_id → name for Tool column (org from ghl_location_id → tools)
       let toolIdToName = new Map<string, string>();

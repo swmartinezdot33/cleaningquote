@@ -25,7 +25,7 @@ const nextConfig = {
     ],
   },
 
-  // Security headers
+  // Security headers (exclude /_next so Next can serve static chunks without our headers affecting behavior)
   async headers() {
     return [
       {
@@ -35,7 +35,7 @@ const nextConfig = {
         ],
       },
       {
-        source: '/:path*',
+        source: '/((?!_next).*)',
         headers: [
           {
             key: 'X-DNS-Prefetch-Control',

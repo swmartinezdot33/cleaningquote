@@ -65,6 +65,21 @@ export async function getToolConfigForPage(slug: string): Promise<ToolConfig | n
   }
 }
 
+/** Server-side: get full tool config for org-scoped route /t/[orgSlug]/[toolSlug]. */
+export async function getToolConfigForOrgTool(orgSlug: string, toolSlug: string): Promise<ToolConfig | null> {
+  try {
+    const supabase = createSupabaseServer();
+    const { data: org } = await supabase.from('organizations').select('id').eq('slug', orgSlug).single();
+    if (!org) return null;
+    const orgId = (org as { id: string }).id;
+    const { data: tool } = await supabase.from('tools').select('id').eq('org_id', orgId).eq('slug', toolSlug).single();
+    if (!tool) return null;
+    return getToolConfigByToolId((tool as Tool).id);
+  } catch {
+    return null;
+  }
+}
+
 /** Brand purple – default/fallback primary color across the app */
 export const DEFAULT_PRIMARY_COLOR = '#7c3aed';
 

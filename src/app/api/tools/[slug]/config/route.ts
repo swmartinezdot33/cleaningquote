@@ -34,7 +34,7 @@ export async function GET(
       .maybeSingle();
 
     if (rowErr) {
-      console.error('GET /api/tools/[slug]/config tool_config read:', rowErr);
+      console.error('GET /api/tools/[slug]/config tool_config read:', configStore.sanitizeConfigError(rowErr));
       return NextResponse.json({ error: 'Config read failed' }, { status: 500 });
     }
 
@@ -51,7 +51,7 @@ export async function GET(
           .maybeSingle();
         if (!reErr && newRow) row = newRow as ToolConfigRow;
       } catch (initErr) {
-        console.error('GET /api/tools/[slug]/config lazy init config row:', initErr);
+        console.error('GET /api/tools/[slug]/config lazy init config row:', configStore.sanitizeConfigError(initErr));
       }
     }
 

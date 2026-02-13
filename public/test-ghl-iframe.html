@@ -25,7 +25,8 @@
     <h1>Local iframe test</h1>
     <p>Test CleanQuote locally by <strong>mimicking postMessage</strong>: the app is loaded in an iframe with <em>no</em> URL params. This window sends a postMessage with the location ID so the app receives context the same way it does in production.</p>
     <label for="base">App base URL</label>
-    <input type="text" id="base" value="http://localhost:3000" placeholder="http://localhost:3000">
+    <input type="text" id="base" value="" placeholder="http://localhost:3000">
+    <p class="hint">Must match where <code>npm run dev</code> is running (same origin as this page avoids MIME/404 errors).</p>
     <label for="locationId" style="margin-top:12px">Location ID</label>
     <input type="text" id="locationId" placeholder="e.g. tCqS9npFPtO0DSuYVvzb" value="">
     <p class="hint">Your sub-account location ID (case-sensitive).</p>
@@ -43,6 +44,7 @@
       <button type="button" id="load">Load app in iframe + send postMessage</button>
     </div>
     <p class="url-preview" id="urlPreview"></p>
+    <p class="hint" style="margin-top:12px">If the iframe shows blank or console errors like &quot;Refused to apply style&quot; / 404 for <code>_next/static</code>, the dev server may be serving stale or missing chunks. Try: stop dev, run <code>rm -rf .next</code>, then <code>npm run dev</code>. Open <a href="#" id="dashboardLink">/dashboard</a> in a new tab once to compile, then load the iframe again.</p>
   </div>
   <div class="card" id="frameWrap" style="display:none">
     <h2>App (iframe)</h2>
@@ -59,7 +61,10 @@
       return base + path;
     }
     function updatePreview() {
-      document.getElementById('urlPreview').textContent = 'Iframe URL (no params): ' + getIframeUrl() + ' — locationId is sent via postMessage.';
+      var url = getIframeUrl();
+      document.getElementById('urlPreview').textContent = 'Iframe URL (no params): ' + url + ' — locationId is sent via postMessage.';
+      var dashLink = document.getElementById('dashboardLink');
+      if (dashLink) dashLink.href = getBase() + '/dashboard';
     }
     function loadIframe() {
       var locationId = getLocationId();
@@ -95,6 +100,13 @@
     document.getElementById('base').oninput = updatePreview;
     document.getElementById('locationId').oninput = updatePreview;
     document.getElementById('page').onchange = updatePreview;
+    // Default base to current origin so iframe loads from same server (avoids wrong-port MIME/404)
+    (function () {
+      var baseEl = document.getElementById('base');
+      if (baseEl && !baseEl.value && typeof window !== 'undefined' && window.location.origin) {
+        baseEl.value = window.location.origin;
+      }
+    })();
     updatePreview();
   </script>
 </body>

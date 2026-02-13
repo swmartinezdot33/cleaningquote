@@ -1,28 +1,27 @@
 import { getSession } from '@/lib/ghl/session';
-import { getOrFetchCurrentUser } from '@/lib/ghl/user-cache';
 import { DashboardGHLWrapper } from '@/app/dashboard/DashboardGHLWrapper';
 
 /**
  * Dashboard relies solely on GHL iframe context (locationId from postMessage or URL).
  * Org and header are provided by DashboardContextProvider inside DashboardGHLWrapper.
+ * We do not block layout on getOrFetchCurrentUser so the dashboard shell renders immediately.
  */
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const ghlSession = await getSession();
-  let userDisplayName = 'Account';
-  if (ghlSession?.userId && ghlSession?.locationId) {
-    try {
-      const user = await getOrFetchCurrentUser(ghlSession.locationId, ghlSession.userId);
-      if (user?.name) userDisplayName = user.name;
-      else if (user?.firstName || user?.lastName) userDisplayName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || userDisplayName;
-      else if (user?.email) userDisplayName = user.email;
-    } catch {
-      // non-fatal
-    }
+  let ghlSession: Awaited<ReturnType<typeof getSession>> = null;
+
+  try {
+    ghlSession = await getSession();
+  } catch {
+    // getSession can throw if cookies() or env fails; render with defaults so page loads
   }
+
+  // Do not await getOrFetchCurrentUser here — it blocks the whole dashboard on a GHL API call.
+  // Header shows "Account" until client can optionally warm the user cache.
+  const userDisplayName = 'Account';
 
   return (
     <div className="dashboard-root min-h-screen bg-muted/30">

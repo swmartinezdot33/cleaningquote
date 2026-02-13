@@ -42,7 +42,8 @@ export async function getContacts(
     };
   }
 
-  const limit = Math.min(1000, Math.max(1, params?.limit ?? 1000));
+  // GHL contacts API rejects limit > 100 (e.g. "limit must not be greater than 100")
+  const limit = Math.min(100, Math.max(1, params?.limit ?? 100));
   const searchParams: Record<string, string> = {
     locationId,
     limit: String(limit),

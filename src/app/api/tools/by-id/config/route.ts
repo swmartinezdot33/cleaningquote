@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       .maybeSingle();
 
     if (rowErr) {
-      console.error('GET /api/tools/by-id/config tool_config read:', rowErr);
+      console.error('GET /api/tools/by-id/config tool_config read:', configStore.sanitizeConfigError(rowErr));
       return NextResponse.json({ error: 'Config read failed' }, { status: 500 });
     }
 
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
           .maybeSingle();
         if (!reErr && newRow) row = newRow as ToolConfigRow;
       } catch (initErr) {
-        console.error('GET /api/tools/by-id/config lazy init config row:', initErr);
+        console.error('GET /api/tools/by-id/config lazy init config row:', configStore.sanitizeConfigError(initErr));
       }
     }
 
@@ -159,7 +159,7 @@ export async function GET(request: NextRequest) {
           }
         })() : DEFAULT_SURVEY_QUESTIONS;
       } catch (seedErr) {
-        console.error('GET /api/tools/by-id/config seed null survey_questions:', seedErr);
+        console.error('GET /api/tools/by-id/config seed null survey_questions:', configStore.sanitizeConfigError(seedErr));
       }
     }
 
@@ -233,7 +233,7 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (err) {
-    console.error('GET /api/tools/by-id/config:', err);
+    console.error('GET /api/tools/by-id/config:', configStore.sanitizeConfigError(err));
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Failed to get config' },
       { status: 500 }

@@ -15,7 +15,12 @@ export const dynamic = 'force-dynamic';
 /** GET - List tools for the current GHL location. locationId from request/session → organizations.ghl_location_id → org → tools. */
 export async function GET(request: NextRequest) {
   const resolved = await getDashboardLocationAndOrg(request);
-  if (resolved instanceof NextResponse) return resolved;
+  if (resolved instanceof NextResponse) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/dashboard/tools/route.ts:GET',message:'resolved is NextResponse',data:{status:resolved.status,hypothesisId:'H2_H4'},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    return resolved;
+  }
   const { orgIds } = resolved;
   if (orgIds.length === 0) {
     return NextResponse.json({ tools: [] });
@@ -27,6 +32,9 @@ export async function GET(request: NextRequest) {
       .select('id, name, slug, org_id')
       .in('org_id', orgIds)
       .order('name');
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/dashboard/tools/route.ts:GET',message:'tools query result',data:{orgIdsLen:orgIds.length,toolsLen:(data??[]).length,error:error?.message?.slice(0,60),hypothesisId:'H3_H4'},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     if (error) {
       return NextResponse.json({ tools: [] });
     }

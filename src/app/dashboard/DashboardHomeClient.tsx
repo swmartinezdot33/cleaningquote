@@ -114,11 +114,11 @@ export default function DashboardHomeClient() {
 
   const cards = [
     {
-      title: 'Quoting tools',
-      value: toolsCount ?? 0,
-      href: '/dashboard/tools',
-      icon: Wrench,
-      description: 'Active quoting tools',
+      title: 'Quotes',
+      value: quotesCount ?? 0,
+      href: '/dashboard/quotes',
+      icon: FileText,
+      description: 'Quote records',
     },
     {
       title: 'Contacts',
@@ -128,11 +128,11 @@ export default function DashboardHomeClient() {
       description: 'In your CRM',
     },
     {
-      title: 'Quotes',
-      value: quotesCount ?? 0,
-      href: '/dashboard/quotes',
-      icon: FileText,
-      description: 'Quote records',
+      title: 'Quoting tools',
+      value: toolsCount ?? 0,
+      href: '/dashboard/tools',
+      icon: Wrench,
+      description: 'Active quoting tools',
     },
     {
       title: 'Service areas',

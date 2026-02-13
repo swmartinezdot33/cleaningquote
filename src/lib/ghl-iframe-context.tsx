@@ -8,6 +8,7 @@
 import { useEffect, useState, createContext, useContext, useRef } from 'react';
 import type { GHLIframeData } from './ghl-iframe-types';
 import { GHL_APP_VERSION_ID } from './ghl/oauth-utils';
+import { LoadingDots } from '@/components/ui/loading-dots';
 
 export type { GHLIframeData };
 
@@ -337,7 +338,10 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Gate dashboard so it only renders when we have a locationId (avoids first-click race on Quotes etc.)
-  const showBlockingInIframe = isInIframe && !effectiveLocationId;
+  // Defer blocking UI until after mount so server and first client paint both render children (avoids hydration className mismatch).
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => setHasMounted(true), []);
+  const showBlockingInIframe = hasMounted && isInIframe && !effectiveLocationId;
   const isDashboardDirectAccess = typeof window !== 'undefined' && window.self === window.top && (window.location.pathname ?? '').startsWith('/dashboard');
 
   return (
@@ -353,11 +357,7 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
               Couldn&apos;t connect. Refresh this window or try Setup.
             </p>
           ) : (
-            <span className="inline-flex gap-1" aria-label="Loading">
-              <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce [animation-delay:-0.3s]" />
-              <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce [animation-delay:-0.15s]" />
-              <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce" />
-            </span>
+            <LoadingDots size="lg" className="text-muted-foreground" />
           )}
         </div>
       ) : (

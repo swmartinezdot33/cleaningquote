@@ -214,9 +214,8 @@ export default function DashboardQuotesPage() {
     Promise.all([
       api('/api/dashboard/quotes'),
       api('/api/dashboard/tools'),
-      fetch('/api/dashboard/super-admin/tools'),
     ])
-      .then(async ([quotesRes, orgToolsRes, superAdminToolsRes]) => {
+      .then(async ([quotesRes, orgToolsRes]) => {
         if (quotesRes.ok) {
           const data = await quotesRes.json().catch(() => ({})) as { quotes?: QuoteRow[]; isSuperAdmin?: boolean; isOrgAdmin?: boolean; error?: string };
           const toolsData = orgToolsRes.ok ? await orgToolsRes.json().catch(() => ({})) as { tools?: { id: string; name: string }[] } : { tools: [] };
@@ -225,7 +224,6 @@ export default function DashboardQuotesPage() {
             orgTools: Array.isArray(toolsData.tools) ? toolsData.tools : [],
             isSuperAdminFromQuotes: !!data.isSuperAdmin,
             isOrgAdminFromQuotes: !!data.isOrgAdmin,
-            toolsOk: superAdminToolsRes.ok,
             apiError: data.error,
           };
         }
@@ -240,10 +238,10 @@ export default function DashboardQuotesPage() {
         }
         throw new Error(errMessage);
       })
-      .then(({ quotes: list, orgTools: toolsList, isSuperAdminFromQuotes, isOrgAdminFromQuotes, toolsOk, apiError }) => {
+      .then(({ quotes: list, orgTools: toolsList, isSuperAdminFromQuotes, isOrgAdminFromQuotes, apiError }) => {
         setQuotes(list);
         setOrgTools(toolsList ?? []);
-        setIsSuperAdmin(!!isSuperAdminFromQuotes || !!toolsOk);
+        setIsSuperAdmin(!!isSuperAdminFromQuotes);
         setIsOrgAdmin(!!isOrgAdminFromQuotes);
         if (apiError) setError(apiError);
         lastFetchedLocationIdRef.current = effectiveLocationId;
@@ -753,29 +751,29 @@ export default function DashboardQuotesPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {q.contactId ? (
-                        effectiveLocationId ? (
-                          <a
-                            href={`https://my.cleanquote.io/v2/location/${effectiveLocationId}/contacts/detail/${q.contactId}`}
-                            target="_top"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-primary hover:underline"
-                          >
-                            <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                            {q.contactName || [q.first_name, q.last_name].filter(Boolean).join(' ') || q.email || 'Contact'}
-                          </a>
-                        ) : (
-                          <Link
-                            href={`/dashboard/crm/contacts/${q.contactId}`}
-                            className="inline-flex items-center gap-1.5 text-primary hover:underline"
-                          >
-                            <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                            {q.contactName || [q.first_name, q.last_name].filter(Boolean).join(' ') || q.email || 'Contact'}
-                          </Link>
-                        )
-                      ) : (
-                        <span className="text-muted-foreground">— No contact</span>
-                      )}
+                      {(() => {
+                        const displayName = q.contactName || [q.first_name, q.last_name].filter(Boolean).join(' ') || q.email || null;
+                        if (q.contactId) {
+                          return (
+                            <Link
+                              href={`/dashboard/crm/contacts/${q.contactId}`}
+                              className="inline-flex items-center gap-1.5 text-primary hover:underline"
+                            >
+                              <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                              {displayName || 'Contact'}
+                            </Link>
+                          );
+                        }
+                        if (displayName) {
+                          return (
+                            <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                              <User className="h-3.5 w-3.5 shrink-0" />
+                              {displayName}
+                            </span>
+                          );
+                        }
+                        return <span className="text-muted-foreground">— No contact</span>;
+                      })()}
                     </td>
                     <td className="min-w-[140px] px-4 py-3">
                       {quoteAddressLine(q) ? (
@@ -831,26 +829,16 @@ export default function DashboardQuotesPage() {
                             <Trash2 className="h-4 w-4" />
                           </button>
                         )}
-                        {q.contactId && (
-                          effectiveLocationId ? (
-                            <a
-                              href={`https://my.cleanquote.io/v2/location/${effectiveLocationId}/contacts/detail/${q.contactId}`}
-                              target="_top"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center justify-center rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-                              title="View in CRM"
-                            >
-                              <User className="h-4 w-4" />
-                            </a>
-                          ) : (
-                            <Link
-                              href={`/dashboard/crm/contacts/${q.contactId}`}
-                              className="inline-flex items-center justify-center rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-                              title="View in CRM"
-                            >
-                              <User className="h-4 w-4" />
-                            </Link>
-                          )
+                        {q.contactId && effectiveLocationId && (
+                          <a
+                            href={`https://app.gohighlevel.com/v2/location/${effectiveLocationId}/contacts/detail/${q.contactId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            title="Open in CRM (GoHighLevel)"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
                         )}
                       </div>
                     </td>

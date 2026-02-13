@@ -27,7 +27,7 @@ async function fetchContactsFromGHL(locationId: string, token: string, searchPar
   const result = await getContacts(
     locationId,
     { token, locationId },
-    { limit: 1000, search: search ?? undefined }
+    { limit: 100, search: search ?? undefined }
   );
   if (!result.ok) {
     const e = new Error(result.error.message) as Error & { ghlError?: typeof result.error };
