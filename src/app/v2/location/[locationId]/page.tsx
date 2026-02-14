@@ -5,11 +5,13 @@ import { GHL_APP_VERSION_ID } from '@/lib/ghl/oauth-utils';
 const ALLOWED_PAGES: Record<string, string> = {
   contacts: '/dashboard/crm/contacts',
   dashboard: '/dashboard',
+  inbox: '/dashboard/crm/inbox',
   quotes: '/dashboard/quotes',
   leads: '/dashboard/crm',
   tools: '/dashboard/tools',
   'service-areas': '/dashboard/service-areas',
   pricing: '/dashboard/pricing-structures',
+  settings: '/dashboard/settings',
 };
 
 /**

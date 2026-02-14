@@ -13,6 +13,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/help/google-maps-api",
     "/help/ghl-integration",
     "/help/ghl-config",
+    "/help/ghl-custom-menu-link",
+    "/help/ghl-sidebar-custom-js",
     "/help/service-area-polygon",
     "/help/survey-builder",
     "/help/pricing-structure-builder",

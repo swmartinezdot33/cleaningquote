@@ -79,6 +79,10 @@ export default function GHLCustomMenuLinkHelpPage() {
       </p>
 
       <p className="mt-6">
+        <Link href="/help/ghl-sidebar-custom-js" className="text-primary underline hover:no-underline">
+          Add more sidebar menu items with Custom JS
+        </Link>
+        {' · '}
         <Link href="/help" className="text-primary underline hover:no-underline">
           ← Back to setup guides
         </Link>

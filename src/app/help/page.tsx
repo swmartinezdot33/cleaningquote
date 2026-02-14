@@ -30,6 +30,16 @@ const guides = [
     description: 'Per-tool CRM settings, form behavior (iframe, internal tool), and webhooks for Zapier or other CRMs. Set your connection in Settings first.',
   },
   {
+    slug: 'ghl-custom-menu-link',
+    title: 'GHL Custom Menu Link',
+    description: 'Add CleanQuote as a single Custom Menu Link in the GHL sidebar so it opens in an embedded iframe with location context.',
+  },
+  {
+    slug: 'ghl-sidebar-custom-js',
+    title: 'GHL Sidebar Menu Items (Custom JS)',
+    description: 'Inject extra CleanQuote sidebar items (Dashboard, Quotes, Contacts, Inbox, etc.) via Agency Custom JS when the app only allows one menu item.',
+  },
+  {
     slug: 'service-area-polygon',
     title: 'Service area polygon and ZIP codes',
     description: 'Add service areas by US ZIP code or draw/upload polygons. Mix ZIP zones and drawn shapes in the same map; assign areas to tools in Tool Settings.',

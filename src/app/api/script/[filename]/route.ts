@@ -9,19 +9,20 @@ const CORS_HEADERS = {
   'Access-Control-Max-Age': '86400',
 };
 
-const ALLOWED_SCRIPT = 'cleanquote.js';
+const ALLOWED_SCRIPTS = new Set(['cleanquote.js', 'ghl-sidebar-menu.js']);
 
 /**
- * Serves the CleanQuote script with CORS so it loads from GHL and other external sites.
- * URL: /api/script/cleanquote.js
- * Use: <script src="https://www.cleanquote.io/api/script/cleanquote.js?v=2" data-base-url="https://www.cleanquote.io" crossorigin="anonymous"></script>
+ * Serves CleanQuote scripts with CORS so they load from GHL and other external sites.
+ * - /api/script/cleanquote.js — Quoter button script
+ * - /api/script/ghl-sidebar-menu.js — GHL sidebar menu injection (Dashboard, Quotes, Contacts, etc.)
+ * Use: <script src="https://www.cleanquote.io/api/script/ghl-sidebar-menu.js" crossorigin="anonymous"></script>
  */
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ filename: string }> }
 ) {
   const { filename } = await params;
-  if (filename !== ALLOWED_SCRIPT) {
+  if (!ALLOWED_SCRIPTS.has(filename)) {
     return new NextResponse('Not Found', { status: 404 });
   }
   try {
