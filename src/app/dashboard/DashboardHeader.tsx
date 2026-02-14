@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { OrgSwitcher } from '@/components/OrgSwitcher';
-import { Menu, X, Plus } from 'lucide-react';
+import { Menu, X, Plus, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 function isNavActive(href: string, pathname: string): boolean {
@@ -75,6 +75,12 @@ export function DashboardHeader({
     }`;
   };
 
+  const isSettingsActive =
+    pathname === '/dashboard/settings' ||
+    pathname.startsWith('/dashboard/tools') ||
+    pathname.startsWith('/dashboard/service-areas') ||
+    pathname.startsWith('/dashboard/pricing-structures');
+
   const navLinks = (
     <>
       <span className="text-sm font-medium text-foreground" aria-label="CleanQuote">
@@ -111,11 +117,11 @@ export function DashboardHeader({
         Inbox
       </Link>
       <Link
-        href="/dashboard/quotes"
+        href="/dashboard/crm/contacts"
         onClick={closeMobileMenu}
-        className={navLinkClass('/dashboard/quotes')}
+        className={navLinkClass('/dashboard/crm/contacts')}
       >
-        Quotes
+        Contacts
       </Link>
       <Link
         href="/dashboard/crm"
@@ -125,32 +131,23 @@ export function DashboardHeader({
         Leads
       </Link>
       <Link
-        href="/dashboard/crm/contacts"
+        href="/dashboard/quotes"
         onClick={closeMobileMenu}
-        className={navLinkClass('/dashboard/crm/contacts')}
+        className={navLinkClass('/dashboard/quotes')}
       >
-        Contacts
+        Quotes
       </Link>
       <Link
-        href="/dashboard/tools"
+        href="/dashboard/settings"
         onClick={closeMobileMenu}
-        className={navLinkClass('/dashboard/tools')}
+        aria-label="Settings"
+        className={`text-sm no-underline border-b-2 py-3.5 px-0.5 -mb-px transition-colors flex items-center ${
+          isSettingsActive
+            ? 'text-purple-600 border-purple-600 font-semibold'
+            : 'text-muted-foreground border-transparent font-medium hover:text-foreground hover:no-underline hover:border-purple-600'
+        }`}
       >
-        Tools
-      </Link>
-      <Link
-        href="/dashboard/service-areas"
-        onClick={closeMobileMenu}
-        className={navLinkClass('/dashboard/service-areas')}
-      >
-        Service Areas
-      </Link>
-      <Link
-        href="/dashboard/pricing-structures"
-        onClick={closeMobileMenu}
-        className={navLinkClass('/dashboard/pricing-structures')}
-      >
-        Pricing
+        <Settings className="h-4 w-4 shrink-0" />
       </Link>
     </>
   );
@@ -250,11 +247,11 @@ export function DashboardHeader({
                   Inbox
                 </Link>
                 <Link
-                  href="/dashboard/quotes"
+                  href="/dashboard/crm/contacts"
                   onClick={closeMobileMenu}
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
-                  Quotes
+                  Contacts
                 </Link>
                 <Link
                   href="/dashboard/crm"
@@ -264,32 +261,19 @@ export function DashboardHeader({
                   Leads
                 </Link>
                 <Link
-                  href="/dashboard/crm/contacts"
+                  href="/dashboard/quotes"
                   onClick={closeMobileMenu}
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
-                  Contacts
+                  Quotes
                 </Link>
                 <Link
-                  href="/dashboard/tools"
+                  href="/dashboard/settings"
                   onClick={closeMobileMenu}
-                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                  aria-label="Settings"
+                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors flex items-center"
                 >
-                  Tools
-                </Link>
-                <Link
-                  href="/dashboard/service-areas"
-                  onClick={closeMobileMenu}
-                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
-                >
-                  Service Areas
-                </Link>
-                <Link
-                  href="/dashboard/pricing-structures"
-                  onClick={closeMobileMenu}
-                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
-                >
-                  Pricing
+                  <Settings className="h-4 w-4 shrink-0" />
                 </Link>
                 <div className="pt-3 mt-2 border-t border-gray-200">
                   <Button
