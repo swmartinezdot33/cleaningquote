@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { OrgSwitcher } from '@/components/OrgSwitcher';
-import { Menu, X, Plus, Settings, Maximize2 } from 'lucide-react';
+import { Menu, X, Plus, Wrench, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 
@@ -159,7 +159,7 @@ export function DashboardHeader({
             : 'text-muted-foreground border-transparent font-medium hover:text-foreground hover:no-underline hover:border-purple-600'
         }`}
       >
-        <Settings className="h-4 w-4 shrink-0" />
+        <Wrench className="h-4 w-4 shrink-0" />
       </Link>
     </>
   );
@@ -296,7 +296,7 @@ export function DashboardHeader({
                   aria-label="Settings"
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors flex items-center"
                 >
-                  <Settings className="h-4 w-4 shrink-0" />
+                  <Wrench className="h-4 w-4 shrink-0" />
                 </Link>
                 <div className="pt-3 mt-2 border-t border-gray-200 flex items-center gap-2">
                   <Button
