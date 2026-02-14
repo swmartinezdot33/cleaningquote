@@ -72,11 +72,33 @@ export function DashboardHeader({
   const router = useRouter();
   const searchParams = useSearchParams();
   const locationId = useEffectiveLocationId();
-  const indash = searchParams?.get('indash') === 'true';
+
+  /* Persist indash so expand button stays visible across navigation. Once loaded with ?indash=true, keep showing expand until session ends. */
+  const [indashMode, setIndashMode] = useState(
+    () => typeof window !== 'undefined' && window.sessionStorage?.getItem('cleanquote_indash') === 'true'
+  );
+  useEffect(() => {
+    const fromSearchParams = searchParams?.get('indash') === 'true';
+    const fromWindow =
+      typeof window !== 'undefined' &&
+      typeof window.location?.search === 'string' &&
+      new URLSearchParams(window.location.search).get('indash') === 'true';
+    const fromStorage =
+      typeof window !== 'undefined' && window.sessionStorage?.getItem('cleanquote_indash') === 'true';
+    const on = fromSearchParams || fromWindow || fromStorage;
+    setIndashMode(!!on);
+    if ((fromSearchParams || fromWindow) && typeof window !== 'undefined')
+      window.sessionStorage?.setItem('cleanquote_indash', 'true');
+  }, [searchParams]);
+
   const customPageLinkUrl =
-    indash && locationId
+    indashMode && locationId
       ? `${GHL_APP_BASE}/v2/location/${locationId}/custom-page-link/${CUSTOM_PAGE_LINK_ID}`
       : null;
+
+  /** When indash mode, preserve param in nav links so it stays through navigation. */
+  const linkHref = (path: string) =>
+    indashMode ? `${path}${path.includes('?') ? '&' : '?'}indash=true` : path;
 
   const navLinkClass = (href: string) => {
     const active = isNavActive(href, pathname);
@@ -97,7 +119,7 @@ export function DashboardHeader({
       )}
       {isSuperAdmin && (
         <Link
-          href="/dashboard/super-admin"
+          href={linkHref('/dashboard/super-admin')}
           onClick={closeMobileMenu}
           className={`text-sm no-underline border-b-2 py-3.5 px-0.5 -mb-px transition-colors ${
             isNavActive('/dashboard/super-admin', pathname)
@@ -109,100 +131,96 @@ export function DashboardHeader({
         </Link>
       )}
       <Link
-        href="/dashboard"
+        href={linkHref('/dashboard')}
         onClick={closeMobileMenu}
         className={navLinkClass('/dashboard')}
       >
         Dashboard
       </Link>
       <Link
-        href="/dashboard/crm/inbox"
+        href={linkHref('/dashboard/crm/inbox')}
         onClick={closeMobileMenu}
         className={navLinkClass('/dashboard/crm/inbox')}
       >
         Inbox
       </Link>
       <Link
-        href="/dashboard/crm/contacts"
+        href={linkHref('/dashboard/crm/contacts')}
         onClick={closeMobileMenu}
         className={navLinkClass('/dashboard/crm/contacts')}
       >
         Contacts
       </Link>
       <Link
-        href="/dashboard/crm"
+        href={linkHref('/dashboard/crm')}
         onClick={closeMobileMenu}
         className={navLinkClass('/dashboard/crm')}
       >
         Leads
       </Link>
       <Link
-        href="/dashboard/quotes"
+        href={linkHref('/dashboard/quotes')}
         onClick={closeMobileMenu}
         className={navLinkClass('/dashboard/quotes')}
       >
         Quotes
       </Link>
       <Link
-        href="/dashboard/tools"
+        href={linkHref('/dashboard/tools')}
         onClick={closeMobileMenu}
         className={navLinkClass('/dashboard/tools')}
       >
         Tools
       </Link>
       <Link
-        href="/dashboard/pricing-structures"
+        href={linkHref('/dashboard/pricing-structures')}
         onClick={closeMobileMenu}
         className={navLinkClass('/dashboard/pricing-structures')}
       >
         Pricing
       </Link>
       <Link
-        href="/dashboard/service-areas"
+        href={linkHref('/dashboard/service-areas')}
         onClick={closeMobileMenu}
         className={navLinkClass('/dashboard/service-areas')}
       >
         Service Areas
       </Link>
-      <Link
-        href="/dashboard/settings"
-        onClick={closeMobileMenu}
-        className={navLinkClass('/dashboard/settings')}
-      >
-        Settings
-      </Link>
     </>
   );
 
   return (
-    <header className="dashboard-header border-b border-border bg-card">
+    <header className="dashboard-header border-b border-border bg-card relative">
+      {/* When indash=true, expand button is fixed top-right so it stays visible through navigation and scroll. */}
+      {customPageLinkUrl && (
+        <a
+          href={customPageLinkUrl}
+          target="_parent"
+          rel="noopener noreferrer"
+          className="fixed top-3 right-4 z-50 inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors bg-card border border-border shadow-sm"
+          aria-label="Open in GHL sidebar"
+        >
+          <Maximize2 className="h-4 w-4" />
+        </a>
+      )}
       <div className="mx-auto flex h-14 w-full max-w-[1600px] items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Desktop nav — aligned left */}
         <div className="hidden md:flex md:items-center md:gap-4">
           {navLinks}
         </div>
-        {/* Right: New Quote button (desktop) + optional expand-in-GHL icon when ?indash=true */}
+        {/* Right: New Quote button (desktop) */}
         <div className="hidden md:flex md:items-center md:gap-2">
           <Button
             variant="default"
             size="sm"
             className="shrink-0 gap-2"
-            onClick={() => router.push('/dashboard/quotes?openNewQuote=1')}
+            onClick={() =>
+              router.push(indashMode ? '/dashboard/quotes?openNewQuote=1&indash=true' : '/dashboard/quotes?openNewQuote=1')
+            }
           >
             <Plus className="h-4 w-4" />
             New Quote
           </Button>
-          {customPageLinkUrl && (
-            <a
-              href={customPageLinkUrl}
-              target="_parent"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-              aria-label="Open in GHL sidebar"
-            >
-              <Maximize2 className="h-4 w-4" />
-            </a>
-          )}
         </div>
         {/* Mobile: hamburger */}
         <button
@@ -257,76 +275,69 @@ export function DashboardHeader({
                   </div>
                 )}
                 {isSuperAdmin && (
-                  <Link
-                    href="/dashboard/super-admin"
-                    onClick={closeMobileMenu}
-                    className="py-3 px-3 text-sm font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-md transition-colors"
-                  >
-                    Super Admin
-                  </Link>
+                <Link
+                  href={linkHref('/dashboard/super-admin')}
+                  onClick={closeMobileMenu}
+                  className="py-3 px-3 text-sm font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-md transition-colors"
+                >
+                  Super Admin
+                </Link>
                 )}
                 <Link
-                  href="/dashboard"
+                  href={linkHref('/dashboard')}
                   onClick={closeMobileMenu}
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
                   Dashboard
                 </Link>
                 <Link
-                  href="/dashboard/crm/inbox"
+                  href={linkHref('/dashboard/crm/inbox')}
                   onClick={closeMobileMenu}
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
                   Inbox
                 </Link>
                 <Link
-                  href="/dashboard/crm/contacts"
+                  href={linkHref('/dashboard/crm/contacts')}
                   onClick={closeMobileMenu}
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
                   Contacts
                 </Link>
                 <Link
-                  href="/dashboard/crm"
+                  href={linkHref('/dashboard/crm')}
                   onClick={closeMobileMenu}
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
                   Leads
                 </Link>
                 <Link
-                  href="/dashboard/quotes"
+                  href={linkHref('/dashboard/quotes')}
                   onClick={closeMobileMenu}
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
                   Quotes
                 </Link>
                 <Link
-                  href="/dashboard/tools"
+                  href={linkHref('/dashboard/tools')}
                   onClick={closeMobileMenu}
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
                   Tools
                 </Link>
                 <Link
-                  href="/dashboard/pricing-structures"
+                  href={linkHref('/dashboard/pricing-structures')}
                   onClick={closeMobileMenu}
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
                   Pricing
                 </Link>
                 <Link
-                  href="/dashboard/service-areas"
+                  href={linkHref('/dashboard/service-areas')}
                   onClick={closeMobileMenu}
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
                   Service Areas
-                </Link>
-                <Link
-                  href="/dashboard/settings"
-                  onClick={closeMobileMenu}
-                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
-                >
-                  Settings
                 </Link>
                 <div className="pt-3 mt-2 border-t border-gray-200 flex items-center gap-2">
                   <Button
@@ -335,24 +346,14 @@ export function DashboardHeader({
                     className="flex-1 gap-2"
                     onClick={() => {
                       closeMobileMenu();
-                      router.push('/dashboard/quotes?openNewQuote=1');
+                      router.push(
+                        indashMode ? '/dashboard/quotes?openNewQuote=1&indash=true' : '/dashboard/quotes?openNewQuote=1'
+                      );
                     }}
                   >
                     <Plus className="h-4 w-4" />
                     New Quote
                   </Button>
-                  {customPageLinkUrl && (
-                    <a
-                      href={customPageLinkUrl}
-                      target="_parent"
-                      rel="noopener noreferrer"
-                      onClick={closeMobileMenu}
-                      className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
-                      aria-label="Open in GHL sidebar"
-                    >
-                      <Maximize2 className="h-4 w-4" />
-                    </a>
-                  )}
                 </div>
               </nav>
             </div>

@@ -259,8 +259,7 @@
       { page: 'quotes', label: 'Quotes' },
       { page: 'tools', label: 'Tools' },
       { page: 'service-areas', label: 'Service Areas' },
-      { page: 'pricing', label: 'Pricing' },
-      { page: 'settings', label: 'Settings' }
+      { page: 'pricing', label: 'Pricing' }
     ];
     function findCleanQuoteIframe() {
       try {
@@ -611,8 +610,7 @@
       quotes: 'Quotes',
       tools: 'Tools',
       'service-areas': 'Service Areas',
-      pricing: 'Pricing',
-      settings: 'Settings'
+      pricing: 'Pricing'
     };
     function getLocationNameFromSidebar() {
       var root = getLeftSidebarRoot();

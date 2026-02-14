@@ -132,7 +132,11 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
       const pageKey = data.page.trim().toLowerCase();
       const path = CLEANQUOTE_PAGE_KEY_TO_PATH[pageKey];
       if (!path) return;
-      const q = effectiveLocationId ? `?locationId=${encodeURIComponent(effectiveLocationId)}` : '';
+      const parts: string[] = [];
+      if (effectiveLocationId) parts.push(`locationId=${encodeURIComponent(effectiveLocationId)}`);
+      if (typeof window !== 'undefined' && window.sessionStorage?.getItem('cleanquote_indash') === 'true')
+        parts.push('indash=true');
+      const q = parts.length ? '?' + parts.join('&') : '';
       router.push(path + q);
       try {
         window.parent.postMessage({ type: 'CLEANQUOTE_PAGE_CHANGED', page: pageKey }, '*');
