@@ -56,6 +56,8 @@ function toCanonicalServiceType(serviceType: string): string {
   if (t === 'deep' || t.includes('deep')) return 'deep';
   if (t === 'initial' || t.includes('initial')) return 'initial';
   if (t === 'general' || t.includes('general')) return 'general';
+  // Form may send only "One Time" / "one-time" for one-time deep clean; treat as deep so price is determined
+  if (t === 'one time' || t === 'one-time' || t === 'onetime') return 'deep';
   return t;
 }
 
@@ -235,16 +237,21 @@ export function generateSummaryText(
 
   const squareFeetDisplay = squareFeetRange || getSquareFootageRangeDisplay(inputs.squareFeet);
 
+  // Normalize so "One-Time", "one time", "" all trigger the correct branch and range lookup
+  const normFreq = normalizeFrequency(frequency ?? '');
+  const normServiceType = toCanonicalServiceType(serviceType ?? '');
+  const isOneTimeSelection = normFreq === 'one-time' || !normFreq;
+
   let summary = `✨ YOUR QUOTE\n\n`;
   summary += `Home Size: ${squareFeetDisplay} sq ft\n\n`;
 
-  if (serviceType && (frequency === 'one-time' || !frequency)) {
+  if (serviceType && isOneTimeSelection) {
     const selectedRange = getSelectedQuoteRange(ranges, serviceType, frequency ?? '');
 
     if (selectedRange) {
       summary += `🎯 ${serviceLabel(labels, serviceType)}: ${formatPriceRange(selectedRange)}\n\n`;
 
-      if (serviceType === 'move-in' || serviceType === 'move-out') {
+      if (normServiceType === 'move-in' || normServiceType === 'move-out') {
         summary += `OTHER SERVICE OPTIONS\n\n`;
         summary += `🧹 ${serviceLabel(labels, 'deep')}: ${formatPriceRange(ranges.deep)}\n`;
         summary += `✨ ${serviceLabel(labels, 'general')}: ${formatPriceRange(ranges.general)}\n\n`;
@@ -256,10 +263,10 @@ export function generateSummaryText(
       }
     } else {
       summary += `Price could not be determined for the selected service and frequency.\n\n`;
-      console.warn('[format] generateSummaryText: selectedRange null for one-time path', { serviceType, frequency });
+      console.warn('[format] generateSummaryText: selectedRange null for one-time path', { serviceType, frequency, normServiceType, normFreq });
     }
-  } else if (frequency && frequency !== 'one-time') {
-    const selectedRange = getSelectedQuoteRange(ranges, serviceType ?? '', frequency);
+  } else if (normFreq && normFreq !== 'one-time') {
+    const selectedRange = getSelectedQuoteRange(ranges, serviceType ?? '', frequency ?? '');
 
     if (selectedRange) {
       summary += `🎯 ${freqLabel(labels, frequency)}: ${formatPriceRange(selectedRange)}\n\n`;
@@ -291,7 +298,7 @@ export function generateSummaryText(
     summary += `🚚 ${serviceLabel(labels, 'move-out')}: ${formatPriceRange(ranges.moveInOutFull)}\n\n`;
   }
 
-  if (initialCleaningRequired && serviceType !== 'initial') {
+  if (initialCleaningRequired && normServiceType !== 'initial') {
     summary += `📌 Note: An initial cleaning is required as your first service.\n`;
     summary += `This gets your home to our maintenance standards.\n`;
   }

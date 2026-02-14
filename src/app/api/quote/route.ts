@@ -59,6 +59,8 @@ function toCanonicalServiceType(serviceType: string): string {
   if (t === 'deep' || t.includes('deep')) return 'deep';
   if (t === 'initial' || t.includes('initial')) return 'initial';
   if (t === 'general' || t.includes('general')) return 'general';
+  // Form may send only "One Time" / "one-time" for one-time deep clean; treat as deep so note/quote get price
+  if (t === 'one time' || t === 'one-time' || t === 'onetime') return 'deep';
   return t;
 }
 
