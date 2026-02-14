@@ -305,6 +305,22 @@
       }
       return null;
     }
+    /** Find the GHL "CleanQuote.io" custom menu link row (href contains cleanquote/custom-page-link or text CleanQuote). */
+    function findCleanQuoteCustomLinkRow() {
+      var root = getLeftSidebarRoot();
+      if (!root) return null;
+      var candidates = root.querySelectorAll('a, [role="link"]');
+      for (var i = 0; i < candidates.length; i++) {
+        var el = candidates[i];
+        var href = (el.href || el.getAttribute('href') || '').trim();
+        var text = normLower((el.textContent || '').split('\n')[0].trim());
+        if ((href.indexOf('cleanquote') !== -1 || href.indexOf('custom-page-link') !== -1) || text.indexOf('cleanquote') !== -1) {
+          var row = getRow(el);
+          if (row && row.id !== CONTAINER_ID) return row;
+        }
+      }
+      return null;
+    }
     function injectSidebarMenu(locationId) {
       if (document.getElementById(CONTAINER_ID)) return;
       var leftSidebar = getLeftSidebarRoot();
@@ -349,6 +365,13 @@
         beforeEl.parentNode.insertBefore(container, beforeEl);
       else
         leftSidebar.appendChild(container);
+      /* Relocate CleanQuote.io custom link to sit above our injected menu. */
+      var cleanQuoteRow = findCleanQuoteCustomLinkRow();
+      if (cleanQuoteRow && cleanQuoteRow.parentNode && container.parentNode) {
+        try {
+          cleanQuoteRow.parentNode.insertBefore(cleanQuoteRow, container);
+        } catch (e) {}
+      }
     }
     function run() {
       function tryInject(locId) {
