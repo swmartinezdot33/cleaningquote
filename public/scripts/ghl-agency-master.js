@@ -447,19 +447,17 @@
         return;
       }
 
+      /* Only move the CleanQuote.io link so it sits right above our submenu (Inbox, Contacts, etc.). Do not touch other sidebar structure. */
       var ourContainer = document.getElementById(CONTAINER_ID);
-      var firstNavRow = findFirstSidebarNavRow();
-      var insertBefore = ourContainer || firstNavRow;
-      if (!insertBefore || !insertBefore.parentNode || cleanQuoteRow === insertBefore) {
-        dbg({ hypothesisId: 'H3', insertBeforeId: insertBefore ? (insertBefore.id || insertBefore.tagName) : null, hasParent: !!(insertBefore && insertBefore.parentNode), sameAsCleanQuote: cleanQuoteRow === insertBefore });
+      if (!ourContainer || !ourContainer.parentNode || cleanQuoteRow === ourContainer) {
+        dbg({ hypothesisId: 'H3', noOurContainer: !ourContainer });
         return;
       }
-      var parent = insertBefore.parentNode;
-      if (cleanQuoteRow.parentNode !== parent || cleanQuoteRow.nextElementSibling !== insertBefore) {
+      var parent = ourContainer.parentNode;
+      if (cleanQuoteRow.parentNode !== parent || cleanQuoteRow.nextElementSibling !== ourContainer) {
         try {
-          /* Prefer placing CleanQuote at the very start of the nav list so it stays above Inbox. */
-          parent.insertBefore(cleanQuoteRow, parent.firstChild);
-          dbg({ hypothesisId: 'H4_H5', didInsert: true, atFirstChild: true });
+          parent.insertBefore(cleanQuoteRow, ourContainer);
+          dbg({ hypothesisId: 'H4_H5', didInsert: true });
         } catch (e) {
           dbg({ hypothesisId: 'H5', didInsert: false, error: (e && e.message) || String(e) });
         }
@@ -506,12 +504,20 @@
         list.appendChild(li);
       }
       container.appendChild(list);
-      var dashboardRow = findDashboardRow();
-      var beforeEl = dashboardRow || findFirstSidebarNavRow();
-      if (beforeEl && beforeEl.parentNode)
-        beforeEl.parentNode.insertBefore(container, beforeEl);
-      else
-        leftSidebar.appendChild(container);
+      /* Insert our submenu right after the CleanQuote.io link so order is: native GHL items → CleanQuote.io → our submenu (Inbox, etc.). */
+      var cleanQuoteRow = findCleanQuoteCustomLinkRow();
+      if (cleanQuoteRow && cleanQuoteRow.parentNode) {
+        var next = cleanQuoteRow.nextSibling;
+        if (next) cleanQuoteRow.parentNode.insertBefore(container, next);
+        else cleanQuoteRow.parentNode.appendChild(container);
+      } else {
+        var dashboardRow = findDashboardRow();
+        var beforeEl = dashboardRow || findFirstSidebarNavRow();
+        if (beforeEl && beforeEl.parentNode)
+          beforeEl.parentNode.insertBefore(container, beforeEl);
+        else
+          leftSidebar.appendChild(container);
+      }
       moveCleanQuoteToTopAndHideDashboard();
     }
     function run() {
