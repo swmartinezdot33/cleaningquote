@@ -250,6 +250,10 @@
   })();
 
   (function () {
+    /* Disable sidebar inject/move by default: it was hiding or displacing the native GHL menu.
+       Set window.CLEANQUOTE_AGENCY_CONFIG.sidebarInjectEnabled = true to re-enable. */
+    if (C.sidebarInjectEnabled !== true) return;
+
     var CONTAINER_ID = 'cleanquote-ghl-sidebar-menu';
     /* Submenu only: Inbox, Contacts, etc. The CleanQuote.io custom link (above this) is the dashboard. */
     var MENU_ITEMS = [
