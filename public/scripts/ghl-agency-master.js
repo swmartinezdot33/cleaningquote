@@ -251,8 +251,8 @@
 
   (function () {
     var CONTAINER_ID = 'cleanquote-ghl-sidebar-menu';
+    /* Submenu only: Inbox, Contacts, etc. The CleanQuote.io custom link (above this) is the dashboard. */
     var MENU_ITEMS = [
-      { page: 'dashboard', label: 'Dashboard' },
       { page: 'inbox', label: 'Inbox' },
       { page: 'contacts', label: 'Contacts' },
       { page: 'leads', label: 'Leads' },
