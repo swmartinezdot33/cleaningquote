@@ -3,10 +3,15 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { OrgSwitcher } from '@/components/OrgSwitcher';
-import { Menu, X, Plus, Settings } from 'lucide-react';
+import { Menu, X, Plus, Settings, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
+
+const CUSTOM_PAGE_LINK_ID = '6983df14aa911f4d3067493d';
+/** Base URL for "open in GHL" link — parent window navigates here to show CleanQuote sidebar item. */
+const GHL_APP_BASE = 'https://my.cleanquote.io';
 
 function isNavActive(href: string, pathname: string): boolean {
   const clean = pathname.replace(/\/$/, '') || '/';
@@ -65,6 +70,13 @@ export function DashboardHeader({
   const closeMobileMenu = () => setMobileMenuOpen(false);
   const pathname = usePathname() ?? '';
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const locationId = useEffectiveLocationId();
+  const indash = searchParams.get('indash') === 'true';
+  const customPageLinkUrl =
+    indash && locationId
+      ? `${GHL_APP_BASE}/v2/location/${locationId}/custom-page-link/${CUSTOM_PAGE_LINK_ID}`
+      : null;
 
   const navLinkClass = (href: string) => {
     const active = isNavActive(href, pathname);
@@ -159,8 +171,8 @@ export function DashboardHeader({
         <div className="hidden md:flex md:items-center md:gap-4">
           {navLinks}
         </div>
-        {/* Right: New Quote button (desktop) — same look as page button, not a nav link */}
-        <div className="hidden md:block">
+        {/* Right: New Quote button (desktop) + optional expand-in-GHL icon when ?indash=true */}
+        <div className="hidden md:flex md:items-center md:gap-2">
           <Button
             variant="default"
             size="sm"
@@ -170,6 +182,17 @@ export function DashboardHeader({
             <Plus className="h-4 w-4" />
             New Quote
           </Button>
+          {customPageLinkUrl && (
+            <a
+              href={customPageLinkUrl}
+              target="_parent"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              aria-label="Open in GHL sidebar"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          )}
         </div>
         {/* Mobile: hamburger */}
         <button
@@ -275,11 +298,11 @@ export function DashboardHeader({
                 >
                   <Settings className="h-4 w-4 shrink-0" />
                 </Link>
-                <div className="pt-3 mt-2 border-t border-gray-200">
+                <div className="pt-3 mt-2 border-t border-gray-200 flex items-center gap-2">
                   <Button
                     variant="default"
                     size="sm"
-                    className="w-full gap-2"
+                    className="flex-1 gap-2"
                     onClick={() => {
                       closeMobileMenu();
                       router.push('/dashboard/quotes?openNewQuote=1');
@@ -288,6 +311,18 @@ export function DashboardHeader({
                     <Plus className="h-4 w-4" />
                     New Quote
                   </Button>
+                  {customPageLinkUrl && (
+                    <a
+                      href={customPageLinkUrl}
+                      target="_parent"
+                      rel="noopener noreferrer"
+                      onClick={closeMobileMenu}
+                      className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
+                      aria-label="Open in GHL sidebar"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  )}
                 </div>
               </nav>
             </div>

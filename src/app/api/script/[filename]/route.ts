@@ -9,13 +9,14 @@ const CORS_HEADERS = {
   'Access-Control-Max-Age': '86400',
 };
 
-const ALLOWED_SCRIPTS = new Set(['cleanquote.js', 'ghl-sidebar-menu.js']);
+const ALLOWED_SCRIPTS = new Set(['cleanquote.js', 'ghl-sidebar-menu.js', 'ghl-agency-master.js']);
 
 /**
  * Serves CleanQuote scripts with CORS so they load from GHL and other external sites.
  * - /api/script/cleanquote.js — Quoter button script
  * - /api/script/ghl-sidebar-menu.js — GHL sidebar menu injection (Dashboard, Quotes, Contacts, etc.)
- * Use: <script src="https://www.cleanquote.io/api/script/ghl-sidebar-menu.js" crossorigin="anonymous"></script>
+ * - /api/script/ghl-agency-master.js — Full agency script (favicon, dashboard hijack, Sub-Accounts, groups, redirect, sidebar menu)
+ * Use: set window.CLEANQUOTE_AGENCY_CONFIG then <script src="https://www.cleanquote.io/api/script/ghl-agency-master.js"></script>
  */
 export async function GET(
   _request: Request,
