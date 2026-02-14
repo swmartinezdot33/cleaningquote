@@ -429,7 +429,7 @@ export default function CRMInboxPage() {
           <aside className="flex w-80 flex-shrink-0 flex-col border-r border-border bg-muted/30 min-h-0">
             <div className="flex flex-col border-b border-border bg-background">
               <div className="flex items-center justify-between gap-2 px-3 py-2">
-                <h2 className="text-sm font-semibold text-foreground">Team Inbox</h2>
+                <h2 className="text-sm font-semibold text-foreground">Inbox</h2>
                 <div className="relative flex-1 max-w-[140px]">
                   <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                   <input
