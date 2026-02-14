@@ -321,11 +321,7 @@
         list.appendChild(li);
       }
       container.appendChild(list);
-      var insertAfter = findCleanQuoteSidebarRow();
-      if (insertAfter && insertAfter.parentNode)
-        insertAfter.parentNode.insertBefore(container, insertAfter.nextElementSibling);
-      else
-        leftSidebar.appendChild(container);
+      leftSidebar.insertBefore(container, leftSidebar.firstChild);
     }
     function run() {
       function tryInject(locId) {
