@@ -37,14 +37,35 @@ export function getServiceTypeDisplayName(serviceType: string): string {
   return typeMap[serviceType] || serviceType;
 }
 
+/** Normalize form frequency string to canonical key (same logic as quote API). */
+function normalizeFrequency(frequency: string): string {
+  const f = String(frequency ?? '').toLowerCase().trim().replace(/\s+/g, ' ');
+  if (!f) return '';
+  if (f === 'weekly' || f === 'week') return 'weekly';
+  if (f === 'bi-weekly' || f === 'biweekly' || f === 'bi weekly' || f.includes('every 2 week') || f.includes('every two week')) return 'bi-weekly';
+  if (f === 'four-week' || f === 'fourweek' || f === 'four week' || f === '4 week' || f.includes('every 4 week') || f.includes('every four week') || f === 'monthly') return 'four-week';
+  if (f === 'one-time' || f === 'onetime' || f === 'one time') return 'one-time';
+  return f;
+}
+
+/** Normalize service type for one-time range lookup (match quote API). */
+function toCanonicalServiceType(serviceType: string): string {
+  const t = String(serviceType ?? '').toLowerCase().trim().replace(/\s+/g, ' ');
+  if (t === 'move-out' || t.includes('move out') || t.includes('moveout')) return 'move-out';
+  if (t === 'move-in' || t.includes('move in') || t.includes('movein')) return 'move-in';
+  if (t === 'deep' || t.includes('deep')) return 'deep';
+  if (t === 'initial' || t.includes('initial')) return 'initial';
+  if (t === 'general' || t.includes('general')) return 'general';
+  return t;
+}
+
 /**
  * Get the selected price range based on service type and frequency.
- * Normalizes frequency (biweekly → bi-weekly, monthly → four-week) to match API. Returns null when no match (no fallback).
+ * Normalizes frequency (e.g. "Every 4 Weeks", "biweekly") and service type so form values match. Returns null when no match (no fallback).
  */
 function getSelectedQuoteRange(ranges: QuoteRanges, serviceType: string, frequency: string): { low: number; high: number } | null {
-  const st = String(serviceType ?? '').toLowerCase().trim();
-  const freq = String(frequency ?? '').toLowerCase().trim();
-  const freqNorm = freq === 'biweekly' ? 'bi-weekly' : freq;
+  const st = toCanonicalServiceType(serviceType);
+  const freqNorm = normalizeFrequency(frequency);
 
   if (freqNorm === 'weekly') return ranges.weekly;
   if (freqNorm === 'bi-weekly') return ranges.biWeekly;

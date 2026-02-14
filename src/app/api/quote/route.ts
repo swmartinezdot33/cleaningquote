@@ -63,13 +63,27 @@ function toCanonicalServiceType(serviceType: string): string {
 }
 
 /**
+ * Normalize any form frequency string to a canonical key used for pricing and GHL schema.
+ * Handles labels like "Every 4 Weeks", "Bi-Weekly (Every 2 Weeks)", "biweekly", etc.
+ * Returns: 'weekly' | 'bi-weekly' | 'four-week' | 'monthly' | 'one-time' | ''
+ */
+function normalizeFrequencyForPricing(frequency: string): string {
+  const f = String(frequency ?? '').toLowerCase().trim().replace(/\s+/g, ' ');
+  if (!f) return '';
+  if (f === 'weekly' || f === 'week') return 'weekly';
+  if (f === 'bi-weekly' || f === 'biweekly' || f === 'bi weekly' || f.includes('every 2 week') || f.includes('every two week')) return 'bi-weekly';
+  if (f === 'four-week' || f === 'fourweek' || f === 'four week' || f === '4 week' || f.includes('every 4 week') || f.includes('every four week') || f === 'monthly') return 'four-week';
+  if (f === 'one-time' || f === 'onetime' || f === 'one time') return 'one-time';
+  return f;
+}
+
+/**
  * Helper to get the selected quote range based on service type and frequency.
- * Normalizes serviceType/frequency so values from the form (e.g. "Initial", "biweekly") still match.
+ * Normalizes serviceType/frequency so values from the form (e.g. "Initial", "biweekly", "Every 4 Weeks") still match.
  */
 function getSelectedQuoteRange(ranges: QuoteRanges, serviceType: string, frequency: string): { low: number; high: number } | null {
   const canonical = toCanonicalServiceType(serviceType);
-  const freq = String(frequency ?? '').toLowerCase().trim();
-  const freqNorm = freq === 'biweekly' ? 'bi-weekly' : freq;
+  const freqNorm = normalizeFrequencyForPricing(frequency);
   // For one-time types, ignore recurring frequency so we pick the correct range
   const effectiveFreq = ['move-in', 'move-out', 'deep'].includes(canonical) ? '' : freqNorm;
   const st = canonical;
@@ -92,7 +106,7 @@ function getSelectedQuoteRange(ranges: QuoteRanges, serviceType: string, frequen
     serviceType: String(serviceType ?? ''),
     frequency: String(frequency ?? ''),
     canonicalServiceType: canonical,
-    effectiveFreq,
+    effectiveFreq: effectiveFreq || '(empty)',
   });
   return null;
 }
@@ -103,8 +117,7 @@ function getSelectedQuoteRange(ranges: QuoteRanges, serviceType: string, frequen
  */
 function getSelectedQuotePrice(ranges: QuoteRanges, serviceType: string, frequency: string): number | null {
   const canonical = toCanonicalServiceType(serviceType);
-  const freq = String(frequency ?? '').toLowerCase().trim();
-  const freqNorm = freq === 'biweekly' ? 'bi-weekly' : freq;
+  const freqNorm = normalizeFrequencyForPricing(frequency);
 
   if (freqNorm === 'weekly') return Math.round((ranges.weekly.low + ranges.weekly.high) / 2);
   if (freqNorm === 'bi-weekly') return Math.round((ranges.biWeekly.low + ranges.biWeekly.high) / 2);
@@ -362,17 +375,16 @@ export async function POST(request: NextRequest) {
             };
             fieldValue = serviceTypeMap[String(fieldValue).toLowerCase()] || String(fieldValue);
           } else if (bodyKey === 'frequency') {
-            // Normalize frequency values
+            // Normalize frequency values (labels like "Every 4 Weeks" -> schema value)
             const frequencyMap: Record<string, string> = {
               'weekly': 'weekly',
               'bi-weekly': 'biweekly',
-              'biweekly': 'biweekly',
               'four-week': 'monthly',
               'monthly': 'monthly',
               'one-time': 'one_time',
-              'one time': 'one_time',
             };
-            fieldValue = frequencyMap[String(fieldValue).toLowerCase()] || String(fieldValue);
+            const normalized = normalizeFrequencyForPricing(String(fieldValue));
+            fieldValue = frequencyMap[normalized] || String(fieldValue);
           } else if (bodyKey === 'condition') {
             // Normalize condition values
             const conditionMap: Record<string, string> = {
@@ -734,7 +746,7 @@ export async function POST(request: NextRequest) {
             const raw = String(body.serviceType || '').toLowerCase().trim();
             const mappedServiceType = serviceTypeMap[raw] || (raw ? 'general_cleaning' : '');
             
-            // Map frequency to schema options
+            // Map frequency to schema options. Normalize form value first so labels like "Every 4 Weeks" become schema-safe.
             const frequencyMap: Record<string, string> = {
               'weekly': 'weekly',
               'bi-weekly': 'biweekly',
@@ -742,7 +754,8 @@ export async function POST(request: NextRequest) {
               'monthly': 'monthly',
               'one-time': 'one_time',
             };
-            const mappedFrequency = frequencyMap[body.frequency || ''] || body.frequency || '';
+            const normalizedFreq = normalizeFrequencyForPricing(body.frequency ?? '');
+            const mappedFrequency = frequencyMap[normalizedFreq] ?? '';
             
             // Map condition to schema options
             const conditionMap: Record<string, string> = {
@@ -853,6 +866,7 @@ export async function POST(request: NextRequest) {
             // Prepare custom object creation (will parallelize with opportunity and note)
             // Only call GHL when createQuoteObject is not explicitly disabled
             if (ghlConfig?.createQuoteObject !== false) {
+              console.log('[CQ-QUOTE-OBJECT] Creating Quote custom object', { contactId: ghlContactId, locationId: ghlLocationId ?? null, customFieldsCount: Object.keys(quoteCustomFields).length });
               // Use same token as contact so tool-scoped GHL (multi-tenant) works
               quoteObjectPromise = createCustomObject(
                 'quotes',
@@ -864,11 +878,12 @@ export async function POST(request: NextRequest) {
                 ghlToken ?? undefined
               );
             } else {
-              console.warn('GHL Quote custom object skipped: createQuoteObject is disabled for this tool.');
+              console.warn('[CQ-QUOTE-OBJECT] Skipped: createQuoteObject is disabled for this tool.', { toolId: toolId ?? null });
             }
           } catch (quoteError) {
-            // Custom object creation failed - log detailed error
+            // Custom object creation failed (exception before promise resolved)
             const errorMessage = quoteError instanceof Error ? quoteError.message : String(quoteError);
+            console.error('[CQ-QUOTE-OBJECT] Failed (sync):', errorMessage);
             console.error('⚠️ Failed to create Quote custom object in GHL:', errorMessage);
             console.error('📋 Quote object creation error details:', {
               error: errorMessage,
@@ -943,6 +958,7 @@ export async function POST(request: NextRequest) {
             // Custom object creation failed - log detailed error for debugging
             const error = quoteResult?.status === 'rejected' ? quoteResult.reason : null;
             const errorMessage = error instanceof Error ? error.message : String(error || 'Unknown error');
+            console.error('[CQ-QUOTE-OBJECT] Failed:', errorMessage);
             console.error('⚠️ Failed to create Quote custom object in GHL:', errorMessage);
             console.error('📋 Quote object creation error details:', {
               error: errorMessage,
