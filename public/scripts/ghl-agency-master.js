@@ -262,9 +262,11 @@
     }
     function navigateToPage(locationId, pageKey) {
       var url = cleanquoteAppBase + '/v2/location/' + encodeURIComponent(locationId) + '/custom-page-link/' + encodeURIComponent(customPageId) + '?cleanquote-page=' + encodeURIComponent(pageKey);
-      var iframe = findCleanQuoteIframe();
-      if (iframe) iframe.src = url;
-      else window.open(url, '_blank', 'noopener,noreferrer');
+      try {
+        (window.top || window).location.href = url;
+      } catch (e) {
+        window.location.href = url;
+      }
     }
     function findCleanQuoteSidebarRow() {
       var root = getLeftSidebarRoot();
