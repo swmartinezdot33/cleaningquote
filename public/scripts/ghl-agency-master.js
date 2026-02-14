@@ -271,15 +271,14 @@
         window.location.href = url;
       }
     }
-    function findCleanQuoteSidebarRow() {
+    function findDashboardRow() {
       var root = getLeftSidebarRoot();
       if (!root) return null;
-      var candidates = root.querySelectorAll('a, [role="link"], button, [data-cq-group]');
+      var candidates = root.querySelectorAll('a, [role="link"], button');
       for (var i = 0; i < candidates.length; i++) {
         var el = candidates[i];
-        var text = normLower(el.textContent || '');
-        var href = (el.getAttribute && el.getAttribute('href')) || '';
-        if (text.indexOf('cleanquote') !== -1 || href.indexOf('cleanquote') !== -1 || href.indexOf('custom-page-link') !== -1) {
+        var text = normLower((el.textContent || '').split('\n')[0].trim());
+        if (text === 'dashboard') {
           var row = getRow(el);
           if (row) return row;
         }
@@ -321,7 +320,11 @@
         list.appendChild(li);
       }
       container.appendChild(list);
-      leftSidebar.insertBefore(container, leftSidebar.firstChild);
+      var beforeEl = findDashboardRow();
+      if (beforeEl && beforeEl.parentNode)
+        beforeEl.parentNode.insertBefore(container, beforeEl);
+      else
+        leftSidebar.appendChild(container);
     }
     function run() {
       function tryInject(locId) {
