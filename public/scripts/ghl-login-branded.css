@@ -2,7 +2,10 @@
 /*   GHL Custom Login CSS – CleanQuote.io branding                             */
 /*   Paste this into GHL Agency/Company → Whitelabel → Custom CSS            */
 /*   Optional: @import url('https://www.cleanquote.io/scripts/ghl-login-branded.css'); */
+/*   Font loads first so login and dashboard match the app.                   */
 /* -------------------------------------------------------------------------- */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
 /* -------------------------------------------------------------------------- */
 /*   IMPORTS (SKIPPED FROM BEING EXPANDED)                                    */
@@ -289,4 +292,122 @@ button#resend-activation-link-btn {
 /* Fix login button alignment on set password page */
 #auth-setPassword-body .flex.items-end.justify-end {
     justify-content: center;
+}
+
+/* -------------------------------------------------------------------------- */
+/*   DASHBOARD LOGIN THEMES – USER PRESET (hl_login body)                      */
+/* -------------------------------------------------------------------------- */
+
+.hl_login--body .container-fluid>.card .login-card-heading h2.heading2:after {
+    content: var(--header-note);
+    line-height: 1.5;
+    font-size: 12px;
+    display: block;
+    margin-top: 20px;
+    margin-bottom: -10px;
+    color: var(--header-note-color);
+}
+.hl_login--body p.foot-note:before {
+    content: var(--footer-note);
+    color: var(--footer-note-color);
+    font-size: 12px;
+    display: block;
+    margin-bottom: 20px;
+}
+.hl_login--body .container-fluid>.card .login-card-heading h2.heading2:after {
+    font-size: 15px;
+}
+.hl_login--body .card .w-full.border-t.border-gray-300 {
+    border-color: var(--login-input-border) !important;
+}
+
+body .hl_login--body {
+    font-family: var(--main-font);
+}
+.hl_login {
+    background: var(--main-body-bg);
+    height: 100vh !important;
+}
+.hl_login--header {
+    display: none;
+}
+.hl_login--header .container-fluid a img,
+.hl_login--header .container-fluid a svg {
+    display: none;
+}
+.hl_login--body {
+    position: relative;
+    display: block;
+    width: 100%;
+    max-width: 80%;
+    margin: 0 auto;
+    padding: 100px 15px;
+    padding-bottom: 0;
+}
+.hl_login--body .container-fluid {
+    display: flex;
+    align-items: left;
+    justify-content: left;
+    text-align: left;
+    padding: 0 !important;
+}
+.hl_login--body .card {
+    box-shadow: 0 0 80px rgba(0, 0, 0, 0.08);
+}
+.hl_login--body .card-body {
+    display: block;
+    text-align: center;
+    height: 550px;
+    max-width: 40% !important;
+    border: none !important;
+    background: var(--main-login-bg) !important;
+    border-radius: 0 !important;
+    margin: 0 auto !important;
+}
+#app .sidebar-v2-agency .hl_login--body .card {
+    border: none !important;
+}
+.hl_login .hl_login--body .card {
+    border-radius: 0 !important;
+    padding: 40px 40px 20px 40px;
+}
+.hl_login--body .card {
+    background: var(--main-login-bg) !important;
+}
+.hl_login--body .card .card-body {
+    display: inline-block;
+    margin: 0 !important;
+    padding: 0px !important;
+    box-sizing: border-box;
+    width: 100% !important;
+    max-width: 100% !important;
+    text-align: left;
+}
+.hl_login--body .card:before {
+    content: '';
+    background-image: var(--login-logo);
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    position: relative;
+    display: block;
+    margin: 0 auto 20px;
+    width: var(--login-logo-width);
+    height: var(--login-logo-height);
+    left: 0;
+    right: 0;
+    top: 0px;
+}
+.hl_login--body .heading2 {
+    font-size: 25px;
+    font-weight: 400;
+    color: var(--login-heading-color) !important;
+    padding-bottom: 10px;
+}
+.hl_login--body .card .card-body label,
+.hl_login--body .card .card-body span.hl-text-input-label {
+    display: none;
+}
+.hl_login--body .card .w-full.border-t.border-gray-300 {
+    border-color: var(--login-input-border) !important;
 }

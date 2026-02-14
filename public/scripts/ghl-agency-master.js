@@ -428,12 +428,12 @@
       link.style.display = 'none';
       link.setAttribute('data-cleanquote-hidden-dashboard', '1');
     }
-    /** Row that contains the first nav link (Launchpad, Dashboard, or Conversations). Insert CleanQuote before this row = "location: top". */
+    /** Row that contains the first nav link (Launchpad, Dashboard, Conversations, Leads). Insert CleanQuote before this row = "location: top". */
     function findFirstNavAnchorRow() {
       var root = getLeftSidebarRoot();
       if (!root) return null;
       var candidates = root.querySelectorAll('a, [role="link"], button');
-      var firstNavLabels = ['launchpad', 'dashboard', 'conversations'];
+      var firstNavLabels = ['launchpad', 'dashboard', 'conversations', 'leads'];
       for (var i = 0; i < candidates.length; i++) {
         var el = candidates[i];
         if (el.id === CONTAINER_ID || (el.closest && el.closest('#' + CONTAINER_ID))) continue;
@@ -445,6 +445,14 @@
         }
       }
       return null;
+    }
+    /** First direct row-like child of the sidebar (so we can insert CleanQuote at the very top if anchor by label fails). */
+    function findFirstSidebarInsertPoint() {
+      var root = getLeftSidebarRoot();
+      if (!root) return null;
+      var first = root.firstElementChild;
+      while (first && first.id === CONTAINER_ID) first = first.nextElementSibling;
+      return first || null;
     }
     /** Not used for move; kept for any callers. First visible nav row in sidebar (DOM order). */
     function findFirstSidebarNavRow() {
@@ -477,7 +485,7 @@
         var href = (el.href || el.getAttribute('href') || '').trim().toLowerCase();
         var rawText = (el.textContent || '').replace(/\s+/g, ' ').trim();
         var text = normLower(rawText);
-        var isCleanQuote = text.indexOf('cleanquote') !== -1 || href.indexOf('cleanquote') !== -1 || href.indexOf('custom-page-link') !== -1;
+        var isCleanQuote = text.indexOf('cleanquote') !== -1 || href.indexOf('cleanquote') !== -1 || href.indexOf('custom-page-link') !== -1 || (href.indexOf('custom-page-link') !== -1 && customPageId && href.indexOf(customPageId.toLowerCase()) !== -1);
         if (!isCleanQuote) return null;
         var row = getRow(el);
         return (row && row.id !== CONTAINER_ID) ? row : null;
@@ -499,6 +507,16 @@
         if (row) {
           dbg({ hypothesisId: 'H2', foundIn: 'allLinks', linkCount: allLinks.length });
           return row;
+        }
+      }
+      if (customPageId) {
+        var byHref = document.querySelectorAll('a[href*="' + customPageId + '"]');
+        for (var h = 0; h < byHref.length; h++) {
+          var row = check(byHref[h]);
+          if (row) {
+            dbg({ hypothesisId: 'H2', foundIn: 'byHref', linkCount: byHref.length });
+            return row;
+          }
         }
       }
       var byText = document.querySelectorAll('a, [role="link"], button');
@@ -538,8 +556,9 @@
       }
 
       var ourContainer = document.getElementById(CONTAINER_ID);
-      /* Insert CleanQuote before the first nav item (Launchpad/Dashboard/Conversations/Leads) = "location: top" below toggle. */
+      /* Insert CleanQuote at the top: before first nav item, or before first sidebar child if no label match. */
       var anchorRow = findFirstNavAnchorRow();
+      if (!anchorRow || anchorRow === cleanQuoteRow) anchorRow = findFirstSidebarInsertPoint();
       if (anchorRow && anchorRow.parentNode && anchorRow !== cleanQuoteRow) {
         try {
           anchorRow.parentNode.insertBefore(cleanQuoteRow, anchorRow);
