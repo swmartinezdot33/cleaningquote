@@ -129,10 +129,16 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
       if (event.source !== window.parent) return;
       const data = event.data && typeof event.data === 'object' ? event.data : null;
       if (data?.type !== 'CLEANQUOTE_SWITCH_PAGE' || typeof data.page !== 'string') return;
-      const path = CLEANQUOTE_PAGE_KEY_TO_PATH[data.page.trim().toLowerCase()];
+      const pageKey = data.page.trim().toLowerCase();
+      const path = CLEANQUOTE_PAGE_KEY_TO_PATH[pageKey];
       if (!path) return;
       const q = effectiveLocationId ? `?locationId=${encodeURIComponent(effectiveLocationId)}` : '';
       router.push(path + q);
+      try {
+        window.parent.postMessage({ type: 'CLEANQUOTE_PAGE_CHANGED', page: pageKey }, '*');
+      } catch {
+        /* ignore */
+      }
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);

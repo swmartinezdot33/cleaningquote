@@ -449,4 +449,95 @@
     window.addEventListener('routeLoaded', function () { setTimeout(scheduleRun, 400); });
     window.addEventListener('routeChangeEvent', function () { setTimeout(scheduleRun, 400); });
   })();
+
+  /* Update title tag with current page and location so the tab reflects what you're viewing. */
+  (function () {
+    var PAGE_LABELS = {
+      dashboard: 'Dashboard',
+      inbox: 'Inbox',
+      contacts: 'Contacts',
+      leads: 'Leads',
+      quotes: 'Quotes',
+      tools: 'Tools',
+      'service-areas': 'Service Areas',
+      pricing: 'Pricing',
+      settings: 'Settings'
+    };
+    function getLocationNameFromSidebar() {
+      var root = getLeftSidebarRoot();
+      if (!root) return '';
+      var buttons = root.querySelectorAll('button, [role="button"], a');
+      for (var i = 0; i < buttons.length; i++) {
+        var el = buttons[i];
+        if (el.id === 'cleanquote-ghl-sidebar-menu' || el.closest && el.closest('#cleanquote-ghl-sidebar-menu')) continue;
+        var text = (el.textContent || '').trim().replace(/\s+/g, ' ');
+        if (text.length > 2 && text.length < 120) {
+          var lower = text.toLowerCase();
+          if (lower.indexOf('dashboard') !== -1 || lower.indexOf('conversations') !== -1 || lower === 'contacts' || lower === 'leads' || lower === 'quotes') continue;
+          return text;
+        }
+      }
+      return '';
+    }
+    var lastCleanQuotePage = '';
+    function getPageNameFromUrl() {
+      var qs = (window.location && window.location.search) || '';
+      var m = qs.match(/[?&]cleanquote-page=([a-zA-Z0-9_-]+)/);
+      if (m && m[1]) {
+        var key = m[1].toLowerCase();
+        lastCleanQuotePage = key;
+        var label = PAGE_LABELS[key];
+        if (label) return label;
+      }
+      if (lastCleanQuotePage) {
+        var label = PAGE_LABELS[lastCleanQuotePage];
+        if (label) return label;
+      }
+      return '';
+    }
+    function getActiveNavLabel() {
+      var root = getLeftSidebarRoot();
+      if (!root) return '';
+      var active = root.querySelector('[aria-current="page"], .active, [class*="active"]');
+      if (active) {
+        var text = (active.textContent || '').split('\n')[0].trim();
+        if (text.length > 0 && text.length < 50) return text;
+      }
+      var links = root.querySelectorAll('a[href*="location"], a[href*="dashboard"], a[href*="conversations"]');
+      for (var j = 0; j < links.length; j++) {
+        var href = (links[j].href || '').toLowerCase();
+        var path = (window.location && window.location.pathname) || '';
+        if (href.indexOf(path.split('/').pop() || '') !== -1 || (path.indexOf('conversations') !== -1 && href.indexOf('conversations') !== -1)) {
+          var t = (links[j].textContent || '').split('\n')[0].trim();
+          if (t) return t;
+        }
+      }
+      return '';
+    }
+    function applyTitle() {
+      try {
+        var pageName = getPageNameFromUrl() || getActiveNavLabel();
+        var locationName = getLocationNameFromSidebar();
+        var parts = [];
+        if (pageName) parts.push(pageName);
+        if (locationName) parts.push(locationName);
+        if (parts.length) document.title = parts.join(' | ');
+      } catch (e) {}
+    }
+    function scheduleTitle() {
+      applyTitle();
+      setTimeout(applyTitle, 500);
+      setTimeout(applyTitle, 1500);
+    }
+    window.addEventListener('message', function (event) {
+      if (event.data && event.data.type === 'CLEANQUOTE_PAGE_CHANGED' && typeof event.data.page === 'string') {
+        lastCleanQuotePage = event.data.page.trim().toLowerCase();
+        applyTitle();
+      }
+    });
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(scheduleTitle, 400); });
+    else setTimeout(scheduleTitle, 400);
+    window.addEventListener('routeLoaded', function () { setTimeout(scheduleTitle, 500); });
+    window.addEventListener('routeChangeEvent', function () { setTimeout(scheduleTitle, 500); });
+  })();
 })();
