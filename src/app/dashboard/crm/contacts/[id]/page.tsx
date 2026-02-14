@@ -169,6 +169,34 @@ export default function ContactDetailPage({
       .finally(() => setLoadingMessages(false));
   }, [resolvedParams?.id, api, firstConversationId]);
 
+  // Background polling for new conversations and messages (when tab visible)
+  const POLL_INTERVAL_MS = 30_000;
+  useEffect(() => {
+    const contactId = resolvedParams?.id;
+    if (!contactId || !api) return;
+    const poll = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      api(`/api/dashboard/crm/contacts/${contactId}/conversations`)
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed'))))
+        .then((d: { conversations?: Array<{ id: string; contactId?: string }>; error?: string }) => {
+          setMessagesError(d.error ?? null);
+          setConversations(d.conversations ?? []);
+          const firstId = (d.conversations ?? [])[0]?.id;
+          if (!firstId) return;
+          return api(`/api/dashboard/crm/contacts/${contactId}/conversations/${encodeURIComponent(firstId)}/messages?limit=30`)
+            .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed'))))
+            .then((msgData: { messages?: Array<{ id: string; body?: string; direction?: string; createdAt?: string; dateAdded?: string }>; lastMessageId?: string; nextPage?: boolean }) => {
+              setMessages([...(msgData.messages ?? [])].reverse());
+              setMessagesLastId(msgData.lastMessageId ?? null);
+              setMessagesNextPage(msgData.nextPage ?? false);
+            });
+        })
+        .catch(() => {});
+    };
+    const id = setInterval(poll, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [resolvedParams?.id, api]);
+
   const loadOlderMessages = () => {
     if (!resolvedParams?.id || !api || !firstConversationId || !messagesLastId || !messagesNextPage) return;
     setLoadingMoreMessages(true);

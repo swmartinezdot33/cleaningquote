@@ -165,11 +165,14 @@ export async function GET(request: NextRequest) {
 
     // Always return all addresses (for client-side geocode fallback when cache empty or partial)
     const allAddresses = filtered.map((p) => p.address);
+    // Name + address for every contact so the map can show names on geocoded markers
+    const customerList = filtered.map((p) => ({ name: p.name, address: p.address }));
 
     return NextResponse.json({
       coordinates: customersOut.map((c) => ({ lat: c.lat, lng: c.lng })),
       addresses: allAddresses,
       customers: customersOut,
+      customerList,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Failed to load active customer addresses';

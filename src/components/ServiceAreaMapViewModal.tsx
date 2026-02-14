@@ -45,6 +45,7 @@ export function ServiceAreaMapViewModal({ address, onClose }: ServiceAreaMapView
   const [customerAddresses, setCustomerAddresses] = useState<string[]>([]);
   const [customerCoordinates, setCustomerCoordinates] = useState<Array<{ lat: number; lng: number }>>([]);
   const [customerPins, setCustomerPins] = useState<Array<{ lat: number; lng: number; name: string; address: string }>>([]);
+  const [customerList, setCustomerList] = useState<Array<{ name: string; address: string }>>([]);
   const [customersLoading, setCustomersLoading] = useState(false);
 
   const loadMapData = useCallback(() => {
@@ -81,16 +82,19 @@ export function ServiceAreaMapViewModal({ address, onClose }: ServiceAreaMapView
         addresses?: string[];
         coordinates?: Array<{ lat: number; lng: number }>;
         customers?: Array<{ lat: number; lng: number; name: string; address: string }>;
+        customerList?: Array<{ name: string; address: string }>;
         needsConnect?: boolean;
       }) => {
         setCustomerAddresses(Array.isArray(d.addresses) ? d.addresses : []);
         setCustomerCoordinates(Array.isArray(d.coordinates) ? d.coordinates : []);
         setCustomerPins(Array.isArray(d.customers) ? d.customers : []);
+        setCustomerList(Array.isArray(d.customerList) ? d.customerList : []);
       })
         .catch(() => {
           setCustomerAddresses([]);
           setCustomerCoordinates([]);
           setCustomerPins([]);
+          setCustomerList([]);
         })
         .finally(() => setCustomersLoading(false));
     },
@@ -101,10 +105,11 @@ export function ServiceAreaMapViewModal({ address, onClose }: ServiceAreaMapView
     setShowAllCustomers(checked);
     if (checked && customerAddresses.length === 0 && !customersLoading) {
       loadActiveCustomerAddresses(address ?? undefined);
-    } else if (!checked) {
+    } else     if (!checked) {
       setCustomerAddresses([]);
       setCustomerCoordinates([]);
       setCustomerPins([]);
+      setCustomerList([]);
     }
   };
 
@@ -201,6 +206,7 @@ export function ServiceAreaMapViewModal({ address, onClose }: ServiceAreaMapView
                   customerAddresses={customerAddressesForMap}
                   customerCoordinates={customerCoordinatesForMap}
                   customerPins={customerPinsForMap}
+                  customerList={customerList.length > 0 ? customerList : undefined}
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-2">

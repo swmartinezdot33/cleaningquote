@@ -70,6 +70,8 @@ interface ServiceAreaMapDrawerProps {
   customerCoordinates?: Array<{ lat: number; lng: number }> | null;
   /** Customer pins with name and address for tooltip on hover; preferred over customerCoordinates when both exist. */
   customerPins?: Array<{ lat: number; lng: number; name: string; address: string }> | null;
+  /** Name + address for each contact; used when geocoding customerAddresses so popups can show the contact name. */
+  customerList?: Array<{ name: string; address: string }> | null;
 }
 
 export function ServiceAreaMapDrawer({
@@ -84,6 +86,7 @@ export function ServiceAreaMapDrawer({
   customerAddresses = null,
   customerCoordinates = null,
   customerPins = null,
+  customerList = null,
 }: ServiceAreaMapDrawerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -93,6 +96,7 @@ export function ServiceAreaMapDrawer({
   const officeMarkerRef = useRef<any>(null);
   const pinnedAddressMarkerRef = useRef<any>(null);
   const customerMarkersRef = useRef<any[]>([]);
+  const customerInfoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const mapIdleListenerRef = useRef<google.maps.MapsEventListener | null>(null);
   const onPolygonChangeRef = useRef(onPolygonChange);
   onPolygonChangeRef.current = onPolygonChange;
@@ -420,6 +424,10 @@ export function ServiceAreaMapDrawer({
       Array.isArray(customerAddresses) && customerAddresses.length > 0 ? customerAddresses : [];
 
     const clearMarkers = () => {
+      if (customerInfoWindowRef.current) {
+        customerInfoWindowRef.current.close();
+        customerInfoWindowRef.current = null;
+      }
       customerMarkersRef.current.forEach((m: any) => {
         if (m?.setMap) m.setMap(null);
         else if (m?.map != null) m.map = null;
@@ -446,33 +454,49 @@ export function ServiceAreaMapDrawer({
       return el;
     };
 
-    const makePinWithTooltip = (name: string, address: string) => {
+    const makePinForClickPopup = (
+      name: string,
+      address: string,
+      lat: number,
+      lng: number,
+      infoWindow: google.maps.InfoWindow,
+      map: google.maps.Map
+    ) => {
       const wrapper = document.createElement('div');
       wrapper.style.cssText = 'position:relative;display:inline-block;cursor:pointer;';
-      const pinEl = makePinEl();
-      wrapper.appendChild(pinEl);
-      const tooltip = document.createElement('div');
-      tooltip.setAttribute('role', 'tooltip');
-      tooltip.style.cssText =
-        'position:absolute;bottom:100%;left:50%;transform:translate(-50%,-8px);display:none;' +
-        'padding:6px 10px;background:rgba(0,0,0,0.85);color:#fff;font-size:12px;line-height:1.35;' +
-        'border-radius:6px;white-space:normal;max-width:220px;text-align:center;' +
-        'box-shadow:0 2px 8px rgba(0,0,0,0.25);pointer-events:none;z-index:300;';
-      const nameLine = document.createElement('div');
-      nameLine.style.fontWeight = '600';
-      nameLine.style.marginBottom = '2px';
-      nameLine.textContent = name || 'Customer';
-      const addrLine = document.createElement('div');
-      addrLine.style.fontSize = '11px';
-      addrLine.style.opacity = '0.95';
-      addrLine.textContent = address || '';
-      tooltip.appendChild(nameLine);
-      tooltip.appendChild(addrLine);
-      wrapper.appendChild(tooltip);
-      wrapper.addEventListener('mouseenter', () => { tooltip.style.display = 'block'; });
-      wrapper.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+      const displayName = properCase(name?.trim() || '') || 'Customer';
+      const displayAddr = address?.trim() || '';
+      const hoverTitle = [displayName, displayAddr].filter(Boolean).join(' · ');
+      if (hoverTitle) wrapper.setAttribute('title', hoverTitle);
+      wrapper.appendChild(makePinEl());
+      wrapper.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const hasName = displayName && displayName !== 'Customer';
+        const content =
+          '<div style="min-width:180px;max-width:280px;padding:8px 0 6px 0;line-height:1.3;overflow:visible;white-space:normal;word-wrap:break-word;">' +
+          (hasName ? '<div style="font-weight:600;margin-bottom:3px;font-size:13px;white-space:normal;word-wrap:break-word;overflow-wrap:break-word;">' + escapeHtml(displayName) + '</div>' : '') +
+          (displayAddr ? '<div style="font-size:12px;color:#374151;line-height:1.4;white-space:normal;word-wrap:break-word;' + (hasName ? '' : 'font-weight:500;') + '">' + escapeHtml(displayAddr) + '</div>' : (hasName ? '' : '<div style="font-size:12px;color:#374151;">Customer</div>')) +
+          '</div>';
+        infoWindow.setContent(content);
+        infoWindow.setPosition({ lat, lng });
+        infoWindow.open(map);
+      });
       return wrapper;
     };
+
+    function escapeHtml(text: string): string {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function properCase(s: string): string {
+      if (!s?.trim()) return s ?? '';
+      return s
+        .trim()
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+    }
 
     const run = () => {
       const map = mapRef.current;
@@ -484,17 +508,24 @@ export function ServiceAreaMapDrawer({
 
         clearMarkers();
         const allMarkers: any[] = [];
+        const needPopup = (pins && pins.length > 0) || addressList.length > 0;
+        let infoWindow: google.maps.InfoWindow | null = null;
+        if (needPopup) {
+          infoWindow = new google.maps.InfoWindow({ maxWidth: 320 });
+          customerInfoWindowRef.current = infoWindow;
+        }
 
-        // 1) Instant: pins (with tooltip) or coords-only
-        if (pins && pins.length > 0) {
+        // 1) Instant: pins (click to show name/address popup) or coords-only
+        if (pins && pins.length > 0 && infoWindow) {
           for (const { lat, lng, name, address } of pins) {
             if (cancelled || !mapRef.current) break;
-            const content = makePinWithTooltip(name, address);
+            const content = makePinForClickPopup(name, address, lat, lng, infoWindow, mapRef.current);
+            const titleText = [name?.trim(), address?.trim()].filter(Boolean).join(' · ') || 'Customer';
             const marker = new AdvancedMarkerElement({
               map: mapRef.current,
               position: { lat, lng },
               content,
-              title: '',
+              title: titleText,
               zIndex: 199,
             });
             allMarkers.push(marker);
@@ -515,9 +546,16 @@ export function ServiceAreaMapDrawer({
 
         if (!cancelled) customerMarkersRef.current = [...allMarkers];
 
-        // 2) Geocode addressList in parallel and add more markers (no tooltip)
-        if (addressList.length > 0 && google.maps.Geocoder) {
+        // 2) Geocode addressList in parallel and add markers with name + address in popup/tooltip
+        if (addressList.length > 0 && google.maps.Geocoder && infoWindow) {
           const list = addressList;
+          const addressToName = new Map<string, string>();
+          if (Array.isArray(customerList) && customerList.length > 0) {
+            customerList.forEach((c) => {
+              const a = (c.address ?? '').trim();
+              if (a) addressToName.set(a, (c.name ?? '').trim());
+            });
+          }
           const CONCURRENCY = 10;
           const geocoder = new google.maps.Geocoder();
           (async () => {
@@ -527,15 +565,16 @@ export function ServiceAreaMapDrawer({
                 const results = await Promise.all(
                   chunk.map(
                     (addr) =>
-                      new Promise<{ lat: number; lng: number } | null>((resolve) => {
+                      new Promise<{ lat: number; lng: number; address: string } | null>((resolve) => {
+                        const addressStr = String(addr).trim();
                         geocoder.geocode(
-                          { address: String(addr).trim() },
+                          { address: addressStr },
                           (res: any, status: string) => {
                             if (status === 'OK' && res?.[0]?.geometry?.location) {
                               const loc = res[0].geometry.location;
                               const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
                               const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
-                              resolve({ lat, lng });
+                              resolve({ lat, lng, address: addressStr });
                             } else resolve(null);
                           }
                         );
@@ -543,13 +582,18 @@ export function ServiceAreaMapDrawer({
                   )
                 );
                 if (cancelled) break;
-                results.forEach((coord) => {
-                  if (coord && mapRef.current) {
+                const map = mapRef.current;
+                results.forEach((item) => {
+                  if (item && map) {
+                    const { lat, lng, address: addr } = item;
+                    const name = addressToName.get(addr) ?? '';
+                    const content = makePinForClickPopup(name, addr, lat, lng, infoWindow!, map);
+                    const titleText = [name, addr].filter(Boolean).join(' · ') || addr || 'Customer';
                     const marker = new AdvancedMarkerElement({
-                      map: mapRef.current,
-                      position: coord,
-                      content: makePinEl(),
-                      title: 'Customer',
+                      map,
+                      position: { lat, lng },
+                      content,
+                      title: titleText,
                       zIndex: 199,
                     });
                     customerMarkersRef.current = [...customerMarkersRef.current, marker];
@@ -579,7 +623,7 @@ export function ServiceAreaMapDrawer({
       cancelled = true;
       clearMarkers();
     };
-  }, [loading, error, readOnly, customerAddresses, customerCoordinates, customerPins]);
+  }, [loading, error, readOnly, customerAddresses, customerCoordinates, customerPins, customerList]);
 
   // When map is inside a dialog, container may get dimensions after open; trigger resize so tiles paint
   useEffect(() => {
