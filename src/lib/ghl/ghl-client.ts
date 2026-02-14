@@ -235,6 +235,8 @@ export async function getOpportunities(
 
 export interface GetQuoteRecordsParams {
   limit?: number;
+  /** When set, fetch only this page (1-based); otherwise fetch from page 1 and paginate until full or exhausted. */
+  page?: number;
 }
 
 export interface GetQuoteRecordsResult {
@@ -277,10 +279,11 @@ export async function getQuoteRecords(
   }
 
   const pageLimit = Math.min(500, Math.max(1, params?.limit ?? 200));
+  const requestedPage = params?.page != null && params.page >= 1 ? params.page : undefined;
   const schemaKeysToTry = ['custom_objects.quotes', 'Quote', 'quotes'];
   const bodyVariants = [
-    { location_id: locationId, page: 1, pageLimit },
-    { locationId, page: 1, pageLimit },
+    { location_id: locationId, page: requestedPage ?? 1, pageLimit },
+    { locationId, page: requestedPage ?? 1, pageLimit },
   ];
 
   for (const schemaKey of schemaKeysToTry) {
@@ -297,6 +300,11 @@ export async function getQuoteRecords(
 
       const firstPage = parseQuoteRecords(first.data);
       if (!Array.isArray(firstPage)) continue;
+
+      // When a specific page was requested, return only that page (no further pagination).
+      if (requestedPage != null) {
+        return { ok: true, data: firstPage };
+      }
 
       const all: any[] = [...firstPage];
       if (firstPage.length < pageLimit) {

@@ -11,7 +11,7 @@ export interface CacheEntry<T = unknown> {
   headers?: Record<string, string>;
 }
 
-const DEFAULT_TTL_MS = 60_000; // 60 seconds
+const DEFAULT_TTL_MS = 120_000; // 2 minutes (overridden by request-client from GHL_CACHE_TTL_SEC)
 
 let cache = new Map<string, CacheEntry>();
 let ttlMs = DEFAULT_TTL_MS;

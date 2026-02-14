@@ -19,7 +19,7 @@ const DEFAULT_TIMEOUT_MS = 25000;
 const MAX_RETRIES = 3;
 const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 const RETRY_DELAYS_MS = [1000, 2000, 4000];
-const MAX_CONCURRENT_PER_LOCATION = 4;
+const MAX_CONCURRENT_PER_LOCATION = 8;
 
 export type RequestResult<T> =
   | { ok: true; data: T; requestId: string }
@@ -47,9 +47,10 @@ function getEnvTimeout(): number {
 
 function getEnvCacheTTL(): number {
   const v = process.env.GHL_CACHE_TTL_SEC;
-  if (v == null || v === '') return 60;
+  // Default 120s (2 min) for GET cache to speed up repeat loads; override with GHL_CACHE_TTL_SEC
+  if (v == null || v === '') return 120_000;
   const n = parseInt(v, 10);
-  return Number.isFinite(n) && n > 0 ? n * 1000 : 60_000;
+  return Number.isFinite(n) && n > 0 ? n * 1000 : 120_000;
 }
 
 const debugHeaders = (): boolean =>

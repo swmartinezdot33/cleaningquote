@@ -772,6 +772,7 @@ export async function POST(request: NextRequest) {
             
             // IMPORTANT: For GHL API, use just the field names (without custom_objects.quotes. prefix)
             // The prefix is only used in GHL templates/workflows, not in API requests
+            // Include contactId so dashboard can show contact without an extra association lookup per quote (add contact_id/contactId to your Quote custom object in GHL if missing)
             // Include contact name/email so dashboard Quotes table can show them (add first_name, last_name, email to your Quote custom object in GHL if missing)
             const contactFirstName = (contactData.firstName && contactData.firstName !== 'Unknown') ? contactData.firstName : (body.firstName || '');
             const contactLastName = (contactData.lastName && contactData.lastName !== 'Customer') ? contactData.lastName : (body.lastName || '');
@@ -780,6 +781,8 @@ export async function POST(request: NextRequest) {
             const emailVal = body.email ? String(body.email).trim() : '';
             quoteCustomFields = {
               'quote_id': generatedQuoteId, // Use the generated UUID for quote_id field
+              ...(ghlContactId ? { contactId: ghlContactId } : {}),
+              ...(ghlContactId ? { contact_id: ghlContactId } : {}),
               ...(first ? { 'first_name': first } : {}),
               ...(last ? { 'last_name': last } : {}),
               ...(emailVal ? { 'email': emailVal } : {}),

@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     const limitParam = request.nextUrl.searchParams.get('limit')?.trim();
     const limit = limitParam === 'all' || limitParam === ''
       ? 1000
-      : Math.min(1000, Math.max(1, parseInt(limitParam || '1000', 10) || 1000));
+      : Math.min(1000, Math.max(1, parseInt(limitParam || '100', 10) || 100));
     const statusFilter = 'open';
     const result = await getOpportunities(
       ctx.locationId,

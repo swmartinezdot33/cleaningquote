@@ -301,7 +301,7 @@ export default function CRMDashboardPage() {
           const list = pipelinesRes?.pipelines ?? [];
           const pipelineId = list.find((p) => p.id === selectedPipelineId)?.id ?? list[0]?.id;
           if (!pipelineId || !api) return { opportunities: [] as Opportunity[] };
-          return api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(pipelineId)}&limit=1000`)
+          return api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(pipelineId)}&limit=100`)
             .then((r) => (r.ok ? r.json() : { opportunities: [] }))
             .then((data: { opportunities?: Opportunity[] }) => data);
         });
@@ -330,7 +330,7 @@ export default function CRMDashboardPage() {
                 pipelineList = retryList.length > 0 ? retryList : pipelineList;
                 const nextId = pipelineList.find((p) => p.id === selectedPipelineId)?.id ?? pipelineList[0]?.id;
                 const oppPromise = nextId && api
-                  ? api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(nextId)}&limit=1000`).then((r) => (r.ok ? r.json() : { opportunities: [] }))
+                  ? api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(nextId)}&limit=100`).then((r) => (r.ok ? r.json() : { opportunities: [] }))
                   : Promise.resolve({ opportunities: [] });
                 return oppPromise.then((oppRes) => applyStatsContacts(statsRes, stageRes, pipelineList, verifyRes, false, oppRes));
               });
@@ -369,7 +369,7 @@ export default function CRMDashboardPage() {
     if (!effectiveLocationId || !selectedPipelineId || !api) return;
     if (opportunitiesFetchPipelineIdRef.current === selectedPipelineId) return;
     setLoadingOpportunities(true);
-    api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(selectedPipelineId)}&limit=1000`)
+    api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(selectedPipelineId)}&limit=100`)
       .then((r) => (r.ok ? r.json() : { opportunities: [] }))
       .then((data: { opportunities?: Opportunity[] }) => {
         setOpportunities(Array.isArray(data?.opportunities) ? data.opportunities : []);
@@ -381,7 +381,7 @@ export default function CRMDashboardPage() {
   const refetchOpportunities = useCallback(() => {
     if (!effectiveLocationId || !selectedPipelineId || !api) return;
     setLoadingOpportunities(true);
-    api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(selectedPipelineId)}&limit=1000`)
+    api(`/api/dashboard/crm/opportunities?pipelineId=${encodeURIComponent(selectedPipelineId)}&limit=100`)
       .then((r) => (r.ok ? r.json() : { opportunities: [] }))
       .then((data: { opportunities?: Opportunity[] }) => {
         setOpportunities(Array.isArray(data?.opportunities) ? data.opportunities : []);

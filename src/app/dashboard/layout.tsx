@@ -1,6 +1,9 @@
 import { getSession } from '@/lib/ghl/session';
 import { DashboardGHLWrapper } from '@/app/dashboard/DashboardGHLWrapper';
 
+/** Force dynamic rendering so dashboard pages are not statically prerendered (they use GHL context, searchParams, etc.). */
+export const dynamic = 'force-dynamic';
+
 /**
  * Dashboard relies solely on GHL iframe context (locationId from postMessage or URL).
  * Org and header are provided by DashboardContextProvider inside DashboardGHLWrapper.

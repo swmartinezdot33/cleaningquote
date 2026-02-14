@@ -169,7 +169,9 @@ export default function DashboardQuotesPage() {
   const [isOrgAdmin, setIsOrgAdmin] = useState(false);
   const [deleteQuote, setDeleteQuote] = useState<QuoteRow | null>(null);
   const [deleting, setDeleting] = useState(false);
-  // Filters (client-side, persisted per session)
+  // Server-side pagination: hasMore from API (no total count from GHL)
+  const [hasMore, setHasMore] = useState(false);
+  // Filters (client-side over current page, persisted per session)
   const [filterToolId, setFilterToolId] = useDashboardPageState<string>('quotes', 'filterToolId', '', {
     locationId: effectiveLocationId ?? undefined,
   });
@@ -197,7 +199,7 @@ export default function DashboardQuotesPage() {
   const [newQuoteLoading, setNewQuoteLoading] = useState(false);
   // View quote summary in modal (no new tab)
   const [viewQuoteModal, setViewQuoteModal] = useState<QuoteRow | null>(null);
-  // Pagination
+  // Pagination (server-side: API returns one page per request)
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
 
@@ -212,13 +214,24 @@ export default function DashboardQuotesPage() {
       return;
     }
     setLoading(true);
+    const params = new URLSearchParams();
+    params.set('page', String(currentPage));
+    params.set('perPage', String(perPage));
     Promise.all([
-      api('/api/dashboard/quotes'),
+      api(`/api/dashboard/quotes?${params}`),
       api('/api/dashboard/tools'),
     ])
       .then(async ([quotesRes, orgToolsRes]) => {
         if (quotesRes.ok) {
-          const data = await quotesRes.json().catch(() => ({})) as { quotes?: QuoteRow[]; isSuperAdmin?: boolean; isOrgAdmin?: boolean; error?: string };
+          const data = await quotesRes.json().catch(() => ({})) as {
+            quotes?: QuoteRow[];
+            isSuperAdmin?: boolean;
+            isOrgAdmin?: boolean;
+            error?: string;
+            hasMore?: boolean;
+            page?: number;
+            perPage?: number;
+          };
           const toolsData = orgToolsRes.ok ? await orgToolsRes.json().catch(() => ({})) as { tools?: { id: string; name: string }[] } : { tools: [] };
           return {
             quotes: data.quotes ?? [],
@@ -226,6 +239,9 @@ export default function DashboardQuotesPage() {
             isSuperAdminFromQuotes: !!data.isSuperAdmin,
             isOrgAdminFromQuotes: !!data.isOrgAdmin,
             apiError: data.error,
+            hasMore: data.hasMore ?? false,
+            page: data.page ?? currentPage,
+            perPage: data.perPage ?? perPage,
           };
         }
         const errText = await quotesRes.text();
@@ -239,12 +255,13 @@ export default function DashboardQuotesPage() {
         }
         throw new Error(errMessage);
       })
-      .then(({ quotes: list, orgTools: toolsList, isSuperAdminFromQuotes, isOrgAdminFromQuotes, apiError }) => {
+      .then(({ quotes: list, orgTools: toolsList, isSuperAdminFromQuotes, isOrgAdminFromQuotes, apiError, hasMore: more }) => {
         setQuotes(list);
         setOrgTools(toolsList ?? []);
         setIsSuperAdmin(!!isSuperAdminFromQuotes);
         setIsOrgAdmin(!!isOrgAdminFromQuotes);
         if (apiError) setError(apiError);
+        setHasMore(more ?? false);
         lastFetchedLocationIdRef.current = effectiveLocationId;
         setLoading(false);
       })
@@ -259,7 +276,7 @@ export default function DashboardQuotesPage() {
         setError(e?.message ?? 'Failed to load quotes');
         setLoading(false);
       });
-  }, [effectiveLocationId, api]);
+  }, [effectiveLocationId, api, currentPage, perPage]);
 
   useEffect(() => {
     loadQuotes();
@@ -386,11 +403,8 @@ export default function DashboardQuotesPage() {
     [filteredQuotes, selectedIds]
   );
 
-  const totalPages = Math.ceil(filteredQuotes.length / perPage);
-  const paginatedQuotes = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filteredQuotes.slice(start, start + perPage);
-  }, [filteredQuotes, currentPage, perPage]);
+  // Server-side pagination: server returns one page; we filter that page client-side. No total count.
+  const paginatedQuotes = filteredQuotes;
 
   const toggleSelectAll = useCallback(() => {
     const pageIds = paginatedQuotes.map((q) => q.id);
@@ -850,12 +864,13 @@ export default function DashboardQuotesPage() {
             </table>
           </div>
 
-          {/* Pagination controls */}
-          {totalPages > 1 && (
+          {/* Pagination controls (server-side: no total count, use hasMore for Next) */}
+          {(currentPage > 1 || hasMore || quotes.length > 0) && (
             <div className="mt-4 flex flex-wrap items-center justify-between gap-4 px-4 pb-4">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span>
-                  Showing {(currentPage - 1) * perPage + 1}–{Math.min(currentPage * perPage, filteredQuotes.length)} of {filteredQuotes.length}
+                  Showing {(currentPage - 1) * perPage + 1}–{(currentPage - 1) * perPage + paginatedQuotes.length}
+                  {!hasMore && currentPage === 1 ? ` (${paginatedQuotes.length})` : ''}
                 </span>
                 <select
                   value={perPage}
@@ -868,7 +883,6 @@ export default function DashboardQuotesPage() {
                   <option value={25}>25 per page</option>
                   <option value={50}>50 per page</option>
                   <option value={100}>100 per page</option>
-                  <option value={250}>250 per page</option>
                 </select>
               </div>
               <div className="flex items-center gap-2">
@@ -882,12 +896,12 @@ export default function DashboardQuotesPage() {
                   Previous
                 </button>
                 <span className="text-sm text-muted-foreground">
-                  Page {currentPage} of {totalPages}
+                  Page {currentPage}
                 </span>
                 <button
                   type="button"
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                  disabled={!hasMore}
                   className="inline-flex items-center gap-1 rounded border border-input bg-background px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
                 >
                   Next

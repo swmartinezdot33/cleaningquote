@@ -58,8 +58,11 @@ function emptyContacts() {
 
 /** GET /api/dashboard/crm/contacts - GHL only: decrypt context → locationId → token → GHL API */
 export async function GET(request: NextRequest) {
+  const startMs = Date.now();
   try {
+    const ctxStart = Date.now();
     const ctx = await resolveGHLContext(request);
+    const ctxMs = Date.now() - ctxStart;
     if (!ctx) return NextResponse.json({ contacts: [], total: 0, page: 1, perPage: 25, locationIdRequired: true });
     if ('needsConnect' in ctx) {
       return NextResponse.json({
@@ -73,9 +76,18 @@ export async function GET(request: NextRequest) {
 
     try {
       const { searchParams } = new URL(request.url);
-      console.log('[CQ CRM contacts] calling fetchContactsFromGHL', { locationId: ctx.locationId?.slice(0, 12) + '...', hasToken: !!ctx.token, stage: searchParams.get('stage') });
+      const ghlStart = Date.now();
       const result = await fetchContactsFromGHL(ctx.locationId, ctx.token, searchParams);
-      console.log('[CQ CRM contacts] fetchContactsFromGHL OK', { contactsCount: result.contacts?.length ?? 0 });
+      const ghlMs = Date.now() - ghlStart;
+      const totalMs = Date.now() - startMs;
+      if (process.env.NODE_ENV !== 'test') {
+        console.info('[CQ CRM contacts]', {
+          resolveContextMs: ctxMs,
+          getContactsMs: ghlMs,
+          totalMs,
+          contactsCount: result.contacts?.length ?? 0,
+        });
+      }
       return NextResponse.json(result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

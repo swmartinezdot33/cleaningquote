@@ -266,48 +266,64 @@ function getDisplayServiceAndFrequency(
   };
 }
 
-const emptyQuotes = () => NextResponse.json({ quotes: [], isSuperAdmin: false, isOrgAdmin: false });
+const emptyQuotes = (opts?: { page?: number; perPage?: number }) =>
+  NextResponse.json({
+    quotes: [],
+    isSuperAdmin: false,
+    isOrgAdmin: false,
+    page: opts?.page ?? 1,
+    perPage: opts?.perPage ?? 25,
+    hasMore: false,
+  });
 
-/** GET /api/dashboard/quotes - GHL only: quotes from GHL custom objects */
+/** GET /api/dashboard/quotes - GHL only: quotes from GHL custom objects. Supports server-side pagination (page, perPage). */
 export async function GET(request: NextRequest) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'quotes/route.ts:GET',message:'quotes GET entry',data:{hypothesisId:'H3'},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
+  const startMs = Date.now();
   try {
     const ctx = await resolveGHLContext(request);
     if (!ctx) return NextResponse.json({ quotes: [], isSuperAdmin: false, isOrgAdmin: false, locationIdRequired: true });
     if ('needsConnect' in ctx) return emptyQuotes();
 
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1);
+    const perPage = Math.min(100, Math.max(1, parseInt(searchParams.get('perPage') ?? '25', 10) || 25));
+
     try {
       const credentials = { token: ctx.token, locationId: ctx.locationId };
-      const result = await getQuoteRecords(ctx.locationId, credentials, { limit: 2000 });
+      const result = await getQuoteRecords(ctx.locationId, credentials, { limit: perPage, page });
       if (!result.ok) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'quotes/route.ts',message:'quotes branch result not ok',data:{status:200,errorMsg:(result as {error?:{message?:string}}).error?.message?.slice(0,80),hypothesisId:'H3'},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         console.warn('[CQ Quotes] GHL getQuoteRecords failed', { locationId: ctx.locationId?.slice(0, 12), error: result.error.message });
         return NextResponse.json({
           quotes: [],
           error: result.error.message,
           isSuperAdmin: false,
           isOrgAdmin: false,
+          page,
+          perPage,
+          hasMore: false,
         });
       }
       const records = result.data;
       const rawQuotes = records.map(mapGHLQuoteToDashboard);
 
-      // Resolve contact via GHL quote–contact association when not on the record
+      let assocCalls = 0;
+      let contactCalls = 0;
+
+      // Resolve contact via GHL quote–contact association only for this page's records
       const contactIdsFromAssoc = await Promise.all(
-        rawQuotes.map((q, i) =>
-          q.contactId ? Promise.resolve(q.contactId) : getContactIdForQuoteRecord(records[i].id, ctx.locationId, credentials).then((id) => id ?? null)
-        )
+        rawQuotes.map((q, i) => {
+          if (q.contactId) return Promise.resolve(q.contactId);
+          assocCalls++;
+          return getContactIdForQuoteRecord(records[i].id, ctx.locationId, credentials).then((id) => id ?? null);
+        })
       );
       rawQuotes.forEach((q, i) => {
         if (!q.contactId && contactIdsFromAssoc[i]) q.contactId = contactIdsFromAssoc[i];
       });
 
-      // Fetch contact details (name, email) for quotes that have contactId but no name on the record
+      // Fetch contact details only for contacts that need name on this page
       const contactIdsNeedingName = [...new Set(rawQuotes.filter((q) => q.contactId && !q.first_name && !q.last_name && !q.email).map((q) => q.contactId!))];
+      contactCalls = contactIdsNeedingName.length;
       const contactMap = new Map<string, { first_name: string | null; last_name: string | null; email: string | null }>();
       await Promise.all(
         contactIdsNeedingName.map(async (contactId) => {
@@ -377,14 +393,28 @@ export async function GET(request: NextRequest) {
       }
 
       const withToolInfo = mapQuotesToResponse(rawQuotes, toolIdToName);
+      const totalMs = Date.now() - startMs;
+      if (process.env.NODE_ENV !== 'test') {
+        console.info('[CQ Quotes]', {
+          recordsFetched: records.length,
+          assocCalls,
+          contactCalls,
+          totalMs,
+          page,
+          perPage,
+        });
+      }
       return NextResponse.json({
         quotes: withToolInfo,
         isSuperAdmin: false,
         isOrgAdmin: false,
+        page,
+        perPage,
+        hasMore: records.length >= perPage,
       });
     } catch (err) {
       console.warn('Quotes: GHL fetch error', ctx.locationId, err);
-      return emptyQuotes();
+      return emptyQuotes({ page, perPage });
     }
   } catch (err) {
     console.error('Dashboard quotes error:', err);
