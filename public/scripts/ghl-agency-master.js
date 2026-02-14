@@ -372,6 +372,13 @@
     }
     /** Find the GHL "CleanQuote.io" custom menu link row (by label or href). Search sidebar first, then whole document. */
     function findCleanQuoteCustomLinkRow() {
+      // #region agent log
+      function dbg(payload) {
+        try {
+          fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ghl-agency-master.js:findCleanQuoteCustomLinkRow', message: 'move-debug', data: payload, timestamp: Date.now() }) }).catch(function () {});
+        } catch (e) {}
+      }
+      // #endregion
       function check(el) {
         if (!el || el.id === CONTAINER_ID || (el.closest && el.closest('#' + CONTAINER_ID))) return null;
         var href = (el.href || el.getAttribute('href') || '').trim().toLowerCase();
@@ -387,28 +394,48 @@
         var candidates = root.querySelectorAll('a, [role="link"], button');
         for (var i = 0; i < candidates.length; i++) {
           var row = check(candidates[i]);
-          if (row) return row;
+          if (row) {
+            dbg({ hypothesisId: 'H2', foundIn: 'sidebar', candidateCount: candidates.length });
+            return row;
+          }
         }
       }
       var allLinks = document.querySelectorAll('a[href*="custom-page-link"], a[href*="cleanquote"]');
       for (var j = 0; j < allLinks.length; j++) {
         var row = check(allLinks[j]);
-        if (row) return row;
+        if (row) {
+          dbg({ hypothesisId: 'H2', foundIn: 'allLinks', linkCount: allLinks.length });
+          return row;
+        }
       }
       var byText = document.querySelectorAll('a, [role="link"], button');
       for (var k = 0; k < byText.length; k++) {
         var t = normLower((byText[k].textContent || '').replace(/\s+/g, ' '));
         if (t.indexOf('cleanquote') !== -1) {
           var row = check(byText[k]);
-          if (row) return row;
+          if (row) {
+            dbg({ hypothesisId: 'H2', foundIn: 'byText' });
+            return row;
+          }
         }
       }
+      dbg({ hypothesisId: 'H1_H2', cleanQuoteRowFound: false, rootFound: !!root });
       return null;
     }
     /** Move the "CleanQuote.io" custom menu item right above our Inbox submenu; hide native Dashboard. */
     function moveCleanQuoteToTopAndHideDashboard() {
+      // #region agent log
+      function dbg(payload) {
+        try {
+          fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ghl-agency-master.js:moveCleanQuoteToTopAndHideDashboard', message: 'move-attempt', data: payload, timestamp: Date.now() }) }).catch(function () {});
+        } catch (e) {}
+      }
+      // #endregion
       var root = getLeftSidebarRoot();
-      if (!root) return;
+      if (!root) {
+        dbg({ hypothesisId: 'H1', rootFound: false });
+        return;
+      }
 
       var dashboardRow = findDashboardRow();
       if (dashboardRow && dashboardRow.style) {
@@ -417,15 +444,28 @@
       }
 
       var cleanQuoteRow = findCleanQuoteCustomLinkRow();
-      if (!cleanQuoteRow || !cleanQuoteRow.parentNode) return;
+      if (!cleanQuoteRow || !cleanQuoteRow.parentNode) {
+        dbg({ hypothesisId: 'H2', cleanQuoteRowFound: !!cleanQuoteRow, hasParent: !!(cleanQuoteRow && cleanQuoteRow.parentNode) });
+        return;
+      }
 
       var ourContainer = document.getElementById(CONTAINER_ID);
-      var insertBefore = ourContainer || findFirstSidebarNavRow();
-      if (!insertBefore || !insertBefore.parentNode || cleanQuoteRow === insertBefore) return;
-      if (cleanQuoteRow.nextElementSibling === insertBefore) return;
+      var firstNavRow = findFirstSidebarNavRow();
+      var insertBefore = ourContainer || firstNavRow;
+      if (!insertBefore || !insertBefore.parentNode || cleanQuoteRow === insertBefore) {
+        dbg({ hypothesisId: 'H3', insertBeforeId: insertBefore ? (insertBefore.id || insertBefore.tagName) : null, hasParent: !!(insertBefore && insertBefore.parentNode), sameAsCleanQuote: cleanQuoteRow === insertBefore });
+        return;
+      }
+      if (cleanQuoteRow.nextElementSibling === insertBefore) {
+        dbg({ hypothesisId: 'H4', alreadyInPlace: true });
+        return;
+      }
       try {
         insertBefore.parentNode.insertBefore(cleanQuoteRow, insertBefore);
-      } catch (e) {}
+        dbg({ hypothesisId: 'H4_H5', didInsert: true, insertBeforeId: insertBefore.id || insertBefore.tagName });
+      } catch (e) {
+        dbg({ hypothesisId: 'H5', didInsert: false, error: (e && e.message) || String(e) });
+      }
     }
     function injectSidebarMenu(locationId) {
       if (document.getElementById(CONTAINER_ID)) return;

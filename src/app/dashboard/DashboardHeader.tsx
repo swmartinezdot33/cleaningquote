@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { OrgSwitcher } from '@/components/OrgSwitcher';
-import { Menu, X, Plus, Wrench, Maximize2 } from 'lucide-react';
+import { Menu, X, Plus, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 
@@ -87,12 +87,6 @@ export function DashboardHeader({
     }`;
   };
 
-  const isSettingsActive =
-    pathname === '/dashboard/settings' ||
-    pathname.startsWith('/dashboard/tools') ||
-    pathname.startsWith('/dashboard/service-areas') ||
-    pathname.startsWith('/dashboard/pricing-structures');
-
   const navLinks = (
     <>
       <span className="text-sm font-medium text-foreground" aria-label="CleanQuote">
@@ -150,16 +144,32 @@ export function DashboardHeader({
         Quotes
       </Link>
       <Link
+        href="/dashboard/tools"
+        onClick={closeMobileMenu}
+        className={navLinkClass('/dashboard/tools')}
+      >
+        Tools
+      </Link>
+      <Link
+        href="/dashboard/pricing-structures"
+        onClick={closeMobileMenu}
+        className={navLinkClass('/dashboard/pricing-structures')}
+      >
+        Pricing
+      </Link>
+      <Link
+        href="/dashboard/service-areas"
+        onClick={closeMobileMenu}
+        className={navLinkClass('/dashboard/service-areas')}
+      >
+        Service Areas
+      </Link>
+      <Link
         href="/dashboard/settings"
         onClick={closeMobileMenu}
-        aria-label="Settings"
-        className={`text-sm no-underline border-b-2 py-3.5 px-0.5 -mb-px transition-colors flex items-center ${
-          isSettingsActive
-            ? 'text-purple-600 border-purple-600 font-semibold'
-            : 'text-muted-foreground border-transparent font-medium hover:text-foreground hover:no-underline hover:border-purple-600'
-        }`}
+        className={navLinkClass('/dashboard/settings')}
       >
-        <Wrench className="h-4 w-4 shrink-0" />
+        Settings
       </Link>
     </>
   );
@@ -291,12 +301,32 @@ export function DashboardHeader({
                   Quotes
                 </Link>
                 <Link
+                  href="/dashboard/tools"
+                  onClick={closeMobileMenu}
+                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                >
+                  Tools
+                </Link>
+                <Link
+                  href="/dashboard/pricing-structures"
+                  onClick={closeMobileMenu}
+                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                >
+                  Pricing
+                </Link>
+                <Link
+                  href="/dashboard/service-areas"
+                  onClick={closeMobileMenu}
+                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                >
+                  Service Areas
+                </Link>
+                <Link
                   href="/dashboard/settings"
                   onClick={closeMobileMenu}
-                  aria-label="Settings"
-                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors flex items-center"
+                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
-                  <Wrench className="h-4 w-4 shrink-0" />
+                  Settings
                 </Link>
                 <div className="pt-3 mt-2 border-t border-gray-200 flex items-center gap-2">
                   <Button
