@@ -274,6 +274,54 @@
     function isCurrentPageCustomPageLink() {
       return !!findCleanQuoteIframe();
     }
+    /** True when the current URL is the custom page link (so we can treat active "Dashboard" as our link). */
+    function isOnCustomPageUrl() {
+      var href = (typeof window !== 'undefined' && window.location && window.location.href) ? window.location.href : '';
+      return href.indexOf(customPageId) !== -1 && href.indexOf('custom-page-link') !== -1;
+    }
+    function isActiveNav(el) {
+      if (!el) return false;
+      var a = el.getAttribute && el.getAttribute('aria-current');
+      if (a && a !== 'false') return true;
+      var cls = (el.className || '').toString();
+      if (/active|router-link-active|is-active|selected|current/i.test(cls)) return true;
+      var p = el.closest && el.closest('.active, .router-link-active, .is-active, .selected, [aria-current]');
+      return !!p;
+    }
+    /** All sidebar clickables whose label is "dashboard" (for two-dashboard relocation logic). */
+    function findAllDashboardElements() {
+      var root = getLeftSidebarRoot();
+      if (!root) return [];
+      var out = [];
+      var candidates = root.querySelectorAll('a, [role="link"], button');
+      for (var i = 0; i < candidates.length; i++) {
+        var el = candidates[i];
+        if (el.id === CONTAINER_ID || (el.closest && el.closest('#' + CONTAINER_ID))) continue;
+        var text = normLower((el.textContent || '').split('\n')[0].trim());
+        if (text === 'dashboard') {
+          var row = getRow(el);
+          if (row) out.push({ el: el, row: row });
+        }
+      }
+      return out;
+    }
+    function forceNavigateToCustomPage(el) {
+      if (!el || el.getAttribute('data-cq-forced-nav') === '1') return;
+      var locId = getLocationIdFromUrl();
+      if (!locId) return;
+      var url = buildCustomPageUrl(locId);
+      if (!url) return;
+      if (el.tagName && el.tagName.toLowerCase() === 'a') {
+        el.setAttribute('href', url);
+        el.setAttribute('target', '_self');
+      }
+      el.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        try { (window.top || window).location.href = url; } catch (err) { window.location.href = url; }
+      }, true);
+      el.setAttribute('data-cq-forced-nav', '1');
+    }
     function navigateToPage(locationId, pageKey) {
       var url = cleanquoteAppBase + '/v2/location/' + encodeURIComponent(locationId) + '/custom-page-link/' + encodeURIComponent(customPageId) + '?cleanquote-page=' + encodeURIComponent(pageKey);
       try {
@@ -322,40 +370,45 @@
       }
       return null;
     }
-    /** Find the GHL "CleanQuote.io" custom menu link row (href contains cleanquote/custom-page-link or text CleanQuote). */
+    /** Find the GHL "CleanQuote.io" custom menu link row (by label or href). Primary way to find the item to move. */
     function findCleanQuoteCustomLinkRow() {
       var root = getLeftSidebarRoot();
       if (!root) return null;
-      var candidates = root.querySelectorAll('a, [role="link"]');
+      var candidates = root.querySelectorAll('a, [role="link"], button');
       for (var i = 0; i < candidates.length; i++) {
         var el = candidates[i];
-        var href = (el.href || el.getAttribute('href') || '').trim();
-        var text = normLower((el.textContent || '').split('\n')[0].trim());
-        if ((href.indexOf('cleanquote') !== -1 || href.indexOf('custom-page-link') !== -1) || text.indexOf('cleanquote') !== -1) {
+        if (el.id === CONTAINER_ID || (el.closest && el.closest('#' + CONTAINER_ID))) continue;
+        var href = (el.href || el.getAttribute('href') || '').trim().toLowerCase();
+        var rawText = (el.textContent || '').split('\n')[0].trim();
+        var text = normLower(rawText);
+        var isCleanQuote = text.indexOf('cleanquote') !== -1 || href.indexOf('cleanquote') !== -1 || href.indexOf('custom-page-link') !== -1;
+        if (isCleanQuote) {
           var row = getRow(el);
           if (row && row.id !== CONTAINER_ID) return row;
         }
       }
       return null;
     }
-    /** Move CleanQuote row to top of nav and hide native Dashboard so CleanQuote replaces it. */
+    /** Move the "CleanQuote.io" custom menu item right above our Inbox submenu; hide native Dashboard. */
     function moveCleanQuoteToTopAndHideDashboard() {
       var root = getLeftSidebarRoot();
       if (!root) return;
+
       var dashboardRow = findDashboardRow();
       if (dashboardRow && dashboardRow.style) {
         dashboardRow.style.display = 'none';
         dashboardRow.setAttribute('data-cleanquote-hidden-dashboard', '1');
       }
-      var firstNav = findFirstSidebarNavRow();
+
       var cleanQuoteRow = findCleanQuoteCustomLinkRow();
       if (!cleanQuoteRow || !cleanQuoteRow.parentNode) return;
-      var insertBefore = firstNav || document.getElementById(CONTAINER_ID);
-      if (insertBefore && insertBefore.parentNode && cleanQuoteRow !== insertBefore) {
-        try {
-          insertBefore.parentNode.insertBefore(cleanQuoteRow, insertBefore);
-        } catch (e) {}
-      }
+
+      var ourContainer = document.getElementById(CONTAINER_ID);
+      var insertBefore = ourContainer || findFirstSidebarNavRow();
+      if (!insertBefore || !insertBefore.parentNode || cleanQuoteRow === insertBefore) return;
+      try {
+        insertBefore.parentNode.insertBefore(cleanQuoteRow, insertBefore);
+      } catch (e) {}
     }
     function injectSidebarMenu(locationId) {
       if (document.getElementById(CONTAINER_ID)) return;
