@@ -106,7 +106,7 @@ export interface GHLLocation {
   timezone?: string;
 }
 
-/** Full location from GET /locations/{id} (Business Profile). */
+/** Full location from GET /locations/{id} (Business Profile). Includes business.website for redirects. */
 export interface GHLLocationFull {
   id?: string;
   name?: string;
@@ -118,6 +118,18 @@ export interface GHLLocationFull {
   postalCode?: string;
   country?: string;
   timezone?: string;
+  business?: {
+    name?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    postalCode?: string;
+    website?: string;
+    timezone?: string;
+    logoUrl?: string;
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 }
 
