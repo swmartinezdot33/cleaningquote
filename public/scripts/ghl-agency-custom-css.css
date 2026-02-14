@@ -899,9 +899,9 @@ img.w-3.h-3.opacity-100 {
 :root:has(a[href*="tCqS9npFPtO0DSuYVvzb"]) {
     --new-logo: url("https://storage.googleapis.com/msgsndr/tCqS9npFPtO0DSuYVvzb/media/68aca931e7e3efd0a60675eb.png");
 }
-/* 8Z5Dfi12r7WHZxSbYDLU – replace with a permanent URL (GHL Media, your CDN, etc.); blob: URLs only work in the same session */
+/* 8Z5Dfi12r7WHZxSbYDLU */
 :root:has(a[href*="8Z5Dfi12r7WHZxSbYDLU"]) {
-    --new-logo: url("https://storage.googleapis.com/msgsndr/8Z5Dfi12r7WHZxSbYDLU/media/REPLACE_WITH_YOUR_MEDIA_ID.png");
+    --new-logo: url("https://storage.googleapis.com/msgsndr/8Z5Dfi12r7WHZxSbYDLU/media/6990ca9024813c6abd86e79e.png");
 }
 
 /* Apply to any sidebar that has the agency logo (no location ID required) */
