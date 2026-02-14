@@ -42,6 +42,8 @@ interface DashboardHeaderProps {
   userDisplayName: string;
   isSuperAdmin: boolean;
   ghlSession?: GHLSession | null;
+  /** When true, we are in GHL iframe (from wrapper). Use for expand button + indash only in iframe. */
+  inIframe?: boolean;
 }
 
 export function DashboardHeader({
@@ -51,6 +53,7 @@ export function DashboardHeader({
   userDisplayName,
   isSuperAdmin,
   ghlSession: _ghlSession,
+  inIframe: inIframeFromWrapper = false,
 }: DashboardHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -73,10 +76,13 @@ export function DashboardHeader({
   const searchParams = useSearchParams();
   const locationId = useEffectiveLocationId();
 
-  const [isInIframe, setIsInIframe] = useState(false);
+  /* Use wrapper's iframe detection so expand button only shows when dashboard is actually in GHL iframe. */
+  const isInIframe = inIframeFromWrapper;
   useEffect(() => {
-    setIsInIframe(typeof window !== 'undefined' && window.self !== window.top);
-  }, []);
+    if (!isInIframe && typeof window !== 'undefined') {
+      window.sessionStorage?.removeItem('cleanquote_indash');
+    }
+  }, [isInIframe]);
 
   /* Persist indash only when in iframe so expand button stays visible across navigation. Never show expand or use indash on full page. */
   const [indashMode, setIndashMode] = useState(

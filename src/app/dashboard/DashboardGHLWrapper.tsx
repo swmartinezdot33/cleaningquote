@@ -56,6 +56,7 @@ function DashboardContentWithHeader({
         userDisplayName={userDisplayName}
         isSuperAdmin={false}
         ghlSession={ghlSession ?? undefined}
+        inIframe={inIframe}
       />
       <main className="mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6 lg:px-8 overflow-x-hidden">{children}</main>
     </>

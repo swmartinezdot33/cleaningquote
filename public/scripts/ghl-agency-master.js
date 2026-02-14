@@ -352,6 +352,36 @@
       }
       return null;
     }
+    /** Find the Dashboard link element (not the row) for safe single-item hide. */
+    function findDashboardLink() {
+      var root = getLeftSidebarRoot();
+      if (!root) return null;
+      var candidates = root.querySelectorAll('a, [role="link"], button');
+      for (var i = 0; i < candidates.length; i++) {
+        var el = candidates[i];
+        if (el.id === CONTAINER_ID || (el.closest && el.closest('#' + CONTAINER_ID))) continue;
+        var text = normLower((el.textContent || '').split('\n')[0].trim());
+        if (text === 'dashboard') return el;
+      }
+      return null;
+    }
+    /** Hide only the native Dashboard menu item (smallest wrapper), not a large container. */
+    function hideDashboardItem() {
+      var link = findDashboardLink();
+      if (!link) return;
+      var row = link.parentElement;
+      if (row && row.id !== CONTAINER_ID && !row.querySelector('#' + CONTAINER_ID)) {
+        var childCount = 0;
+        for (var j = 0; j < row.children.length; j++) { if (row.children[j].nodeType === 1) childCount++; }
+        if (childCount === 1) {
+          row.style.display = 'none';
+          row.setAttribute('data-cleanquote-hidden-dashboard', '1');
+          return;
+        }
+      }
+      link.style.display = 'none';
+      link.setAttribute('data-cleanquote-hidden-dashboard', '1');
+    }
     /** First visible nav item in sidebar (Launchpad or Dashboard) so we can insert CleanQuote above it. */
     function findFirstSidebarNavRow() {
       var root = getLeftSidebarRoot();
@@ -422,7 +452,7 @@
       dbg({ hypothesisId: 'H1_H2', cleanQuoteRowFound: false, rootFound: !!root });
       return null;
     }
-    /** Move the "CleanQuote.io" custom menu item right above our Inbox submenu; hide native Dashboard. */
+    /** Move the "CleanQuote.io" custom menu item right above our Inbox submenu; hide native Dashboard item only. */
     function moveCleanQuoteToTopAndHideDashboard() {
       // #region agent log
       function dbg(payload) {
@@ -438,7 +468,7 @@
         return;
       }
 
-      /* Do not hide the native GHL Dashboard row — getRow() can return a large container and hiding it removes the entire GHL sidebar. Only reorder the CleanQuote link. */
+      hideDashboardItem();
 
       var cleanQuoteRow = findCleanQuoteCustomLinkRow();
       if (!cleanQuoteRow || !cleanQuoteRow.parentNode) {
