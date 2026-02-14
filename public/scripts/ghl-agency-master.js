@@ -347,34 +347,47 @@
     window.addEventListener('routeChangeEvent', function () { setTimeout(run, 300); });
   })();
 
-  /* Logo swap: allowlist from Google Sheet, logo from GHL location business.logoUrl */
+  /* Logo swap: only when location is on Google Sheet allowlist; logo from GHL business.logoUrl */
   (function () {
     var apiBase = (C.cleanquoteAppBase && C.cleanquoteAppBase.indexOf('cleanquote') !== -1)
       ? C.cleanquoteAppBase.replace(/^https?:\/\/(my\.)?/, 'https://www.') : 'https://www.cleanquote.io';
     apiBase = (apiBase || '').replace(/\/+$/, '') || 'https://www.cleanquote.io';
-    function run() {
+    var LOGO_SWAP_CLASS = 'cq-logo-swap-active';
+    function getLocId() {
       var locId = getLocationIdFromUrl();
-      if (!locId) {
-        var sidebarLink = document.querySelector('a[href*="/v2/location/"][href*="/"]');
-        if (sidebarLink && sidebarLink.href) {
-          var mat = sidebarLink.href.match(/\/v2\/location\/([a-zA-Z0-9]{16,30})(?:\/|$|\?)/);
-          if (mat && mat[1]) locId = mat[1];
-        }
+      if (locId) return locId;
+      var sidebarLink = document.querySelector('a[href*="/v2/location/"][href*="/"]');
+      if (sidebarLink && sidebarLink.href) {
+        var mat = sidebarLink.href.match(/\/v2\/location\/([a-zA-Z0-9]{16,30})(?:\/|$|\?)/);
+        if (mat && mat[1]) return mat[1];
       }
+      try {
+        var path = (window.location && window.location.pathname) || '';
+        mat = path.match(/\/location\/([a-zA-Z0-9]{16,30})(?:\/|$)/);
+        if (mat && mat[1]) return mat[1];
+      } catch (e) {}
+      return '';
+    }
+    function run() {
+      var locId = getLocId();
+      document.documentElement.classList.remove(LOGO_SWAP_CLASS);
       if (!locId) return;
       fetch(apiBase + '/api/ghl/logo-swap-config?locationId=' + encodeURIComponent(locId), { method: 'GET' })
         .then(function (r) { return r.json(); })
         .then(function (data) {
-          if (data && data.applyLogoSwap && data.logoUrl && typeof data.logoUrl === 'string') {
-            var url = data.logoUrl.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-            document.documentElement.style.setProperty('--new-logo', 'url("' + url + '")');
+          if (data && data.applyLogoSwap === true) {
+            document.documentElement.classList.add(LOGO_SWAP_CLASS);
+            if (data.logoUrl && typeof data.logoUrl === 'string') {
+              var url = data.logoUrl.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+              document.documentElement.style.setProperty('--new-logo', 'url("' + url + '")');
+            }
           }
         })
         .catch(function () {});
     }
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
-    else run();
-    window.addEventListener('routeLoaded', run);
-    window.addEventListener('routeChangeEvent', run);
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(run, 300); });
+    else setTimeout(run, 300);
+    window.addEventListener('routeLoaded', function () { setTimeout(run, 400); });
+    window.addEventListener('routeChangeEvent', function () { setTimeout(run, 400); });
   })();
 })();

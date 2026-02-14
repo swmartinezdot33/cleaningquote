@@ -883,10 +883,9 @@ img.w-3.h-3.opacity-100 {
     color: #7740e3;
 }
 
-/* Sidebar logo swap – fade out original, show custom.
- * Which locations get the effect: allowlist in Google Sheet (GHL_LOGO_SWAP_ALLOWLIST_URL).
- * Logo URL: always GHL location business logo from GET /locations/{id} (set by ghl-agency-master.js via /api/ghl/logo-swap-config).
- * Default below used until script sets --new-logo from API. */
+/* Sidebar logo swap – ONLY when location is on the Google Sheet allowlist.
+ * Script (ghl-agency-master.js) calls /api/ghl/logo-swap-config; if applyLogoSwap is true it adds
+ * class cq-logo-swap-active to html. Without that class, no effect (default logo stays, no transition). */
 :root {
     --delay: 2000ms;
     --dur: 1000ms;
@@ -895,30 +894,28 @@ img.w-3.h-3.opacity-100 {
     --new-logo: url("https://www.cleanquote.io/cleanquote_logo_long.png");
 }
 
-/* Apply to any sidebar that has the agency logo (no location ID required) */
-#sidebar-v2 *:has(> img.object-contain.agency-logo),
-#sidebar-v2 .agency-logo-container,
-.sidebar-v2-agency *:has(> img.object-contain.agency-logo),
-.sidebar-v2-agency .agency-logo-container {
+/* Effect only when script has confirmed this location is on the allowlist */
+html.cq-logo-swap-active #sidebar-v2 *:has(> img.object-contain.agency-logo),
+html.cq-logo-swap-active #sidebar-v2 .agency-logo-container,
+html.cq-logo-swap-active .sidebar-v2-agency *:has(> img.object-contain.agency-logo),
+html.cq-logo-swap-active .sidebar-v2-agency .agency-logo-container {
     position: relative !important;
     perspective: 800px !important;
     transform-style: preserve-3d !important;
     overflow: hidden !important;
 }
-/* Fade out the original logo image */
-#sidebar-v2 *:has(> img.object-contain.agency-logo) > img.object-contain.agency-logo,
-#sidebar-v2 .agency-logo-container > img.object-contain.agency-logo,
-.sidebar-v2-agency *:has(> img.object-contain.agency-logo) > img.object-contain.agency-logo,
-.sidebar-v2-agency .agency-logo-container > img.object-contain.agency-logo {
+html.cq-logo-swap-active #sidebar-v2 *:has(> img.object-contain.agency-logo) > img.object-contain.agency-logo,
+html.cq-logo-swap-active #sidebar-v2 .agency-logo-container > img.object-contain.agency-logo,
+html.cq-logo-swap-active .sidebar-v2-agency *:has(> img.object-contain.agency-logo) > img.object-contain.agency-logo,
+html.cq-logo-swap-active .sidebar-v2-agency .agency-logo-container > img.object-contain.agency-logo {
     transform-origin: center !important;
     animation: oldShrinkOut var(--dur) ease-in forwards var(--delay) !important;
     will-change: opacity, transform !important;
 }
-/* Show new logo via ::after */
-#sidebar-v2 *:has(> img.object-contain.agency-logo)::after,
-#sidebar-v2 .agency-logo-container::after,
-.sidebar-v2-agency *:has(> img.object-contain.agency-logo)::after,
-.sidebar-v2-agency .agency-logo-container::after {
+html.cq-logo-swap-active #sidebar-v2 *:has(> img.object-contain.agency-logo)::after,
+html.cq-logo-swap-active #sidebar-v2 .agency-logo-container::after,
+html.cq-logo-swap-active .sidebar-v2-agency *:has(> img.object-contain.agency-logo)::after,
+html.cq-logo-swap-active .sidebar-v2-agency .agency-logo-container::after {
     content: "" !important;
     position: absolute !important;
     inset: 0 !important;

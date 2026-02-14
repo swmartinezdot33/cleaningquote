@@ -3,7 +3,7 @@
  *
  * Returns whether to apply the sidebar logo swap for this location and the logo URL to use.
  * - Allowlist: location IDs from a published Google Sheet CSV (GHL_LOGO_SWAP_ALLOWLIST_URL).
- * - Logo: always the GHL business logo from GET /locations/{id} (business.logoUrl).
+ * - Logo: GHL business logo from GET /locations/:locationId (Get Sub-Account) response field business.logoUrl.
  *
  * Response: { applyLogoSwap: boolean, logoUrl?: string | null }
  */
@@ -18,6 +18,15 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': '*',
   'Access-Control-Max-Age': '86400',
 };
+
+/** Extract and validate business.logoUrl from GET /locations/:id (Get Sub-Account) response. */
+function normalizeLogoUrl(raw: string | undefined | null): string | null {
+  if (raw == null || typeof raw !== 'string') return null;
+  const url = raw.trim();
+  if (!url) return null;
+  if (!/^https?:\/\//i.test(url)) return null;
+  return url;
+}
 
 function parseAllowlistCsv(text: string): Set<string> {
   const ids = new Set<string>();
@@ -80,10 +89,11 @@ export async function GET(request: Request) {
     }
 
     const location = await getLocationWithToken(locationId, tokenResult.accessToken);
-    const logoUrl =
-      location?.business?.logoUrl && location.business.logoUrl.trim()
-        ? location.business.logoUrl.trim()
-        : null;
+    const rawLogo =
+      (location && typeof location === 'object' && location.business && typeof location.business === 'object')
+        ? (location.business as { logoUrl?: string }).logoUrl
+        : undefined;
+    const logoUrl = normalizeLogoUrl(rawLogo);
 
     return NextResponse.json(
       { applyLogoSwap: true, logoUrl },
