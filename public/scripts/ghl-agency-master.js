@@ -428,6 +428,24 @@
       link.style.display = 'none';
       link.setAttribute('data-cleanquote-hidden-dashboard', '1');
     }
+    /** Main nav list: the container whose first item is Launchpad, Dashboard, or Conversations (below the location toggle). */
+    function findMainNavListContainer() {
+      var root = getLeftSidebarRoot();
+      if (!root) return null;
+      var candidates = root.querySelectorAll('a, [role="link"], button');
+      var firstNavLabels = ['launchpad', 'dashboard', 'conversations'];
+      for (var i = 0; i < candidates.length; i++) {
+        var el = candidates[i];
+        if (el.id === CONTAINER_ID || (el.closest && el.closest('#' + CONTAINER_ID))) continue;
+        var row = getRow(el);
+        if (!row || (row.getAttribute && row.getAttribute('data-cleanquote-hidden-dashboard') === '1')) continue;
+        var text = normLower((el.textContent || '').split('\n')[0].trim());
+        for (var j = 0; j < firstNavLabels.length; j++) {
+          if (text === firstNavLabels[j] && row.parentNode) return row.parentNode;
+        }
+      }
+      return null;
+    }
     /** Not used for move; kept for any callers. First visible nav row in sidebar (DOM order). */
     function findFirstSidebarNavRow() {
       var root = getLeftSidebarRoot();
@@ -520,20 +538,21 @@
       }
 
       var ourContainer = document.getElementById(CONTAINER_ID);
-      var parent = cleanQuoteRow.parentNode;
-      /* Move CleanQuote to the very first position in the nav list (top, below toggle). */
+      /* Use the list that starts with Launchpad/Dashboard/Conversations so we stay below the location toggle. */
+      var mainNavList = findMainNavListContainer();
+      var parent = mainNavList || cleanQuoteRow.parentNode;
       var firstChild = parent && getFirstElementChild(parent);
+      /* Move CleanQuote into main nav list as first item (below toggle); submenu stays with it. */
       if (parent && firstChild !== cleanQuoteRow) {
         try {
           parent.insertBefore(cleanQuoteRow, firstChild);
-          dbg({ hypothesisId: 'H_move_top', didInsertAsFirst: true });
+          dbg({ hypothesisId: 'H_move_top', didInsertAsFirst: true, usedMainNavList: !!mainNavList });
         } catch (e) {
           dbg({ hypothesisId: 'H5', didInsert: false, error: (e && e.message) || String(e) });
         }
       }
-
-      /* Keep our submenu container immediately after the CleanQuote row. */
-      if (ourContainer && ourContainer.parentNode && cleanQuoteRow.parentNode && cleanQuoteRow.nextElementSibling !== ourContainer) {
+      /* Keep submenu container immediately after CleanQuote in the same list. */
+      if (ourContainer && cleanQuoteRow.parentNode && cleanQuoteRow.nextElementSibling !== ourContainer) {
         try {
           cleanQuoteRow.parentNode.insertBefore(ourContainer, cleanQuoteRow.nextSibling);
           dbg({ hypothesisId: 'H_container', didMoveContainer: true });
