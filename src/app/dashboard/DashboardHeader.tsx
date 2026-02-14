@@ -166,7 +166,7 @@ export function DashboardHeader({
 
   return (
     <header className="dashboard-header border-b border-border bg-card">
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-14 w-full max-w-[1600px] items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Desktop nav — aligned left */}
         <div className="hidden md:flex md:items-center md:gap-4">
           {navLinks}

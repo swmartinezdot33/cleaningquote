@@ -57,7 +57,7 @@ function DashboardContentWithHeader({
         isSuperAdmin={false}
         ghlSession={ghlSession ?? undefined}
       />
-      <main className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8 overflow-x-hidden">{children}</main>
+      <main className="mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6 lg:px-8 overflow-x-hidden">{children}</main>
     </>
   );
 }
