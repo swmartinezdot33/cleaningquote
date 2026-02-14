@@ -2,13 +2,30 @@
   PASTE THIS INTO GHL CUSTOM CSS BOX (Agency or Location Settings → Custom CSS)
 ================================================================================
 
+  This file styles BOTH the LOGIN page and the dashboard (sidebar, tabs, header).
+  For the LOGIN page to change, the CSS must be in the Custom CSS field that GHL
+  applies to the login screen. That is usually:
+    • Agency Settings → Custom CSS, or
+    • Company (gear) → Whitelabel → Custom CSS
+  If your login page still shows the default look, try Option C below (paste full
+  file); some GHL setups block @import on the login route.
+
 Option A – Load from your live site (one line; update domain if needed):
 
 @import url('https://www.cleanquote.io/scripts/ghl-agency-custom-css.css');
 
 
-Option B – If GHL blocks @import from external URLs, use Custom JavaScript instead.
-  In Agency Settings → Custom JavaScript / Custom Code, paste:
+Option B – One script that loads the CSS and agency script (loader pattern, like everypages).
+  In Agency Settings → Custom JavaScript / Custom Code, paste ONE line:
+
+<script src="https://www.cleanquote.io/api/script/ghl-agency-loader.js"></script>
+
+  The loader injects ghl-agency-custom-css.css and ghl-agency-master.js. Leave the
+  Custom CSS box empty (or use for extra overrides only).
+  Note: Custom JS may run only after login; if the login page still isn’t styled,
+  use Option C so the login page gets the CSS.
+
+  Alternative (CSS only, no loader): paste this IIFE in Custom JavaScript instead:
 
 (function() {
   var link = document.createElement('link');
@@ -17,12 +34,13 @@ Option B – If GHL blocks @import from external URLs, use Custom JavaScript ins
   link.setAttribute('data-ghl-custom', 'cleanquote');
   document.head.appendChild(link);
 })();
-
-  Then leave the Custom CSS box empty or use it for extra overrides only.
+  Then also add <script src="https://www.cleanquote.io/api/script/ghl-agency-master.js"></script>
+  if you want logo swap and sidebar behavior.
 
 
 Option C – Paste the full contents of ghl-agency-custom-css.css into the Custom CSS
-  box (no external load; all styles are inline). Use this if both A and B are blocked.
+  box (no external load; all styles are inline). Use this if both A and B are
+  blocked, or if the LOGIN page never updates with A/B (most reliable for login).
 
 --------------------------------------------------------------------------------
   Logo swap (sidebar): which locations get it + logo source

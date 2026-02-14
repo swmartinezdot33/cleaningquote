@@ -1,13 +1,11 @@
 /* -------------------------------------------------------------------------- */
 /*   GHL Agency Custom CSS – CleanQuote.io                                    */
-/*   Full agency styling: login, dashboard, sidebar, tabs, header, locations   */
+/*   Full agency styling: LOGIN page + dashboard, sidebar, tabs, header       */
 /*                                                                           */
-/*   TO LOAD FROM YOUR LIVE SITE (GHL Custom CSS box):                      */
-/*   Paste only this line in Agency Settings → Custom CSS:                  */
-/*                                                                           */
+/*   TO LOAD (GHL Custom CSS box – Agency or Company → Whitelabel):          */
 /*   @import url('https://www.cleanquote.io/scripts/ghl-agency-custom-css.css'); */
-/*                                                                           */
-/*   Or paste this entire file into the Custom CSS box if @import is blocked. */
+/*   If the LOGIN page doesn’t change, paste this entire file into the box   */
+/*   (Option C in ghl-paste-in-custom-css-box.txt).                          */
 /*   Logo: set --login-logo in :root if you host the logo elsewhere.         */
 /* -------------------------------------------------------------------------- */
 
