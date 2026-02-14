@@ -149,8 +149,9 @@ function formatPriceCell(q: QuoteRow) {
   const hasRecurring = q.price_recurring_low != null && q.price_recurring_high != null;
   if (hasInitial && hasRecurring) {
     return (
-      <span className="whitespace-nowrap">
-        Initial: {formatPrice(q.price_initial_low ?? null, q.price_initial_high ?? null)}; Recurring: {formatPrice(q.price_recurring_low ?? null, q.price_recurring_high ?? null)}
+      <span className="inline-flex flex-col gap-0.5 text-left">
+        <span>Initial: {formatPrice(q.price_initial_low ?? null, q.price_initial_high ?? null)}</span>
+        <span>Recurring: {formatPrice(q.price_recurring_low ?? null, q.price_recurring_high ?? null)}</span>
       </span>
     );
   }
@@ -725,11 +726,10 @@ export default function DashboardQuotesPage() {
                   <th className="px-4 py-3 font-medium">Quote ID</th>
                   <th className="px-4 py-3 font-medium">Tool</th>
                   <th className="px-4 py-3 font-medium">Date</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Contact</th>
                   <th className="min-w-[140px] px-4 py-3 font-medium">Address</th>
-                  <th className="px-4 py-3 font-medium">Service</th>
-                  <th className="px-4 py-3 font-medium">Price</th>
+                  <th className="max-w-[200px] px-4 py-3 font-medium">Service</th>
+                  <th className="max-w-[140px] px-4 py-3 font-medium">Price</th>
                   <th className="w-44 px-4 py-3 font-medium">Actions</th>
                 </tr>
               </thead>
@@ -757,15 +757,6 @@ export default function DashboardQuotesPage() {
                     </td>
                     <td className="px-4 py-3">{q.toolName}</td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(q.created_at)}</td>
-                    <td className="px-4 py-3">
-                      {q.status === 'disqualified' ? (
-                        <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-                          Disqualified
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">Quote</span>
-                      )}
-                    </td>
                     <td className="px-4 py-3">
                       {(() => {
                         const displayName = q.contactName || [q.first_name, q.last_name].filter(Boolean).join(' ') || q.email || null;
@@ -808,11 +799,13 @@ export default function DashboardQuotesPage() {
                         <span className="text-muted-foreground">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
-                      {q.service_type || '—'}
-                      {q.frequency ? ` · ${q.frequency}` : ''}
+                    <td className="max-w-[200px] px-4 py-3 align-top">
+                      <span className="inline-flex flex-col gap-0.5 text-left break-words">
+                        {q.service_type ? <span>{q.service_type}</span> : <span>—</span>}
+                        {q.frequency ? <span className="text-muted-foreground text-xs sm:text-sm">{q.frequency}</span> : null}
+                      </span>
                     </td>
-                    <td className="px-4 py-3">{q.status === 'disqualified' ? '—' : formatPriceCell(q)}</td>
+                    <td className="max-w-[140px] px-4 py-3 align-top">{q.status === 'disqualified' ? '—' : formatPriceCell(q)}</td>
                     <td className="w-44 px-4 py-3">
                       <div className="flex items-center gap-1.5">
                         <button

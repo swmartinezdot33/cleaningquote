@@ -19,8 +19,8 @@ function mapQuotesToResponse(rawQuotes: any[], toolIdToName: Map<string, string>
     let price_recurring_low: number | null = null;
     let price_recurring_high: number | null = null;
     if (q.payload && display.isInitialPlusFrequency && display.initialRange && display.recurringRange) {
-      service_type = display.serviceTypeDisplayLong || 'Initial/Recurring';
-      frequency = `Your Selected Frequency: ${display.frequencyDisplay}`;
+      service_type = 'Initial + Recurring';
+      frequency = display.frequencyDisplay || '';
       price_initial_low = display.initialRange.low;
       price_initial_high = display.initialRange.high;
       price_recurring_low = display.recurringRange.low;
