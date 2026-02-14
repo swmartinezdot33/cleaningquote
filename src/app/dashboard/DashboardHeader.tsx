@@ -84,26 +84,17 @@ export function DashboardHeader({
         <OrgSwitcher orgs={orgs} selectedOrgId={selectedOrgId} />
       )}
       {isSuperAdmin && (
-        <>
-          <Link
-            href="/dashboard/super-admin"
-            onClick={closeMobileMenu}
-            className={`text-sm no-underline border-b-2 py-3.5 px-0.5 -mb-px transition-colors ${
-              isNavActive('/dashboard/super-admin', pathname)
-                ? 'text-amber-600 border-amber-600 font-semibold'
-                : 'text-muted-foreground border-transparent font-medium hover:text-amber-700'
-            }`}
-          >
-            Super Admin
-          </Link>
-          <Link
-            href="/dashboard/crm/inbox"
-            onClick={closeMobileMenu}
-            className={navLinkClass('/dashboard/crm/inbox')}
-          >
-            Inbox
-          </Link>
-        </>
+        <Link
+          href="/dashboard/super-admin"
+          onClick={closeMobileMenu}
+          className={`text-sm no-underline border-b-2 py-3.5 px-0.5 -mb-px transition-colors ${
+            isNavActive('/dashboard/super-admin', pathname)
+              ? 'text-amber-600 border-amber-600 font-semibold'
+              : 'text-muted-foreground border-transparent font-medium hover:text-amber-700'
+          }`}
+        >
+          Super Admin
+        </Link>
       )}
       <Link
         href="/dashboard"
@@ -111,6 +102,13 @@ export function DashboardHeader({
         className={navLinkClass('/dashboard')}
       >
         Dashboard
+      </Link>
+      <Link
+        href="/dashboard/crm/inbox"
+        onClick={closeMobileMenu}
+        className={navLinkClass('/dashboard/crm/inbox')}
+      >
+        Inbox
       </Link>
       <Link
         href="/dashboard/quotes"
@@ -132,13 +130,6 @@ export function DashboardHeader({
         className={navLinkClass('/dashboard/crm/contacts')}
       >
         Contacts
-      </Link>
-      <Link
-        href="/dashboard/crm/inbox"
-        onClick={closeMobileMenu}
-        className={navLinkClass('/dashboard/crm/inbox')}
-      >
-        Inbox
       </Link>
       <Link
         href="/dashboard/tools"
@@ -236,22 +227,13 @@ export function DashboardHeader({
                   </div>
                 )}
                 {isSuperAdmin && (
-                  <>
-                    <Link
-                      href="/dashboard/super-admin"
-                      onClick={closeMobileMenu}
-                      className="py-3 px-3 text-sm font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-md transition-colors"
-                    >
-                      Super Admin
-                    </Link>
-                    <Link
-                      href="/dashboard/super-admin/inbox"
-                      onClick={closeMobileMenu}
-                      className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
-                    >
-                      Inbox
-                    </Link>
-                  </>
+                  <Link
+                    href="/dashboard/super-admin"
+                    onClick={closeMobileMenu}
+                    className="py-3 px-3 text-sm font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-md transition-colors"
+                  >
+                    Super Admin
+                  </Link>
                 )}
                 <Link
                   href="/dashboard"
@@ -259,6 +241,13 @@ export function DashboardHeader({
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
                   Dashboard
+                </Link>
+                <Link
+                  href="/dashboard/crm/inbox"
+                  onClick={closeMobileMenu}
+                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                >
+                  Inbox
                 </Link>
                 <Link
                   href="/dashboard/quotes"
@@ -280,13 +269,6 @@ export function DashboardHeader({
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
                   Contacts
-                </Link>
-                <Link
-                  href="/dashboard/inbox"
-                  onClick={closeMobileMenu}
-                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
-                >
-                  Inbox
                 </Link>
                 <Link
                   href="/dashboard/tools"

@@ -578,7 +578,7 @@ export default function CRMInboxPage() {
                         <p className="truncate text-xs text-muted-foreground">{contactPhone(selectedConv.contact)}</p>
                       )}
                     </div>
-                    <div className="flex items-center gap-0.5 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                       {selectedConv.contactId ? (
                         <Link
                           href={`/dashboard/crm/contacts/${selectedConv.contactId}`}
@@ -597,12 +597,16 @@ export default function CRMInboxPage() {
                           <Phone className="h-4 w-4" />
                         </a>
                       ) : null}
-                      {selectedConv.starred ? (
-                        <Star className="h-4 w-4 fill-amber-400 text-amber-500" />
-                      ) : (
-                        <Star className="h-4 w-4 text-muted-foreground" />
-                      )}
-                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <span className="inline-flex rounded p-2 text-muted-foreground" aria-hidden>
+                        {selectedConv.starred ? (
+                          <Star className="h-4 w-4 fill-amber-400 text-amber-500" />
+                        ) : (
+                          <Star className="h-4 w-4" />
+                        )}
+                      </span>
+                      <span className="inline-flex rounded p-2 text-muted-foreground" aria-hidden>
+                        <Mail className="h-4 w-4" />
+                      </span>
                       {ghlContactUrl ? (
                         <a
                           href={ghlContactUrl}
