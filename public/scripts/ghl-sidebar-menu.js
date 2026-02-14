@@ -25,8 +25,7 @@
     { page: 'quotes', label: 'Quotes' },
     { page: 'tools', label: 'Tools' },
     { page: 'service-areas', label: 'Service Areas' },
-    { page: 'pricing', label: 'Pricing' },
-    { page: 'settings', label: 'Settings' },
+    { page: 'pricing', label: 'Pricing' }
   ];
 
   function getBaseUrl() {
