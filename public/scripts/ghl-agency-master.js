@@ -251,13 +251,13 @@
 
   (function () {
     var CONTAINER_ID = 'cleanquote-ghl-sidebar-menu';
-    var activeBg = 'rgba(0,0,0,0.25)';
-    var activeColor = 'rgba(255,255,255,0.95)';
+    var activeBg = 'rgba(0,0,0,0.12)';
+    var activeColor = '#7c3aed';
     (function injectActiveStyles() {
       if (document.getElementById('cleanquote-ghl-sidebar-active-styles')) return;
       var style = document.createElement('style');
       style.id = 'cleanquote-ghl-sidebar-active-styles';
-      style.textContent = '#' + CONTAINER_ID + ' [data-cq-active="1"] { background-color: ' + activeBg + ' !important; color: ' + activeColor + ' !important; font-weight: 600 !important; }';
+      style.textContent = '#' + CONTAINER_ID + ' [data-cq-active="1"] { background-color: ' + activeBg + ' !important; color: ' + activeColor + ' !important; font-weight: 600 !important; border-radius: 0 !important; }';
       (document.head || document.documentElement).appendChild(style);
     })();
     /* Submenu only: Inbox, Contacts, etc. The CleanQuote.io custom link (above this) is the dashboard. */
@@ -547,7 +547,7 @@
       var list = document.createElement('ul');
       list.style.cssText = 'list-style:none;margin:0;padding:0;';
       list.setAttribute('role', 'list');
-      var itemStyle = 'display:block;width:100%;text-align:left;background:transparent;border:none;cursor:pointer;padding:8px 12px;padding-left:24px;font-size:14px;color:inherit;font-family:inherit;';
+      var itemStyle = 'display:block;width:100%;text-align:left;background:transparent;border:none;border-radius:0;cursor:pointer;padding:8px 12px;padding-left:24px;font-size:14px;color:inherit;font-family:inherit;';
       var hoverBg = 'rgba(255,255,255,0.08)';
       for (var i = 0; i < MENU_ITEMS.length; i++) {
         var item = MENU_ITEMS[i];
