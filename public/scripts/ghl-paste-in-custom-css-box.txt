@@ -24,4 +24,18 @@ Option B – If GHL blocks @import from external URLs, use Custom JavaScript ins
 Option C – Paste the full contents of ghl-agency-custom-css.css into the Custom CSS
   box (no external load; all styles are inline). Use this if both A and B are blocked.
 
+--------------------------------------------------------------------------------
+  Logo swap (sidebar): which locations get it + logo source
+--------------------------------------------------------------------------------
+  • Allowlist: Google Sheet "CleanQuote Custom Logos Location IDs"
+    https://docs.google.com/spreadsheets/d/1MDewgi32wckZcmTcEbijdRNQXJuJXVWel2BWcnXeii4/edit
+    Column A = LocationID, Column B = Name. Publish to web → Link → CSV, then
+    set GHL_LOGO_SWAP_ALLOWLIST_URL in CleanQuote env (Vercel / .env.local) to:
+    https://docs.google.com/spreadsheets/d/1MDewgi32wckZcmTcEbijdRNQXJuJXVWel2BWcnXeii4/export?format=csv&gid=0
+  • Logo: always the GHL business logo (Settings → Business Profile → logo).
+    The agency script calls /api/ghl/logo-swap-config and sets the sidebar
+    logo from the GET /locations/{id} response (business.logoUrl).
+  • The Custom CSS above + the ghl-agency-master.js script together implement
+    the swap; no hardcoded location IDs or logo URLs in CSS.
+
 ================================================================================
