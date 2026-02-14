@@ -17,27 +17,6 @@ function isNavActive(href: string, pathname: string): boolean {
   return clean === base || clean.startsWith(base + '/');
 }
 
-/** Page title shown in header (replaces org name). */
-function getPageTitle(pathname: string): string {
-  const clean = pathname.replace(/\/$/, '') || '/dashboard';
-  if (clean === '/dashboard') return 'Dashboard';
-  if (clean === '/dashboard/quotes') return 'Quotes';
-  if (clean === '/dashboard/crm') return 'Leads';
-  if (clean === '/dashboard/crm/contacts') return 'Contacts';
-  if (clean.startsWith('/dashboard/crm/contacts/')) return 'Contact';
-  if (clean === '/dashboard/crm/inbox') return 'Inbox';
-  if (clean === '/dashboard/tools') return 'Tools';
-  if (clean.startsWith('/dashboard/tools/')) return 'Tool';
-  if (clean === '/dashboard/service-areas') return 'Service Areas';
-  if (clean === '/dashboard/pricing-structures') return 'Pricing';
-  if (clean.startsWith('/dashboard/pricing-structures/')) return 'Pricing';
-  if (clean === '/dashboard/super-admin') return 'Super Admin';
-  if (clean.startsWith('/dashboard/super-admin/')) return 'Super Admin';
-  if (clean === '/dashboard/profile') return 'Profile';
-  if (clean === '/dashboard/settings') return 'Settings';
-  return 'Dashboard';
-}
-
 interface Org {
   id: string;
   name: string;
@@ -96,12 +75,10 @@ export function DashboardHeader({
     }`;
   };
 
-  const pageTitle = getPageTitle(pathname);
-
   const navLinks = (
     <>
-      <span className="text-sm font-medium text-foreground" aria-label="Current page">
-        {pageTitle}
+      <span className="text-sm font-medium text-foreground" aria-label="CleanQuote">
+        CleanQuote.io
       </span>
       {orgs.length > 1 && (
         <OrgSwitcher orgs={orgs} selectedOrgId={selectedOrgId} />
@@ -237,8 +214,8 @@ export function DashboardHeader({
                 className="flex items-center justify-between h-14 px-4 border-b border-gray-200"
                 style={{ backgroundColor: '#f9fafb' }}
               >
-                <span className="text-sm font-medium text-foreground" aria-label="Current page">
-                  {pageTitle}
+                <span className="text-sm font-medium text-foreground" aria-label="CleanQuote">
+                  CleanQuote.io
                 </span>
                 <button
                   type="button"

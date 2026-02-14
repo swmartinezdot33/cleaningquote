@@ -5,109 +5,218 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Local iframe test – CleanQuote</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 920px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
-    .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.1); margin-bottom: 20px; }
-    label { display: block; margin-bottom: 6px; font-weight: 600; }
-    input[type="text"], select { width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-    select { margin-top: 4px; cursor: pointer; }
-    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
-    .row > * { flex: 1 1 auto; min-width: 140px; }
-    button { padding: 10px 16px; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; }
-    button:hover { background: #1d4ed8; }
-    iframe { width: 100%; height: 72vh; border: 1px solid #ddd; border-radius: 6px; background: #fff; }
-    .hint { font-size: 0.875rem; color: #666; margin-top: 8px; }
-    code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; }
-    .url-preview { font-size: 0.8rem; color: #555; word-break: break-all; margin-top: 8px; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #f9fafb; color: #111827; min-height: 100vh; }
+
+    /* GHL-like layout: sidebar + main */
+    .app-shell { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 240px; min-width: 240px; background: #f3f4f6; border-right: 1px solid #e5e7eb;
+      display: flex; flex-direction: column; flex-shrink: 0;
+    }
+    .sidebar-brand { padding: 16px; border-bottom: 1px solid #e5e7eb; }
+    .sidebar-brand .logo { font-weight: 700; font-size: 1.1rem; color: #6d28d9; }
+    .sidebar-brand .logo span { color: #111827; }
+    .sidebar-location { margin-top: 8px; font-size: 0.8rem; color: #6b7280; }
+    .sidebar-location input { width: 100%; padding: 6px 8px; margin-top: 4px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.8rem; }
+    .sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+    .sidebar-nav a, .sidebar-nav .nav-item {
+      display: flex; align-items: center; gap: 10px; padding: 10px 16px; color: #374151; text-decoration: none; font-size: 0.9rem;
+      border-left: 3px solid transparent; cursor: pointer;
+    }
+    .sidebar-nav a:hover, .sidebar-nav .nav-item:hover { background: #e5e7eb; color: #111827; }
+    .sidebar-nav a.active, .sidebar-nav .nav-item.active { background: #ede9fe; color: #6d28d9; border-left-color: #6d28d9; font-weight: 500; }
+    .sidebar-settings { padding: 12px 16px; border-top: 1px solid #e5e7eb; }
+    .sidebar-settings a { color: #6b7280; text-decoration: none; font-size: 0.875rem; display: flex; align-items: center; gap: 8px; }
+    .sidebar-settings a:hover { color: #111827; }
+    .sidebar .load-row { padding: 12px 16px; }
+    .sidebar .load-row input { width: 100%; padding: 6px 8px; margin-bottom: 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.8rem; }
+    .sidebar .load-row label { font-size: 0.75rem; color: #6b7280; display: block; margin-bottom: 2px; }
+    .sidebar .load-row button { width: 100%; padding: 8px 12px; background: #6d28d9; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.875rem; }
+    .sidebar .load-row button:hover { background: #5b21b6; }
+
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .topbar {
+      height: 56px; background: #fff; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; flex-shrink: 0;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+    .topbar .logo-text { font-weight: 700; font-size: 1.1rem; color: #111827; }
+    .topbar .logo-text .purple { color: #6d28d9; }
+    .topbar-right { display: flex; align-items: center; gap: 16px; }
+    .topbar .btn-new { padding: 8px 16px; background: #6d28d9; color: #fff; border: none; border-radius: 8px; font-weight: 500; font-size: 0.875rem; cursor: pointer; }
+    .topbar .btn-new:hover { background: #5b21b6; }
+    .subnav {
+      background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0 24px; display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+    }
+    .subnav a, .subnav .subnav-item {
+      padding: 14px 12px; font-size: 0.875rem; color: #6b7280; text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer;
+    }
+    .subnav a:hover, .subnav .subnav-item:hover { color: #111827; }
+    .subnav a.active, .subnav .subnav-item.active { color: #6d28d9; font-weight: 600; border-bottom-color: #6d28d9; }
+    .content { flex: 1; display: flex; flex-direction: column; padding: 24px; min-height: 0; }
+    .content-header { margin-bottom: 16px; }
+    .content-header h1 { font-size: 1.5rem; font-weight: 700; margin: 0 0 4px 0; color: #111827; }
+    .content-header p { font-size: 0.875rem; color: #6b7280; margin: 0; }
+    .iframe-wrap { flex: 1; min-height: 400px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+    .iframe-wrap.hidden { display: none; }
+    .iframe-placeholder { flex: 1; display: flex; align-items: center; justify-content: center; background: #f9fafb; color: #6b7280; font-size: 0.9rem; padding: 24px; text-align: center; }
+    .iframe-placeholder.hidden { display: none; }
+    #appFrame { width: 100%; flex: 1; min-height: 480px; border: 0; display: block; }
+    .hint { font-size: 0.75rem; color: #9ca3af; margin-top: 4px; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Local iframe test</h1>
-    <p>Test CleanQuote locally by <strong>mimicking postMessage</strong>: the app is loaded in an iframe with <em>no</em> URL params. This window sends a postMessage with the location ID so the app receives context the same way it does in production.</p>
-    <label for="base">App base URL</label>
-    <input type="text" id="base" value="" placeholder="http://localhost:3000">
-    <p class="hint">Must match where <code>npm run dev</code> is running (same origin as this page avoids MIME/404 errors).</p>
-    <label for="locationId" style="margin-top:12px">Location ID</label>
-    <input type="text" id="locationId" placeholder="e.g. tCqS9npFPtO0DSuYVvzb" value="">
-    <p class="hint">Your sub-account location ID (case-sensitive).</p>
-    <label for="page" style="margin-top:12px">Initial page</label>
-    <select id="page">
-      <option value="/dashboard">Dashboard</option>
-      <option value="/dashboard/crm">Leads</option>
-      <option value="/dashboard/quotes">Quotes</option>
-      <option value="/dashboard/crm/contacts">Contacts</option>
-      <option value="/dashboard/tools">Tools</option>
-      <option value="/dashboard/service-areas">Service Areas</option>
-      <option value="/dashboard/pricing-structures">Pricing</option>
-    </select>
-    <div class="row" style="margin-top:16px; gap:8px;">
-      <button type="button" id="load">Load app in iframe + send postMessage</button>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="logo">Clean<span>Quote</span>.io</div>
+        <div class="sidebar-location">
+          <label for="locationId">Location ID</label>
+          <input type="text" id="locationId" placeholder="e.g. tCqS9npFPtO0…">
+        </div>
+        <div class="sidebar-location" style="margin-top:10px">
+          <label for="base">App base URL</label>
+          <input type="text" id="base" placeholder="http://localhost:3000">
+        </div>
+      </div>
+      <div class="load-row">
+        <button type="button" id="load">Load app in iframe</button>
+      </div>
+      <nav class="sidebar-nav" id="sidebarNav">
+        <a href="#" data-page="/dashboard" class="nav-item active">Dashboard</a>
+        <a href="#" data-page="/dashboard/quotes" class="nav-item">Quotes</a>
+        <a href="#" data-page="/dashboard/crm" class="nav-item">Leads</a>
+        <a href="#" data-page="/dashboard/crm/contacts" class="nav-item">Contacts</a>
+        <a href="#" data-page="/dashboard/crm/inbox" class="nav-item">Inbox</a>
+        <a href="#" data-page="/dashboard/tools" class="nav-item">Tools</a>
+        <a href="#" data-page="/dashboard/service-areas" class="nav-item">Service Areas</a>
+        <a href="#" data-page="/dashboard/pricing-structures" class="nav-item">Pricing</a>
+      </nav>
+      <div class="sidebar-settings">
+        <a href="#">Settings</a>
+      </div>
+    </aside>
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <span class="logo-text"><span class="purple">CleanQuote</span>.io</span>
+        </div>
+        <div class="topbar-right">
+          <button type="button" class="btn-new">+ New Quote</button>
+        </div>
+      </header>
+      <nav class="subnav" id="subnav">
+        <a href="#" data-page="/dashboard" class="subnav-item active">Dashboard</a>
+        <a href="#" data-page="/dashboard/quotes" class="subnav-item">Quotes</a>
+        <a href="#" data-page="/dashboard/crm" class="subnav-item">Leads</a>
+        <a href="#" data-page="/dashboard/crm/contacts" class="subnav-item">Contacts</a>
+        <a href="#" data-page="/dashboard/crm/inbox" class="subnav-item">Inbox</a>
+        <a href="#" data-page="/dashboard/tools" class="subnav-item">Tools</a>
+        <a href="#" data-page="/dashboard/service-areas" class="subnav-item">Service Areas</a>
+        <a href="#" data-page="/dashboard/pricing-structures" class="subnav-item">Pricing</a>
+      </nav>
+      <main class="content">
+        <div class="content-header">
+          <h1 id="pageTitle">Dashboard</h1>
+          <p id="pageDesc">Overview of your location. Use the menu above to dive into tools, leads, and more.</p>
+        </div>
+        <div class="iframe-wrap hidden" id="frameWrap">
+          <div class="iframe-placeholder hidden" id="iframePlaceholder">Loading…</div>
+          <iframe id="appFrame" title="CleanQuote" allow="clipboard-write"></iframe>
+        </div>
+        <div class="iframe-placeholder" id="initialPlaceholder">
+          <div>
+            <p><strong>Local iframe test</strong></p>
+            <p>Enter your <strong>Location ID</strong> and <strong>App base URL</strong> in the left sidebar, then click <strong>Load app in iframe</strong>.</p>
+            <p class="hint">Location ID is sent via postMessage so the app receives context the same way as in production.</p>
+          </div>
+        </div>
+      </main>
     </div>
-    <p class="url-preview" id="urlPreview"></p>
-    <p class="hint" style="margin-top:12px">If the iframe shows blank or console errors like &quot;Refused to apply style&quot; / 404 for <code>_next/static</code>, the dev server may be serving stale or missing chunks. Try: stop dev, run <code>rm -rf .next</code>, then <code>npm run dev</code>. Open <a href="#" id="dashboardLink">/dashboard</a> in a new tab once to compile, then load the iframe again.</p>
-  </div>
-  <div class="card" id="frameWrap" style="display:none">
-    <h2>App (iframe)</h2>
-    <iframe id="appFrame" title="CleanQuote" allow="clipboard-write"></iframe>
   </div>
 
   <script>
+    var PAGE_LABELS = {
+      '/dashboard': { title: 'Dashboard', desc: 'Overview of your location. Use the menu above to dive into tools, leads, and more.' },
+      '/dashboard/quotes': { title: 'Quotes', desc: 'View and manage quotes.' },
+      '/dashboard/crm': { title: 'Leads', desc: 'Leads and pipeline.' },
+      '/dashboard/crm/contacts': { title: 'Contacts', desc: 'CRM contacts.' },
+      '/dashboard/crm/inbox': { title: 'Inbox', desc: 'Conversations and messages.' },
+      '/dashboard/tools': { title: 'Tools', desc: 'Quoting tools and forms.' },
+      '/dashboard/service-areas': { title: 'Service Areas', desc: 'Manage service area maps.' },
+      '/dashboard/pricing-structures': { title: 'Pricing', desc: 'Pricing structures.' }
+    };
     function getBase() { return (document.getElementById('base').value || '').replace(/\/$/, ''); }
     function getLocationId() { return (document.getElementById('locationId').value || '').trim(); }
-    function getPath() { return (document.getElementById('page').value || '/dashboard'); }
-    function getIframeUrl() {
-      var base = getBase();
-      var path = getPath();
-      return base + path;
+    function getPath() { return window._currentPath || '/dashboard'; }
+    function setPath(path) {
+      window._currentPath = path || '/dashboard';
+      var labels = PAGE_LABELS[window._currentPath] || { title: 'Dashboard', desc: '' };
+      document.getElementById('pageTitle').textContent = labels.title;
+      document.getElementById('pageDesc').textContent = labels.desc;
+      document.querySelectorAll('.sidebar-nav .nav-item, .subnav .subnav-item').forEach(function (el) {
+        var isActive = (el.getAttribute('data-page') === window._currentPath);
+        el.classList.toggle('active', isActive);
+      });
     }
-    function updatePreview() {
-      var url = getIframeUrl();
-      document.getElementById('urlPreview').textContent = 'Iframe URL (no params): ' + url + ' — locationId is sent via postMessage.';
-      var dashLink = document.getElementById('dashboardLink');
-      if (dashLink) dashLink.href = getBase() + '/dashboard';
+    function getIframeUrl() { return getBase() + getPath(); }
+    function sendPostMessage() {
+      var locationId = getLocationId();
+      if (!locationId) return;
+      var iframe = document.getElementById('appFrame');
+      if (!iframe || !iframe.contentWindow) return;
+      try {
+        var targetOrigin = getBase();
+        var payload = { locationId: locationId };
+        var msg = { message: 'REQUEST_USER_DATA_RESPONSE', payload: payload };
+        iframe.contentWindow.postMessage(msg, targetOrigin);
+        console.log('[test-ghl-iframe] postMessage sent', { targetOrigin: targetOrigin, locationId: locationId.slice(0, 8) + '...' });
+      } catch (e) { console.warn('[test-ghl-iframe] postMessage error', e); }
     }
     function loadIframe() {
       var locationId = getLocationId();
-      if (!locationId) {
-        alert('Enter a Location ID');
-        return;
-      }
-      var iframe = document.getElementById('appFrame');
+      if (!locationId) { alert('Enter a Location ID'); return; }
       var base = getBase();
+      if (!base) { alert('Enter App base URL (e.g. http://localhost:3000)'); return; }
+      var iframe = document.getElementById('appFrame');
+      var wrap = document.getElementById('frameWrap');
+      var initial = document.getElementById('initialPlaceholder');
       var url = getIframeUrl();
       iframe.src = url;
-      document.getElementById('frameWrap').style.display = 'block';
-      updatePreview();
-
-      function sendPostMessage() {
-        try {
-          var targetOrigin = base;
-          var payload = { locationId: locationId };
-          var msg = { message: 'REQUEST_USER_DATA_RESPONSE', payload: payload };
-          iframe.contentWindow.postMessage(msg, targetOrigin);
-          console.log('[test-ghl-iframe] postMessage sent', { targetOrigin, locationId: locationId.slice(0, 8) + '...' });
-        } catch (e) {
-          console.warn('[test-ghl-iframe] postMessage error', e);
-        }
-      }
+      wrap.classList.remove('hidden');
+      initial.classList.add('hidden');
       iframe.onload = function () {
         sendPostMessage();
         setTimeout(sendPostMessage, 200);
         setTimeout(sendPostMessage, 600);
       };
     }
+    function navigateTo(path) {
+      if (!path) return;
+      setPath(path);
+      var wrap = document.getElementById('frameWrap');
+      if (wrap.classList.contains('hidden')) return;
+      var iframe = document.getElementById('appFrame');
+      iframe.src = getIframeUrl();
+      iframe.onload = function () {
+        sendPostMessage();
+        setTimeout(sendPostMessage, 200);
+      };
+    }
     document.getElementById('load').onclick = loadIframe;
-    document.getElementById('base').oninput = updatePreview;
-    document.getElementById('locationId').oninput = updatePreview;
-    document.getElementById('page').onchange = updatePreview;
-    // Default base to current origin so iframe loads from same server (avoids wrong-port MIME/404)
+    document.querySelectorAll('.sidebar-nav .nav-item').forEach(function (a) {
+      a.addEventListener('click', function (e) { e.preventDefault(); navigateTo(a.getAttribute('data-page')); });
+    });
+    document.querySelectorAll('.subnav .subnav-item').forEach(function (a) {
+      a.addEventListener('click', function (e) { e.preventDefault(); navigateTo(a.getAttribute('data-page')); });
+    });
     (function () {
       var baseEl = document.getElementById('base');
       if (baseEl && !baseEl.value && typeof window !== 'undefined' && window.location.origin) {
         baseEl.value = window.location.origin;
       }
     })();
-    updatePreview();
+    setPath('/dashboard');
   </script>
 </body>
 </html>

@@ -466,10 +466,10 @@ export default function DashboardQuotesPage() {
   }
 
   const isRateLimit = error ? /429|too many requests|rate limit|temporarily busy/i.test(error) : false;
-  const friendlyTitle = isRateLimit ? 'Service is busy' : "We couldn't load quotes";
+  const friendlyTitle = isRateLimit ? 'Service is busy' : 'No quotes to show';
   const friendlyMessage = isRateLimit
     ? 'Service is temporarily busy. Please try again in a moment.'
-    : "Something went wrong while loading quotes. Please try again.";
+    : 'There may be no quotes yet, or the connection could not be completed. You can try again below.';
 
   return (
     <div className="space-y-6">
@@ -547,13 +547,13 @@ export default function DashboardQuotesPage() {
           <LoadingDots size="lg" className="text-muted-foreground" />
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-6 text-destructive">
-          <p className="font-medium">{friendlyTitle}</p>
-          <p className="mt-2 text-sm">{friendlyMessage}</p>
+        <div className="rounded-xl border border-border bg-muted/30 p-6 text-foreground">
+          <p className="font-medium text-foreground">{friendlyTitle}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{friendlyMessage}</p>
           <button
             type="button"
             onClick={() => { setError(null); loadQuotes(); }}
-            className="mt-4 inline-flex items-center gap-2 rounded-md border border-destructive/50 px-4 py-2 text-sm font-medium hover:bg-destructive/20"
+            className="mt-4 inline-flex items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-muted"
           >
             <RefreshCw className="h-4 w-4" />
             Retry
