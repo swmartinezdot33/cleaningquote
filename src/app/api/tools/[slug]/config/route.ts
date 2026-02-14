@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import type { Tool, ToolConfigRow } from '@/lib/supabase/types';
 import * as configStore from '@/lib/config/store';
+import { getBusinessNameForToolId, getLocationContactDetailsForToolId } from '@/lib/ghl/location-contact';
 import { DEFAULT_WIDGET, DEFAULT_PRIMARY_COLOR, normalizeHexColor } from '@/lib/tools/config';
 import { DEFAULT_SURVEY_QUESTIONS } from '@/lib/survey/schema';
 
@@ -204,6 +205,9 @@ export async function GET(
         ? (row.tracking_codes as { customHeadCode?: string })
         : {};
 
+    const businessName = await getBusinessNameForToolId(toolId);
+    const locationContact = await getLocationContactDetailsForToolId(toolId);
+
     return NextResponse.json(
       {
         widget,
@@ -213,6 +217,8 @@ export async function GET(
         formIsIframed: ghl?.formIsIframed === true,
         googleMapsKey,
         trackingCodes,
+        ...(businessName != null && { businessName }),
+        ...(locationContact != null && { locationContact }),
         _meta: { toolId, slug, configUpdatedAt: row?.updated_at ?? null },
       },
       {

@@ -59,6 +59,15 @@ interface QuoteResponse {
   /** Maps canonical keys (move-in, four-week) and option values to display labels from Survey Builder */
   serviceTypeLabels?: Record<string, string>;
   frequencyLabels?: Record<string, string>;
+  /** GHL location business name for quote header (from Sub-Account / Location) */
+  businessName?: string | null;
+  /** GHL location contact details for footer (always up to date from Sub-Account) */
+  locationContact?: {
+    orgName: string;
+    contactEmail: string | null;
+    contactPhone: string | null;
+    officeAddress: string | null;
+  } | null;
 }
 
 // Helper function to convert hex to rgba (handles transparent / no color)
@@ -411,6 +420,8 @@ export default function QuotePageClient({
   }
 
   if (quoteResult.outOfLimits) {
+    const loc = quoteResult.locationContact;
+    const hasContact = loc && (loc.orgName || loc.contactEmail || loc.contactPhone || loc.officeAddress);
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
         <Card className="max-w-md mx-auto">
@@ -427,6 +438,14 @@ export default function QuotePageClient({
                 }}
                 style={{ backgroundColor: primaryColor, borderColor: primaryColor }}
               >Start New Quote</Button>
+              {hasContact && (
+                <div className="mt-6 pt-5 border-t border-gray-200 text-left text-sm text-gray-600">
+                  <p className="font-semibold text-gray-700 mb-1">{loc!.orgName || 'Contact us'}</p>
+                  {loc!.contactPhone && <a href={`tel:${loc!.contactPhone.replace(/\s/g, '')}`} className="block hover:underline">{loc!.contactPhone}</a>}
+                  {loc!.contactEmail && <a href={`mailto:${loc!.contactEmail}`} className="block hover:underline">{loc!.contactEmail}</a>}
+                  {loc!.officeAddress && <span className="block">{loc!.officeAddress}</span>}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -487,7 +506,7 @@ export default function QuotePageClient({
                     <div className="flex items-center justify-between relative z-10">
                       <div>
                         <p className="text-white/90 text-xs font-semibold tracking-wider mb-1 uppercase">YOUR QUOTE</p>
-                        <h3 className="text-2xl md:text-3xl font-bold">Your Perfect Quote</h3>
+                        <h3 className="text-2xl md:text-3xl font-bold">{quoteResult.businessName ?? 'Your Perfect Quote'}</h3>
                       </div>
                       <div className="text-white opacity-90">
                         <Sparkles className="h-8 w-8" />
@@ -520,15 +539,15 @@ export default function QuotePageClient({
                             </div>
                             <div>
                               <span className="font-medium">Bedrooms:</span>{' '}
-                              <span className="text-gray-900">{quoteResult.inputs.bedrooms ?? 0}</span>
+                              <span className="text-gray-900">{quoteResult.inputs.bedrooms != null ? quoteResult.inputs.bedrooms : '—'}</span>
                             </div>
                             <div>
                               <span className="font-medium">Full Baths:</span>{' '}
-                              <span className="text-gray-900">{quoteResult.inputs.fullBaths ?? 0}</span>
+                              <span className="text-gray-900">{quoteResult.inputs.fullBaths != null ? quoteResult.inputs.fullBaths : '—'}</span>
                             </div>
                             <div>
                               <span className="font-medium">Half Baths:</span>{' '}
-                              <span className="text-gray-900">{quoteResult.inputs.halfBaths ?? 0}</span>
+                              <span className="text-gray-900">{quoteResult.inputs.halfBaths != null ? quoteResult.inputs.halfBaths : '—'}</span>
                             </div>
                             {quoteResult.inputs.people !== undefined && quoteResult.inputs.people !== null && (
                               <div>
@@ -706,7 +725,12 @@ export default function QuotePageClient({
                                     )
                                   ) : (
                                     <p className="font-bold text-lg text-amber-800">
-                                      Price could not be determined for this selection. Please contact us for a quote.
+                                      Price could not be determined for this selection.
+                                      {quoteResult.locationContact?.contactEmail || quoteResult.locationContact?.contactPhone ? (
+                                        <> Please <a href={quoteResult.locationContact.contactEmail ? `mailto:${quoteResult.locationContact.contactEmail}` : `tel:${quoteResult.locationContact.contactPhone!.replace(/\s/g, '')}`} className="underline hover:opacity-80">contact us</a> for a quote.</>
+                                      ) : (
+                                        ' Please contact us for a quote.'
+                                      )}
                                     </p>
                                   )}
                                 </div>
@@ -1109,7 +1133,7 @@ export default function QuotePageClient({
                         </motion.div>
                       )}
 
-                      {/* Get Another Quote Link - Footer */}
+                      {/* Get Another Quote Link */}
                       <div className="pt-4 text-center">
                         <button
                           onClick={() => {
@@ -1125,6 +1149,30 @@ export default function QuotePageClient({
                           <span>Get Another Quote</span>
                         </button>
                       </div>
+
+                      {/* Footer: business contact info from GHL (always up to date) */}
+                      {quoteResult.locationContact && (quoteResult.locationContact.orgName || quoteResult.locationContact.contactEmail || quoteResult.locationContact.contactPhone || quoteResult.locationContact.officeAddress) && (
+                        <div className="mt-6 pt-5 border-t border-gray-200">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                            {quoteResult.locationContact.orgName || 'Contact us'}
+                          </p>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
+                            {quoteResult.locationContact.contactPhone && (
+                              <a href={`tel:${quoteResult.locationContact.contactPhone.replace(/\s/g, '')}`} className="hover:underline">
+                                {quoteResult.locationContact.contactPhone}
+                              </a>
+                            )}
+                            {quoteResult.locationContact.contactEmail && (
+                              <a href={`mailto:${quoteResult.locationContact.contactEmail}`} className="hover:underline">
+                                {quoteResult.locationContact.contactEmail}
+                              </a>
+                            )}
+                            {quoteResult.locationContact.officeAddress && (
+                              <span className="block sm:inline">{quoteResult.locationContact.officeAddress}</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Booking Messages */}
                       {bookingMessage && (

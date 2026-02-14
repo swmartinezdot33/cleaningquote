@@ -6,6 +6,7 @@
 
 import { getOrFetchTokenForLocation } from '@/lib/ghl/token-store';
 import { getLocationWithToken } from '@/lib/ghl/client';
+import { getOrgIdFromToolId, getGHLLocationIdForOrg } from '@/lib/config/store';
 
 export interface LocationContactDetails {
   orgName: string;
@@ -57,4 +58,42 @@ export async function getLocationContactDetails(
     contactPhone: phone,
     officeAddress,
   };
+}
+
+/**
+ * Get the business/location name for display (e.g. quote summary header).
+ * Uses GHL location API; returns null if no token or API fails.
+ */
+export async function getLocationBusinessName(ghlLocationId: string): Promise<string | null> {
+  const details = await getLocationContactDetails(ghlLocationId);
+  const name = details?.orgName?.trim();
+  return name || null;
+}
+
+/**
+ * Get the GHL location business name for a tool (for quote summary header, etc.).
+ * Returns null if tool has no org, no GHL location, or API fails.
+ */
+export async function getBusinessNameForToolId(toolId: string): Promise<string | null> {
+  if (!toolId?.trim()) return null;
+  const orgId = await getOrgIdFromToolId(toolId);
+  if (!orgId) return null;
+  const ghlLocationId = await getGHLLocationIdForOrg(orgId);
+  if (!ghlLocationId) return null;
+  return getLocationBusinessName(ghlLocationId);
+}
+
+/**
+ * Get full location contact details (name, email, phone, address) for a tool.
+ * Used for quote page footer and contact info so they stay in sync with GHL.
+ */
+export async function getLocationContactDetailsForToolId(
+  toolId: string
+): Promise<LocationContactDetails | null> {
+  if (!toolId?.trim()) return null;
+  const orgId = await getOrgIdFromToolId(toolId);
+  if (!orgId) return null;
+  const ghlLocationId = await getGHLLocationIdForOrg(orgId);
+  if (!ghlLocationId) return null;
+  return getLocationContactDetails(ghlLocationId);
 }

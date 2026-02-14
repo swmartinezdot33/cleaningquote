@@ -104,8 +104,9 @@ describe('squareFootageRangeToNumber', () => {
     expect(squareFootageRangeToNumber('8000+')).toBe(8000);
     expect(squareFootageRangeToNumber('8000+', { maxSqFt: 8500 })).toBe(8500);
   });
-  it('returns default fallback for empty/invalid', () => {
-    expect(squareFootageRangeToNumber('')).toBe(1500);
-    expect(squareFootageRangeToNumber('  ', { defaultFallback: 2000 })).toBe(2000);
+  it('returns null for empty/invalid (no default — callers must not use a guessed value)', () => {
+    expect(squareFootageRangeToNumber('')).toBeNull();
+    expect(squareFootageRangeToNumber('  ')).toBeNull();
+    expect(squareFootageRangeToNumber('nope')).toBeNull();
   });
 });

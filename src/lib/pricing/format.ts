@@ -93,15 +93,19 @@ function getSelectedQuoteRange(ranges: QuoteRanges, serviceType: string, frequen
  * - "1501-2000" → 1750
  * - "8000+" / "Over 8000" → 8000 (caller can pass maxSqFt for last tier when available)
  */
+/**
+ * Parse square footage range string to a single number (midpoint). Returns null when the range cannot be parsed.
+ * No default/fallback — callers must handle null and must not use a guessed value for pricing.
+ */
 export function squareFootageRangeToNumber(
   range: string,
-  options?: { defaultFallback?: number; maxSqFt?: number }
-): number {
-  const defaultFallback = options?.defaultFallback ?? 1500;
+  options?: { maxSqFt?: number }
+): number | null {
   const maxSqFt = options?.maxSqFt;
 
-  if (!range || typeof range !== 'string') return defaultFallback;
+  if (!range || typeof range !== 'string') return null;
   const cleaned = range.trim();
+  if (!cleaned) return null;
 
   // "Less Than 1500" or "Less Than1500"
   if (cleaned.toLowerCase().includes('less than')) {
@@ -133,7 +137,7 @@ export function squareFootageRangeToNumber(
 
   // Plain number
   const num = parseInt(cleaned, 10);
-  return !isNaN(num) ? num : defaultFallback;
+  return !isNaN(num) ? num : null;
 }
 
 /**
@@ -269,7 +273,7 @@ export function generateSummaryText(
     const selectedRange = getSelectedQuoteRange(ranges, serviceType ?? '', frequency ?? '');
 
     if (selectedRange) {
-      summary += `🎯 ${freqLabel(labels, frequency)}: ${formatPriceRange(selectedRange)}\n\n`;
+      summary += `🎯 ${freqLabel(labels, frequency ?? '')}: ${formatPriceRange(selectedRange)}\n\n`;
     } else {
       summary += `Price could not be determined for the selected service and frequency.\n\n`;
       console.warn('[format] generateSummaryText: selectedRange null for recurring path', { serviceType, frequency });

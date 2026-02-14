@@ -334,6 +334,13 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   const calendarRef = useRef<HTMLDivElement>(null);
   const addressAutocompleteRef = useRef<{ geocodeCurrentValue: () => Promise<{ lat: number; lng: number; formattedAddress: string } | null> } | null>(null);
   const [configLoaded, setConfigLoaded] = useState(useServerConfig);
+  const [businessName, setBusinessName] = useState<string | null>(null);
+  const [locationContact, setLocationContact] = useState<{
+    orgName: string;
+    contactEmail: string | null;
+    contactPhone: string | null;
+    officeAddress: string | null;
+  } | null>(null);
 
   // When slug/toolId set, load config. Prefer toolId via /api/tools/by-id/config (path avoids [slug] matching "config").
   // On toolId endpoint failure, fall back to slug-based URL so config still loads.
@@ -383,6 +390,8 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         setAppointmentRedirectUrl(data.redirect.appointmentRedirectUrl || '');
       }
       if (data._meta?.toolId) setResolvedToolId(data._meta.toolId);
+      if (data.businessName != null) setBusinessName(data.businessName);
+      if (data.locationContact != null) setLocationContact(data.locationContact);
       setConfigLoaded(true);
     } catch (e) {
       console.error('Failed to load tool config:', e);
@@ -1635,8 +1644,8 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         country: formData.country,
         serviceType: payloadServiceType,
         frequency: payloadFrequency,
-        // Convert square footage range to numeric value (for pricing)
-        squareFeet: squareFootageRangeToNumber(String(formData.squareFeet ?? formData[getFormFieldName('squareFeet')] ?? ''), { maxSqFt: pricingTiers?.maxSqFt }),
+        // Send raw square footage (range string or number); API parses and validates — no client-side default
+        squareFeet: formData.squareFeet ?? formData[getFormFieldName('squareFeet')] ?? '',
         // Pass range string for GHL note so "Home Size: X sq ft" shows the range (e.g. "3001-3500")
         ...(typeof (formData.squareFeet ?? formData[getFormFieldName('squareFeet')]) === 'string' && String(formData.squareFeet ?? formData[getFormFieldName('squareFeet')] ?? '').trim() ? { squareFeetDisplay: String(formData.squareFeet ?? formData[getFormFieldName('squareFeet')] ?? '').trim() } : {}),
         fullBaths: fullBathsVal,
@@ -1757,7 +1766,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         if (tier?.label) squareFeetDisplay = tier.label;
       } else if (typeof sqFtValue === 'number' || (typeof sqFtValue === 'string' && sqFtValue.trim() && !sqFtValue.includes('-'))){
         const num = typeof sqFtValue === 'number' ? sqFtValue : squareFootageRangeToNumber(String(sqFtValue), { maxSqFt: pricingTiers?.maxSqFt });
-        squareFeetDisplay = getSquareFootageRangeDisplay(num) + ' sq ft';
+        squareFeetDisplay = num != null ? getSquareFootageRangeDisplay(num) + ' sq ft' : String(sqFtValue) + ' sq ft';
       } else if (typeof sqFtValue === 'string' && sqFtValue.includes('-')) {
         // Format "6501-7000" -> "6,501 - 7,000 sq ft"; "0-1500" -> "Less than 1,500 sq ft"
         const lower = sqFtValue.toLowerCase();
@@ -2229,7 +2238,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                       <div className="flex items-center justify-between mb-2 relative z-10">
                         <div>
                           <p className="text-white/80 text-sm font-semibold tracking-widest mb-1">✨ YOUR QUOTE ✨</p>
-                          <h3 className="text-3xl md:text-4xl font-black">Your Perfect Quote</h3>
+                          <h3 className="text-3xl md:text-4xl font-black">{businessName ?? 'Your Perfect Quote'}</h3>
                         </div>
                         <motion.div
                           animate={{ y: [0, -8, 0] }}
@@ -2927,7 +2936,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                         )}
                       </div>
 
-                      {/* Decorative footer — streamlined for internal (no marketing copy) */}
+                      {/* Footer: business contact from GHL when available; otherwise short tagline */}
                       {!internalToolOnly && (
                         <motion.div
                           initial={{ opacity: 0 }}
@@ -2935,10 +2944,33 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                           transition={{ delay: 0.5 }}
                           className="mt-8 pt-6 border-t border-gray-200 text-center"
                         >
-                          <p className="text-gray-500 text-sm">
-                            <span className="inline-block mr-2">🎯</span>
-                            Professional pricing • Customized for your needs
-                          </p>
+                          {locationContact && (locationContact.orgName || locationContact.contactEmail || locationContact.contactPhone || locationContact.officeAddress) ? (
+                            <div>
+                              {locationContact.orgName && (
+                                <p className="text-gray-700 font-semibold text-sm mb-1">{locationContact.orgName}</p>
+                              )}
+                              <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm text-gray-500">
+                                {locationContact.contactPhone && (
+                                  <a href={`tel:${locationContact.contactPhone.replace(/\s/g, '')}`} className="hover:underline">
+                                    {locationContact.contactPhone}
+                                  </a>
+                                )}
+                                {locationContact.contactEmail && (
+                                  <a href={`mailto:${locationContact.contactEmail}`} className="hover:underline">
+                                    {locationContact.contactEmail}
+                                  </a>
+                                )}
+                                {locationContact.officeAddress && (
+                                  <span className="block sm:inline">{locationContact.officeAddress}</span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-gray-500 text-sm">
+                              <span className="inline-block mr-2">🎯</span>
+                              Professional pricing • Customized for your needs
+                            </p>
+                          )}
                         </motion.div>
                       )}
                     </CardContent>

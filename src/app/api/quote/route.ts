@@ -190,23 +190,46 @@ export async function POST(request: NextRequest) {
       ? utmParams.utm_source.trim()
       : null;
     
-    // Convert square footage range to midpoint so pricing tier matches the chart
-    let squareFootage = Number(body.squareFeet);
-    if (isNaN(squareFootage)) {
+    // Parse square footage: number or range string. No default — we require valid data for the matrix.
+    let squareFootage: number | null = typeof body.squareFeet === 'number' && Number.isFinite(body.squareFeet) ? body.squareFeet : null;
+    if (squareFootage == null && body.squareFeet != null) {
       squareFootage = squareFootageRangeToNumber(String(body.squareFeet));
+    }
+
+    // Validate required inputs: each field must have a selection (0 is valid — e.g. 0 half baths, 0 pets). Reject only when missing or not a valid number.
+    const missing: string[] = [];
+    if (squareFootage == null || !Number.isFinite(squareFootage) || squareFootage <= 0) missing.push('squareFeet');
+    const bedrooms = body.bedrooms !== undefined && body.bedrooms !== null && body.bedrooms !== '' ? Number(body.bedrooms) : NaN;
+    if (!Number.isFinite(bedrooms) || bedrooms < 0) missing.push('bedrooms');
+    const fullBaths = body.fullBaths !== undefined && body.fullBaths !== null && body.fullBaths !== '' ? Number(body.fullBaths) : NaN;
+    if (!Number.isFinite(fullBaths) || fullBaths < 0) missing.push('fullBaths');
+    const halfBaths = body.halfBaths !== undefined && body.halfBaths !== null && body.halfBaths !== '' ? Number(body.halfBaths) : NaN;
+    if (!Number.isFinite(halfBaths) || halfBaths < 0) missing.push('halfBaths');
+    const people = body.people !== undefined && body.people !== null && body.people !== '' ? Number(body.people) : NaN;
+    if (!Number.isFinite(people) || people < 0) missing.push('people');
+    const sheddingPetsVal = body.sheddingPets !== undefined && body.sheddingPets !== null && body.sheddingPets !== '' ? Number(body.sheddingPets) : (body.pets !== undefined && body.pets !== null && body.pets !== '' ? Number(body.pets) : NaN);
+    if (!Number.isFinite(sheddingPetsVal) || sheddingPetsVal < 0) missing.push('sheddingPets');
+    const conditionNorm = normalizeConditionForPricing(body.condition);
+    if (!conditionNorm || typeof body.condition !== 'string' || String(body.condition).trim() === '') missing.push('condition');
+
+    if (missing.length > 0) {
+      return NextResponse.json(
+        { error: 'Please make a selection for every required field: ' + missing.join(', ') + '. (0 is valid where it applies, e.g. 0 half baths or 0 pets.)', code: 'VALIDATION_ERROR', missing },
+        { status: 400 }
+      );
     }
 
     const hasGHLToken = await ghlTokenExists(toolId).catch(() => false);
 
     const inputs: QuoteInputs = {
-      squareFeet: Number.isFinite(squareFootage) ? squareFootage : 1500,
-      bedrooms: Number(body.bedrooms) || 0,
-      fullBaths: Number(body.fullBaths) || 0,
-      halfBaths: Number(body.halfBaths) || 0,
-      people: Number(body.people) || 0,
-      pets: Number(body.pets) || 0,
-      sheddingPets: Number(body.sheddingPets) ?? Number(body.pets) ?? 0,
-      condition: normalizeConditionForPricing(body.condition),
+      squareFeet: squareFootage as number,
+      bedrooms: Math.round(bedrooms),
+      fullBaths: Math.round(fullBaths),
+      halfBaths: Math.round(halfBaths),
+      people: Math.round(people),
+      pets: Math.round(sheddingPetsVal),
+      sheddingPets: Math.round(sheddingPetsVal),
+      condition: conditionNorm,
       hasPreviousService: body.hasPreviousService,
       cleanedWithin3Months: body.cleanedWithin3Months,
     };
@@ -218,7 +241,7 @@ export async function POST(request: NextRequest) {
     if (result.ranges) {
       const surveyQuestions = await getSurveyQuestions(toolId);
       const summaryLabels = getSurveyDisplayLabels(surveyQuestions);
-      const squareFeetDisplay = getSquareFootageRangeDisplay(result.inputs?.squareFeet ?? squareFootage);
+      const squareFeetDisplay = getSquareFootageRangeDisplay(result.inputs?.squareFeet ?? squareFootage ?? 0);
       summaryText = generateSummaryText({ ...result, ranges: result.ranges }, body.serviceType || '', body.frequency || '', squareFeetDisplay, summaryLabels);
       smsText = generateSmsText({ ...result, ranges: result.ranges }, summaryLabels);
       // #region agent log
@@ -543,10 +566,10 @@ export async function POST(request: NextRequest) {
               ghlLocationId,
               {
                 address: serviceAddress,
-                squareFootage: body.squareFeet,
-                bedrooms: body.bedrooms != null ? Number(body.bedrooms) : undefined,
-                fullBaths: body.fullBaths != null ? Number(body.fullBaths) : undefined,
-                halfBaths: body.halfBaths != null ? Number(body.halfBaths) : undefined,
+                squareFootage: inputs.squareFeet,
+                bedrooms: inputs.bedrooms,
+                fullBaths: inputs.fullBaths,
+                halfBaths: inputs.halfBaths,
               },
               ghlToken ?? undefined
             );
@@ -606,11 +629,11 @@ export async function POST(request: NextRequest) {
           // Build opportunity custom fields
           const opportunityCustomFields: Record<string, string> = {
             // Home details
-            squareFeet: String(body.squareFeet),
-            beds: String(body.bedrooms || 0),
-            baths: String((body.fullBaths || 0) + (body.halfBaths || 0) * 0.5),
-            people: String(body.people || 0),
-            sheddingPets: String(body.sheddingPets || 0),
+            squareFeet: String(inputs.squareFeet),
+            beds: String(inputs.bedrooms),
+            baths: String((inputs.fullBaths ?? 0) + (inputs.halfBaths ?? 0) * 0.5),
+            people: String(inputs.people),
+            sheddingPets: String(inputs.sheddingPets),
             condition: body.condition || 'Unknown',
             
             // Service details
@@ -802,14 +825,14 @@ export async function POST(request: NextRequest) {
               ...(last ? { 'last_name': last } : {}),
               ...(emailVal ? { 'email': emailVal } : {}),
               'service_address': serviceAddress,
-              'square_footage': String(body.squareFeet || ''),
+              'square_footage': String(inputs.squareFeet),
               'type': mappedServiceType,
               'frequency': mappedFrequency,
-              'full_baths': String(body.fullBaths || 0),
-              'half_baths': String(body.halfBaths || 0),
-              'bedrooms': String(body.bedrooms || 0),
-              'people_in_home': String(body.people || 0),
-              'shedding_pets': String(body.sheddingPets || 0),
+              'full_baths': String(inputs.fullBaths ?? 0),
+              'half_baths': String(inputs.halfBaths ?? 0),
+              'bedrooms': String(inputs.bedrooms ?? 0),
+              'people_in_home': String(inputs.people),
+              'shedding_pets': String(inputs.sheddingPets),
               'current_condition': mappedCondition,
               'cleaning_service_prior': mappedCleaningServicePrior,
               'cleaned_in_last_3_months': mappedCleanedInLast3Months,
@@ -1075,10 +1098,10 @@ export async function POST(request: NextRequest) {
         frequency: storedFrequency || null,
         price_low: selectedRange?.low ?? null,
         price_high: selectedRange?.high ?? null,
-        square_feet: String(body.squareFeet ?? ''),
-        bedrooms: Number(body.bedrooms) || null,
-        full_baths: Number(body.fullBaths) || null,
-        half_baths: Number(body.halfBaths) || null,
+        square_feet: String(inputs.squareFeet),
+        bedrooms: inputs.bedrooms ?? null,
+        full_baths: inputs.fullBaths ?? null,
+        half_baths: inputs.halfBaths ?? null,
         summary_text: summaryText,
         payload,
         ghl_contact_id: ghlContactId || null,

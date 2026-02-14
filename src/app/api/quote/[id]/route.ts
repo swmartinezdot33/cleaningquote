@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCustomObjectById, getCustomObjectByQuoteId, getContactById } from '@/lib/ghl/client';
+import { getBusinessNameForToolId, getLocationContactDetailsForToolId } from '@/lib/ghl/location-contact';
 import { calcQuote } from '@/lib/pricing/calcQuote';
 import { generateSummaryText, generateSmsText, getSquareFootageRangeDisplay } from '@/lib/pricing/format';
-import { QuoteInputs } from '@/lib/pricing/types';
+import { QuoteInputs, QuoteRanges } from '@/lib/pricing/types';
 import { getKV } from '@/lib/kv';
 import { getSurveyQuestions, getSurveyDisplayLabels } from '@/lib/survey/manager';
 import { createSupabaseServer } from '@/lib/supabase/server';
@@ -63,12 +64,16 @@ export async function GET(
         const st = String(payload.serviceType || '').toLowerCase().trim();
         const normFreq = oneTimeTypes.includes(st) ? '' : (payload.frequency ?? '');
         const labels = await getQuoteLabelsFromSurvey(payload.serviceType, normFreq, payload.toolId);
+        const businessName = payload.toolId ? await getBusinessNameForToolId(payload.toolId) : null;
+        const locationContact = payload.toolId ? await getLocationContactDetailsForToolId(payload.toolId) : null;
         return NextResponse.json({
           ...payload,
           quoteId,
           serviceType: payload.serviceType,
           frequency: normFreq,
           ...labels,
+          ...(businessName != null && { businessName }),
+          ...(locationContact != null && { locationContact }),
         });
       }
     } catch (e) {
@@ -85,12 +90,16 @@ export async function GET(
         const st = String(parsed.serviceType || '').toLowerCase().trim();
         const normFreq = oneTimeTypes.includes(st) ? '' : (parsed.frequency ?? '');
         const labels = await getQuoteLabelsFromSurvey(parsed.serviceType, normFreq, parsed.toolId);
+        const businessName = parsed.toolId ? await getBusinessNameForToolId(parsed.toolId) : null;
+        const locationContact = parsed.toolId ? await getLocationContactDetailsForToolId(parsed.toolId) : null;
         return NextResponse.json({
           ...parsed,
           quoteId,
           serviceType: parsed.serviceType,
           frequency: normFreq,
           ...labels,
+          ...(businessName != null && { businessName }),
+          ...(locationContact != null && { locationContact }),
         });
       }
     } catch {
@@ -211,7 +220,9 @@ export async function GET(
       const oneTimeTypes = ['move-in', 'move-out', 'deep'];
       const st = String(quoteDataFromKV.serviceType || '').toLowerCase().trim();
       const normFreq = oneTimeTypes.includes(st) ? '' : (quoteDataFromKV.frequency ?? '');
-      const labels = await getQuoteLabelsFromSurvey(quoteDataFromKV.serviceType, normFreq);
+      const labels = await getQuoteLabelsFromSurvey(quoteDataFromKV.serviceType, normFreq, quoteDataFromKV.toolId);
+      const businessName = quoteDataFromKV.toolId ? await getBusinessNameForToolId(quoteDataFromKV.toolId) : null;
+      const locationContact = quoteDataFromKV.toolId ? await getLocationContactDetailsForToolId(quoteDataFromKV.toolId) : null;
       return NextResponse.json({
         ...quoteDataFromKV,
         quoteId: quoteId,
@@ -219,6 +230,8 @@ export async function GET(
         serviceType: quoteDataFromKV.serviceType,
         frequency: normFreq,
         ...labels,
+        ...(businessName != null && { businessName }),
+        ...(locationContact != null && { locationContact }),
       });
     }
 
@@ -287,24 +300,31 @@ export async function GET(
       frequency = '';
     }
 
-    // Reconstruct quote inputs - use 0 as fallback for required numeric fields if null
-    const inputs: QuoteInputs = {
-      squareFeet: squareFeet ?? 1500, // Default to 1500 if not provided
+    // Reconstruct quote inputs from stored data. For quotes created through the form we always have full data (POST validates required fields). Missing data only occurs for legacy records or if something went wrong; in that case we do not recalculate with fake 0s.
+    const hasRequired =
+      squareFeet != null && Number.isFinite(squareFeet) && squareFeet > 0 &&
+      bedrooms != null && bedrooms >= 0 &&
+      fullBaths != null && fullBaths >= 0 &&
+      halfBaths != null && halfBaths >= 0 &&
+      people != null && people >= 0 &&
+      sheddingPets != null && sheddingPets >= 0 &&
+      condition != null && String(condition).trim() !== '';
+
+    // Single inputs object: used for calcQuote when complete, and for response (no fake 0s in response when incomplete)
+    const storedInputs: QuoteInputs = {
+      squareFeet: squareFeet ?? 0,
       bedrooms: bedrooms ?? 0,
       fullBaths: fullBaths ?? 0,
       halfBaths: halfBaths ?? 0,
       people: people ?? 0,
-      pets: sheddingPets ?? 0, // Using sheddingPets as pets
+      pets: sheddingPets ?? 0,
       sheddingPets: sheddingPets ?? 0,
-      condition,
+      condition: condition ?? '',
       hasPreviousService,
       cleanedWithin3Months,
     };
-
-    // Recalculate quote and fetch contact data in parallel for faster response
     const [result, contactResult] = await Promise.allSettled([
-      // Recalculate quote to get ranges
-      calcQuote(inputs),
+      hasRequired ? calcQuote(storedInputs) : Promise.resolve({ outOfLimits: true, message: 'Quote data is incomplete. Original details are shown; price cannot be recalculated.', inputs: storedInputs }),
       // Fetch contact data if contactId is available (use ghlContactId from above)
       ghlContactId
         ? getContactById(ghlContactId).then(contact => ({
@@ -323,48 +343,80 @@ export async function GET(
     const quoteResult = result.status === 'fulfilled' ? result.value : null;
     const contactData = contactResult.status === 'fulfilled' ? contactResult.value : null;
 
-    if (!quoteResult || quoteResult.outOfLimits || !quoteResult.ranges) {
+    const hasRanges = quoteResult && 'ranges' in quoteResult && quoteResult.ranges;
+    if (!quoteResult || quoteResult.outOfLimits || !hasRanges) {
+      // Return stored data as-is; missing numbers stay null so UI shows — (no fake 0s)
+      const actualInputs: QuoteInputs = {
+        squareFeet: squareFeet ?? 0,
+        bedrooms: bedrooms ?? undefined,
+        fullBaths: fullBaths ?? undefined,
+        halfBaths: halfBaths ?? undefined,
+        people: people ?? 0,
+        pets: sheddingPets ?? 0,
+        sheddingPets: sheddingPets ?? 0,
+        condition: condition || '',
+        hasPreviousService,
+        cleanedWithin3Months,
+      };
+      const toolIdForName = quoteDataFromKV?.toolId ?? customFields.tool_id;
+      const businessName = toolIdForName ? await getBusinessNameForToolId(String(toolIdForName)) : null;
+      const locationContact = toolIdForName ? await getLocationContactDetailsForToolId(String(toolIdForName)) : null;
       return NextResponse.json({
         outOfLimits: true,
-        message: quoteResult?.message || 'Unable to calculate quote.',
+        message: quoteResult?.message ?? 'Quote data is incomplete. Original details are shown; price cannot be recalculated.',
+        inputs: actualInputs,
+        ranges: null,
+        summaryText: null,
+        smsText: null,
+        ghlContactId: ghlContactId ?? null,
+        quoteId: quoteId,
+        contactData: contactResult.status === 'fulfilled' ? contactResult.value : null,
+        serviceType: serviceType ?? '',
+        frequency: frequency ?? '',
+        ...(businessName != null && { businessName }),
+        ...(locationContact != null && { locationContact }),
       });
     }
 
     const labels = await getQuoteLabelsFromSurvey(serviceType, frequency);
     const summaryLabels = { serviceTypeLabels: labels.serviceTypeLabels, frequencyLabels: labels.frequencyLabels };
-    // Use range string for summary when GHL stored a range (e.g. "3001-3500"); otherwise derive from numeric value
     const squareFootageStored = customFields.square_footage ? String(customFields.square_footage).trim() : '';
     const squareFeetDisplayForNote =
       squareFootageStored && (squareFootageStored.includes('-') || squareFootageStored.toLowerCase().includes('less than'))
         ? squareFootageStored
-        : getSquareFootageRangeDisplay(quoteResult.inputs?.squareFeet ?? squareFeet ?? 1500);
+        : getSquareFootageRangeDisplay(quoteResult.inputs?.squareFeet ?? 0);
+    const ranges = hasRanges ? (quoteResult as { ranges: QuoteRanges }).ranges : null;
+    if (!ranges) throw new Error('Quote ranges missing');
     const summaryText = generateSummaryText(
-      { ...quoteResult, ranges: quoteResult.ranges },
+      { ...quoteResult, ranges },
       serviceType,
       frequency,
       squareFeetDisplayForNote,
       summaryLabels
     );
-    const smsText = generateSmsText({ ...quoteResult, ranges: quoteResult.ranges }, summaryLabels);
+    const smsText = generateSmsText({ ...quoteResult, ranges }, summaryLabels);
 
-    // Return inputs with actual values from GHL (not recalculated ones) to preserve original form data
+    // Return inputs from GHL (no defaults — preserve stored values so UI shows — when missing)
     const actualInputs: QuoteInputs = {
-      squareFeet: squareFeet ?? quoteResult.inputs?.squareFeet ?? 1500,
+      squareFeet: squareFeet ?? quoteResult.inputs?.squareFeet ?? 0,
       bedrooms: bedrooms ?? quoteResult.inputs?.bedrooms ?? 0,
       fullBaths: fullBaths ?? quoteResult.inputs?.fullBaths ?? 0,
       halfBaths: halfBaths ?? quoteResult.inputs?.halfBaths ?? 0,
       people: people ?? quoteResult.inputs?.people ?? 0,
       pets: sheddingPets ?? quoteResult.inputs?.pets ?? 0,
       sheddingPets: sheddingPets ?? quoteResult.inputs?.sheddingPets ?? 0,
-      condition: condition || quoteResult.inputs?.condition,
+      condition: condition || quoteResult.inputs?.condition || '',
       hasPreviousService: hasPreviousService ?? quoteResult.inputs?.hasPreviousService,
       cleanedWithin3Months: cleanedWithin3Months ?? quoteResult.inputs?.cleanedWithin3Months,
     };
+    const toolIdForName = quoteDataFromKV?.toolId ?? customFields.tool_id;
+    const businessName = toolIdForName ? await getBusinessNameForToolId(String(toolIdForName)) : null;
+    const locationContact = toolIdForName ? await getLocationContactDetailsForToolId(String(toolIdForName)) : null;
     return NextResponse.json({
       outOfLimits: false,
       multiplier: quoteResult.multiplier,
       inputs: actualInputs,
-      ranges: quoteResult.ranges,
+      ranges,
       initialCleaningRequired: quoteResult.initialCleaningRequired,
       initialCleaningRecommended: quoteResult.initialCleaningRecommended,
       summaryText,
@@ -375,6 +427,8 @@ export async function GET(
       serviceType: serviceType,
       frequency: frequency,
       ...labels,
+      ...(businessName != null && { businessName }),
+      ...(locationContact != null && { locationContact }),
     });
   } catch (error) {
     console.error('Error fetching quote:', error);
