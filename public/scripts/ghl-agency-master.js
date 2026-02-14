@@ -72,7 +72,7 @@
   function normLower(s) { return norm(s).toLowerCase(); }
   function getRow(el) {
     if (!el) return null;
-    return el.closest('li') || el.closest('[role="listitem"]') || el.closest('.nav-item') || el.closest('.menu-item') || el.closest('.sidebar-item') || el;
+    return el.closest('li') || el.closest('[role="listitem"]') || el.closest('.nav-item') || el.closest('.menu-item') || el.closest('.sidebar-item') || el.closest('[role="treeitem"]') || el.closest('div[class*="nav"]') || el;
   }
   function getLeftSidebarRoot() {
     var asides = document.querySelectorAll('aside');
@@ -370,21 +370,37 @@
       }
       return null;
     }
-    /** Find the GHL "CleanQuote.io" custom menu link row (by label or href). Primary way to find the item to move. */
+    /** Find the GHL "CleanQuote.io" custom menu link row (by label or href). Search sidebar first, then whole document. */
     function findCleanQuoteCustomLinkRow() {
-      var root = getLeftSidebarRoot();
-      if (!root) return null;
-      var candidates = root.querySelectorAll('a, [role="link"], button');
-      for (var i = 0; i < candidates.length; i++) {
-        var el = candidates[i];
-        if (el.id === CONTAINER_ID || (el.closest && el.closest('#' + CONTAINER_ID))) continue;
+      function check(el) {
+        if (!el || el.id === CONTAINER_ID || (el.closest && el.closest('#' + CONTAINER_ID))) return null;
         var href = (el.href || el.getAttribute('href') || '').trim().toLowerCase();
-        var rawText = (el.textContent || '').split('\n')[0].trim();
+        var rawText = (el.textContent || '').replace(/\s+/g, ' ').trim();
         var text = normLower(rawText);
         var isCleanQuote = text.indexOf('cleanquote') !== -1 || href.indexOf('cleanquote') !== -1 || href.indexOf('custom-page-link') !== -1;
-        if (isCleanQuote) {
-          var row = getRow(el);
-          if (row && row.id !== CONTAINER_ID) return row;
+        if (!isCleanQuote) return null;
+        var row = getRow(el);
+        return (row && row.id !== CONTAINER_ID) ? row : null;
+      }
+      var root = getLeftSidebarRoot();
+      if (root) {
+        var candidates = root.querySelectorAll('a, [role="link"], button');
+        for (var i = 0; i < candidates.length; i++) {
+          var row = check(candidates[i]);
+          if (row) return row;
+        }
+      }
+      var allLinks = document.querySelectorAll('a[href*="custom-page-link"], a[href*="cleanquote"]');
+      for (var j = 0; j < allLinks.length; j++) {
+        var row = check(allLinks[j]);
+        if (row) return row;
+      }
+      var byText = document.querySelectorAll('a, [role="link"], button');
+      for (var k = 0; k < byText.length; k++) {
+        var t = normLower((byText[k].textContent || '').replace(/\s+/g, ' '));
+        if (t.indexOf('cleanquote') !== -1) {
+          var row = check(byText[k]);
+          if (row) return row;
         }
       }
       return null;
@@ -479,7 +495,7 @@
     window.addEventListener('routeLoaded', function () { setTimeout(run, 300); });
     window.addEventListener('routeChangeEvent', function () { setTimeout(run, 300); });
     /* Re-run move on a schedule so we catch CleanQuote link when GHL adds it later. No MutationObserver - it caused mutation loops and browser crashes. */
-    var moveRetries = [800, 1500, 3000, 5000, 7000, 10000];
+    var moveRetries = [800, 1500, 3000, 5000, 7000, 10000, 15000, 20000];
     moveRetries.forEach(function (delay) { setTimeout(moveCleanQuoteToTopAndHideDashboard, delay); });
   })();
 

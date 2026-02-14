@@ -1,0 +1,292 @@
+/* -------------------------------------------------------------------------- */
+/*   GHL Custom Login CSS – CleanQuote.io branding                             */
+/*   Paste this into GHL Agency/Company → Whitelabel → Custom CSS            */
+/*   Optional: @import url('https://www.cleanquote.io/scripts/ghl-login-branded.css'); */
+/* -------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
+/*   IMPORTS (SKIPPED FROM BEING EXPANDED)                                    */
+/* -------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
+/*   GLOBAL INJECTIONS                                                        */
+/* -------------------------------------------------------------------------- */
+
+#sidebar-v2,
+#sidebar-v2 *,
+#sidebar-v2 .flex-col,
+#sidebar-v2 .hl_nav-header,
+#sidebar-v2 .hl_nav-header nav,
+#sidebar-v2 .hl_nav-header nav a,
+#sidebar-v2 nav a {
+    transition: none !important;
+    animation: none !important;
+}
+body[data-theme="default-dark-v1"] .user-info-card .text-xs.truncate {
+    color: #000;
+}
+#location-dashboard_container--banner+div.sticky {
+    z-index: 0;
+}
+.hl_header--phone a.dropdown-toggle+a.dropdown-toggle {
+    display: none;
+}
+.avatar > .avatar_img+h4 {
+    font-size: inherit;
+}
+i.icon {
+    border: none;
+}
+div#membershipBuilder {
+    margin-top: 50px;
+}
+.fa-align-justify.icon-pencil:before {
+    content: "\e96e";
+}
+#new-conversation-right-panel-add-phone-label {
+    width: 100% !important;
+}
+.messages-single.--outbound .transcription-header-content a {
+    color: #000 !important;
+}
+.card-integration {
+    overflow: hidden;
+}
+
+/* -------------------------------------------------------------------------- */
+/*   USER BRANDING – CleanQuote.io (matches app)                              */
+/* -------------------------------------------------------------------------- */
+
+:root {
+    /* CleanQuote palette (matches app globals.css) */
+    --primary-color: #7c3aed;
+    --secondary-color: #6d28d9;
+    --accent-color: #a78bfa;
+    --light-color: #ffffff;
+    --dark-color: #111827;
+    --scrollbar-color: #7c3aed;
+    --scrollbar-bg: #f9fafb;
+    --app-bg: #f9fafb;
+    --border-color: #e5e7eb;
+
+    /* Login theme – CleanQuote */
+    --main-font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --main-body-bg: #f9fafb;
+    --main-body-image: none;
+    --main-body-image-overlay: transparent;
+    --main-login-bg: #ffffff;
+    --login-logo-width: 200px;
+    --login-logo-height: 56px;
+    --login-logo: url('https://www.cleanquote.io/cleanquote_logo_long.png');
+    --login-heading-color: #111827;
+    --login-label-color: #6b7280;
+    --login-input-color: #111827;
+    --login-input-bg: #f9fafb;
+    --login-input-border: #e5e7eb;
+    --login-error-color: #dc2626;
+    --login-forgot-pass-color: #7c3aed;
+    --login-button-bg: #7c3aed;
+    --login-button-color: #ffffff;
+    --login-button-hover-bg: #6d28d9;
+    --login-button-hover-color: #ffffff;
+    --login-foot-note-color: #6b7280;
+    --login-foot-note-link-color: #7c3aed;
+    --header-note: "Welcome back! Let's get started";
+    --header-note-color: #6b7280;
+    --footer-note: '';
+    --footer-note-color: #6b7280;
+    --login-icon-bg: #7c3aed;
+    --login-icon-color: #7c3aed;
+}
+
+/* -------------------------------------------------------------------------- */
+/*   DASHBOARD LOGIN THEMES – SOLUTION INTEGRATION                             */
+/* -------------------------------------------------------------------------- */
+
+#auth-set-password * {
+    font-family: var(--main-font) !important;
+}
+#auth-set-password #form {
+    width: 100% !important;
+}
+#auth-header {
+    display: none;
+}
+#auth-body.h-screen {
+    position: relative;
+    background-color: var(--main-body-bg);
+}
+#auth-body.h-screen {
+    background-image: var(--main-body-image);
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: cover;
+}
+#auth-body:before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100vh;
+    background-color: var(--main-body-image-overlay);
+}
+#auth-setPassword-body {
+    position: relative;
+}
+#auth-body .hl-card {
+    background: var(--main-login-bg);
+    border-color: var(--main-login-bg);
+}
+#auth-body .hl-card .hl-card-footer {
+    border-color: var(--main-login-bg);
+}
+#auth-body .card-body .hl-text-input-label.text-gray-700.text-lg {
+    color: var(--login-heading-color);
+    font-size: 20px;
+}
+#auth-body .card-body .hl-text-input-label.text-gray-700.text-lg:before {
+    content: '';
+    background-image: var(--login-logo);
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    position: relative;
+    display: block;
+    margin: 0 auto 20px;
+    width: var(--login-logo-width);
+    height: var(--login-logo-height);
+    left: 0;
+    right: 0;
+}
+#auth-body .card-body .w-full {
+    margin-bottom: 15px;
+}
+#auth-body .card-body .hl-text-input-label.text-gray-700.text-lg + .text-center {
+    margin-bottom: 20px;
+}
+#auth-body .card-body span,
+#auth-body .card-body p {
+    color: var(--login-label-color);
+}
+#auth-body .card-body .n-input {
+    background: var(--login-input-bg) !important;
+    padding: 0px 0px !important;
+    box-shadow: none !important;
+    border-radius: 4px;
+}
+#auth-body .card-body .n-input .n-input__border {
+    border: 1px solid var(--login-input-border) !important;
+    border-radius: 4px;
+    border-top-right-radius: 0px !important;
+    border-bottom-right-radius: 0px !important;
+}
+#auth-body .card-body .n-input.n-input--error-status:not(.n-input--disabled) .n-input__state-border {
+    border: 1px solid var(--login-error-color) !important;
+    border-top-right-radius: 0px !important;
+    border-bottom-right-radius: 0px !important;
+}
+#auth-body .card-body .n-form-item .n-form-item-feedback-wrapper .n-form-item-feedback.n-form-item-feedback--error {
+    color: var(--login-error-color) !important;
+}
+#auth-body .card-body .n-input .n-input__state-border {
+    border: 1px solid var(--login-input-border) !important;
+    border-radius: 4px;
+}
+#auth-body .card-body .n-input input {
+    color: var(--login-input-color) !important;
+    border-radius: 4px !important;
+}
+#auth-body .card-body input::placeholder {
+    color: var(--login-input-color) !important;
+    opacity: 0.7;
+}
+#auth-body .card-body input:-ms-input-placeholder {
+    color: var(--login-input-color) !important;
+}
+#auth-body .card-body input::-ms-input-placeholder {
+    color: var(--login-input-color) !important;
+}
+#auth-body .card-body .error,
+#auth-body .card-body .hl-input-error,
+#auth-body .card-body i {
+    color: var(--login-error-color) !important;
+}
+#auth-body .card-body .text-green-600 {
+    color: #16a34a !important;
+}
+#auth-body .card-body .text-green-600,
+#auth-body .card-body .text-green-600 span {
+    color: #16a34a !important;
+}
+#auth-body .card-body .text-red-600 {
+    color: var(--login-error-color) !important;
+}
+#auth-body .card-body .text-red-600,
+#auth-body .card-body .text-red-600 span {
+    color: var(--login-error-color) !important;
+}
+#auth-body .card-body button.n-button.n-button--default-type.n-button--medium-type {
+    background: var(--login-button-bg) !important;
+    color: var(--login-button-color);
+}
+#auth-body .card-body button.n-button.n-button--default-type.n-button--medium-type svg path {
+    stroke: var(--login-button-color);
+}
+#auth-body .card-body button.n-button.n-button--default-type.n-button--medium-type .n-button__border,
+#auth-body .card-body button.n-button.n-button--default-type.n-button--medium-type .n-button__state-border {
+    border-color: var(--login-button-bg) !important;
+}
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type {
+    padding: 15px 25px !important;
+    background: var(--login-button-bg) !important;
+    font-family: var(--main-font) !important;
+    color: var(--login-button-color);
+    font-size: 16px;
+    text-transform: none;
+    border-radius: 4px !important;
+}
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type .n-button__border {
+    border: none !important;
+}
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type:hover,
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type:focus,
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type:active {
+    background: var(--login-button-hover-bg) !important;
+    color: var(--login-button-hover-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+    transition: 0.2s;
+}
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type:hover span.n-button__content,
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type:focus span.n-button__content,
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type:active span.n-button__content {
+    background: var(--login-button-hover-bg) !important;
+}
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type .n-button__state-border {
+    border: none !important;
+}
+
+button#set-password-btn {
+    width: 100%;
+    min-height: initial !important;
+    height: initial !important;
+}
+button#resend-activation-link-btn {
+    width: 100%;
+    min-height: initial !important;
+    height: initial !important;
+}
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type span.n-button__content {
+    color: var(--login-button-color) !important;
+}
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type:hover span.n-button__content,
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type:focus span.n-button__content,
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type:active span.n-button__content {
+    color: var(--login-button-hover-color) !important;
+}
+
+/* Fix login button alignment on set password page */
+#auth-setPassword-body .flex.items-end.justify-end {
+    justify-content: center;
+}
