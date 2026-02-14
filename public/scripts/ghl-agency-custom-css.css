@@ -1,0 +1,937 @@
+/* -------------------------------------------------------------------------- */
+/*   GHL Agency Custom CSS – CleanQuote.io                                    */
+/*   Full agency styling: login, dashboard, sidebar, tabs, header, locations   */
+/*                                                                           */
+/*   TO LOAD FROM YOUR LIVE SITE (GHL Custom CSS box):                      */
+/*   Paste only this line in Agency Settings → Custom CSS:                  */
+/*                                                                           */
+/*   @import url('https://www.cleanquote.io/scripts/ghl-agency-custom-css.css'); */
+/*                                                                           */
+/*   Or paste this entire file into the Custom CSS box if @import is blocked. */
+/*   Logo: set --login-logo in :root if you host the logo elsewhere.         */
+/* -------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
+/*   GLOBAL INJECTIONS                                                        */
+/* -------------------------------------------------------------------------- */
+
+#sidebar-v2,
+#sidebar-v2 *,
+#sidebar-v2 .flex-col,
+#sidebar-v2 .hl_nav-header,
+#sidebar-v2 .hl_nav-header nav,
+#sidebar-v2 .hl_nav-header nav a,
+#sidebar-v2 nav a {
+    transition: none !important;
+    animation: none !important;
+}
+body[data-theme="default-dark-v1"] .user-info-card .text-xs.truncate {
+    color: #000;
+}
+#location-dashboard_container--banner+div.sticky {
+    z-index: 0;
+}
+.hl_header--phone a.dropdown-toggle+a.dropdown-toggle {
+    display: none;
+}
+.avatar > .avatar_img+h4 {
+    font-size: inherit;
+}
+i.icon {
+    border: none;
+}
+div#membershipBuilder {
+    margin-top: 50px;
+}
+.fa-align-justify.icon-pencil:before {
+    content: "\e96e";
+}
+#new-conversation-right-panel-add-phone-label {
+    width: 100% !important;
+}
+.messages-single.--outbound .transcription-header-content a {
+    color: #000 !important;
+}
+.card-integration {
+    overflow: hidden;
+}
+
+/* -------------------------------------------------------------------------- */
+/*   USER BRANDING – CleanQuote.io                                            */
+/* -------------------------------------------------------------------------- */
+
+:root {
+    /* CleanQuote palette (matches app globals.css + test-ghl-iframe) */
+    --primary-color: #7c3aed;
+    --secondary-color: #6d28d9;
+    --accent-color: #a78bfa;
+    --light-color: #ffffff;
+    --dark-color: #111827;
+    --scrollbar-color: #7c3aed;
+    --scrollbar-bg: #f9fafb;
+    --app-bg: #f9fafb;
+    --border-color: #e5e7eb;
+
+    /* Login theme – CleanQuote branding */
+    --main-font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --main-body-bg: #f9fafb;
+    --main-body-image: none;
+    --main-body-image-overlay: transparent;
+    --main-login-bg: #ffffff;
+    --login-logo-width: 200px;
+    --login-logo-height: 56px;
+    /* Use your public logo URL (e.g. your app domain or CDN). Example: */
+    --login-logo: url('https://www.cleanquote.io/cleanquote_logo_long.png');
+    --login-heading-color: #111827;
+    --login-label-color: #6b7280;
+    --login-input-color: #111827;
+    --login-input-bg: #f9fafb;
+    --login-input-border: #e5e7eb;
+    --login-error-color: #dc2626;
+    --login-forgot-pass-color: #7c3aed;
+    --login-button-bg: #7c3aed;
+    --login-button-color: #ffffff;
+    --login-button-hover-bg: #6d28d9;
+    --login-button-hover-color: #ffffff;
+    --login-foot-note-color: #6b7280;
+    --login-foot-note-link-color: #7c3aed;
+    --header-note: "Welcome back! Let's get started";
+    --header-note-color: #6b7280;
+    --footer-note: '';
+    --footer-note-color: #6b7280;
+
+    /* Theme-specific (kept for compatibility) */
+    --third-bg-tone: #f3f4f6;
+    --login-icon-bg: #7c3aed;
+    --login-icon-color: #7c3aed;
+    --main-header-logo: url('https://www.cleanquote.io/cleanquote_square_logo_padding.png');
+    --header-logo-width: 175px;
+    --header-logo-height: 75px;
+}
+
+/* -------------------------------------------------------------------------- */
+/*   DASHBOARD LOGIN THEMES – SOLUTION INTEGRATION                            */
+/* -------------------------------------------------------------------------- */
+
+#auth-set-password * {
+    font-family: var(--main-font) !important;
+}
+#auth-set-password #form {
+    width: 100% !important;
+}
+#auth-header {
+    display: none;
+}
+#auth-body.h-screen {
+    position: relative;
+    background-color: var(--main-body-bg);
+}
+#auth-body.h-screen {
+    background-image: var(--main-body-image);
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: cover;
+}
+#auth-body:before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100vh;
+    background-color: var(--main-body-image-overlay);
+}
+#auth-setPassword-body {
+    position: relative;
+}
+#auth-body .hl-card {
+    background: var(--main-login-bg);
+    border-color: var(--main-login-bg);
+}
+#auth-body .hl-card .hl-card-footer {
+    border-color: var(--main-login-bg);
+}
+#auth-body .card-body .hl-text-input-label.text-gray-700.text-lg {
+    color: var(--login-heading-color);
+    font-size: 20px;
+}
+#auth-body .card-body .hl-text-input-label.text-gray-700.text-lg:before {
+    content: '';
+    background-image: var(--login-logo);
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    position: relative;
+    display: block;
+    margin: 0 auto 20px;
+    width: var(--login-logo-width);
+    height: var(--login-logo-height);
+    left: 0;
+    right: 0;
+}
+#auth-body .card-body .w-full {
+    margin-bottom: 15px;
+}
+#auth-body .card-body .hl-text-input-label.text-gray-700.text-lg + .text-center {
+    margin-bottom: 20px;
+}
+#auth-body .card-body span,
+#auth-body .card-body p {
+    color: var(--login-label-color);
+}
+#auth-body .card-body .n-input {
+    background: var(--login-input-bg) !important;
+    padding: 0px 0px !important;
+    box-shadow: none !important;
+    border-radius: 4px;
+}
+#auth-body .card-body .n-input .n-input__border {
+    border: 1px solid var(--login-input-border) !important;
+    border-radius: 4px;
+    border-top-right-radius: 0px !important;
+    border-bottom-right-radius: 0px !important;
+}
+#auth-body .card-body .n-input.n-input--error-status:not(.n-input--disabled) .n-input__state-border {
+    border: 1px solid var(--login-error-color) !important;
+    border-top-right-radius: 0px !important;
+    border-bottom-right-radius: 0px !important;
+}
+#auth-body .card-body .n-form-item .n-form-item-feedback-wrapper .n-form-item-feedback.n-form-item-feedback--error {
+    color: var(--login-error-color) !important;
+}
+#auth-body .card-body .n-input .n-input__state-border {
+    border: 1px solid var(--login-input-border) !important;
+    border-radius: 4px;
+}
+#auth-body .card-body .n-input input {
+    color: var(--login-input-color) !important;
+    border-radius: 4px !important;
+}
+#auth-body .card-body input::placeholder {
+    color: var(--login-input-color) !important;
+    opacity: 0.7;
+}
+#auth-body .card-body input:-ms-input-placeholder {
+    color: var(--login-input-color) !important;
+}
+#auth-body .card-body input::-ms-input-placeholder {
+    color: var(--login-input-color) !important;
+}
+#auth-body .card-body .error,
+#auth-body .card-body .hl-input-error,
+#auth-body .card-body i {
+    color: var(--login-error-color) !important;
+}
+#auth-body .card-body .text-green-600 {
+    color: #16a34a !important;
+}
+#auth-body .card-body .text-green-600,
+#auth-body .card-body .text-green-600 span {
+    color: #16a34a !important;
+}
+#auth-body .card-body .text-red-600 {
+    color: var(--login-error-color) !important;
+}
+#auth-body .card-body .text-red-600,
+#auth-body .card-body .text-red-600 span {
+    color: var(--login-error-color) !important;
+}
+#auth-body .card-body button.n-button.n-button--default-type.n-button--medium-type {
+    background: var(--login-button-bg) !important;
+    color: var(--login-button-color);
+}
+#auth-body .card-body button.n-button.n-button--default-type.n-button--medium-type svg path {
+    stroke: var(--login-button-color);
+}
+#auth-body .card-body button.n-button.n-button--default-type.n-button--medium-type .n-button__border,
+#auth-body .card-body button.n-button.n-button--default-type.n-button--medium-type .n-button__state-border {
+    border-color: var(--login-button-bg) !important;
+}
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type {
+    padding: 15px 25px !important;
+    background: var(--login-button-bg) !important;
+    font-family: var(--main-font) !important;
+    color: var(--login-button-color);
+    font-size: 16px;
+    text-transform: none;
+    border-radius: 4px !important;
+}
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type .n-button__border {
+    border: none !important;
+}
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type:hover,
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type:focus,
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type:active {
+    background: var(--login-button-hover-bg) !important;
+    color: var(--login-button-hover-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+    transition: 0.2s;
+}
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type:hover span.n-button__content,
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type:focus span.n-button__content,
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type:active span.n-button__content {
+    background: var(--login-button-hover-bg) !important;
+}
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type .n-button__state-border {
+    border: none !important;
+}
+
+button#set-password-btn {
+    width: 100%;
+    min-height: initial !important;
+    height: initial !important;
+}
+button#resend-activation-link-btn {
+    width: 100%;
+    min-height: initial !important;
+    height: initial !important;
+}
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type span.n-button__content {
+    color: var(--login-button-color) !important;
+}
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type:hover span.n-button__content,
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type:focus span.n-button__content,
+#auth-body .hl-card-footer button.n-button.n-button--primary-type.n-button--medium-type:active span.n-button__content {
+    color: var(--login-button-hover-color) !important;
+}
+
+#auth-setPassword-body .flex.items-end.justify-end {
+    justify-content: center;
+}
+
+/* -------------------------------------------------------------------------- */
+/*   DASHBOARD LOGIN THEMES – USER PRESET (hl_login body)                      */
+/* -------------------------------------------------------------------------- */
+
+.hl_login--body .container-fluid>.card .login-card-heading h2.heading2:after {
+    content: var(--header-note);
+    line-height: 1.5;
+    font-size: 12px;
+    display: block;
+    margin-top: 20px;
+    margin-bottom: -10px;
+    color: var(--header-note-color);
+}
+.hl_login--body p.foot-note:before {
+    content: var(--footer-note);
+    color: var(--footer-note-color);
+    font-size: 12px;
+    display: block;
+    margin-bottom: 20px;
+}
+.hl_login--body .container-fluid>.card .login-card-heading h2.heading2:after {
+    font-size: 15px;
+}
+.hl_login--body .card .w-full.border-t.border-gray-300 {
+    border-color: var(--login-input-border) !important;
+}
+
+body .hl_login--body {
+    font-family: var(--main-font);
+}
+.hl_login {
+    background: var(--main-body-bg);
+    height: 100vh !important;
+}
+.hl_login--header {
+    display: none;
+}
+.hl_login--header .container-fluid a img,
+.hl_login--header .container-fluid a svg {
+    display: none;
+}
+.hl_login--body {
+    position: relative;
+    display: block;
+    width: 100%;
+    max-width: 80%;
+    margin: 0 auto;
+    padding: 100px 15px;
+    padding-bottom: 0;
+}
+.hl_login--body .container-fluid {
+    display: flex;
+    align-items: left;
+    justify-content: left;
+    text-align: left;
+    padding: 0 !important;
+}
+.hl_login--body .card {
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+.hl_login--body .card-body {
+    display: block;
+    text-align: center;
+    height: 550px;
+    max-width: 40% !important;
+    border: none !important;
+    background: var(--main-login-bg) !important;
+    border-radius: 4px !important;
+    margin: 0 auto !important;
+}
+#app .sidebar-v2-agency .hl_login--body .card {
+    border: none !important;
+}
+.hl_login .hl_login--body .card {
+    border-radius: 4px !important;
+    padding: 40px 40px 20px 40px;
+}
+.hl_login--body .card {
+    background: var(--main-login-bg) !important;
+}
+.hl_login--body .card .card-body {
+    display: inline-block;
+    margin: 0 !important;
+    padding: 0px !important;
+    box-sizing: border-box;
+    width: 100% !important;
+    max-width: 100% !important;
+    text-align: left;
+}
+.hl_login--body .card:before {
+    content: '';
+    background-image: var(--login-logo);
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    position: relative;
+    display: block;
+    margin: 0 auto 20px;
+    width: var(--login-logo-width);
+    height: var(--login-logo-height);
+    left: 0;
+    right: 0;
+    top: 0px;
+}
+
+/* FORM */
+.hl_login--body .heading2 {
+    font-size: 25px;
+    font-weight: 600;
+    color: var(--login-heading-color) !important;
+    padding-bottom: 10px;
+}
+.hl_login--body .card .card-body label,
+.hl_login--body .card .card-body span.hl-text-input-label {
+    display: none;
+}
+.hl_login--body .card .card-body label,
+.hl_login--body .card .card-body span.hl-text-input-label[for="email"],
+.hl_login--body .card .card-body span.hl-text-input-label[for="password"] {
+    color: var(--login-label-color);
+}
+.hl_login--body .card .card-body input {
+    background: var(--login-input-bg) !important;
+    border: 1px solid var(--login-input-border) !important;
+    border-radius: 4px !important;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--login-input-color) !important;
+}
+.hl_login--body .card .card-body input::placeholder {
+    color: var(--login-input-color) !important;
+    opacity: 0.7;
+}
+.hl_login--body .card .card-body input:-ms-input-placeholder {
+    color: var(--login-input-color) !important;
+}
+.hl_login--body .card .card-body input::-ms-input-placeholder {
+    color: var(--login-input-color) !important;
+}
+.hl_login--body .card .card-body .error,
+.hl_login--body .card .card-body .hl-input-error,
+.hl_login--body .card .card-body i {
+    color: var(--login-error-color) !important;
+}
+.hl_login--body .card .card-body .forgot-password {
+    color: var(--login-forgot-pass-color);
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+}
+.hl_login--body .card .card-body .hl-btn {
+    padding: 15px 25px !important;
+    background-color: var(--login-button-bg);
+    font-family: var(--main-font) !important;
+    color: var(--login-button-color);
+    font-size: 16px;
+    text-transform: none;
+    border-radius: 4px !important;
+}
+.hl_login--body .card .card-body .hl-btn:hover {
+    background-color: var(--login-button-hover-bg) !important;
+    color: var(--login-button-hover-color) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+    transition: 0.2s;
+}
+.hl_login--body .card .card-body .foot-note {
+    font-size: 14px;
+    color: var(--login-foot-note-color);
+}
+.hl_login--body .card .card-body .foot-note a {
+    color: var(--login-foot-note-link-color);
+}
+.hl_login--body .container-fluid>div:not(.card) .card-body .flex label {
+    display: block;
+    color: var(--login-foot-note-color);
+}
+.hl_login--body .container-fluid>div:not(.card) .card-body .flex p.ml-2 {
+    color: var(--login-foot-note-color);
+}
+.hl_login--body .container-fluid>div:not(.card) .card-body .form-group input + span {
+    color: var(--login-foot-note-color);
+}
+.hl_login--body .container-fluid .card-body .form-group .g_id_signin iframe {
+    margin: 5px auto 0px !important;
+}
+.hl_login--body .card .card-body p {
+    color: var(--login-foot-note-color);
+}
+.hl_login--body .card .card-body p a {
+    color: var(--login-foot-note-link-color);
+}
+h4.h6 {
+    display: block;
+    margin-top: 30px;
+    color: var(--login-foot-note-color) !important;
+}
+.hl_login--body .login-card-heading + div:not(.form-group) {
+    margin-top: 35px;
+}
+
+/* Labels, inputs, buttons – override to CleanQuote palette */
+.hl_login--body .card .card-body label,
+.hl_login--body .card .card-body span.hl-text-input-label[for="email"],
+.hl_login--body .card .card-body span.hl-text-input-label[for="password"],
+.hl_login span.hl-text-input-label {
+    color: var(--login-label-color) !important;
+}
+.hl_login--body .card .card-body input {
+    border-radius: 4px !important;
+}
+.hl_login--body .card .card-body .hl-btn {
+    border-radius: 4px !important;
+}
+#auth-body .card-body span,
+#auth-body .card-body p {
+    color: var(--login-label-color) !important;
+}
+
+/* Media queries */
+@media only screen and (min-width: 1030px) and (max-width: 1366px) {
+    .hl_login--body .container-fluid::after {
+        height: auto;
+    }
+    .hl_login--body .card {
+        height: 100%;
+    }
+    .hl_login--body .container-fluid::before,
+    .hl_login--body .container-fluid > div:not(.card)::before {
+        height: auto;
+    }
+}
+@media only screen and (max-width: 1440px) {
+    .sidebar-v2-agency:has(.hl_login) {
+        overflow: hidden;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+    .hl_login {
+        height: 100vh !important;
+        display: flex;
+        flex-direction: column;
+    }
+    .hl_login--header {
+        flex-shrink: 0;
+    }
+    .hl_login--body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .hl_login--body::-webkit-scrollbar {
+        display: none;
+    }
+}
+@media only screen and (max-width: 1400px) {
+    .hl_login--body .card {
+        max-width: 60% !important;
+    }
+    .hl_login--body {
+        padding: 50px 15px;
+    }
+}
+@media only screen and (max-width: 1024px) {
+    .hl_login--body .card {
+        max-width: 100% !important;
+    }
+    .hl_login--body {
+        padding: 40px 15px;
+    }
+}
+@media only screen and (min-width: 1030px) and (max-width: 1366px) {
+    .hl_login {
+        height: 100vh;
+    }
+}
+@media only screen and (min-device-width: 768px) and (max-device-width: 1024px) {
+    .hl_login {
+        height: auto;
+    }
+}
+@media only screen and (max-width: 980px) {
+    .hl_login--body .card {
+        height: auto !important;
+    }
+    .hl_login--body .card .card-body {
+        max-width: 100% !important;
+        margin-top: 0 !important;
+        padding: 20px !important;
+    }
+}
+@media only screen and (max-width: 767px) {
+    #app {
+        margin-top: 0 !important;
+    }
+    .hl_login--body .card .card-body {
+        margin-top: 20px !important;
+        padding: 20px !important;
+    }
+}
+@media only screen and (max-width: 480px) {
+    .hl_login--body {
+        max-width: 90%;
+    }
+    .hl_login--body .card::before {
+        top: 0px;
+    }
+    .hl_login--body .card .card-body {
+        padding: 0px !important;
+    }
+}
+
+/* 2FA */
+.hl_login--body .container-fluid>div:not(.card) {
+    width: 100vw;
+}
+.hl_login--body .container-fluid>div:not(.card) .card .card-body input[type=radio] {
+    padding: revert !important;
+    border-radius: 50% !important;
+}
+.hl_login--body .container-fluid>div:not(.card) .card .card-body input {
+    padding: revert !important;
+    background: var(--login-input-bg) !important;
+    color: var(--login-input-color) !important;
+}
+.hl_login--body .container-fluid .card .card-body>div:last-child {
+    color: var(--login-foot-note-link-color);
+}
+
+/* Radio (2FA / verify) */
+.login-card-heading+div>div {
+    display: block;
+}
+.login-card-heading+div>div input[type="radio"] {
+    display: none;
+}
+.login-card-heading+div>div input[type="radio"]+label:before {
+    width: 24px;
+    height: 24px;
+    content: '';
+    display: block;
+    border: 2px solid var(--login-button-bg);
+    background-color: #fff;
+    background-repeat: no-repeat;
+    background-position: 0px -2px;
+    border-radius: 50%;
+    z-index: 2;
+    margin-top: 10px;
+    margin-left: -10px;
+    position: absolute;
+    transform: translateY(-50%);
+    cursor: pointer;
+    transition: all 200ms ease-in;
+}
+.login-card-heading+div>div input[type="radio"]:checked+label:before {
+    background-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5.414 11L4 12.414l5.414 5.414L20.828 6.414 19.414 5l-10 10z' fill='%23fff' fill-rule='nonzero'/%3E%3C/svg%3E");
+    background-color: var(--login-button-bg);
+}
+.login-card-heading+div>div input[type="radio"]:checked+label {
+    font-size: 16px;
+}
+.login-card-heading+div p.ml-2 {
+    display: block;
+    text-indent: 20px;
+}
+.hl_login--body label {
+    cursor: pointer;
+    text-indent: 20px;
+}
+.hl_login--body .card .v-spinner + span {
+    color: var(--login-foot-note-link-color);
+}
+.login-card-heading+div>div input[type="radio"]+label {
+    display: block !important;
+}
+.hl_login--body .card .card-body input + span {
+    color: var(--login-input-border) !important;
+}
+
+/* Forgot password form */
+.hl_login--body:has(button#send_forgot_password_req) {
+    height: 100%;
+}
+.hl_login--body:has(button#send_forgot_password_req) .card {
+    max-width: 100% !important;
+}
+.hl_login--body:has(button#send_forgot_password_req) .container-fluid form {
+    display: flex;
+    width: 40%;
+}
+.hl_login--body:has(button#send_forgot_password_req) .container-fluid {
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+.hl_login--body:has(button#send_forgot_password_req) .card-body {
+    height: auto;
+}
+
+/* Change password form */
+.hl_login--body:has(.card form button#send_forgot_password_req) {
+    max-width: 80%;
+    height: 100%;
+}
+.hl_login--body:has(.card form button#send_forgot_password_req) .container-fluid {
+    height: 100%;
+}
+.hl_login--body:has(.card form button#send_forgot_password_req) .card {
+    display: flex;
+    max-width: 40% !important;
+    align-items: center;
+    justify-content: center;
+}
+.hl_login--body:has(.card form button#send_forgot_password_req) .container-fluid form {
+    display: block;
+    width: 100%;
+}
+.hl_login--body:has(.card form button#send_forgot_password_req) .card-body {
+    height: auto;
+}
+
+/* Password change success / proceed to login */
+.hl_login--body:has(button#proceed_to_login):not(:has(.heading2)) {
+    height: 100%;
+    padding-top: 0px;
+}
+.hl_login--body:has(button#proceed_to_login):not(:has(.heading2)) .card {
+    max-width: 100% !important;
+}
+.hl_login--body:has(button#proceed_to_login):not(:has(.heading2)) .card-body {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center;
+    height: 100%;
+}
+.hl_login--body:has(button#proceed_to_login):not(:has(.heading2)) .container-fluid form {
+    display: flex;
+    width: 40%;
+}
+.hl_login--body:has(button#proceed_to_login):not(:has(.heading2)) .container-fluid {
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+/* SSO login */
+.hl_login--body:not(:has(input#email)):has(.hl-btn.inline-flex) {
+    max-width: 80%;
+}
+.hl_login--body:not(:has(input#email)):not(:has(#send_forgot_password_req)):has(.hl-btn.inline-flex) form {
+    width: 40% !important;
+    margin: 0 auto;
+}
+.hl_login--body:not(:has(input#email)):has(.hl-btn.inline-flex) form .card {
+    max-width: 100% !important;
+}
+
+/* OTP input alignment */
+.hl_login--body:has(input.otp-input) .card .login-card-heading+div>div {
+    display: flex;
+}
+
+@media only screen and (max-width: 767px) {
+    .hl_login--body:has(button#send_forgot_password_req) .container-fluid form {
+        width: 100%;
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/*   GHL DASHBOARD / SIDEBAR / TABS / HEADER BRANDING                         */
+/* -------------------------------------------------------------------------- */
+
+:root {
+    --custom-link-color: #8c42d7 !important;
+    --custom-primary: #8c42d7 !important;
+    --blue-600: #8c42d7 !important;
+    --primary-600: #8c42d7 !important;
+    --primary-500: #a366e2 !important;
+    --primary-700: #7131b1 !important;
+}
+
+.topmenu-navitem.active,
+.topmenu-navitem:hover,
+.router-link-active {
+    color: #8c42d7 !important;
+    border-color: #8c42d7 !important;
+}
+
+a span svg {
+    color: black;
+}
+
+i.rounded-full.hl_collapse-button.fas.fa-chevron-circle-left {
+    display: none;
+}
+
+/* Quick Actions Icon color */
+img.w-3.h-3.opacity-100 {
+    filter: invert(65%) sepia(64%) saturate(1633%) hue-rotate(246deg) brightness(91%) contrast(99%) !important;
+}
+
+.flex.mb-4.h-7.flex-row.md\:flex-col.lg\:flex-row.xl\:flex-row.items-start.justify-between.px-2 {
+    display: none !important;
+}
+
+/* Tabulator row hover */
+.tabulator-row.tabulator-selectable:hover {
+    background-color: #f4eeff !important;
+    border-bottom: 1px solid #8c42d7 !important;
+}
+.tabulator-row.tabulator-selectable:hover .tabulator-cell {
+    border-right-color: #8c42d7 !important;
+}
+.tabulator-row {
+    transition: background-color 0.2s, border-color 0.2s;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+/* Tabs */
+.hr-tabs-tab.hr-tabs-tab--active {
+    --n-tab-text-color-active: #8c42d7 !important;
+    color: #8c42d7 !important;
+}
+.hr-tabs-bar {
+    background-color: #8c42d7 !important;
+}
+.hr-tabs-tab:hover {
+    color: #a366e2 !important;
+}
+
+/* Sidebar option buttons */
+.sidebar-option-button {
+    color: #8c42d7 !important;
+}
+.sidebar-option-button:hover,
+.sidebar-option-button.active,
+.sidebar-option-button.router-link-active {
+    color: #8c42d7 !important;
+    background-color: #f4eeff !important;
+}
+.sidebar-option-button svg {
+    stroke: currentColor !important;
+}
+
+/* Header / notifications / avatar */
+#recent_activities-toggle,
+.flex.h-8.w-8.cursor-pointer.items-center.justify-center.rounded-full.bg-success-600 {
+    background-color: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 1);
+    border-color: #7a3be2;
+}
+.hl_header--avatar.dropdown-toggle,
+#template-power-dialer > div.hr-wrapper-container.platform-ui__highrise.p-0 > div.hr-config-provider.font-sans > div.flex.items-center.justify-between.gap-4:nth-child(1) > button.flex.h-8.w-8.cursor-pointer.items-center.justify-center.rounded-full.bg-success-600 > svg,
+.text-white.fa.fa-bell.fa-lg {
+    color: #7a3be2;
+}
+#app > div > div:nth-child(1) > div.flex.v2-open.sidebar-v2-location.\31 uDcMtL7LgPvpYwaQtdq.flex.v2-open.sidebar-v2-location:nth-child(5) > div:nth-child(2) > header.hl_header:nth-child(1) > div.container-fluid.\!justify-end > div.hl_header--controls:nth-child(3) > div.hl_header--dropdown.dropdown.--no-caret:nth-child(8) > a.hl_header--avatar.dropdown-toggle:nth-child(1) > div.avatar > div.avatar_img {
+    background-color: #7a3be2;
+}
+
+#recent_activities-toggle,
+#canny_logs-toggle {
+    background-color: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 1);
+    border-color: #7a3be2;
+}
+.fa.fa-bullhorn {
+    color: #7a3be2;
+}
+#hl_header--copilot-icon > svg:nth-child(1) > circle:nth-child(1) {
+    color: #f5f5f5;
+}
+#hl_header--copilot-icon > svg:nth-child(1),
+.fa.fa-question {
+    color: #ffffff;
+}
+.h-\[140px\].w-\[280px\].rounded-xl.border.border-solid.border-gray-200.object-contain {
+    color: #7740e3;
+}
+
+/* Location-specific sidebar logo swap (animation) */
+:root {
+    --delay: 2000ms;
+    --dur: 1000ms;
+    --icon-size: 20px;
+    --icon-opacity: 0.7;
+}
+:root:has(a[href*="HMxLpwSaGUgf5codUYOw"]) {
+    --new-logo: url("https://storage.googleapis.com/msgsndr/HMxLpwSaGUgf5codUYOw/media/68ed38b9e1a55e28d59c4166.png");
+}
+:root:has(a[href*="tCqS9npFPtO0DSuYVvzb"]) {
+    --new-logo: url("https://storage.googleapis.com/msgsndr/tCqS9npFPtO0DSuYVvzb/media/68aca931e7e3efd0a60675eb.png");
+}
+:root:has(a[href*="HMxLpwSaGUgf5codUYOw"]),
+:root:has(a[href*="tCqS9npFPtO0DSuYVvzb"]) {
+    *:has(> img.object-contain.agency-logo) {
+        position: relative !important;
+        perspective: 800px !important;
+        transform-style: preserve-3d !important;
+        overflow: hidden !important;
+    }
+}
+:root:has(a[href*="HMxLpwSaGUgf5codUYOw"]) *:has(> img.object-contain.agency-logo) > img.object-contain.agency-logo,
+:root:has(a[href*="tCqS9npFPtO0DSuYVvzb"]) *:has(> img.object-contain.agency-logo) > img.object-contain.agency-logo {
+    transform-origin: center !important;
+    animation: oldShrinkOut var(--dur) ease-in forwards var(--delay) !important;
+    will-change: opacity, transform !important;
+}
+:root:has(a[href*="HMxLpwSaGUgf5codUYOw"]) *:has(> img.object-contain.agency-logo)::after,
+:root:has(a[href*="tCqS9npFPtO0DSuYVvzb"]) *:has(> img.object-contain.agency-logo)::after {
+    content: "" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    background-image: var(--new-logo) !important;
+    background-size: contain !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    opacity: 0;
+    transform: scale(0.3) translateZ(-200px);
+    animation: newGrowIn var(--dur) ease-out forwards var(--delay) !important;
+    will-change: opacity, transform !important;
+}
+@keyframes oldShrinkOut {
+    0% { opacity: 1; transform: scale(1) translateZ(0); }
+    50% { opacity: 0.5; transform: scale(0.7) translateZ(-100px); }
+    100% { opacity: 0; transform: scale(0.3) translateZ(-200px); }
+}
+@keyframes newGrowIn {
+    0% { opacity: 0; transform: scale(0.3) translateZ(-200px); }
+    50% { opacity: 0.5; transform: scale(0.7) translateZ(-100px); }
+    100% { opacity: 1; transform: scale(1) translateZ(0); }
+}

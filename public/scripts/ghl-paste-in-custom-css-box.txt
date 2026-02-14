@@ -1,0 +1,27 @@
+================================================================================
+  PASTE THIS INTO GHL CUSTOM CSS BOX (Agency or Location Settings → Custom CSS)
+================================================================================
+
+Option A – Load from your live site (one line; update domain if needed):
+
+@import url('https://www.cleanquote.io/scripts/ghl-agency-custom-css.css');
+
+
+Option B – If GHL blocks @import from external URLs, use Custom JavaScript instead.
+  In Agency Settings → Custom JavaScript / Custom Code, paste:
+
+(function() {
+  var link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://www.cleanquote.io/scripts/ghl-agency-custom-css.css';
+  link.setAttribute('data-ghl-custom', 'cleanquote');
+  document.head.appendChild(link);
+})();
+
+  Then leave the Custom CSS box empty or use it for extra overrides only.
+
+
+Option C – Paste the full contents of ghl-agency-custom-css.css into the Custom CSS
+  box (no external load; all styles are inline). Use this if both A and B are blocked.
+
+================================================================================
