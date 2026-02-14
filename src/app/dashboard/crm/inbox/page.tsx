@@ -336,6 +336,14 @@ export default function CRMInboxPage() {
     loadMessages(selectedConv, false);
   }, [selectedConv?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Scroll thread to bottom when messages load or new messages arrive
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const lastMessageIdForScroll = messages.length ? messages[messages.length - 1]?.id : null;
+  useEffect(() => {
+    if (!selectedConv || loadingMessages || messages.length === 0) return;
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [selectedConv?.id, messages.length, lastMessageIdForScroll, loadingMessages]);
+
   // Background polling: use refs so the interval always calls latest selectedConv and loaders
   const selectedConvRef = React.useRef<Conversation | null>(null);
   const loadConversationsRef = React.useRef(loadConversations);
@@ -632,7 +640,8 @@ export default function CRMInboxPage() {
                         {messages.length === 0 && !loadingMessages ? (
                           <p className="text-sm text-muted-foreground">No messages yet</p>
                         ) : (
-                          messageGroups.map((group) => (
+                          <>
+                            {messageGroups.map((group) => (
                             <div key={group.dateLabel} className="space-y-3">
                               <div className="flex items-center gap-2 sticky top-0 bg-background/95 py-2">
                                 <span className="flex-1 border-t border-border" />
@@ -668,7 +677,9 @@ export default function CRMInboxPage() {
                                 })}
                               </div>
                             </div>
-                          ))
+                          ))}
+                            <div ref={messagesEndRef} aria-hidden />
+                          </>
                         )}
                       </>
                     )}
