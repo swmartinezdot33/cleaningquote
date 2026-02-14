@@ -23,7 +23,7 @@ export default async function V2LocationPage({
   searchParams,
 }: {
   params: Promise<{ locationId: string }>;
-  searchParams: Promise<{ page?: string; path?: string }>;
+  searchParams: Promise<{ page?: string; path?: string; 'cleanquote-page'?: string }>;
 }) {
   const { locationId } = await params;
   if (!locationId) redirect('/dashboard');
@@ -31,7 +31,7 @@ export default async function V2LocationPage({
 
   const sp = await searchParams;
   const pathParam = sp.path?.trim();
-  const pageParam = sp.page?.trim()?.toLowerCase();
+  const pageParam = (sp['cleanquote-page'] ?? sp.page)?.trim()?.toLowerCase();
   let path = '/dashboard';
   if (pathParam?.startsWith('/dashboard')) {
     path = pathParam;

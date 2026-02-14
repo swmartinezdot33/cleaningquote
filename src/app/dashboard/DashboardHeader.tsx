@@ -12,7 +12,6 @@ import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 const CUSTOM_PAGE_LINK_ID = '6983df14aa911f4d3067493d';
 /** Base URL for "open in GHL" link — parent window navigates here to show CleanQuote sidebar item. */
 const GHL_APP_BASE = 'https://my.cleanquote.io';
-const INDASH_STORAGE_KEY = 'cq_indash';
 
 function isNavActive(href: string, pathname: string): boolean {
   const clean = pathname.replace(/\/$/, '') || '/';
@@ -55,27 +54,10 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  /** Persist indash so expand icon shows on every page for the session (URL param is lost on client nav). */
-  const [indashFromStorage, setIndashFromStorage] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    setIndashFromStorage(sessionStorage.getItem(INDASH_STORAGE_KEY) === 'true');
-  }, []);
-
-  const searchParams = useSearchParams();
-  const locationId = useEffectiveLocationId();
-  const indashFromUrl = searchParams?.get('indash') === 'true';
-  useEffect(() => {
-    if (indashFromUrl && typeof window !== 'undefined') {
-      sessionStorage.setItem(INDASH_STORAGE_KEY, 'true');
-      setIndashFromStorage(true);
-    }
-  }, [indashFromUrl]);
 
   useEffect(() => {
     if (mobileMenuOpen) document.body.style.overflow = 'hidden';
@@ -88,7 +70,9 @@ export function DashboardHeader({
   const closeMobileMenu = () => setMobileMenuOpen(false);
   const pathname = usePathname() ?? '';
   const router = useRouter();
-  const indash = indashFromUrl || indashFromStorage;
+  const searchParams = useSearchParams();
+  const locationId = useEffectiveLocationId();
+  const indash = searchParams?.get('indash') === 'true';
   const customPageLinkUrl =
     indash && locationId
       ? `${GHL_APP_BASE}/v2/location/${locationId}/custom-page-link/${CUSTOM_PAGE_LINK_ID}`
