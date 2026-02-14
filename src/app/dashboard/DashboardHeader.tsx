@@ -72,7 +72,7 @@ export function DashboardHeader({
   const router = useRouter();
   const searchParams = useSearchParams();
   const locationId = useEffectiveLocationId();
-  const indash = searchParams.get('indash') === 'true';
+  const indash = searchParams?.get('indash') === 'true';
   const customPageLinkUrl =
     indash && locationId
       ? `${GHL_APP_BASE}/v2/location/${locationId}/custom-page-link/${CUSTOM_PAGE_LINK_ID}`
