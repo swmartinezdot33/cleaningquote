@@ -48,6 +48,43 @@ function getFormFieldName(questionId: string): string {
   return sanitizeFieldId(questionId);
 }
 
+/** Semantic key -> question id matchers so we read form values even when survey uses different ids (e.g. "Bedrooms" vs "bedrooms"). */
+function questionIdMatchesSemanticKey(questionId: string, semanticKey: string): boolean {
+  const q = String(questionId).toLowerCase().trim();
+  const s = String(semanticKey).replace(/_/g, '').toLowerCase().trim();
+  if (q === s) return true;
+  if (s === 'bedrooms' && (q.includes('bedroom') || q === 'beds')) return true;
+  if (s === 'fullbaths' && ((q.includes('full') && q.includes('bath')) || q === 'full_baths')) return true;
+  if (s === 'halfbaths' && ((q.includes('half') && q.includes('bath')) || q === 'half_baths')) return true;
+  if (s === 'people' && (q.includes('people') || q.includes('person') || q.includes('resident'))) return true;
+  if (s === 'sheddingpets' && (q.includes('shedding') || q.includes('pet'))) return true;
+  if (s === 'squarefeet' && (q.includes('square') || q.includes('footage') || q.includes('sqft') || q === 'square_feet')) return true;
+  return false;
+}
+
+/**
+ * Get numeric form value for a semantic key by checking formData[key], getFormFieldName(key), and any question whose id matches the key.
+ * Ensures we capture bedrooms/etc. even when the survey question id differs (e.g. "Bedrooms", "bedroom_count").
+ */
+function getFormNumericForSemanticKey(formData: Record<string, unknown>, questions: SurveyQuestion[], semanticKey: string): number {
+  const keyNorm = semanticKey.replace(/_/g, '').toLowerCase();
+  let raw: unknown = formData[semanticKey] ?? formData[getFormFieldName(semanticKey)];
+  if (raw !== undefined && raw !== null && raw !== '') {
+    const n = Number(raw);
+    if (typeof n === 'number' && !Number.isNaN(n) && n >= 0) return n;
+  }
+  const match = questions.find((q) => questionIdMatchesSemanticKey(q.id, keyNorm));
+  if (match) {
+    const fieldName = getFormFieldName(match.id);
+    raw = formData[fieldName];
+    if (raw !== undefined && raw !== null && raw !== '') {
+      const n = Number(raw);
+      if (typeof n === 'number' && !Number.isNaN(n) && n >= 0) return n;
+    }
+  }
+  return 0;
+}
+
 /** Sentinel: getNextQuestionIndex returns this when the selected option has skipToQuestionId === '__DISQUALIFY__'. */
 const DISQUALIFIED_NEXT_INDEX = -1;
 
@@ -1572,13 +1609,18 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
       // For one-time services (move-in, move-out, deep), send empty frequency so quote summary shows correct selection
       const payloadServiceType = effectiveServiceType;
       const payloadFrequency = oneTimeServiceTypes.includes(payloadServiceType) ? '' : (formData.frequency || '');
-      // House details: from property lookup (set at address step when user confirms "Yes, that's correct") or from form questions (when user said "No, I'll enter it myself"). Same keys in both cases so data flows to stored quote.
+      // House details: from property lookup or form questions. Resolve by semantic key so we get values even when survey question ids differ (e.g. "Bedrooms" vs "bedrooms").
       const formNum = (key: string) => {
         const raw = formData[key] ?? formData[getFormFieldName(key)];
         const n = Number(raw);
         return typeof n === 'number' && !Number.isNaN(n) && n >= 0 ? n : 0;
       };
       const formHalfBaths = formData.halfBaths ?? formData[getFormFieldName('halfBaths')];
+      const bedroomsVal = getFormNumericForSemanticKey(formData, questions, 'bedrooms');
+      const fullBathsVal = getFormNumericForSemanticKey(formData, questions, 'fullBaths');
+      const peopleVal = getFormNumericForSemanticKey(formData, questions, 'people');
+      const sheddingRaw = formData.sheddingPets ?? formData[getFormFieldName('sheddingPets')];
+      const sheddingPetsVal = typeof sheddingRaw === 'number' && !Number.isNaN(sheddingRaw) ? sheddingRaw : getFormNumericForSemanticKey(formData, questions, 'sheddingPets') || convertSelectToNumber(sheddingRaw);
       const apiPayload: any = {
         ghlContactId: resolvedContactId,
         ...(resolvedContactId && { contactId: resolvedContactId }), // Always pass both - quote API uses either for association
@@ -1597,12 +1639,12 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         squareFeet: squareFootageRangeToNumber(String(formData.squareFeet ?? formData[getFormFieldName('squareFeet')] ?? ''), { maxSqFt: pricingTiers?.maxSqFt }),
         // Pass range string for GHL note so "Home Size: X sq ft" shows the range (e.g. "3001-3500")
         ...(typeof (formData.squareFeet ?? formData[getFormFieldName('squareFeet')]) === 'string' && String(formData.squareFeet ?? formData[getFormFieldName('squareFeet')] ?? '').trim() ? { squareFeetDisplay: String(formData.squareFeet ?? formData[getFormFieldName('squareFeet')] ?? '').trim() } : {}),
-        fullBaths: formNum('fullBaths'),
+        fullBaths: fullBathsVal,
         halfBaths: convertSelectToNumber(formHalfBaths),
-        bedrooms: formNum('bedrooms'),
-        people: formNum('people'),
-        pets: Number(formData.sheddingPets),
-        sheddingPets: convertSelectToNumber(formData.sheddingPets),
+        bedrooms: bedroomsVal,
+        people: peopleVal,
+        pets: sheddingPetsVal,
+        sheddingPets: sheddingPetsVal,
         condition: conditionToSend,
         // IMPORTANT: Pass the actual string values, not booleans!
         // These will be mapped to GHL select fields which expect the exact value
@@ -1732,8 +1774,8 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
       }
       setHouseDetails({
         squareFeet: squareFeetDisplay,
-        bedrooms: formNum('bedrooms'),
-        fullBaths: formNum('fullBaths'),
+        bedrooms: bedroomsVal,
+        fullBaths: fullBathsVal,
         halfBaths: convertSelectToNumber(formHalfBaths) || 0,
       });
     } catch (error) {
