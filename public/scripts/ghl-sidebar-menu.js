@@ -82,6 +82,39 @@
     }
   }
 
+  function normText(s) {
+    return (s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+
+  function getRow(el) {
+    if (!el) return null;
+    return (
+      el.closest('li') ||
+      el.closest('[role="listitem"]') ||
+      el.closest('.nav-item') ||
+      el.closest('.menu-item') ||
+      el.closest('.sidebar-item') ||
+      el
+    );
+  }
+
+  /** Find the existing CleanQuote sidebar entry (e.g. "CleanQuote.io Snap...") so we insert our items right under it. */
+  function findCleanQuoteSidebarRow() {
+    var root = document.querySelector('aside') || document.querySelector('nav') || document.body;
+    if (!root) return null;
+    var candidates = root.querySelectorAll('a, [role="link"], button, [data-cq-group]');
+    for (var i = 0; i < candidates.length; i++) {
+      var el = candidates[i];
+      var text = normText(el.textContent || '');
+      var href = (el.getAttribute && el.getAttribute('href')) || '';
+      if (text.indexOf('cleanquote') !== -1 || href.indexOf('cleanquote') !== -1 || href.indexOf('custom-page-link') !== -1) {
+        var row = getRow(el);
+        if (row) return row;
+      }
+    }
+    return null;
+  }
+
   function injectSidebarMenu(locationId, baseUrl) {
     if (document.getElementById(CONTAINER_ID)) return;
 
@@ -94,6 +127,9 @@
     list.style.cssText = 'list-style:none;margin:0;padding:0;';
     list.setAttribute('role', 'list');
 
+    var itemStyle = 'display:block;width:100%;text-align:left;background:transparent;border:none;cursor:pointer;padding:8px 12px;padding-left:24px;font-size:14px;color:inherit;font-family:inherit;';
+    var hoverBg = 'rgba(255,255,255,0.08)';
+
     for (var i = 0; i < MENU_ITEMS.length; i++) {
       var item = MENU_ITEMS[i];
       var li = document.createElement('li');
@@ -102,9 +138,9 @@
       link.type = 'button';
       link.textContent = item.label;
       link.setAttribute('data-cq-page', item.page);
-      link.style.cssText = 'display:block;width:100%;text-align:left;background:transparent;border:none;cursor:pointer;padding:8px 12px;font-size:14px;color:inherit;font-family:inherit;';
+      link.style.cssText = itemStyle;
       link.addEventListener('mouseenter', function () {
-        this.style.backgroundColor = 'rgba(0,0,0,0.06)';
+        this.style.backgroundColor = hoverBg;
       });
       link.addEventListener('mouseleave', function () {
         this.style.backgroundColor = 'transparent';
@@ -112,6 +148,7 @@
       link.addEventListener('click', (function (pageKey) {
         return function (e) {
           e.preventDefault();
+          e.stopPropagation();
           navigateToPage(baseUrl, locationId, pageKey);
         };
       })(item.page));
@@ -120,6 +157,13 @@
     }
 
     container.appendChild(list);
+
+    var insertAfter = findCleanQuoteSidebarRow();
+    if (insertAfter && insertAfter.parentNode) {
+      var next = insertAfter.nextElementSibling;
+      insertAfter.parentNode.insertBefore(container, next);
+      return;
+    }
 
     var sidebarSelectors = [
       '[data-testid="sidebar"]',
