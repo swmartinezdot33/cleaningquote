@@ -1,9 +1,11 @@
 /**
  * CleanQuote.io GHL Agency Master Script
+ * @version 2026-02-14-submenu-purple (active submenu: lighter bg, purple text, sharp corners)
  * One script: favicon, Sub-Accounts move, HighLevel/SaaS groups, and CleanQuote sidebar menu.
  * Native GHL dashboard/sidebar is left alone (no redirect, no reposition, no hijack).
  * Config: window.CLEANQUOTE_AGENCY_CONFIG (optional). Query params on script src override (e.g. ?customPageId=xxx&cleanquoteAppBase=...).
  * One-line install: <script src="https://www.cleanquote.io/api/script/ghl-agency-master.js?customPageId=6983df14aa911f4d3067493d"></script>
+ * Cache tip: add ?v=2 (or any number) to the script URL in GHL to force reload after updates.
  */
 (function () {
   'use strict';
@@ -420,7 +422,7 @@
       link.style.display = 'none';
       link.setAttribute('data-cleanquote-hidden-dashboard', '1');
     }
-    /** First visible nav item in sidebar (Launchpad or Dashboard) so we can insert CleanQuote above it. */
+    /** First visible nav row in sidebar (DOM order), like customizer "location: top". Use first link/button row so CleanQuote goes above everything. */
     function findFirstSidebarNavRow() {
       var root = getLeftSidebarRoot();
       if (!root) return null;
@@ -429,11 +431,10 @@
         var el = candidates[i];
         if (el.id === CONTAINER_ID || (el.closest && el.closest('#' + CONTAINER_ID))) continue;
         var row = getRow(el);
-        if (row && row.getAttribute && row.getAttribute('data-cleanquote-hidden-dashboard') === '1') continue;
+        if (!row || (row.getAttribute && row.getAttribute('data-cleanquote-hidden-dashboard') === '1')) continue;
         var text = normLower((el.textContent || '').split('\n')[0].trim());
-        if (text === 'launchpad' || text === 'dashboard' || text === 'conversations') {
-          if (row) return row;
-        }
+        if (!text) continue;
+        return row;
       }
       return null;
     }
@@ -513,9 +514,10 @@
       }
 
       var ourContainer = document.getElementById(CONTAINER_ID);
-      /* Insert before the first nav item (Launchpad) so CleanQuote.io is the top menu item above Launchpad. */
       var firstNavRow = findFirstSidebarNavRow();
       var targetRow = firstNavRow;
+      /* Already first? (same parent and we're right before target) — skip to avoid observer loop. */
+      if (targetRow && cleanQuoteRow.parentNode === targetRow.parentNode && cleanQuoteRow.nextElementSibling === targetRow) return;
 
       if (targetRow && targetRow.parentNode && targetRow !== cleanQuoteRow) {
         try {
@@ -628,9 +630,21 @@
       setTimeout(run, 500);
     window.addEventListener('routeLoaded', function () { setTimeout(run, 300); });
     window.addEventListener('routeChangeEvent', function () { setTimeout(run, 300); });
-    /* Re-run move on a schedule so we catch CleanQuote link when GHL adds it later. No MutationObserver - it caused mutation loops and browser crashes. */
     var moveRetries = [800, 1500, 3000, 5000, 7000, 10000, 15000, 20000];
     moveRetries.forEach(function (delay) { setTimeout(moveCleanQuoteToTopAndHideDashboard, delay); });
+    /* Re-run move when sidebar DOM changes (e.g. after customizer), same concept as config-driven "location: top". Debounce to avoid loops. */
+    var moveDebounce = 0;
+    function scheduleMove() {
+      if (moveDebounce) return;
+      moveDebounce = setTimeout(function () { moveDebounce = 0; moveCleanQuoteToTopAndHideDashboard(); }, 800);
+    }
+    try {
+      var root = getLeftSidebarRoot();
+      if (root && typeof MutationObserver !== 'undefined') {
+        var mo = new MutationObserver(function () { scheduleMove(); });
+        mo.observe(root, { childList: true, subtree: true });
+      }
+    } catch (e) {}
   })();
 
   /* Logo swap: only when location is on Google Sheet allowlist; logo from GHL business.logoUrl */
