@@ -76,6 +76,12 @@
     if (!el) return null;
     return el.closest('li') || el.closest('[role="listitem"]') || el.closest('.nav-item') || el.closest('.menu-item') || el.closest('.sidebar-item') || el.closest('[role="treeitem"]') || el.closest('div[class*="nav"]') || el;
   }
+  function getFirstElementChild(el) {
+    if (!el) return null;
+    if (el.firstElementChild) return el.firstElementChild;
+    for (var n = el.firstChild; n; n = n.nextSibling) if (n.nodeType === 1) return n;
+    return null;
+  }
   function getLeftSidebarRoot() {
     var asides = document.querySelectorAll('aside');
     for (var i = 0; i < asides.length; i++) {
@@ -422,7 +428,7 @@
       link.style.display = 'none';
       link.setAttribute('data-cleanquote-hidden-dashboard', '1');
     }
-    /** First visible nav row in sidebar (DOM order), like customizer "location: top". Use first link/button row so CleanQuote goes above everything. */
+    /** Not used for move; kept for any callers. First visible nav row in sidebar (DOM order). */
     function findFirstSidebarNavRow() {
       var root = getLeftSidebarRoot();
       if (!root) return null;
@@ -514,15 +520,13 @@
       }
 
       var ourContainer = document.getElementById(CONTAINER_ID);
-      var firstNavRow = findFirstSidebarNavRow();
-      var targetRow = firstNavRow;
-      /* Already first? (same parent and we're right before target) — skip to avoid observer loop. */
-      if (targetRow && cleanQuoteRow.parentNode === targetRow.parentNode && cleanQuoteRow.nextElementSibling === targetRow) return;
-
-      if (targetRow && targetRow.parentNode && targetRow !== cleanQuoteRow) {
+      var parent = cleanQuoteRow.parentNode;
+      /* Move CleanQuote to the very first position in the nav list (top, below toggle). */
+      var firstChild = parent && getFirstElementChild(parent);
+      if (parent && firstChild !== cleanQuoteRow) {
         try {
-          targetRow.parentNode.insertBefore(cleanQuoteRow, targetRow);
-          dbg({ hypothesisId: 'H_move_top', didInsertAboveFirst: true });
+          parent.insertBefore(cleanQuoteRow, firstChild);
+          dbg({ hypothesisId: 'H_move_top', didInsertAsFirst: true });
         } catch (e) {
           dbg({ hypothesisId: 'H5', didInsert: false, error: (e && e.message) || String(e) });
         }
