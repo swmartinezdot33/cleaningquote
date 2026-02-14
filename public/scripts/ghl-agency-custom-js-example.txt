@@ -1,0 +1,439 @@
+<!-- Optional: use my.cleanquote.io for sidebar links (must be before the script below) -->
+<script>window.CLEANQUOTE_SIDEBAR_BASE = 'https://my.cleanquote.io';</script>
+<!-- Load CleanQuote sidebar menu (Dashboard, Quotes, Contacts, Inbox, etc.) from our server -->
+<script src="https://www.cleanquote.io/api/script/ghl-sidebar-menu.js" crossorigin="anonymous"></script>
+
+<script>
+(function () {
+  const url =
+    "https://storage.googleapis.com/msgsndr/m7SfDDnIeBxuciBUmK7x/media/697e6b3ff7a87760c3be0547.png";
+
+  function setIcon() {
+    document.querySelectorAll("link[rel*='icon']").forEach(e => e.remove());
+
+    ["icon", "shortcut icon", "apple-touch-icon"].forEach(rel => {
+      const l = document.createElement("link");
+      l.rel = rel;
+      l.href = url;
+      document.head.appendChild(l);
+    });
+  }
+
+  let runs = 0;
+  const iv = setInterval(() => {
+    setIcon();
+    if (++runs > 6) clearInterval(iv);
+  }, 500);
+})();
+</script>
+
+<script>
+(function () {
+  const NEW_URL =
+    "https://my.cleanquote.io/v2/location/1uDcMtL7LgPvpYwaQtdq/custom-page-link/6983df14aa911f4d3067493d";
+  const CUSTOM_PAGE_ID = "6983df14aa911f4d3067493d";
+
+  const onCustomPage = window.location.href.includes(CUSTOM_PAGE_ID);
+
+  function norm(s) {
+    return (s || "").replace(/\s+/g, " ").trim();
+  }
+
+  function sidebarRoot() {
+    return document.querySelector("aside") || document.querySelector("nav") || document.body;
+  }
+
+  function allSidebarClickable(root) {
+    // GHL mixes <a>, <button>, and divs with role=link
+    return Array.from(
+      root.querySelectorAll("a, button, [role='link']")
+    ).filter(el => norm(el.textContent).length);
+  }
+
+  function isActive(el) {
+    if (!el) return false;
+    const a = el.getAttribute("aria-current");
+    if (a && a !== "false") return true;
+
+    const cls = (el.className || "").toString();
+    if (/active|router-link-active|is-active|selected|current/i.test(cls)) return true;
+
+    // sometimes the active class is on a parent
+    const p = el.closest(".active, .router-link-active, .is-active, .selected, [aria-current]");
+    return !!p;
+  }
+
+  function getRow(el) {
+    if (!el) return null;
+    return (
+      el.closest("li") ||
+      el.closest('[role="listitem"]') ||
+      el.closest(".nav-item") ||
+      el.closest(".menu-item") ||
+      el.closest(".sidebar-item") ||
+      el
+    );
+  }
+
+  function forceNavigate(el) {
+    if (!el || el.dataset.cqForced === "1") return;
+
+    // Set href if possible
+    if (el.tagName && el.tagName.toLowerCase() === "a") {
+      el.setAttribute("href", NEW_URL);
+      el.setAttribute("target", "_self");
+      el.setAttribute("rel", "noopener");
+    }
+
+    el.addEventListener(
+      "click",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.location.href = NEW_URL;
+      },
+      true
+    );
+
+    el.dataset.cqForced = "1";
+  }
+
+  function apply() {
+    const root = sidebarRoot();
+    const items = allSidebarClickable(root);
+
+    // Find all visible "Dashboard" labeled items in the sidebar
+    const dashboards = items.filter(el => norm(el.textContent).toLowerCase() === "dashboard");
+
+    if (!dashboards.length) return;
+
+    // The "top slot" dashboard row is the first one in DOM order
+    const topDashboardEl = dashboards[0];
+
+    // If we are on the custom page, the custom menu item is usually the ACTIVE dashboard entry
+    let customEl = null;
+    if (onCustomPage) {
+      customEl = dashboards.find(isActive) || null;
+    }
+
+    // If we could not detect active, do nothing destructive
+    if (onCustomPage && !customEl) return;
+
+    // The "real dashboard" is the other dashboard element (not the custom active one)
+    let realDashEl = null;
+    if (customEl) {
+      realDashEl = dashboards.find(el => el !== customEl) || null;
+    } else {
+      // If not on custom page, just treat the first as dashboard
+      realDashEl = topDashboardEl;
+    }
+
+    // Always force the real dashboard click to go to your custom page
+    if (realDashEl) forceNavigate(realDashEl);
+
+    // If on custom page, move custom item into the top dashboard slot and hide the real dashboard row
+    if (onCustomPage && customEl && realDashEl) {
+      const customRow = getRow(customEl);
+      const realDashRow = getRow(realDashEl);
+
+      if (!customRow || !realDashRow) return;
+
+      if (customRow.dataset.cqMoved === "1") return;
+
+      // Put custom row where the real dashboard row is
+      realDashRow.parentNode.insertBefore(customRow, realDashRow);
+
+      // Hide the real dashboard row
+      realDashRow.style.display = "none";
+
+      customRow.dataset.cqMoved = "1";
+    }
+  }
+
+  apply();
+  const mo = new MutationObserver(apply);
+  mo.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
+
+<script>
+(function () {
+  // Agency level only
+  if (/\/v2\/location\//i.test(window.location.pathname)) return;
+
+  const MOVE_LABEL = "Sub-Accounts";
+  const TARGET_LABEL = "SaaS";
+
+  function norm(s) {
+    return (s || "").replace(/\s+/g, " ").trim().toLowerCase();
+  }
+
+  function findSidebarRoot() {
+    return document.querySelector("aside") || document.querySelector("nav") || document.body;
+  }
+
+  function getRow(el) {
+    return (
+      el.closest("li") ||
+      el.closest('[role="listitem"]') ||
+      el.closest(".nav-item") ||
+      el.closest(".menu-item") ||
+      el.closest(".sidebar-item") ||
+      el
+    );
+  }
+
+  function findRowByLabel(root, label) {
+    const wanted = norm(label);
+
+    // Prefer your grouped headers if present (from earlier script)
+    const groupHeader = root.querySelector(`[data-cq-group="${CSS.escape(label)}"]`);
+    if (groupHeader) return groupHeader;
+
+    const candidates = Array.from(root.querySelectorAll("a, [role='link'], button, div, span"))
+      .filter(el => norm(el.textContent) === wanted);
+
+    for (const el of candidates) {
+      const row = getRow(el);
+      if (row) return row;
+    }
+
+    return null;
+  }
+
+  function apply() {
+    const root = findSidebarRoot();
+
+    const moveRow = findRowByLabel(root, MOVE_LABEL);
+    const targetRow = findRowByLabel(root, TARGET_LABEL);
+
+    if (!moveRow || !targetRow) return;
+    if (moveRow.dataset.cqMovedAboveSaaS === "1") return;
+
+    const parent = targetRow.parentNode;
+    if (!parent) return;
+
+    parent.insertBefore(moveRow, targetRow);
+    moveRow.dataset.cqMovedAboveSaaS = "1";
+  }
+
+  apply();
+
+  const mo = new MutationObserver(apply);
+  mo.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
+
+<script>
+(function () {
+  // Agency level only (skip sub-accounts)
+  if (/\/v2\/location\//i.test(window.location.pathname)) return;
+
+  const GROUPS = [
+    {
+      parentLabel: "HighLevel",
+      labels: [
+        "Add-Ons",
+        "Template Library",
+        "Partners",
+        "University",
+        "SaaS Education",
+        "GHL Swag",
+        "Ideas"
+      ]
+    },
+    {
+      parentLabel: "SaaS",
+      labels: [
+        "Prospecting",
+        "Account Snapshots",
+        "Reselling",
+        "SaaS Configurator",
+        "Affiliate Portal",
+        "App Marketplace",
+        "Mobile App"
+      ]
+    }
+  ];
+
+  function norm(s) {
+    return (s || "").replace(/\s+/g, " ").trim();
+  }
+
+  function findSidebarRoot() {
+    return document.querySelector("aside") || document.querySelector("nav") || document.body;
+  }
+
+  function getSidebarLinks(root) {
+    return Array.from(root.querySelectorAll("a, [role='link'], button")).filter((el) => {
+      return norm(el.textContent).length > 0;
+    });
+  }
+
+  function getRow(el) {
+    return (
+      el.closest("li") ||
+      el.closest('[role="listitem"]') ||
+      el.closest(".nav-item") ||
+      el.closest(".menu-item") ||
+      el.closest(".sidebar-item") ||
+      el
+    );
+  }
+
+  function buildGroupRow(parentLabel, sampleRow) {
+    const sampleTag = sampleRow && sampleRow.tagName ? sampleRow.tagName.toLowerCase() : "div";
+    const wrapper = document.createElement(sampleTag === "li" ? "li" : "div");
+
+    wrapper.className = sampleRow && sampleRow.className ? sampleRow.className : "";
+    wrapper.style.cursor = "pointer";
+
+    const header = document.createElement("div");
+    header.style.display = "flex";
+    header.style.alignItems = "center";
+    header.style.justifyContent = "space-between";
+    header.style.gap = "8px";
+    header.style.width = "100%";
+
+    const title = document.createElement("span");
+    title.textContent = parentLabel;
+
+    const caret = document.createElement("span");
+    caret.textContent = "▸";
+    caret.style.opacity = "0.7";
+    caret.dataset.state = "closed";
+
+    header.appendChild(title);
+    header.appendChild(caret);
+
+    const submenu = document.createElement("div");
+    submenu.style.display = "none";
+    submenu.style.marginTop = "6px";
+    submenu.style.paddingLeft = "14px";
+
+    header.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const open = submenu.style.display !== "none";
+      submenu.style.display = open ? "none" : "block";
+      caret.textContent = open ? "▸" : "▾";
+      caret.dataset.state = open ? "closed" : "open";
+    });
+
+    wrapper.appendChild(header);
+    wrapper.appendChild(submenu);
+
+    wrapper.dataset.cqGroup = parentLabel;
+    return { wrapper, submenu };
+  }
+
+  function ensureGroupInserted(root, parentLabel, beforeRow) {
+    const existing = root.querySelector(`[data-cq-group="${CSS.escape(parentLabel)}"]`);
+    if (existing) {
+      return { wrapper: existing, submenu: existing.querySelector("div:last-child") };
+    }
+
+    const built = buildGroupRow(parentLabel, beforeRow);
+    const parentNode = beforeRow.parentNode;
+    if (!parentNode) return null;
+
+    parentNode.insertBefore(built.wrapper, beforeRow);
+    return built;
+  }
+
+  function apply() {
+    const root = findSidebarRoot();
+    const links = getSidebarLinks(root);
+
+    // Build quick lookup of label -> list of candidates
+    const byLabel = new Map();
+    links.forEach((el) => {
+      const label = norm(el.textContent);
+      if (!byLabel.has(label)) byLabel.set(label, []);
+      byLabel.get(label).push(el);
+    });
+
+    GROUPS.forEach((group) => {
+      const labelSet = new Set(group.labels);
+
+      // Gather rows that match this group
+      const matches = [];
+      group.labels.forEach((lbl) => {
+        const els = byLabel.get(lbl);
+        if (!els || !els.length) return;
+
+        // pick the first visible one
+        const el = els[0];
+        const row = getRow(el);
+        if (!row) return;
+
+        // skip if already moved under this group
+        if (row.dataset.cqMovedTo === group.parentLabel) return;
+
+        matches.push({ lbl, row });
+      });
+
+      if (!matches.length) return;
+
+      // Insert group right above the first matched row in DOM
+      const firstRow = matches[0].row;
+      const built = ensureGroupInserted(root, group.parentLabel, firstRow);
+      if (!built) return;
+
+      // Move rows into submenu in the order defined in group.labels
+      group.labels.forEach((lbl) => {
+        const hit = matches.find((m) => m.lbl === lbl);
+        if (!hit) return;
+
+        built.submenu.appendChild(hit.row);
+        hit.row.dataset.cqMovedTo = group.parentLabel;
+        hit.row.style.marginTop = "2px";
+      });
+    });
+  }
+
+  apply();
+
+  const mo = new MutationObserver(apply);
+  mo.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
+
+<script>
+(function () {
+  const PAGE_ID = "6983df14aa911f4d3067493d";
+
+  function getLocationId() {
+    const m = window.location.pathname.match(/\/v2\/location\/([^\/]+)/i);
+    return m ? m[1] : null;
+  }
+
+  function buildCustomDashboardUrl(locationId) {
+    return `https://${window.location.host}/v2/location/${locationId}/custom-page-link/${PAGE_ID}`;
+  }
+
+  function isRealDashboardPath() {
+    // Matches:
+    // /v2/location/{id}/dashboard
+    // /v2/location/{id}/dashboard/...
+    return /\/v2\/location\/[^\/]+\/dashboard(\/|$)/i.test(window.location.pathname);
+  }
+
+  function redirectIfNeeded() {
+    if (!isRealDashboardPath()) return;
+
+    const locationId = getLocationId();
+    if (!locationId) return;
+
+    const target = buildCustomDashboardUrl(locationId);
+
+    // Avoid loops
+    if (window.location.href === target) return;
+
+    // Replace so back button does not bounce
+    window.location.replace(target);
+  }
+
+  redirectIfNeeded();
+})();
+</script>
