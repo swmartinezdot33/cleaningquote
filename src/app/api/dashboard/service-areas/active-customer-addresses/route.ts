@@ -29,17 +29,24 @@ function contactToAddressLine(contact: any): string | null {
   return line.length > 0 ? line : null;
 }
 
-function addressesFromContacts(contacts: any[]): string[] {
-  const addresses: string[] = [];
+function contactDisplayName(contact: any): string {
+  const first = (contact.firstName ?? contact.first_name ?? '').trim();
+  const last = (contact.lastName ?? contact.last_name ?? '').trim();
+  const name = [first, last].filter(Boolean).join(' ');
+  return name || (contact.companyName ?? contact.company_name ?? '') || 'Customer';
+}
+
+function customersFromContacts(contacts: any[]): Array<{ name: string; address: string }> {
+  const out: Array<{ name: string; address: string }> = [];
   const seen = new Set<string>();
   for (const contact of contacts) {
     const addr = contactToAddressLine(contact);
     if (addr && !seen.has(addr)) {
       seen.add(addr);
-      addresses.push(addr);
+      out.push({ name: contactDisplayName(contact), address: addr });
     }
   }
-  return addresses;
+  return out;
 }
 
 /**
@@ -87,22 +94,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let addresses = addressesFromContacts(result.data.contacts);
-    if (addresses.length === 0) {
+    let customers = customersFromContacts(result.data.contacts);
+    if (customers.length === 0) {
       const allResult = await getContacts(ctx.locationId, credentials, { limit: 100 });
       if (allResult.ok && allResult.data.contacts.length > 0) {
-        addresses = addressesFromContacts(allResult.data.contacts);
+        customers = customersFromContacts(allResult.data.contacts);
       }
     }
 
-    if (addresses.length === 0) {
-      return NextResponse.json({ coordinates: [], addresses: [] });
+    if (customers.length === 0) {
+      return NextResponse.json({ coordinates: [], addresses: [], customers: [] });
     }
 
+    const addresses = customers.map((c) => c.address);
     const normalized = addresses.map((a) => normalizeAddressForHash(a));
     const hashes = normalized.map((n) => hashAddress(n));
-    const addressByHash = new Map<string, string>();
-    hashes.forEach((h, i) => addressByHash.set(h, addresses[i]));
 
     const supabase = createSupabaseServer();
     const { data: cachedRows } = await supabase
@@ -145,21 +151,25 @@ export async function GET(request: NextRequest) {
     }
 
     const pinnedNorm = (request.nextUrl.searchParams.get('pinnedAddress') ?? '').trim().toLowerCase();
-    const paired = addresses.map((addr, i) => ({
-      address: addr,
+    const paired = customers.map((c, i) => ({
+      name: c.name,
+      address: c.address,
       coord: cacheMap.get(hashes[i]) ?? null,
     }));
     const filtered = pinnedNorm
       ? paired.filter((p) => p.address.trim().toLowerCase() !== pinnedNorm)
       : paired;
-    const coordinates = filtered
-      .map((p) => p.coord)
-      .filter((c): c is { lat: number; lng: number } => c != null);
-    const addressesOut = filtered.map((p) => p.address);
+    const customersOut = filtered
+      .filter((p) => p.coord != null)
+      .map((p) => ({ lat: p.coord!.lat, lng: p.coord!.lng, name: p.name, address: p.address }));
+
+    // Always return all addresses (for client-side geocode fallback when cache empty or partial)
+    const allAddresses = filtered.map((p) => p.address);
 
     return NextResponse.json({
-      coordinates,
-      addresses: addressesOut,
+      coordinates: customersOut.map((c) => ({ lat: c.lat, lng: c.lng })),
+      addresses: allAddresses,
+      customers: customersOut,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Failed to load active customer addresses';

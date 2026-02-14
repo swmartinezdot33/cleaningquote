@@ -444,8 +444,12 @@ export default function ContactDetailPage({
                   {q.quote_id}
                 </Link>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                  {q.service_type && <span className="capitalize">{q.service_type.replace(/-/g, ' ')}</span>}
-                  {q.frequency && <span>· {q.frequency.replace(/-/g, ' ')}</span>}
+                  {typeof q.service_type === 'string' && q.service_type && (
+                    <span className="capitalize">{q.service_type.replace(/-/g, ' ')}</span>
+                  )}
+                  {typeof q.frequency === 'string' && q.frequency && (
+                    <span>· {q.frequency.replace(/-/g, ' ')}</span>
+                  )}
                   {q.price_low != null && q.price_high != null && (
                     <span>· ${q.price_low}–${q.price_high}</span>
                   )}
