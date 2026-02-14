@@ -305,6 +305,23 @@
       }
       return null;
     }
+    /** First visible nav item in sidebar (Launchpad or Dashboard) so we can insert CleanQuote above it. */
+    function findFirstSidebarNavRow() {
+      var root = getLeftSidebarRoot();
+      if (!root) return null;
+      var candidates = root.querySelectorAll('a, [role="link"], button');
+      for (var i = 0; i < candidates.length; i++) {
+        var el = candidates[i];
+        if (el.id === CONTAINER_ID || (el.closest && el.closest('#' + CONTAINER_ID))) continue;
+        var row = getRow(el);
+        if (row && row.getAttribute && row.getAttribute('data-cleanquote-hidden-dashboard') === '1') continue;
+        var text = normLower((el.textContent || '').split('\n')[0].trim());
+        if (text === 'launchpad' || text === 'dashboard' || text === 'conversations') {
+          if (row) return row;
+        }
+      }
+      return null;
+    }
     /** Find the GHL "CleanQuote.io" custom menu link row (href contains cleanquote/custom-page-link or text CleanQuote). */
     function findCleanQuoteCustomLinkRow() {
       var root = getLeftSidebarRoot();
@@ -320,6 +337,25 @@
         }
       }
       return null;
+    }
+    /** Move CleanQuote row to top of nav and hide native Dashboard so CleanQuote replaces it. */
+    function moveCleanQuoteToTopAndHideDashboard() {
+      var root = getLeftSidebarRoot();
+      if (!root) return;
+      var dashboardRow = findDashboardRow();
+      if (dashboardRow && dashboardRow.style) {
+        dashboardRow.style.display = 'none';
+        dashboardRow.setAttribute('data-cleanquote-hidden-dashboard', '1');
+      }
+      var firstNav = findFirstSidebarNavRow();
+      var cleanQuoteRow = findCleanQuoteCustomLinkRow();
+      if (!cleanQuoteRow || !cleanQuoteRow.parentNode) return;
+      var insertBefore = firstNav || document.getElementById(CONTAINER_ID);
+      if (insertBefore && insertBefore.parentNode && cleanQuoteRow !== insertBefore) {
+        try {
+          insertBefore.parentNode.insertBefore(cleanQuoteRow, insertBefore);
+        } catch (e) {}
+      }
     }
     function injectSidebarMenu(locationId) {
       if (document.getElementById(CONTAINER_ID)) return;
@@ -360,18 +396,13 @@
         list.appendChild(li);
       }
       container.appendChild(list);
-      var beforeEl = findDashboardRow();
+      var dashboardRow = findDashboardRow();
+      var beforeEl = dashboardRow || findFirstSidebarNavRow();
       if (beforeEl && beforeEl.parentNode)
         beforeEl.parentNode.insertBefore(container, beforeEl);
       else
         leftSidebar.appendChild(container);
-      /* Relocate CleanQuote.io custom link to sit above our injected menu. */
-      var cleanQuoteRow = findCleanQuoteCustomLinkRow();
-      if (cleanQuoteRow && cleanQuoteRow.parentNode && container.parentNode) {
-        try {
-          cleanQuoteRow.parentNode.insertBefore(cleanQuoteRow, container);
-        } catch (e) {}
-      }
+      moveCleanQuoteToTopAndHideDashboard();
     }
     function run() {
       function tryInject(locId) {
@@ -385,6 +416,7 @@
       } else {
         tryInject(getLocationIdFromUrl());
       }
+      moveCleanQuoteToTopAndHideDashboard();
     }
     if (document.readyState === 'loading')
       document.addEventListener('DOMContentLoaded', function () { setTimeout(run, 1500); });
@@ -392,6 +424,13 @@
       setTimeout(run, 500);
     window.addEventListener('routeLoaded', function () { setTimeout(run, 300); });
     window.addEventListener('routeChangeEvent', function () { setTimeout(run, 300); });
+    /* Re-run move when DOM changes so we catch CleanQuote link when GHL adds it later. */
+    var moveRetries = [800, 1500, 3000, 5000];
+    moveRetries.forEach(function (delay) { setTimeout(moveCleanQuoteToTopAndHideDashboard, delay); });
+    try {
+      var mo = new MutationObserver(function () { moveCleanQuoteToTopAndHideDashboard(); });
+      mo.observe(document.body, { childList: true, subtree: true });
+    } catch (e) {}
   })();
 
   /* Logo swap: only when location is on Google Sheet allowlist; logo from GHL business.logoUrl */
@@ -522,7 +561,13 @@
         var parts = [];
         if (pageName) parts.push(pageName);
         if (locationName) parts.push(locationName);
-        document.title = parts.length ? parts.join(' | ') + TITLE_SUFFIX : 'LaunchPad';
+        var base = parts.length ? parts.join(' | ') : '';
+        if (base) {
+          base = base.replace(/\s*\|\s*LaunchPad\s*$/i, '');
+          document.title = base + TITLE_SUFFIX;
+        } else {
+          document.title = 'LaunchPad';
+        }
       } catch (e) {}
     }
     function scheduleTitle() {
