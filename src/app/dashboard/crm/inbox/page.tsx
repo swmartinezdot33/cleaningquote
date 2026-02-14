@@ -430,7 +430,7 @@ export default function CRMInboxPage() {
             <div className="flex flex-col border-b border-border bg-background">
               <div className="flex items-center justify-between gap-2 px-3 py-2">
                 <h2 className="text-sm font-semibold text-foreground">Inbox</h2>
-                <div className="relative flex-1 max-w-[140px]">
+                <div className="relative flex-1 max-w-[200px]">
                   <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="text"
@@ -659,7 +659,7 @@ export default function CRMInboxPage() {
                                   return (
                                     <div
                                       key={msg.id}
-                                      className={`flex gap-2 ${isOutbound ? '' : 'flex-row-reverse justify-end'}`}
+                                      className={`flex gap-2 ${isOutbound ? 'flex-row-reverse justify-end' : ''}`}
                                     >
                                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
                                         {isOutbound ? 'RC' : getInitials(selectedConv!.contact, selectedConv!.contactId)}
@@ -667,8 +667,8 @@ export default function CRMInboxPage() {
                                       <div
                                         className={`rounded-2xl px-3 py-2 max-w-[80%] ${
                                           isOutbound
-                                            ? 'rounded-bl-md bg-muted text-foreground'
-                                            : 'rounded-br-md bg-primary text-primary-foreground'
+                                            ? 'rounded-br-md bg-muted text-foreground'
+                                            : 'rounded-bl-md bg-primary text-primary-foreground'
                                         }`}
                                       >
                                         <p className="text-sm whitespace-pre-wrap break-words">{msg.body || '—'}</p>

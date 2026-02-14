@@ -363,7 +363,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
       const res = await api(`/api/dashboard/tools/${toolId}/ghl-config`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ghlConfig),
+        body: JSON.stringify({ ...ghlConfig, createContact: true }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -376,10 +376,10 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
         setSectionMessage({
           card: 'ghl-config',
           type: 'success',
-          text: formRes.ok ? 'Advanced configuration saved.' : (data.message ?? 'HighLevel configuration saved'),
+          text: formRes.ok ? 'Advanced configuration saved.' : (data.message ?? 'Configuration saved'),
         });
       } else {
-        setSectionMessage({ card: 'ghl-config', type: 'error', text: data.error ?? 'Failed to save HighLevel config' });
+        setSectionMessage({ card: 'ghl-config', type: 'error', text: data.error ?? 'Failed to save config' });
       }
     } catch {
       setSectionMessage({ card: 'ghl-config', type: 'error', text: 'Failed to save Advanced Configuration' });
@@ -926,7 +926,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
         </Card>
       </motion.div>
 
-      {/* Advanced Configuration (per-tool CRM / HighLevel) */}
+      {/* Advanced Configuration (per-tool CRM) */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
         <Card className="shadow-lg hover:shadow-xl transition-shadow border border-border overflow-visible">
           <CardHeader
@@ -964,10 +964,10 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                   </div>
                 )}
 
-                {/* At-a-glance summary */}
+                {/* At-a-glance summary — contact is always synced; optional: Note, Quote, Opportunity */}
                 <div className="flex flex-wrap items-center gap-2 text-sm">
                   <span className="text-muted-foreground font-medium">Active:</span>
-                  {ghlConfig.createContact && <span className="px-2.5 py-0.5 rounded-full bg-primary/15 text-primary font-medium">Contact</span>}
+                  <span className="px-2.5 py-0.5 rounded-full bg-primary/15 text-primary font-medium">Contact</span>
                   {ghlConfig.createNote && <span className="px-2.5 py-0.5 rounded-full bg-primary/15 text-primary font-medium">Note</span>}
                   {ghlConfig.createQuoteObject && <span className="px-2.5 py-0.5 rounded-full bg-primary/15 text-primary font-medium">Quote object</span>}
                   {ghlConfig.createOpportunity && (
@@ -975,8 +975,8 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                       Opportunity{ghlConfig.pipelineId ? ` → ${pipelines.find((p) => p.id === ghlConfig.pipelineId)?.name ?? 'Pipeline'}` : ''}
                     </span>
                   )}
-                  {!ghlConfig.createContact && !ghlConfig.createNote && !ghlConfig.createQuoteObject && !ghlConfig.createOpportunity && (
-                    <span className="text-muted-foreground italic">Nothing sent to CRM yet — enable options below</span>
+                  {!ghlConfig.createNote && !ghlConfig.createQuoteObject && !ghlConfig.createOpportunity && (
+                    <span className="text-muted-foreground italic">Nothing else sent to CRM — enable options below</span>
                   )}
                 </div>
 
@@ -987,13 +987,12 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                       <User className="h-4 w-4 text-primary" />
                       When a quote is submitted
                     </h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">Choose what we create or update in HighLevel</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Choose what we create or update in your CRM</p>
                   </div>
                   <div className="p-5 space-y-3">
                     {[
-                      { key: 'createContact' as const, label: 'Create or update contact', desc: 'Sync name, email, phone, address', anchor: 'create-contact' },
                       { key: 'createNote' as const, label: 'Add a note', desc: 'Quote summary and details', anchor: 'create-note' },
-                      { key: 'createQuoteObject' as const, label: 'Create Quote (custom object)', desc: 'Store quote in your Quote object', anchor: 'create-quote-object' },
+                      { key: 'createQuoteObject' as const, label: 'Create Quote', desc: 'Store quote in your Quote object', anchor: 'create-quote-object' },
                       { key: 'createOpportunity' as const, label: 'Create opportunity', desc: 'Deal in pipeline with value and stage', anchor: 'create-opportunity' },
                     ].map(({ key, label, desc, anchor }) => (
                       <div key={key} className="flex items-center gap-3 p-3 rounded-lg bg-background border border-border hover:border-primary/30 transition-colors">
@@ -1027,7 +1026,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                     </div>
                     <div className="p-5 space-y-5">
                     {pipelines.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-2">No pipelines found. Create a pipeline in HighLevel first.</p>
+                      <p className="text-sm text-muted-foreground py-2">No pipelines found. Create a pipeline in your CRM first.</p>
                     ) : (
                       <>
                         <div>
@@ -1299,104 +1298,12 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                   </section>
                 )}
 
-                {/* Section: Quote value & custom fields */}
-                <section className="rounded-xl border border-border bg-muted/20 dark:bg-muted/10 overflow-visible">
-                  <div className="px-5 py-4 border-b border-border bg-muted/30 dark:bg-muted/20">
-                    <h3 className="font-semibold text-foreground flex items-center gap-2">
-                      <Briefcase className="h-4 w-4 text-primary opacity-80" />
-                      Quote value in HighLevel
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">Map quoted amount to opportunity value and contact custom fields</p>
-                  </div>
-                  <div className="p-5 space-y-4">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="useDynamicPricing"
-                        checked={ghlConfig.useDynamicPricingForValue !== false}
-                        onChange={(e) => setGhlConfig((c) => ({ ...c, useDynamicPricingForValue: e.target.checked }))}
-                        className="rounded border-input accent-primary"
-                      />
-                      <Label htmlFor="useDynamicPricing" className="text-sm font-semibold cursor-pointer flex items-center gap-1.5">Use quoted amount for opportunity value <GhlHelpIcon anchor="quoted-amount-value" /></Label>
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <Label className="text-sm font-semibold">Quoted amount field (contact custom field)</Label>
-                        <GhlHelpIcon anchor="quoted-amount-field" />
-                      </div>
-                      <p className="text-xs text-muted-foreground mb-2">Search and select a HighLevel contact field. Type to narrow the list.</p>
-                    {customFields.length > 0 ? (
-                      <div className="relative max-w-md" ref={quotedAmountFieldRef}>
-                        <Input
-                          type="text"
-                          placeholder="Type to search fields..."
-                          value={quotedAmountFieldOpen ? quotedAmountFieldSearch : (() => {
-                            const saved = (ghlConfig.quotedAmountField ?? '').trim();
-                            const norm = (s: string) => s.toLowerCase().replace(/^contact\./, '');
-                            const sel = customFields.find((f) => saved && (f.key === saved || norm(f.key) === norm(saved)));
-                            return sel ? `${sel.name} (${sel.key})` : quotedAmountFieldSearch || '';
-                          })()}
-                          onChange={(e) => {
-                            setQuotedAmountFieldSearch(e.target.value);
-                            setQuotedAmountFieldOpen(true);
-                          }}
-                          onFocus={() => setQuotedAmountFieldOpen(true)}
-                          className={inputClass}
-                        />
-                        {quotedAmountFieldOpen && (() => {
-                          const q = quotedAmountFieldSearch.trim().toLowerCase();
-                          const searchNorm = q.replace(/^contact\./, '');
-                          const filtered = customFields.filter((f) => {
-                            if (!q) return true;
-                            const keyNorm = f.key.toLowerCase().replace(/^contact\./, '');
-                            const nameLower = f.name.toLowerCase();
-                            return nameLower.includes(q) || f.key.toLowerCase().includes(q) || keyNorm.includes(searchNorm) || searchNorm.includes(keyNorm) || (searchNorm.length >= 2 && nameLower.includes(searchNorm));
-                          });
-                          return (
-                            <ul className="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-md border border-input bg-popover py-1 shadow-md bg-background">
-                              {filtered.map((f) => (
-                                <li
-                                  key={f.key}
-                                  className="cursor-pointer px-3 py-2 text-sm hover:bg-muted focus:bg-muted focus:outline-none"
-                                  onClick={() => {
-                                    setGhlConfig((c) => ({ ...c, quotedAmountField: f.key }));
-                                    setQuotedAmountFieldSearch('');
-                                    setQuotedAmountFieldOpen(false);
-                                  }}
-                                >
-                                  {f.name} ({f.key})
-                                </li>
-                              ))}
-                              {filtered.length === 0 && (
-                                <li className="px-3 py-2 text-sm text-muted-foreground">No fields match your search.</li>
-                              )}
-                            </ul>
-                          );
-                        })()}
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <Input
-                          value={ghlConfig.quotedAmountField ?? ''}
-                          onChange={(e) => setGhlConfig((c) => ({ ...c, quotedAmountField: e.target.value || undefined }))}
-                          placeholder="e.g. quoted_cleaning_price"
-                          className={`${inputClass} max-w-xs`}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          {loadingGhlLists ? 'Loading contact custom fields…' : 'Connect HighLevel and expand this card to load contact custom fields from your location.'}
-                        </p>
-                      </div>
-                    )}
-                    </div>
-                  </div>
-                </section>
-
                 {/* Section: Opportunity defaults + Calendars & booking */}
                 <section className="rounded-xl border border-border bg-muted/20 dark:bg-muted/10 overflow-hidden">
                   <div className="px-5 py-4 border-b border-border bg-muted/30 dark:bg-muted/20">
                     <h3 className="font-semibold text-foreground flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-primary" />
-                      Defaults, calendars & booking
+                      Calendars & booking
                     </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">Assigned user, source, calendars, redirect, and event tags</p>
                   </div>
@@ -1509,30 +1416,6 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                     </select>
                   </div>
                 </div>
-                <div className="pt-3 border-t border-border space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="redirectAfterAppointment"
-                      checked={ghlConfig.redirectAfterAppointment === true}
-                      onChange={(e) => setGhlConfig((c) => ({ ...c, redirectAfterAppointment: e.target.checked }))}
-                      className="rounded border-input accent-primary"
-                    />
-                    <Label htmlFor="redirectAfterAppointment" className="text-sm font-semibold cursor-pointer flex items-center gap-1.5">Redirect after appointment booking <GhlHelpIcon anchor="redirect-after-appointment" /></Label>
-                  </div>
-                  {ghlConfig.redirectAfterAppointment && (
-                    <div>
-                      <Label className="text-sm font-semibold">Appointment redirect URL</Label>
-                      <Input
-                        type="url"
-                        value={ghlConfig.appointmentRedirectUrl ?? ''}
-                        onChange={(e) => setGhlConfig((c) => ({ ...c, appointmentRedirectUrl: e.target.value || undefined }))}
-                        placeholder="https://..."
-                        className={inputClass}
-                      />
-                    </div>
-                  )}
-                </div>
                   </div>
                 </section>
 
@@ -1588,7 +1471,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                     </div>
                     <div>
                       <Label className="text-sm font-semibold flex items-center gap-1.5 mb-1.5">Disqualified lead tags</Label>
-                      <p className="text-xs text-muted-foreground mb-1.5">Applied to the contact in HighLevel when a lead is disqualified by a survey option (e.g. &quot;Disqualify lead&quot;).</p>
+                      <p className="text-xs text-muted-foreground mb-1.5">Applied to the contact when a lead is disqualified by a survey option (e.g. &quot;Disqualify lead&quot;).</p>
                       <TagPicker
                         value={Array.isArray(ghlConfig.disqualifiedLeadTags) ? ghlConfig.disqualifiedLeadTags.join(', ') : ''}
                         onChange={(csv) => setGhlConfig((c) => ({ ...c, disqualifiedLeadTags: csv.split(',').map((s) => s.trim()).filter(Boolean) }))}
@@ -1607,23 +1490,10 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                       <LayoutTemplate className="h-4 w-4 text-primary" />
                       Form behavior
                     </h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">When the form is embedded in HighLevel</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Form options when embedded or linked</p>
                   </div>
-                  <div className="p-5">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="formIsIframed"
-                        checked={ghlConfig.formIsIframed === true}
-                        onChange={(e) => setGhlConfig((c) => ({ ...c, formIsIframed: e.target.checked }))}
-                        className="rounded border-input accent-primary"
-                      />
-                      <Label htmlFor="formIsIframed" className="text-sm font-semibold cursor-pointer">Form is iframed (pre-fill from GHL)</Label>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1.5">
-                      We fetch name, phone, email, and address from GHL and land the user on the address step. Use iframe URL: <code className="bg-muted px-1 rounded text-[11px]">?contactId=&#123;&#123;Contact.Id&#125;&#125;</code>
-                    </p>
-                    <div className="flex items-start gap-3 mt-4 pt-4 border-t border-border">
+                  <div className="p-5 space-y-4">
+                    <div className="flex items-start gap-3">
                       <input
                         type="checkbox"
                         id="internalToolOnlyFormBehavior"
@@ -1634,6 +1504,115 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                       <div className="min-w-0">
                         <Label htmlFor="internalToolOnlyFormBehavior" className="text-sm font-semibold cursor-pointer">Internal tool only</Label>
                         <p className="text-xs text-muted-foreground mt-1">Contact info is collected at the end (optional Save quote and create contact). Quote summary is streamlined: Book an appointment is available; Schedule a callback is hidden. Use for internal quoting (e.g. office staff).</p>
+                      </div>
+                    </div>
+                    <div className="pt-3 border-t border-border space-y-2">
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          id="redirectAfterAppointment"
+                          checked={ghlConfig.redirectAfterAppointment === true}
+                          onChange={(e) => setGhlConfig((c) => ({ ...c, redirectAfterAppointment: e.target.checked }))}
+                          className="mt-0.5 w-4 h-4 rounded border-input accent-primary shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <Label htmlFor="redirectAfterAppointment" className="text-sm font-semibold cursor-pointer flex items-center gap-1.5">Redirect after appointment booking <GhlHelpIcon anchor="redirect-after-appointment" /></Label>
+                        </div>
+                      </div>
+                      {ghlConfig.redirectAfterAppointment && (
+                        <div>
+                          <Label className="text-sm font-semibold">Appointment redirect URL</Label>
+                          <Input
+                            type="url"
+                            value={ghlConfig.appointmentRedirectUrl ?? ''}
+                            onChange={(e) => setGhlConfig((c) => ({ ...c, appointmentRedirectUrl: e.target.value || undefined }))}
+                            placeholder="https://..."
+                            className={inputClass}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div className="pt-3 border-t border-border space-y-4">
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          id="useDynamicPricing"
+                          checked={ghlConfig.useDynamicPricingForValue !== false}
+                          onChange={(e) => setGhlConfig((c) => ({ ...c, useDynamicPricingForValue: e.target.checked }))}
+                          className="mt-0.5 w-4 h-4 rounded border-input accent-primary shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <Label htmlFor="useDynamicPricing" className="text-sm font-semibold cursor-pointer flex items-center gap-1.5">Use quoted amount for opportunity value <GhlHelpIcon anchor="quoted-amount-value" /></Label>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Label className="text-sm font-semibold">Quoted amount field (contact custom field)</Label>
+                          <GhlHelpIcon anchor="quoted-amount-field" />
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">Search and select a contact field. Type to narrow the list.</p>
+                        {customFields.length > 0 ? (
+                          <div className="relative max-w-md" ref={quotedAmountFieldRef}>
+                            <Input
+                              type="text"
+                              placeholder="Type to search fields..."
+                              value={quotedAmountFieldOpen ? quotedAmountFieldSearch : (() => {
+                                const saved = (ghlConfig.quotedAmountField ?? '').trim();
+                                const norm = (s: string) => s.toLowerCase().replace(/^contact\./, '');
+                                const sel = customFields.find((f) => saved && (f.key === saved || norm(f.key) === norm(saved)));
+                                return sel ? `${sel.name} (${sel.key})` : quotedAmountFieldSearch || '';
+                              })()}
+                              onChange={(e) => {
+                                setQuotedAmountFieldSearch(e.target.value);
+                                setQuotedAmountFieldOpen(true);
+                              }}
+                              onFocus={() => setQuotedAmountFieldOpen(true)}
+                              className={inputClass}
+                            />
+                            {quotedAmountFieldOpen && (() => {
+                              const q = quotedAmountFieldSearch.trim().toLowerCase();
+                              const searchNorm = q.replace(/^contact\./, '');
+                              const filtered = customFields.filter((f) => {
+                                if (!q) return true;
+                                const keyNorm = f.key.toLowerCase().replace(/^contact\./, '');
+                                const nameLower = f.name.toLowerCase();
+                                return nameLower.includes(q) || f.key.toLowerCase().includes(q) || keyNorm.includes(searchNorm) || searchNorm.includes(keyNorm) || (searchNorm.length >= 2 && nameLower.includes(searchNorm));
+                              });
+                              return (
+                                <ul className="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-md border border-input bg-popover py-1 shadow-md bg-background">
+                                  {filtered.map((f) => (
+                                    <li
+                                      key={f.key}
+                                      className="cursor-pointer px-3 py-2 text-sm hover:bg-muted focus:bg-muted focus:outline-none"
+                                      onClick={() => {
+                                        setGhlConfig((c) => ({ ...c, quotedAmountField: f.key }));
+                                        setQuotedAmountFieldSearch('');
+                                        setQuotedAmountFieldOpen(false);
+                                      }}
+                                    >
+                                      {f.name} ({f.key})
+                                    </li>
+                                  ))}
+                                  {filtered.length === 0 && (
+                                    <li className="px-3 py-2 text-sm text-muted-foreground">No fields match your search.</li>
+                                  )}
+                                </ul>
+                              );
+                            })()}
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <Input
+                              value={ghlConfig.quotedAmountField ?? ''}
+                              onChange={(e) => setGhlConfig((c) => ({ ...c, quotedAmountField: e.target.value || undefined }))}
+                              placeholder="e.g. quoted_cleaning_price"
+                              className={`${inputClass} max-w-xs`}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              {loadingGhlLists ? 'Loading contact custom fields…' : 'Connect your CRM and expand this card to load contact custom fields from your location.'}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

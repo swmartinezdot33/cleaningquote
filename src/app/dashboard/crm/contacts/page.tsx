@@ -147,7 +147,7 @@ export default function CRMContactsPage() {
           <Filter className="h-4 w-4" />
           Filters
         </span>
-        <form onSubmit={handleSearch} className="flex flex-1 min-w-[180px] max-w-xs gap-2">
+        <form onSubmit={handleSearch} className="flex flex-1 min-w-[180px] max-w-sm gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input

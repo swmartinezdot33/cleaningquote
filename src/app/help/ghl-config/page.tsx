@@ -22,7 +22,7 @@ export default function GHLConfigHelpPage() {
 
       <h1 className="text-2xl font-bold text-foreground">Advanced Configuration: CRM, Form Behavior &amp; Webhooks</h1>
       <p className="text-muted-foreground">
-        The <strong className="text-foreground">Advanced Configuration</strong> card in Tool Settings controls what happens when quotes and bookings are submitted: CRM behavior (HighLevel contacts, notes, opportunities, pipelines, calendars, tags), form behavior (iframe pre-fill, internal tool mode), and <strong className="text-foreground">webhooks</strong> for Zapier or other CRMs. Set your CRM connection (API token and Location ID) in <strong className="text-foreground">Dashboard → Settings → HighLevel Integration</strong> first; this card is per-tool.
+        The <strong className="text-foreground">Advanced Configuration</strong> card in Tool Settings controls what happens when quotes and bookings are submitted: CRM behavior (HighLevel contacts, notes, opportunities, pipelines, calendars, tags), form behavior (internal tool mode), and <strong className="text-foreground">webhooks</strong> for Zapier or other CRMs. Forms always accept URL params (e.g. <code className="bg-muted px-1 rounded">?contactId=&#123;&#123;Contact.Id&#125;&#125;</code>) for pre-fill from your CRM. Set your CRM connection (API token and Location ID) in <strong className="text-foreground">Dashboard → Settings → HighLevel Integration</strong> first; this card is per-tool.
       </p>
 
       <h2 id="when-to-use" className="text-lg font-semibold text-foreground mt-8">Where to find these settings</h2>
@@ -40,7 +40,7 @@ export default function GHLConfigHelpPage() {
         When enabled, a note is added to the contact (or opportunity) with a summary of the quote: selected services, pricing, and any form answers. Useful for quick follow-up without reopening the quote.
       </p>
 
-      <h2 id="create-quote-object" className="text-lg font-semibold text-foreground mt-8">Create Quote (custom object)</h2>
+      <h2 id="create-quote-object" className="text-lg font-semibold text-foreground mt-8">Create Quote</h2>
       <p className="text-foreground">
         When enabled, CleanQuote creates a Quote custom object in HighLevel with the full quote details. Use this if you have a custom object schema for quotes in HighLevel and want to sync structured data (e.g. for reporting or workflows).
       </p>
@@ -105,7 +105,7 @@ export default function GHLConfigHelpPage() {
         Settings that affect how the quote form behaves when embedded or used internally.
       </p>
       <ul className="list-disc list-inside space-y-1 text-foreground mt-2">
-        <li><strong className="text-foreground">Form is iframed (pre-fill from GHL):</strong> When the form is embedded in your CRM or site with a contact ID in the URL, CleanQuote fetches name, phone, email, and address from the CRM and lands the user on the address step. Use the iframe URL with <code className="bg-muted px-1 rounded">?contactId=&#123;&#123;Contact.Id&#125;&#125;</code> (or your CRM&apos;s contact ID placeholder).</li>
+        <li><strong className="text-foreground">URL params (pre-fill):</strong> Forms always accept <code className="bg-muted px-1 rounded">?contactId=&#123;&#123;Contact.Id&#125;&#125;</code> (or <code className="bg-muted px-1 rounded">ghlContactId</code>). When present, CleanQuote fetches name, phone, email, and address from the CRM and lands the user on the address step. Use this in iframes, links, or anywhere you pass a contact ID.</li>
         <li><strong id="internal-tool-only" className="text-foreground">Internal tool only:</strong> Contact info is collected at the end (optional Save quote and create contact). The quote summary is streamlined: Book an appointment remains available; Schedule a callback is not shown. Use for internal quoting (e.g. office staff) rather than customer-facing booking.</li>
       </ul>
 

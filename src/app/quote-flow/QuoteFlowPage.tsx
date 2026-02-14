@@ -286,7 +286,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
     const contactIds = new Set(['firstName', 'lastName', 'email', 'phone', 'address']);
     return filtered.filter((q) => !contactIds.has(q.id));
   }, [questions, internalToolOnly]);
-  const [formIsIframed, setFormIsIframed] = useState(false);
   const [resolvedToolId, setResolvedToolId] = useState<string | null>(null);
   const [pricingTiers, setPricingTiers] = useState<{ tiers: PricingTierOption[]; maxSqFt: number } | null>(null);
   const serviceAreaCheckInProgress = useRef(false); // Prevent concurrent service area checks
@@ -346,7 +345,6 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
         setRedirectAfterAppointment(data.redirect.redirectAfterAppointment === true);
         setAppointmentRedirectUrl(data.redirect.appointmentRedirectUrl || '');
       }
-      if (data.formIsIframed === true) setFormIsIframed(true);
       if (data._meta?.toolId) setResolvedToolId(data._meta.toolId);
       setConfigLoaded(true);
     } catch (e) {
@@ -811,9 +809,9 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                 setValue('phone', contact.phone || '', { shouldValidate: false });
 
                 // Find the address question index (in visible list) and whether we're starting at address (new quote)
+                // Forms always accept URL params: when contactId is present we pre-fill and land on address step
                 const addressQuestionIndex = visibleQuestions.findIndex(q => q.type === 'address');
-                const inIframe = typeof window !== 'undefined' && window.self !== window.top;
-                const startAtAddress = fromOutOfService || startAt === 'address' || (formIsIframed && inIframe);
+                const startAtAddress = fromOutOfService || startAt === 'address' || true;
 
                 if (startAtAddress) {
                   // New quote: do not pre-populate address so user must enter a new one
@@ -835,7 +833,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                 
                 if (addressQuestionIndex !== -1) {
                   if (startAtAddress) {
-                    // Coming from out-of-service, "Get Another Quote", or iframed GHL: start AT the address question
+                    // Coming from out-of-service, "Get Another Quote", or URL with contactId: start AT the address question
                     setCurrentStep(addressQuestionIndex);
                     // Don't mark service area as checked - they need to check a new address
                   } else {
@@ -865,7 +863,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
           }
         }
       }
-  }, [questions, visibleQuestions, formSettings, mounted, setValue, reset, setGHLContactId, setServiceAreaChecked, setCurrentStep, formIsIframed, toolId, resolvedToolId, slug]);
+  }, [questions, visibleQuestions, formSettings, mounted, setValue, reset, setGHLContactId, setServiceAreaChecked, setCurrentStep, toolId, resolvedToolId, slug]);
 
   // Log disqualified lead to quotes table when disqualified screen is shown
   useEffect(() => {

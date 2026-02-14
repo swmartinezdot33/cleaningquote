@@ -680,7 +680,7 @@ export async function createCustomObject(
       schemaFields = await getObjectSchema(schemaKeyToFetch, finalLocationId, tokenOverride);
       actualSchemaKey = schemaKeyToFetch;
     } catch (schemaErr) {
-      console.warn('GHL Quote custom object: schema fetch failed (will try create with fallback keys):', schemaErr instanceof Error ? schemaErr.message : String(schemaErr));
+      console.warn('[CQ-QUOTE-OBJECT] Schema fetch failed (will try create with fallback keys):', schemaErr instanceof Error ? schemaErr.message : String(schemaErr));
     }
 
     // Convert customFields object to array format required by GHL API
@@ -848,8 +848,14 @@ export async function createCustomObject(
         propertiesShortName[shortKey] = v;
       });
     } else if (data.customFields && Object.keys(data.customFields).length > 0) {
-      // Fallback: GHL IRecordSchema "properties" is an object. When schema missing, use customFields as-is.
+      // Fallback: GHL IRecordSchema "properties" is an object. When schema missing or no keys matched, use customFields as-is.
+      // Do not send contactId/contact_id as properties - GHL uses them only for association after create.
+      const skipKeys = new Set(['contactid', 'contact_id']);
+      if (validFields.length === 0 && schemaFields?.fields?.length) {
+        console.warn('[CQ-QUOTE-OBJECT] No custom fields matched schema; using fallback keys. Sent keys:', Object.keys(data.customFields).filter(k => !skipKeys.has(k.toLowerCase())).slice(0, 20));
+      }
       Object.entries(data.customFields).forEach(([k, v]) => {
+        if (skipKeys.has(k.toLowerCase())) return;
         let fv: any = v !== null && v !== undefined && Array.isArray(v) ? v : String(v ?? '');
         fv = asTypeValue(fv, k);
         propertiesShortName[k] = fv;
@@ -2181,6 +2187,52 @@ function normalizeAddressForMatch(address: string): string {
 }
 
 /**
+ * Update an existing custom object record in GHL.
+ * PUT /objects/:schemaKey/records/:id
+ * Body: { locationId, properties } — properties keyed by field name (short or full path).
+ */
+export async function updateCustomObjectRecord(
+  schemaKey: string,
+  recordId: string,
+  properties: Record<string, unknown>,
+  locationId?: string,
+  tokenOverride?: string
+): Promise<void> {
+  const finalLocationId = locationId || (await getGHLLocationId());
+  if (!finalLocationId) {
+    throw new Error('Location ID is required to update custom object record.');
+  }
+  const normalizedSchemaKey = schemaKey.startsWith('custom_objects.') ? schemaKey : `custom_objects.${schemaKey}`;
+  const endpoint = `/objects/${normalizedSchemaKey}/records/${encodeURIComponent(recordId)}`;
+  const payload = { locationId: finalLocationId, properties };
+  await makeGHLRequest<void>(endpoint, 'PUT', payload, undefined, tokenOverride);
+}
+
+/**
+ * Update an existing GHL Property record with the given fields.
+ * Uses PUT /objects/custom_objects.properties/records/:id.
+ */
+export async function updateGHLProperty(
+  recordId: string,
+  fields: GHLPropertyFields,
+  locationId?: string,
+  tokenOverride?: string
+): Promise<void> {
+  const normalizedAddress = normalizeAddressForStorage(fields.address);
+  const properties: Record<string, string | number> = {};
+  if (normalizedAddress) properties.address = normalizedAddress;
+  if (fields.squareFootage !== undefined && fields.squareFootage !== '')
+    properties.square_footage = typeof fields.squareFootage === 'number' ? fields.squareFootage : Number(fields.squareFootage) || 0;
+  if (fields.bedrooms !== undefined && fields.bedrooms !== '')
+    properties.bedrooms = typeof fields.bedrooms === 'number' ? fields.bedrooms : Number(fields.bedrooms) || 0;
+  if (fields.fullBaths !== undefined && fields.fullBaths !== '')
+    properties.bathrooms = typeof fields.fullBaths === 'number' ? fields.fullBaths : Number(fields.fullBaths) || 0;
+  if (fields.halfBaths !== undefined && fields.halfBaths !== '')
+    properties.half_baths = typeof fields.halfBaths === 'number' ? fields.halfBaths : Number(fields.halfBaths) || 0;
+  await updateCustomObjectRecord('properties', recordId, properties, locationId, tokenOverride);
+}
+
+/**
  * List Property custom object records from GHL for a location.
  * Uses POST /objects/custom_objects.properties/records/search.
  */
@@ -2284,7 +2336,14 @@ export async function findOrCreateGHLProperty(
   if (!normalizedAddress) return null;
 
   const existing = await findGHLPropertyByAddress(locationId, normalizedAddress, tokenOverride);
-  if (existing?.id) return existing.id;
+  if (existing?.id) {
+    try {
+      await updateGHLProperty(existing.id, fields, locationId, tokenOverride);
+    } catch (err) {
+      console.error('Failed to update GHL Property record (association will still proceed):', err);
+    }
+    return existing.id;
+  }
 
   const customFields: Record<string, string> = {
     address: normalizedAddress,

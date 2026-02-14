@@ -4,6 +4,7 @@ import * as configStore from '@/lib/config/store';
 import type { PricingTable } from '@/lib/pricing/types';
 
 const INBOX_META_PREFIX = 'inbox:meta:';
+const BACKFILL_PROPERTIES_DONE_PREFIX = 'backfill_properties_done:';
 
 /** Inbox meta (flag/delete) per received email ID. Stored in KV; Resend does not support these. */
 export type InboxMeta = { flagged?: boolean; deleted?: boolean };
@@ -23,6 +24,23 @@ export async function getInboxMeta(emailId: string): Promise<InboxMeta | null> {
 export async function setInboxMeta(emailId: string, meta: InboxMeta): Promise<void> {
   const kv = getKV();
   await kv.set(`${INBOX_META_PREFIX}${emailId}`, meta);
+}
+
+/** One-time backfill: true if Property backfill has already been run for this location. */
+export async function getBackfillPropertiesDone(locationId: string): Promise<boolean> {
+  try {
+    const k = getKV();
+    const v = await k.get<string>(`${BACKFILL_PROPERTIES_DONE_PREFIX}${locationId}`);
+    return v === '1' || v === 'true';
+  } catch {
+    return false;
+  }
+}
+
+/** Mark Property backfill as done for this location (never run again). */
+export async function setBackfillPropertiesDone(locationId: string): Promise<void> {
+  const k = getKV();
+  await k.set(`${BACKFILL_PROPERTIES_DONE_PREFIX}${locationId}`, '1');
 }
 
 /** Multi-tenant: build tool-scoped key. When toolId is omitted, use legacy global key for backward compat. */
