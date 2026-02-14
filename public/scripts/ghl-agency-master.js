@@ -1,7 +1,7 @@
 /**
  * CleanQuote.io GHL Agency Master Script
  * One script: favicon, dashboard->custom page, Sub-Accounts move, HighLevel/SaaS groups,
- * dashboard redirect, and CleanQuote sidebar menu.
+ * and CleanQuote sidebar menu. (No dashboard URL redirect — dashboard stays as-is.)
  * Config: window.CLEANQUOTE_AGENCY_CONFIG (optional). Query params on script src override (e.g. ?customPageId=xxx&cleanquoteAppBase=...).
  * One-line install: <script src="https://www.cleanquote.io/api/script/ghl-agency-master.js?customPageId=6983df14aa911f4d3067493d"></script>
  */
@@ -261,15 +261,6 @@
     apply();
     var mo = new MutationObserver(apply);
     mo.observe(document.body, { childList: true, subtree: true });
-  })();
-
-  (function () {
-    if (!/\/v2\/location\/[^/]+\/dashboard(\/|$)/i.test(window.location.pathname)) return;
-    var locationId = getLocationIdFromUrl();
-    if (!locationId) return;
-    var target = buildCustomPageUrl(locationId);
-    if (!target || window.location.href === target) return;
-    window.location.replace(target);
   })();
 
   (function () {
