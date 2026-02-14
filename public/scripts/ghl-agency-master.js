@@ -28,7 +28,7 @@
     }
   })();
   var customPageId = C.customPageId || '6983df14aa911f4d3067493d';
-  var faviconUrl = C.faviconUrl || 'https://www.cleanquote.io/favicon.ico';
+  var faviconUrl = C.faviconUrl || 'https://www.cleanquote.io/icon.svg';
   var moveLabel = C.moveLabel || 'Sub-Accounts';
   var targetLabel = C.targetLabel || 'SaaS';
   var cleanquoteAppBase = (C.cleanquoteAppBase || C.baseUrl || 'https://my.cleanquote.io').replace(/\/+$/, '');
@@ -93,11 +93,14 @@
     function setFavicon() {
       if (!document.head) return;
       document.querySelectorAll("link[rel*='icon']").forEach(function (e) { e.remove(); });
+      var isSvg = /\.svg$/i.test(fav);
+      var mime = isSvg ? 'image/svg+xml' : 'image/png';
       ['icon', 'shortcut icon', 'apple-touch-icon'].forEach(function (rel) {
         var l = document.createElement('link');
         l.rel = rel;
         l.href = fav;
-        l.type = rel.indexOf('apple') !== -1 ? 'image/png' : 'image/x-icon';
+        l.type = mime;
+        if (isSvg) l.setAttribute('sizes', 'any');
         document.head.appendChild(l);
       });
     }
