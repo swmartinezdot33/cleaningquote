@@ -51,25 +51,30 @@ function formatDate(s: string | undefined): string {
   }
 }
 
-function contactDisplayName(c: Conversation['contact']): string {
-  if (!c) return 'Unknown';
-  if (c.name?.trim()) return c.name.trim();
-  const first = (c.firstName ?? '').trim();
-  const last = (c.lastName ?? '').trim();
+function contactDisplayName(c: Conversation['contact'], contactId?: string): string {
+  if (!c) return contactId ? `Contact ${contactId.slice(-6)}` : 'Unknown';
+  const name = (c as { name?: string }).name?.trim();
+  if (name) return name;
+  const first = ((c as { firstName?: string }).firstName ?? (c as { first_name?: string }).first_name ?? '').trim();
+  const last = ((c as { lastName?: string }).lastName ?? (c as { last_name?: string }).last_name ?? '').trim();
   if (first || last) return [first, last].filter(Boolean).join(' ');
-  if (c.email?.trim()) return c.email.trim();
-  if (c.phone?.trim()) return c.phone.trim();
-  return 'Unknown';
+  const email = (c as { email?: string }).email?.trim();
+  if (email) return email;
+  const phone = (c as { phone?: string }).phone?.trim() ?? (c as { phoneNumber?: string }).phoneNumber?.trim();
+  if (phone) return phone;
+  return contactId ? `Contact ${contactId.slice(-6)}` : 'Unknown';
 }
 
 function contactPhone(c: Conversation['contact']): string {
-  return c?.phone?.trim() ?? '';
+  if (!c) return '';
+  const p = (c as { phone?: string }).phone ?? (c as { phoneNumber?: string }).phoneNumber;
+  return typeof p === 'string' ? p.trim() : '';
 }
 
-function getInitials(c: Conversation['contact']): string {
+function getInitials(c: Conversation['contact'], contactId?: string): string {
   if (!c) return '?';
-  const name = contactDisplayName(c);
-  if (!name || name === 'Unknown') return (c.phone ?? c.email ?? '?').slice(0, 2).toUpperCase() || '?';
+  const name = contactDisplayName(c, contactId);
+  if (!name || name === 'Unknown') return (c.phone ?? (c as { phoneNumber?: string }).phoneNumber ?? c.email ?? '?').slice(0, 2).toUpperCase() || '?';
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase().slice(0, 2);
   return name.slice(0, 2).toUpperCase();
@@ -128,7 +133,14 @@ export default function CRMInboxPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState('');
   const [needsConnect, setNeedsConnect] = useState(false);
-  const [selectedConv, setSelectedConv] = useState<Conversation | null>(null);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const selectedConv = useMemo(
+    () => (selectedConversationId ? conversations.find((c) => c.id === selectedConversationId) ?? null : null),
+    [selectedConversationId, conversations]
+  );
+  const setSelectedConv = useCallback((c: Conversation | null) => {
+    setSelectedConversationId(c?.id ?? null);
+  }, []);
   const [messages, setMessages] = useState<Message[]>([]);
   const [lastMessageId, setLastMessageId] = useState<string | null>(null);
   const [nextPage, setNextPage] = useState(false);
@@ -180,16 +192,16 @@ export default function CRMInboxPage() {
   }, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Refetch when search changes (debounced) so server-side search runs
-  const isFirstSearchMount = React.useRef(true);
+  const isFirstMount = React.useRef(true);
   useEffect(() => {
-    if (!effectiveLocationId) return;
-    if (isFirstSearchMount.current) {
-      isFirstSearchMount.current = false;
+    if (!effectiveLocationId || !api) return;
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
       return;
     }
     const t = setTimeout(() => {
       loadConversations(searchInput.trim() || undefined, filter);
-    }, 400);
+    }, 350);
     return () => clearTimeout(t);
   }, [searchInput, effectiveLocationId, filter, loadConversations]);
 
@@ -319,8 +331,15 @@ export default function CRMInboxPage() {
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    loadConversations(searchInput.trim() || undefined, filter);
+                  }
+                }}
                 placeholder="Search by name, email, or phone"
                 className="w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm"
+                aria-label="Search conversations"
               />
             </div>
             <div className="flex gap-0.5 rounded-lg border border-border p-0.5 bg-muted/30">
@@ -361,25 +380,42 @@ export default function CRMInboxPage() {
                   <p className="text-sm">No conversations</p>
                 </div>
               ) : (
-                <ul className="flex-1 overflow-y-auto">
+                <ul
+                  className="flex-1 overflow-y-auto"
+                  onClick={(e) => {
+                    const row = (e.target as HTMLElement).closest('[data-conversation-id]');
+                    const id = row?.getAttribute('data-conversation-id');
+                    if (id) setSelectedConversationId(id);
+                  }}
+                  role="list"
+                >
                   {displayConversations.map((c) => {
                     const isSelected = selectedConv?.id === c.id;
                     return (
-                      <li key={c.id}>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedConv(c)}
-                          className={`flex w-full items-start gap-3 border-b border-border px-3 py-3 sm:py-2.5 text-left transition-colors hover:bg-muted/50 touch-manipulation active:bg-muted/70 ${
-                            isSelected ? 'bg-primary/10 ring-inset ring-1 ring-primary/20' : ''
-                          }`}
-                        >
+                      <li
+                        key={c.id}
+                        data-conversation-id={c.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setSelectedConversationId(c.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedConversationId(c.id);
+                          }
+                        }}
+                        className={`list-none flex w-full items-start gap-3 border-b border-border px-3 py-3 sm:py-2.5 text-left transition-colors hover:bg-muted/50 touch-manipulation active:bg-muted/70 cursor-pointer ${
+                          isSelected ? 'bg-primary/10 ring-inset ring-1 ring-primary/20' : ''
+                        }`}
+                      >
+                        <div className="flex w-full items-start gap-3 min-w-0">
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
-                            {getInitials(c.contact)}
+                            {getInitials(c.contact, c.contactId)}
                           </div>
                           <div className="min-w-0 flex-1 flex flex-col gap-0.5">
                             <div className="flex items-center justify-between gap-2">
                               <span className="truncate text-sm font-medium text-foreground">
-                                {contactDisplayName(c.contact)}
+                                {contactDisplayName(c.contact, c.contactId)}
                               </span>
                               <span className="shrink-0 text-xs text-muted-foreground">
                                 {timeAgo(c.lastMessageDate)}
@@ -399,7 +435,7 @@ export default function CRMInboxPage() {
                           {c.starred ? (
                             <Star className="h-4 w-4 shrink-0 fill-amber-400 text-amber-500" />
                           ) : null}
-                        </button>
+                        </div>
                       </li>
                     );
                   })}
@@ -407,14 +443,19 @@ export default function CRMInboxPage() {
               )}
             </div>
 
-            {/* Thread + compose */}
+            {/* Thread + compose — when a conversation is selected, always show (flex) so thread opens */}
             <div
-              className={`flex flex-1 flex-col min-w-0 bg-background ${!selectedConv ? 'hidden md:flex' : 'flex'}`}
+              key={selectedConversationId ?? 'empty'}
+              className={`flex flex-1 flex-col min-w-0 bg-background min-h-[280px] ${!selectedConv ? 'hidden md:flex' : 'flex min-w-[200px]'}`}
+              style={selectedConv ? { display: 'flex', minWidth: 200 } : undefined}
             >
               {!selectedConv ? (
-                <div className="flex flex-1 flex-col items-center justify-center gap-2 text-muted-foreground">
-                  <Mail className="h-12 w-12" />
-                  <p className="text-sm">Select a conversation</p>
+                <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-8 text-center">
+                  <div className="rounded-full bg-muted p-4">
+                    <MessageSquare className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm font-medium text-foreground">Select a conversation</p>
+                  <p className="text-xs text-muted-foreground max-w-[240px]">Choose a conversation from the list to view messages and reply.</p>
                 </div>
               ) : (
                 <>
@@ -430,11 +471,11 @@ export default function CRMInboxPage() {
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border px-4 py-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/20 text-sm font-semibold text-primary">
-                        {getInitials(selectedConv.contact)}
+                        {getInitials(selectedConv.contact, selectedConv.contactId)}
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">
-                          {contactDisplayName(selectedConv.contact)}
+                          {contactDisplayName(selectedConv.contact, selectedConv.contactId)}
                         </p>
                         {contactPhone(selectedConv.contact) && (
                           <p className="text-xs text-muted-foreground">{contactPhone(selectedConv.contact)}</p>
@@ -461,7 +502,7 @@ export default function CRMInboxPage() {
                           title="Open in CRM (GoHighLevel)"
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
-                          Open in GHL
+                          Open in CRM
                         </a>
                       ) : null}
                       {contactPhone(selectedConv.contact) ? (
