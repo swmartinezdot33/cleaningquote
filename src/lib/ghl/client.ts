@@ -2009,27 +2009,26 @@ export async function listGHLPipelines(
 
 /**
  * Search opportunities for a location, optionally filtered by pipeline.
- * Paginates with skip until all are fetched or safe max (5000) is reached.
- * GET /opportunities/search?locationId=...&pipeline_id=...&limit=...&skip=...
+ * Paginates with page (GHL API uses page, not skip; see docs/ghl-api-docs/apps/opportunities.json).
+ * GET /opportunities/search?location_id=...&pipeline_id=...&limit=...&page=...
  */
 export async function searchGHLOpportunities(
   locationId: string,
   options: { pipelineId?: string; limit?: number; status?: string } = {},
   credentials?: GHLCredentials | null
 ): Promise<{ opportunities: GHLOpportunitySearchItem[]; total?: number }> {
-  // GHL often caps at 100 per request; use 100 to avoid 400/422
   const perPage = Math.min(100, Math.max(1, options.limit ?? 100));
   const maxTotal = 5000;
   const all: GHLOpportunitySearchItem[] = [];
   const seenIds = new Set<string>();
-  let skip = 0;
+  let page = 1;
   let metaTotal: number | undefined;
 
   while (all.length < maxTotal) {
     const params = new URLSearchParams({
       location_id: locationId,
       limit: String(perPage),
-      skip: String(skip),
+      page: String(page),
     });
     if (options.pipelineId) params.set('pipeline_id', options.pipelineId);
     if (options.status) params.set('status', options.status);
@@ -2048,8 +2047,7 @@ export async function searchGHLOpportunities(
         credentials
       );
     } catch (err) {
-      // If pagination (skip > 0) fails, return what we have so Leads page still loads
-      if (skip > 0) break;
+      if (page > 1) break;
       throw err;
     }
     if (res && typeof res === 'object' && 'meta' in res && (res as { meta?: { total?: number } }).meta?.total != null) {
@@ -2067,7 +2065,7 @@ export async function searchGHLOpportunities(
       }
     }
     if (list.length < perPage || newCount === 0) break;
-    skip += list.length;
+    page++;
   }
 
   return { opportunities: all.slice(0, maxTotal), total: metaTotal ?? all.length };
@@ -2081,11 +2079,11 @@ export async function searchGHLOpportunities(
 export async function updateGHLOpportunity(
   opportunityId: string,
   payload: { pipelineStageId?: string; name?: string; monetaryValue?: number; status?: string },
-  locationId?: string,
+  _locationId?: string,
   credentials?: GHLCredentials | null
 ): Promise<GHLOpportunityResponse> {
-  const body: Record<string, unknown> = { ...payload };
-  if (locationId) body.locationId = locationId;
+  // UpdateOpportunityDto does not include locationId; sending it can cause 422 from GHL
+  const body = { ...payload };
   const res = await makeGHLRequest<{ opportunity?: GHLOpportunityResponse } | GHLOpportunityResponse>(
     `/opportunities/${encodeURIComponent(opportunityId)}`,
     'PUT',

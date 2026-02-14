@@ -15,7 +15,7 @@ Canonical list of GHL (LeadConnector) location-scoped endpoints we use. Every ne
 | | POST | `/contacts/upsert` | Body: contact + locationId |
 | | PUT | `/contacts/:contactId` | Update contact |
 | | GET/POST | `/contacts/:contactId/notes` | List / create note |
-| **Opportunities** | GET | `/opportunities/search` | Query: location_id, limit, skip, pipeline_id?, status? |
+| **Opportunities** | GET | `/opportunities/search` | Query: location_id (required), limit, page (not skip; see opportunities.json), pipeline_id?, status? |
 | | GET | `/opportunities/pipelines` | Query: locationId |
 | | GET | `/v2/locations/:locationId/opportunities/pipelines` | v2 fallback |
 | | POST | `/opportunities/` | Create |

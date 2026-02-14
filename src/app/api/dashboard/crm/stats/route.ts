@@ -44,14 +44,15 @@ export async function GET(request: NextRequest) {
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'crm/stats/route.ts',message:'stats branch success',data:{status:200,contactsLen:result.data?.contacts?.length,hypothesisId:'H1'},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
-    const contacts = result.data.contacts;
+    const contacts = result.data.contacts ?? [];
+    const total = typeof result.data.total === 'number' && result.data.total >= 0 ? result.data.total : contacts.length;
     const counts: Record<string, number> = { lead: 0, quoted: 0, booked: 0, customer: 0, churned: 0 };
     for (const c of contacts) {
       const type = (c.type ?? c.stage ?? 'lead').toString().toLowerCase();
       const s = type in counts ? type : 'lead';
       counts[s]++;
     }
-    return NextResponse.json({ counts, total: contacts.length, recentActivities: [] });
+    return NextResponse.json({ counts, total, recentActivities: [] });
   } catch (err) {
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'crm/stats/route.ts',message:'stats catch',data:{status:200,errMsg:err instanceof Error ? err.message : String(err).slice(0,80),hypothesisId:'H2'},timestamp:Date.now()})}).catch(()=>{});

@@ -52,7 +52,12 @@ export async function getContacts(
     searchParams.query = params.search.trim();
   }
 
-  const result = await request<{ contacts?: any[]; total?: number }>({
+  const result = await request<{
+    contacts?: any[];
+    total?: number;
+    count?: number;
+    meta?: { total?: number };
+  }>({
     method: 'GET',
     path: '/contacts',
     params: searchParams,
@@ -65,7 +70,14 @@ export async function getContacts(
   }
 
   const contacts = Array.isArray(result.data?.contacts) ? result.data.contacts : [];
-  const total = result.data?.total ?? contacts.length;
+  const total =
+    typeof result.data?.total === 'number'
+      ? result.data.total
+      : typeof result.data?.meta?.total === 'number'
+        ? result.data.meta.total
+        : typeof result.data?.count === 'number'
+          ? result.data.count
+          : contacts.length;
   return {
     ok: true,
     data: { contacts, total },
@@ -175,47 +187,51 @@ export async function getOpportunities(
     };
   }
 
+  // GHL API (docs/ghl-api-docs/apps/opportunities.json): GET /opportunities/search uses page (default 1) + limit (default 20, max 100), NOT skip
   const perPage = Math.min(OPPORTUNITIES_PAGE_SIZE, Math.max(1, params.limit ?? 100));
   const all: any[] = [];
   const seenIds = new Set<string>();
-  let skip = 0;
+  let page = 1;
   let metaTotal: number | undefined;
 
   while (all.length < OPPORTUNITIES_MAX_TOTAL) {
-    // GHL 2.0 Lead Connector API may expect locationId (camelCase); send both for compatibility
     const searchParams: Record<string, string> = {
-      locationId,
       location_id: locationId,
       limit: String(perPage),
-      skip: String(skip),
+      page: String(page),
     };
-    if (params.pipelineId) {
-      searchParams.pipelineId = params.pipelineId;
-      searchParams.pipeline_id = params.pipelineId;
-    }
+    if (params.pipelineId) searchParams.pipeline_id = params.pipelineId;
     if (params.status) searchParams.status = params.status;
+    const queryString = new URLSearchParams(searchParams).toString();
+    const pathWithQuery = `/opportunities/search?${queryString}`;
 
     const result = await request<{
       opportunities?: any[];
-      data?: any[];
+      data?: any[] | { opportunities?: any[] };
       meta?: { total?: number };
     }>({
       method: 'GET',
-      path: '/opportunities/search',
-      params: searchParams,
+      path: pathWithQuery,
       locationId: credentials.locationId,
       credentials,
+      skipCache: true,
     });
 
     if (!result.ok) {
-      if (skip > 0) break;
+      if (page > 1) break;
       return { ok: false, error: result.error };
     }
 
     const res = result.data;
     if (res?.meta?.total != null) metaTotal = res.meta.total;
-    const opportunities = res?.opportunities ?? res?.data ?? (Array.isArray(res) ? res : []);
-    const list = Array.isArray(opportunities) ? opportunities : [];
+    const raw =
+      res?.opportunities ??
+      (Array.isArray(res?.data) ? res.data : undefined) ??
+      (res?.data && typeof res.data === 'object' && Array.isArray((res.data as { opportunities?: unknown[] }).opportunities)
+        ? (res.data as { opportunities: unknown[] }).opportunities
+        : undefined) ??
+      (Array.isArray(res) ? res : []);
+    const list = Array.isArray(raw) ? raw : [];
     let newCount = 0;
     for (const o of list) {
       const id = o?.id;
@@ -226,7 +242,7 @@ export async function getOpportunities(
       }
     }
     if (list.length < perPage || newCount === 0) break;
-    skip += list.length;
+    page++;
   }
 
   return {

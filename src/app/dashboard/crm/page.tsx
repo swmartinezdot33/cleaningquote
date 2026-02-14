@@ -12,6 +12,7 @@ import {
   useDraggable,
   useDroppable,
   pointerWithin,
+  rectIntersection,
 } from '@dnd-kit/core';
 import { Users, TrendingUp, RefreshCw, GripVertical, ExternalLink, DollarSign } from 'lucide-react';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
@@ -405,15 +406,19 @@ export default function CRMDashboardPage() {
         return;
       }
       const opportunityId = String(active.id);
-      const stages = pipelines.find((p) => p.id === selectedPipelineId)?.stages ?? [];
+      const rawStages = pipelines.find((p) => p.id === selectedPipelineId)?.stages ?? [];
+      const stages = rawStages.map((s) =>
+        Array.isArray(s) ? { id: String(s[0]), name: String(s[1] ?? s[0]) } : { id: String(s.id), name: String(s.name ?? s.id) }
+      );
       const stageIds = new Set(stages.map((s) => s.id));
       const overId = over.id != null ? String(over.id) : '';
-      const overStageId = (over.data?.current as { stageId?: string } | undefined)?.stageId;
+      const overData = over.data?.current as { stageId?: string } | undefined;
+      const overStageId = overData?.stageId;
       let newStageId: string | null = null;
-      if (stageIds.has(overId)) {
-        newStageId = overId;
-      } else if (overStageId && stageIds.has(overStageId)) {
+      if (overStageId && stageIds.has(overStageId)) {
         newStageId = overStageId;
+      } else if (stageIds.has(overId)) {
+        newStageId = overId;
       } else {
         const droppedOnOpp = opportunities.find((o) => o.id === overId);
         newStageId = droppedOnOpp?.pipelineStageId ?? null;
@@ -722,7 +727,10 @@ export default function CRMDashboardPage() {
 
             {selectedPipelineId && (() => {
               const selectedPipeline = pipelines.find((p) => p.id === selectedPipelineId);
-              const stages = selectedPipeline?.stages ?? [];
+              const rawStages = selectedPipeline?.stages ?? [];
+              const stages = rawStages.map((s) =>
+                Array.isArray(s) ? { id: String(s[0]), name: String(s[1] ?? s[0]) } : { id: String(s.id), name: String(s.name ?? s.id) }
+              );
               const byStage: Record<string, Opportunity[]> = {};
               stages.forEach((s) => {
                 byStage[s.id] = opportunities.filter((o) => o.pipelineStageId === s.id);
@@ -741,7 +749,7 @@ export default function CRMDashboardPage() {
                   {stages.length ? (
                     <DndContext
                       sensors={sensors}
-                      collisionDetection={pointerWithin}
+                      collisionDetection={rectIntersection}
                       onDragEnd={handleDragEnd}
                       onDragStart={handleDragStart}
                     >

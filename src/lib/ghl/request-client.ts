@@ -170,15 +170,20 @@ export async function request<T>(options: RequestOptions): Promise<RequestResult
     locationId,
     credentials,
     tokenOverride,
-    skipCache = false,
+    skipCache: explicitSkipCache,
   } = options;
+  const skipCache = explicitSkipCache === true || (path && path.includes('opportunities/search'));
 
   const timeoutMs = options.timeout ?? getEnvTimeout();
   const requestId = generateRequestId();
 
   const locForQueue = credentials?.locationId ?? locationId;
   const token = credentials?.token ?? tokenOverride;
-  const sendLocationIdHeader = Boolean(locationId && !credentials?.token);
+  // Pipelines work without Location-Id; opportunities/search may require it. Send for opportunities path only when we have locationId.
+  const isOpportunitiesSearch = Boolean(path?.startsWith('/opportunities/search'));
+  const sendLocationIdHeader = Boolean(
+    locationId && (!credentials?.token || isOpportunitiesSearch)
+  );
 
   if (!token || typeof token !== 'string') {
     return {
@@ -310,6 +315,9 @@ export async function request<T>(options: RequestOptions): Promise<RequestResult
         lastBody = parsedBody;
         lastError = fromResponse(response.status, parsedBody, requestId);
 
+        if (path?.includes('opportunities/search') && process.env.NODE_ENV !== 'test') {
+          console.warn('[GHL] opportunities/search non-ok', { status: response.status, body: parsedBody });
+        }
         if (debugHeaders()) {
           const h: Record<string, string> = {};
           response.headers.forEach((val, key) => {
