@@ -428,8 +428,8 @@
       link.style.display = 'none';
       link.setAttribute('data-cleanquote-hidden-dashboard', '1');
     }
-    /** Main nav list: the container whose first item is Launchpad, Dashboard, or Conversations (below the location toggle). */
-    function findMainNavListContainer() {
+    /** Row that contains the first nav link (Launchpad, Dashboard, or Conversations). Insert CleanQuote before this row = "location: top". */
+    function findFirstNavAnchorRow() {
       var root = getLeftSidebarRoot();
       if (!root) return null;
       var candidates = root.querySelectorAll('a, [role="link"], button');
@@ -441,7 +441,7 @@
         if (!row || (row.getAttribute && row.getAttribute('data-cleanquote-hidden-dashboard') === '1')) continue;
         var text = normLower((el.textContent || '').split('\n')[0].trim());
         for (var j = 0; j < firstNavLabels.length; j++) {
-          if (text === firstNavLabels[j] && row.parentNode) return row.parentNode;
+          if (text === firstNavLabels[j]) return row;
         }
       }
       return null;
@@ -538,15 +538,12 @@
       }
 
       var ourContainer = document.getElementById(CONTAINER_ID);
-      /* Use the list that starts with Launchpad/Dashboard/Conversations so we stay below the location toggle. */
-      var mainNavList = findMainNavListContainer();
-      var parent = mainNavList || cleanQuoteRow.parentNode;
-      var firstChild = parent && getFirstElementChild(parent);
-      /* Move CleanQuote into main nav list as first item (below toggle); submenu stays with it. */
-      if (parent && firstChild !== cleanQuoteRow) {
+      /* Insert CleanQuote before the first nav item (Launchpad/Dashboard/Conversations/Leads) = "location: top" below toggle. */
+      var anchorRow = findFirstNavAnchorRow();
+      if (anchorRow && anchorRow.parentNode && anchorRow !== cleanQuoteRow) {
         try {
-          parent.insertBefore(cleanQuoteRow, firstChild);
-          dbg({ hypothesisId: 'H_move_top', didInsertAsFirst: true, usedMainNavList: !!mainNavList });
+          anchorRow.parentNode.insertBefore(cleanQuoteRow, anchorRow);
+          dbg({ hypothesisId: 'H_move_top', didInsertBeforeAnchor: true });
         } catch (e) {
           dbg({ hypothesisId: 'H5', didInsert: false, error: (e && e.message) || String(e) });
         }
