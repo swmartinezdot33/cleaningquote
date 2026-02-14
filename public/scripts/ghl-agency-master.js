@@ -428,8 +428,8 @@
       link.style.display = 'none';
       link.setAttribute('data-cleanquote-hidden-dashboard', '1');
     }
-    /** Row that contains the first nav link (Launchpad, Dashboard, Conversations, Leads). Insert CleanQuote before this row = "location: top". */
-    function findFirstNavAnchorRow() {
+    /** First nav row (Launchpad, Dashboard, Conversations, Leads). Pass excludeRow to skip it (e.g. when our app is labeled "Dashboard"). */
+    function findFirstNavAnchorRow(excludeRow) {
       var root = getLeftSidebarRoot();
       if (!root) return null;
       var candidates = root.querySelectorAll('a, [role="link"], button');
@@ -439,6 +439,7 @@
         if (el.id === CONTAINER_ID || (el.closest && el.closest('#' + CONTAINER_ID))) continue;
         var row = getRow(el);
         if (!row || (row.getAttribute && row.getAttribute('data-cleanquote-hidden-dashboard') === '1')) continue;
+        if (excludeRow && row === excludeRow) continue;
         var text = normLower((el.textContent || '').split('\n')[0].trim());
         for (var j = 0; j < firstNavLabels.length; j++) {
           if (text === firstNavLabels[j]) return row;
@@ -470,72 +471,49 @@
       }
       return null;
     }
-    /** Find the GHL "CleanQuote.io" custom menu link row (by label or href). Search sidebar first, then whole document. */
+    /** Find the app menu row: by label "CleanQuote.io" / "Dashboard" (same as working script) or href with custom-page-link. Exclude location switcher. */
     function findCleanQuoteCustomLinkRow() {
-      // #region agent log
-      function dbg(payload) {
-        var entry = { location: 'ghl-agency-master.js:findCleanQuoteCustomLinkRow', message: 'move-debug', data: payload, timestamp: Date.now() };
-        try {
-          fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) }).catch(function () { console.log('[CQ Sidebar Move]', entry); });
-        } catch (e) { console.log('[CQ Sidebar Move]', entry); }
-      }
-      // #endregion
-      /* Only the actual app menu link (custom-page-link). Exclude location switcher at bottom (e.g. "Through Cleaning Co... Santa Fe, NM"). */
-      function isAppMenuLink(el) {
-        if (!el || el.id === CONTAINER_ID || (el.closest && el.closest('#' + CONTAINER_ID))) return false;
-        var href = (el.href || el.getAttribute('href') || '').trim().toLowerCase();
-        if (href.indexOf('custom-page-link') === -1) return false;
+      function isLocationSwitcher(el) {
         var rawText = (el.textContent || '').replace(/\s+/g, ' ').trim();
         var text = normLower(rawText);
-        if (text.indexOf('through') !== -1 || /,\s*[a-z]{2}\s*$/.test(rawText)) return false;
-        return true;
+        return text.indexOf('through') !== -1 || /,\s*[a-z]{2}\s*$/.test(rawText);
       }
-      function check(el) {
-        if (!isAppMenuLink(el)) return null;
+      function isAppRow(el) {
+        if (!el || el.id === CONTAINER_ID || (el.closest && el.closest('#' + CONTAINER_ID))) return false;
+        if (isLocationSwitcher(el)) return false;
+        var href = (el.href || el.getAttribute('href') || '').trim().toLowerCase();
+        var firstLine = normLower((el.textContent || '').split('\n')[0].trim());
+        var isOurHref = href.indexOf('custom-page-link') !== -1 && (customPageId ? href.indexOf(customPageId.toLowerCase()) !== -1 : true);
+        var isOurLabel = firstLine === 'cleanquote.io' || firstLine === 'cleanquote';
+        if (isOurHref) return true;
+        if (isOurLabel && (href.indexOf('custom-page-link') !== -1 || href.indexOf('cleanquote') !== -1)) return true;
+        return false;
+      }
+      function rowFrom(el) {
+        if (!isAppRow(el)) return null;
         var row = getRow(el);
         return (row && row.id !== CONTAINER_ID) ? row : null;
       }
       var root = getLeftSidebarRoot();
       if (root) {
-        var candidates = root.querySelectorAll('a[href*="custom-page-link"]');
+        var candidates = root.querySelectorAll('a, [role="link"], button');
         for (var i = 0; i < candidates.length; i++) {
-          var row = check(candidates[i]);
-          if (row) {
-            dbg({ hypothesisId: 'H2', foundIn: 'sidebar', candidateCount: candidates.length });
-            return row;
-          }
+          var row = rowFrom(candidates[i]);
+          if (row) return row;
         }
+      }
+      var byHref = document.querySelectorAll('a[href*="custom-page-link"]');
+      for (var j = 0; j < byHref.length; j++) {
+        var row = rowFrom(byHref[j]);
+        if (row) return row;
       }
       if (customPageId) {
-        var byHref = document.querySelectorAll('a[href*="' + customPageId + '"]');
-        for (var h = 0; h < byHref.length; h++) {
-          var row = check(byHref[h]);
-          if (row) {
-            dbg({ hypothesisId: 'H2', foundIn: 'byHref', linkCount: byHref.length });
-            return row;
-          }
+        var byId = document.querySelectorAll('a[href*="' + customPageId + '"]');
+        for (var h = 0; h < byId.length; h++) {
+          var row = rowFrom(byId[h]);
+          if (row) return row;
         }
       }
-      var allLinks = document.querySelectorAll('a[href*="custom-page-link"]');
-      for (var j = 0; j < allLinks.length; j++) {
-        var row = check(allLinks[j]);
-        if (row) {
-          dbg({ hypothesisId: 'H2', foundIn: 'allLinks', linkCount: allLinks.length });
-          return row;
-        }
-      }
-      var byText = document.querySelectorAll('a, [role="link"], button');
-      for (var k = 0; k < byText.length; k++) {
-        var t = normLower((byText[k].textContent || '').replace(/\s+/g, ' '));
-        if (t.indexOf('cleanquote') !== -1) {
-          var row = check(byText[k]);
-          if (row) {
-            dbg({ hypothesisId: 'H2', foundIn: 'byText' });
-            return row;
-          }
-        }
-      }
-      dbg({ hypothesisId: 'H1_H2', cleanQuoteRowFound: false, rootFound: !!root });
       return null;
     }
     /** Move CleanQuote.io to the top: same as working script — insert custom row before the native dashboard row, then hide native dashboard. Keeps our submenu container right after the CleanQuote row. */
@@ -554,16 +532,15 @@
         return;
       }
 
-      var cleanQuoteRow = findCleanQuoteCustomLinkRow();
+      var ourContainer = document.getElementById(CONTAINER_ID);
+      var cleanQuoteRow = (ourContainer && ourContainer.previousElementSibling) ? ourContainer.previousElementSibling : findCleanQuoteCustomLinkRow();
       if (!cleanQuoteRow || !cleanQuoteRow.parentNode) {
         dbg({ hypothesisId: 'H2', cleanQuoteRowFound: !!cleanQuoteRow, hasParent: !!(cleanQuoteRow && cleanQuoteRow.parentNode) });
         return;
       }
 
-      var ourContainer = document.getElementById(CONTAINER_ID);
-      /* Insert CleanQuote before first nav item (Launchpad/Dashboard/Conversations/Leads) only. */
-      var anchorRow = findFirstNavAnchorRow();
-      if (anchorRow === cleanQuoteRow) anchorRow = null;
+      /* Insert CleanQuote before first nav item. Exclude our row so when app was "Dashboard" we use the next nav as anchor. */
+      var anchorRow = findFirstNavAnchorRow(cleanQuoteRow);
       if (anchorRow && anchorRow.parentNode && anchorRow !== cleanQuoteRow) {
         try {
           anchorRow.parentNode.insertBefore(cleanQuoteRow, anchorRow);
