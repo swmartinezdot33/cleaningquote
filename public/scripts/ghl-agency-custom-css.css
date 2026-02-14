@@ -29,6 +29,10 @@ body[data-theme="default-dark-v1"] .user-info-card .text-xs.truncate {
 #location-dashboard_container--banner+div.sticky {
     z-index: 0;
 }
+/* Hide GHL top bar (logo + company name) when CleanQuote custom page is active; script adds .cq-embed-active to html. */
+html.cq-embed-active header.hl_header {
+    display: none !important;
+}
 .hl_header--phone a.dropdown-toggle+a.dropdown-toggle {
     display: none;
 }

@@ -515,6 +515,12 @@
       moveCleanQuoteToTopAndHideDashboard();
     }
     function run() {
+      /* When CleanQuote custom page is active, add class so agency CSS can hide GHL top bar. */
+      if (isOnCustomPageUrl() || isCurrentPageCustomPageLink()) {
+        if (document.documentElement && document.documentElement.classList) document.documentElement.classList.add('cq-embed-active');
+      } else {
+        if (document.documentElement && document.documentElement.classList) document.documentElement.classList.remove('cq-embed-active');
+      }
       function tryInject(locId) {
         if (!locId || locId.length < 10) return;
         injectSidebarMenu(locId);
