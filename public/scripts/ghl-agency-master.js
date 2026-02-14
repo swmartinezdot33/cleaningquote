@@ -251,7 +251,8 @@
 
   (function () {
     var CONTAINER_ID = 'cleanquote-ghl-sidebar-menu';
-    var activeBg = 'rgba(255,255,255,0.12)';
+    var activeBg = 'rgba(0,0,0,0.25)';
+    var activeColor = 'rgba(255,255,255,0.95)';
     /* Submenu only: Inbox, Contacts, etc. The CleanQuote.io custom link (above this) is the dashboard. */
     var MENU_ITEMS = [
       { page: 'inbox', label: 'Inbox' },
@@ -351,6 +352,7 @@
         var isActive = page === key;
         btn.setAttribute('data-cq-active', isActive ? '1' : '0');
         btn.style.backgroundColor = isActive ? activeBg : 'transparent';
+        btn.style.color = isActive ? activeColor : '';
         btn.style.fontWeight = isActive ? '600' : '';
       }
     }
@@ -544,7 +546,11 @@
         link.setAttribute('data-cq-page', item.page);
         link.style.cssText = itemStyle;
         link.addEventListener('mouseenter', function () { this.style.backgroundColor = hoverBg; });
-        link.addEventListener('mouseleave', function () { this.style.backgroundColor = (this.getAttribute('data-cq-active') === '1' ? activeBg : 'transparent'); });
+        link.addEventListener('mouseleave', function () {
+          var isActive = this.getAttribute('data-cq-active') === '1';
+          this.style.backgroundColor = isActive ? activeBg : 'transparent';
+          this.style.color = isActive ? activeColor : '';
+        });
         link.addEventListener('click', (function (locId, pk) {
           return function (e) {
             e.preventDefault();
