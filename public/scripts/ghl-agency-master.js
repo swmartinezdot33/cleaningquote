@@ -49,12 +49,12 @@
     try {
       var href = typeof window !== 'undefined' && window.location ? window.location.href : '';
       if (!href) return '';
-      var m = href.match(/\/(?:v2\/)?(?:location|oauth)\/([a-zA-Z0-9]{16,30})(?:\/|$|\?)/);
+      var m = href.match(/\/(?:v2\/)?(?:location|oauth)\/([a-zA-Z0-9\-]{16,50})(?:\/|$|\?)/);
       if (m && m[1]) return m[1];
       var qs = typeof window !== 'undefined' && window.location && window.location.search ? window.location.search : '';
-      m = qs.match(/[?&]locationId=([a-zA-Z0-9]{16,30})(?:&|$)/);
+      m = qs.match(/[?&]locationId=([a-zA-Z0-9\-]{16,50})(?:&|$)/);
       if (m && m[1]) return m[1];
-      m = qs.match(/[?&]location_id=([a-zA-Z0-9]{16,30})(?:&|$)/);
+      m = qs.match(/[?&]location_id=([a-zA-Z0-9\-]{16,50})(?:&|$)/);
       if (m && m[1]) return m[1];
       if (typeof window !== 'undefined' && (window.__GHL_LOCATION_ID__ || window.ghlLocationId))
         return String(window.__GHL_LOCATION_ID__ || window.ghlLocationId || '').trim();
@@ -358,12 +358,12 @@
       if (locId) return locId;
       var sidebarLink = document.querySelector('a[href*="/v2/location/"][href*="/"]');
       if (sidebarLink && sidebarLink.href) {
-        var mat = sidebarLink.href.match(/\/v2\/location\/([a-zA-Z0-9]{16,30})(?:\/|$|\?)/);
+        var mat = sidebarLink.href.match(/\/v2\/location\/([a-zA-Z0-9\-]{16,50})(?:\/|$|\?)/);
         if (mat && mat[1]) return mat[1];
       }
       try {
         var path = (window.location && window.location.pathname) || '';
-        mat = path.match(/\/location\/([a-zA-Z0-9]{16,30})(?:\/|$)/);
+        mat = path.match(/\/location\/([a-zA-Z0-9\-]{16,50})(?:\/|$)/);
         if (mat && mat[1]) return mat[1];
       } catch (e) {}
       return '';

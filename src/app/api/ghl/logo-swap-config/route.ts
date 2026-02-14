@@ -36,7 +36,7 @@ function parseAllowlistCsv(text: string): Set<string> {
     if (!firstCell) continue;
     const lower = firstCell.toLowerCase();
     if (lower === 'locationid' || lower === 'location id' || lower === 'location_id') continue;
-    if (/^[a-zA-Z0-9]{10,40}$/.test(firstCell)) ids.add(firstCell);
+    if (/^[a-zA-Z0-9\-]{10,50}$/.test(firstCell)) ids.add(firstCell);
   }
   return ids;
 }
