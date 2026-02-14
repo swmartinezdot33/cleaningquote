@@ -514,6 +514,7 @@
       }
       return '';
     }
+    var TITLE_SUFFIX = ' | LaunchPad';
     function applyTitle() {
       try {
         var pageName = getPageNameFromUrl() || getActiveNavLabel();
@@ -521,7 +522,7 @@
         var parts = [];
         if (pageName) parts.push(pageName);
         if (locationName) parts.push(locationName);
-        if (parts.length) document.title = parts.join(' | ');
+        document.title = parts.length ? parts.join(' | ') + TITLE_SUFFIX : 'LaunchPad';
       } catch (e) {}
     }
     function scheduleTitle() {

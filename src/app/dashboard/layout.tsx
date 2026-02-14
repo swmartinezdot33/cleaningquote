@@ -1,8 +1,14 @@
+import type { Metadata } from 'next';
 import { getSession } from '@/lib/ghl/session';
 import { DashboardGHLWrapper } from '@/app/dashboard/DashboardGHLWrapper';
 
 /** Force dynamic rendering so dashboard pages are not statically prerendered (they use GHL context, searchParams, etc.). */
 export const dynamic = 'force-dynamic';
+
+/** Title bar shows "Page | LaunchPad" for all dashboard views. */
+export const metadata: Metadata = {
+  title: { template: '%s | LaunchPad', default: 'Dashboard | LaunchPad' },
+};
 
 /**
  * Dashboard relies solely on GHL iframe context (locationId from postMessage or URL).
