@@ -164,6 +164,13 @@ export function DashboardHeader({
       >
         Service Areas
       </Link>
+      <Link
+        href="/dashboard/settings"
+        onClick={closeMobileMenu}
+        className={navLinkClass('/dashboard/settings')}
+      >
+        Settings
+      </Link>
     </>
   );
 
@@ -313,6 +320,13 @@ export function DashboardHeader({
                   className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
                   Service Areas
+                </Link>
+                <Link
+                  href="/dashboard/settings"
+                  onClick={closeMobileMenu}
+                  className="py-3 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                >
+                  Settings
                 </Link>
                 <div className="pt-3 mt-2 border-t border-gray-200 flex items-center gap-2">
                   <Button
