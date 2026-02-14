@@ -28,7 +28,7 @@
     }
   })();
   var customPageId = C.customPageId || '6983df14aa911f4d3067493d';
-  var faviconUrl = C.faviconUrl || '';
+  var faviconUrl = C.faviconUrl || 'https://www.cleanquote.io/favicon.ico';
   var moveLabel = C.moveLabel || 'Sub-Accounts';
   var targetLabel = C.targetLabel || 'SaaS';
   var cleanquoteAppBase = (C.cleanquoteAppBase || C.baseUrl || 'https://my.cleanquote.io').replace(/\/+$/, '');
@@ -87,21 +87,45 @@
     return document.querySelector('aside') || document.querySelector('nav') || null;
   }
 
-  if (faviconUrl) {
-    (function () {
-      function setIcon() {
-        document.querySelectorAll("link[rel*='icon']").forEach(function (e) { e.remove(); });
-        ['icon', 'shortcut icon', 'apple-touch-icon'].forEach(function (rel) {
-          var l = document.createElement('link');
-          l.rel = rel;
-          l.href = faviconUrl;
-          document.head.appendChild(l);
+  (function () {
+    var fav = faviconUrl;
+    if (!fav) return;
+    function setFavicon() {
+      if (!document.head) return;
+      document.querySelectorAll("link[rel*='icon']").forEach(function (e) { e.remove(); });
+      ['icon', 'shortcut icon', 'apple-touch-icon'].forEach(function (rel) {
+        var l = document.createElement('link');
+        l.rel = rel;
+        l.href = fav;
+        l.type = rel.indexOf('apple') !== -1 ? 'image/png' : 'image/x-icon';
+        document.head.appendChild(l);
+      });
+    }
+    function run() {
+      setFavicon();
+      if (document.readyState === 'loading')
+        document.addEventListener('DOMContentLoaded', setFavicon);
+      var t = 0;
+      var iv = setInterval(function () { setFavicon(); if (++t >= 12) clearInterval(iv); }, 500);
+      if (document.head) {
+        var mo = new MutationObserver(function (mutations) {
+          for (var i = 0; i < mutations.length; i++) {
+            var nodes = mutations[i].addedNodes;
+            for (var j = 0; j < nodes.length; j++) {
+              var n = nodes[j];
+              if (n.nodeType === 1 && n.tagName === 'LINK' && (n.getAttribute('rel') || '').toLowerCase().indexOf('icon') !== -1 && n.getAttribute('href') !== fav) {
+                setFavicon();
+                return;
+              }
+            }
+          }
         });
+        mo.observe(document.head, { childList: true, subtree: true });
       }
-      var runs = 0;
-      var iv = setInterval(function () { setIcon(); if (++runs > 6) clearInterval(iv); }, 500);
-    })();
-  }
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+    else run();
+  })();
 
   (function () {
     if (/\/v2\/location\//i.test(window.location.pathname)) return;

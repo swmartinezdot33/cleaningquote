@@ -8,6 +8,8 @@ import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 import { useDashboardApi } from '@/lib/dashboard-api';
 import { getInstallUrlWithLocation } from '@/lib/ghl/oauth-utils';
 
+const SEARCH_DEBOUNCE_MS = 350;
+
 function getConnectUrl(locationId: string | null): string {
   if (typeof window === 'undefined' || !locationId) return '#';
   return getInstallUrlWithLocation(window.location.origin, locationId);
@@ -32,12 +34,21 @@ export default function CRMContactsPage() {
   const [error, setError] = useState<string | null>(null);
   const [filterStage, setFilterStage] = useState('');
   const [search, setSearch] = useState('');
+  /** Debounced search term used for API calls — avoids a request on every keystroke and prevents race conditions. */
+  const [searchDebounced, setSearchDebounced] = useState('');
   const [page, setPage] = useState(1);
   const perPage = 25;
   const lastFetchedLocationIdRef = useRef<string | null>(null);
+  const searchRequestIdRef = useRef(0);
 
   const [needsConnect, setNeedsConnect] = useState(false);
   const [connectReason, setConnectReason] = useState<string | null>(null);
+
+  // Debounce search: update searchDebounced after user stops typing so we don't fire a request on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setSearchDebounced(search), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const loadContacts = useCallback(() => {
     if (!effectiveLocationId) {
@@ -48,13 +59,17 @@ export default function CRMContactsPage() {
     setNeedsConnect(false);
     const params = new URLSearchParams();
     if (filterStage) params.set('stage', filterStage);
-    if (search.trim()) params.set('search', search.trim());
+    if (searchDebounced.trim()) params.set('search', searchDebounced.trim());
     params.set('page', String(page));
     params.set('perPage', String(perPage));
+
+    const requestId = ++searchRequestIdRef.current;
 
     api(`/api/dashboard/crm/contacts?${params}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status === 401 ? 'Unauthorized' : 'Failed to load'))))
       .then((d) => {
+        // Ignore stale responses so a slower request doesn't overwrite results from a newer one.
+        if (requestId !== searchRequestIdRef.current) return;
         const errMsg = (d as { error?: string }).error;
         setError(errMsg ?? null);
         setContacts(d.contacts ?? []);
@@ -68,11 +83,15 @@ export default function CRMContactsPage() {
         }
       })
       .catch((e) => {
+        if (requestId !== searchRequestIdRef.current) return;
         setError(e.message);
         setNeedsConnect(!!effectiveLocationId);
       })
-      .finally(() => setLoading(false));
-  }, [effectiveLocationId, api, page, filterStage, search]);
+      .finally(() => {
+        if (requestId !== searchRequestIdRef.current) return;
+        setLoading(false);
+      });
+  }, [effectiveLocationId, api, page, filterStage, searchDebounced]);
 
   useEffect(() => {
     loadContacts();
@@ -88,7 +107,8 @@ export default function CRMContactsPage() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
-    loadContacts();
+    // Flush debounce so we search with current input immediately when user clicks Search.
+    setSearchDebounced(search);
   };
 
   const totalPages = Math.ceil(total / perPage);
