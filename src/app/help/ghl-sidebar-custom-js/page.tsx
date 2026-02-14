@@ -45,9 +45,25 @@ export default function GHLSidebarCustomJSPage() {
           <strong className="text-foreground">Custom JS</strong>.
         </li>
         <li>
-          Add this script tag (paste into the Custom JS area):
+          Add the script. <strong className="text-foreground">Try Option A first.</strong> If the menu never appears, GHL may not run external script tags — use <strong className="text-foreground">Option B</strong> (inline loader).
+        </li>
+        <li>
+          <strong className="text-foreground">Option A</strong> — script tag:
           <pre className="mt-2 rounded-lg bg-muted p-3 text-sm overflow-x-auto">
 {`<script src="https://www.cleanquote.io/api/script/ghl-sidebar-menu.js" crossorigin="anonymous"></script>`}
+          </pre>
+          <strong className="text-foreground">Option B</strong> — inline loader (paste this if Option A does nothing):
+          <pre className="mt-2 rounded-lg bg-muted p-3 text-sm overflow-x-auto">
+{`<script>
+(function(){
+  var url = 'https://www.cleanquote.io/api/script/ghl-sidebar-menu.js?v=' + (Date.now ? Date.now() : '1');
+  var s = document.createElement('script');
+  s.src = url;
+  s.crossOrigin = 'anonymous';
+  s.async = false;
+  (document.head || document.documentElement).appendChild(s);
+})();
+</script>`}
           </pre>
         </li>
         <li>
@@ -87,6 +103,16 @@ export default function GHLSidebarCustomJSPage() {
           CleanQuote URL in a new tab.
         </p>
       </div>
+
+      <h2 className="text-lg font-semibold text-foreground mt-8">Script not loading?</h2>
+      <p className="text-muted-foreground">
+        Many GHL Custom JS panels only run <strong className="text-foreground">inline</strong> code and ignore <code className="bg-muted px-1 rounded">&lt;script src=&quot;...&quot;&gt;</code>. If nothing runs:
+      </p>
+      <ul className="list-disc list-inside space-y-1 text-foreground mt-2">
+        <li>Use <strong className="text-foreground">Option B</strong> (inline loader) above so the only thing GHL executes is a short snippet that injects our script tag; the browser then loads the script from our server.</li>
+        <li>In a new tab, open <code className="bg-muted px-1 rounded">https://www.cleanquote.io/api/script/ghl-sidebar-menu.js</code> and confirm it returns JavaScript (not a 404 or HTML).</li>
+        <li>Ensure you are in a <strong className="text-foreground">location (sub-account)</strong> view — the menu is only injected when a location ID is present in the URL or context.</li>
+      </ul>
 
       <h2 className="text-lg font-semibold text-foreground mt-8">Caveats</h2>
       <ul className="list-disc list-inside space-y-1 text-foreground">

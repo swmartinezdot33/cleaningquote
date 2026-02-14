@@ -98,9 +98,34 @@
     );
   }
 
-  /** Find the existing CleanQuote sidebar entry (e.g. "CleanQuote.io Snap...") so we insert our items right under it. */
+  /** Prefer the left sidebar: an aside/nav that contains "Dashboard" or "Contacts" (main nav). Avoids injecting into a right-hand panel. */
+  function getLeftSidebarRoot() {
+    var asides = document.querySelectorAll('aside');
+    for (var i = 0; i < asides.length; i++) {
+      var links = asides[i].querySelectorAll('a, [role="link"], button');
+      for (var j = 0; j < links.length; j++) {
+        var t = normText(links[j].textContent || '');
+        if (t === 'dashboard' || t === 'contacts' || t === 'conversations') {
+          return asides[i];
+        }
+      }
+    }
+    var navs = document.querySelectorAll('nav');
+    for (var k = 0; k < navs.length; k++) {
+      var navLinks = navs[k].querySelectorAll('a, [role="link"], button');
+      for (var m = 0; m < navLinks.length; m++) {
+        var t2 = normText(navLinks[m].textContent || '');
+        if (t2 === 'dashboard' || t2 === 'contacts' || t2 === 'conversations') {
+          return navs[k];
+        }
+      }
+    }
+    return document.querySelector('aside') || document.querySelector('nav') || null;
+  }
+
+  /** Find the existing CleanQuote sidebar entry only within the left sidebar. */
   function findCleanQuoteSidebarRow() {
-    var root = document.querySelector('aside') || document.querySelector('nav') || document.body;
+    var root = getLeftSidebarRoot();
     if (!root) return null;
     var candidates = root.querySelectorAll('a, [role="link"], button, [data-cq-group]');
     for (var i = 0; i < candidates.length; i++) {
@@ -158,6 +183,9 @@
 
     container.appendChild(list);
 
+    var leftSidebar = getLeftSidebarRoot();
+    if (!leftSidebar) return;
+
     var insertAfter = findCleanQuoteSidebarRow();
     if (insertAfter && insertAfter.parentNode) {
       var next = insertAfter.nextElementSibling;
@@ -165,31 +193,7 @@
       return;
     }
 
-    var sidebarSelectors = [
-      '[data-testid="sidebar"]',
-      '[class*="sidebar"]',
-      'aside',
-      'nav[aria-label*="ain"]',
-      '.sidebar',
-      '#sidebar',
-    ];
-
-    var parent = null;
-    for (var s = 0; s < sidebarSelectors.length; s++) {
-      var el = document.querySelector(sidebarSelectors[s]);
-      if (el && el.contains && !el.querySelector('#' + CONTAINER_ID)) {
-        parent = el;
-        break;
-      }
-    }
-
-    if (!parent) {
-      parent = document.querySelector('main') || document.body;
-    }
-
-    if (parent) {
-      parent.appendChild(container);
-    }
+    leftSidebar.appendChild(container);
   }
 
   function run() {

@@ -1,7 +1,19 @@
 <!-- Optional: use my.cleanquote.io for sidebar links (must be before the script below) -->
 <script>window.CLEANQUOTE_SIDEBAR_BASE = 'https://my.cleanquote.io';</script>
-<!-- Load CleanQuote sidebar menu (Dashboard, Quotes, Contacts, Inbox, etc.) from our server -->
-<script src="https://www.cleanquote.io/api/script/ghl-sidebar-menu.js" crossorigin="anonymous"></script>
+<!--
+  OPTION A - Direct script tag (try first). If GHL does not run it, use OPTION B below.
+  OPTION B - Inline loader: paste this block instead so GHL runs inline code that injects our script.
+-->
+<script>
+(function(){
+  var url = 'https://www.cleanquote.io/api/script/ghl-sidebar-menu.js?v=' + (typeof Date.now === 'function' ? Date.now() : '1');
+  var s = document.createElement('script');
+  s.src = url;
+  s.crossOrigin = 'anonymous';
+  s.async = false;
+  (document.head || document.documentElement).appendChild(s);
+})();
+</script>
 
 <script>
 (function () {
@@ -29,18 +41,44 @@
 
 <script>
 (function () {
-  const NEW_URL =
-    "https://my.cleanquote.io/v2/location/1uDcMtL7LgPvpYwaQtdq/custom-page-link/6983df14aa911f4d3067493d";
   const CUSTOM_PAGE_ID = "6983df14aa911f4d3067493d";
+  function getLocationIdFromPath() {
+    const m = window.location.pathname.match(/\/v2\/location\/([^/]+)/i);
+    return m ? m[1] : null;
+  }
+  function buildNewUrl() {
+    const locId = getLocationIdFromPath();
+    const origin = window.location.origin || (window.location.protocol + "//" + window.location.host);
+    return locId ? origin + "/v2/location/" + locId + "/custom-page-link/" + CUSTOM_PAGE_ID : null;
+  }
 
   const onCustomPage = window.location.href.includes(CUSTOM_PAGE_ID);
 
   function norm(s) {
     return (s || "").replace(/\s+/g, " ").trim();
   }
-
-  function sidebarRoot() {
+  function normLower(s) { return norm(s).toLowerCase(); }
+  function getLeftSidebarRoot() {
+    const asides = document.querySelectorAll("aside");
+    for (let i = 0; i < asides.length; i++) {
+      const links = asides[i].querySelectorAll("a, [role='" + "link" + "'], button");
+      for (let j = 0; j < links.length; j++) {
+        const t = normLower(links[j].textContent || "");
+        if (t === "dashboard" || t === "contacts" || t === "conversations") return asides[i];
+      }
+    }
+    const navs = document.querySelectorAll("nav");
+    for (let k = 0; k < navs.length; k++) {
+      const nl = navs[k].querySelectorAll("a, [role='" + "link" + "'], button");
+      for (let m = 0; m < nl.length; m++) {
+        const t2 = normLower(nl[m].textContent || "");
+        if (t2 === "dashboard" || t2 === "contacts" || t2 === "conversations") return navs[k];
+      }
+    }
     return document.querySelector("aside") || document.querySelector("nav") || document.body;
+  }
+  function sidebarRoot() {
+    return getLeftSidebarRoot() || document.body;
   }
 
   function allSidebarClickable(root) {
@@ -75,12 +113,12 @@
     );
   }
 
-  function forceNavigate(el) {
-    if (!el || el.dataset.cqForced === "1") return;
+  function forceNavigate(el, url) {
+    if (!el || el.dataset.cqForced === "1" || !url) return;
 
     // Set href if possible
     if (el.tagName && el.tagName.toLowerCase() === "a") {
-      el.setAttribute("href", NEW_URL);
+      el.setAttribute("href", url);
       el.setAttribute("target", "_self");
       el.setAttribute("rel", "noopener");
     }
@@ -90,7 +128,7 @@
       (e) => {
         e.preventDefault();
         e.stopPropagation();
-        window.location.href = NEW_URL;
+        window.location.href = url;
       },
       true
     );
@@ -129,7 +167,8 @@
     }
 
     // Always force the real dashboard click to go to your custom page
-    if (realDashEl) forceNavigate(realDashEl);
+    const newUrl = buildNewUrl();
+    if (realDashEl && newUrl) forceNavigate(realDashEl, newUrl);
 
     // If on custom page, move custom item into the top dashboard slot and hide the real dashboard row
     if (onCustomPage && customEl && realDashEl) {
