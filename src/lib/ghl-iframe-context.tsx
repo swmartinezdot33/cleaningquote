@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState, createContext, useContext, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import type { GHLIframeData } from './ghl-iframe-types';
 import { GHL_APP_VERSION_ID } from './ghl/oauth-utils';
 import { LoadingDots } from '@/components/ui/loading-dots';
@@ -23,6 +23,21 @@ const CLEANQUOTE_PAGE_KEY_TO_PATH: Record<string, string> = {
   pricing: '/dashboard/pricing-structures',
   settings: '/dashboard/settings',
 };
+
+/** Map pathname to sidebar page key so parent can highlight active submenu. */
+function pathnameToPageKey(pathname: string): string | null {
+  const p = (pathname || '').replace(/\/$/, '') || '/';
+  if (p === '/dashboard') return 'dashboard';
+  if (p.startsWith('/dashboard/crm/inbox')) return 'inbox';
+  if (p.startsWith('/dashboard/crm/contacts')) return 'contacts';
+  if (p.startsWith('/dashboard/crm')) return 'leads';
+  if (p.startsWith('/dashboard/quotes')) return 'quotes';
+  if (p.startsWith('/dashboard/tools')) return 'tools';
+  if (p.startsWith('/dashboard/service-areas')) return 'service-areas';
+  if (p.startsWith('/dashboard/pricing-structures')) return 'pricing';
+  if (p.startsWith('/dashboard/settings')) return 'settings';
+  return null;
+}
 
 export type { GHLIframeData };
 
@@ -121,6 +136,20 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
   const effectiveLocationId = isInIframe ? (locationIdFromPostMessage ?? ghlData?.locationId ?? urlDerivedLocationId ?? null) : null;
   const userContext: GHLUserContext | null = effectiveLocationId ? { locationId: effectiveLocationId } : null;
   const router = useRouter();
+  const pathname = usePathname() ?? '';
+
+  // Tell parent which CleanQuote submenu item is active (so sidebar can highlight it). Run on pathname change and when in iframe.
+  useEffect(() => {
+    if (!isInIframe || typeof window === 'undefined') return;
+    const pageKey = pathnameToPageKey(pathname);
+    if (pageKey) {
+      try {
+        window.parent.postMessage({ type: 'CLEANQUOTE_PAGE_CHANGED', page: pageKey }, '*');
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [isInIframe, pathname]);
 
   // GHL sidebar: when parent already has our custom page open, it sends CLEANQUOTE_SWITCH_PAGE so we switch in-app (no full reload).
   useEffect(() => {

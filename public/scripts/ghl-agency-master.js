@@ -251,6 +251,7 @@
 
   (function () {
     var CONTAINER_ID = 'cleanquote-ghl-sidebar-menu';
+    var activeBg = 'rgba(255,255,255,0.12)';
     /* Submenu only: Inbox, Contacts, etc. The CleanQuote.io custom link (above this) is the dashboard. */
     var MENU_ITEMS = [
       { page: 'inbox', label: 'Inbox' },
@@ -337,6 +338,28 @@
         var origin = (iframe.src && iframe.src.indexOf('http') === 0) ? (function () { try { return new URL(iframe.src).origin; } catch (e) { return '*'; } })() : '*';
         iframe.contentWindow.postMessage({ type: 'CLEANQUOTE_SWITCH_PAGE', page: pageKey }, origin);
       } catch (e) {}
+    }
+    /** Update which submenu item is shown as active (iframe posts CLEANQUOTE_PAGE_CHANGED). */
+    function setActiveSubmenuPage(pageKey) {
+      var container = document.getElementById(CONTAINER_ID);
+      if (!container) return;
+      var key = (pageKey || '').toString().trim().toLowerCase();
+      var buttons = container.querySelectorAll('[data-cq-page]');
+      for (var i = 0; i < buttons.length; i++) {
+        var btn = buttons[i];
+        var page = (btn.getAttribute('data-cq-page') || '').toLowerCase();
+        var isActive = page === key;
+        btn.setAttribute('data-cq-active', isActive ? '1' : '0');
+        btn.style.backgroundColor = isActive ? activeBg : 'transparent';
+        btn.style.fontWeight = isActive ? '600' : '';
+      }
+    }
+    function getActivePageFromParentUrl() {
+      try {
+        var q = (window.location && window.location.search) || '';
+        var match = q.match(/[?&]cleanquote-page=([^&]+)/);
+        return match ? decodeURIComponent(match[1]).trim().toLowerCase() : '';
+      } catch (e) { return ''; }
     }
     function findDashboardRow() {
       var root = getLeftSidebarRoot();
@@ -452,7 +475,7 @@
       dbg({ hypothesisId: 'H1_H2', cleanQuoteRowFound: false, rootFound: !!root });
       return null;
     }
-    /** Move the "CleanQuote.io" custom menu item right above our Inbox submenu; hide native Dashboard item only. */
+    /** Move CleanQuote.io to the top: same as working script — insert custom row before the native dashboard row, then hide native dashboard. Keeps our submenu container right after the CleanQuote row. */
     function moveCleanQuoteToTopAndHideDashboard() {
       // #region agent log
       function dbg(payload) {
@@ -468,31 +491,35 @@
         return;
       }
 
-      hideDashboardItem();
-
       var cleanQuoteRow = findCleanQuoteCustomLinkRow();
       if (!cleanQuoteRow || !cleanQuoteRow.parentNode) {
         dbg({ hypothesisId: 'H2', cleanQuoteRowFound: !!cleanQuoteRow, hasParent: !!(cleanQuoteRow && cleanQuoteRow.parentNode) });
         return;
       }
 
-      /* Only move the CleanQuote.io link so it sits right above our submenu (Inbox, Contacts, etc.). Do not touch other sidebar structure. */
       var ourContainer = document.getElementById(CONTAINER_ID);
-      if (!ourContainer || !ourContainer.parentNode || cleanQuoteRow === ourContainer) {
-        dbg({ hypothesisId: 'H3', noOurContainer: !ourContainer });
-        return;
-      }
-      var parent = ourContainer.parentNode;
-      if (cleanQuoteRow.parentNode !== parent || cleanQuoteRow.nextElementSibling !== ourContainer) {
+      var realDashLink = findDashboardLink();
+      var realDashRow = realDashLink ? getRow(realDashLink) : null;
+
+      /* Working-script style: move CleanQuote row to before the native dashboard row (top slot), then hide native dashboard. */
+      if (realDashRow && realDashRow.parentNode && realDashRow !== cleanQuoteRow) {
         try {
-          parent.insertBefore(cleanQuoteRow, ourContainer);
-          dbg({ hypothesisId: 'H4_H5', didInsert: true });
+          realDashRow.parentNode.insertBefore(cleanQuoteRow, realDashRow);
+          dbg({ hypothesisId: 'H_move_top', didInsertBeforeRealDash: true });
         } catch (e) {
           dbg({ hypothesisId: 'H5', didInsert: false, error: (e && e.message) || String(e) });
         }
-      } else {
-        dbg({ hypothesisId: 'H4', alreadyInPlace: true });
       }
+
+      /* Keep our submenu container immediately after the CleanQuote row. */
+      if (ourContainer && ourContainer.parentNode && cleanQuoteRow.parentNode && cleanQuoteRow.nextElementSibling !== ourContainer) {
+        try {
+          cleanQuoteRow.parentNode.insertBefore(ourContainer, cleanQuoteRow.nextSibling);
+          dbg({ hypothesisId: 'H_container', didMoveContainer: true });
+        } catch (e) {}
+      }
+
+      hideDashboardItem();
     }
     function injectSidebarMenu(locationId) {
       if (document.getElementById(CONTAINER_ID)) return;
@@ -517,7 +544,7 @@
         link.setAttribute('data-cq-page', item.page);
         link.style.cssText = itemStyle;
         link.addEventListener('mouseenter', function () { this.style.backgroundColor = hoverBg; });
-        link.addEventListener('mouseleave', function () { this.style.backgroundColor = 'transparent'; });
+        link.addEventListener('mouseleave', function () { this.style.backgroundColor = (this.getAttribute('data-cq-active') === '1' ? activeBg : 'transparent'); });
         link.addEventListener('click', (function (locId, pk) {
           return function (e) {
             e.preventDefault();
@@ -548,11 +575,19 @@
           leftSidebar.appendChild(container);
       }
       moveCleanQuoteToTopAndHideDashboard();
+      setActiveSubmenuPage(getActivePageFromParentUrl());
     }
+    window.addEventListener('message', function (event) {
+      var data = event.data && typeof event.data === 'object' ? event.data : null;
+      if (data && data.type === 'CLEANQUOTE_PAGE_CHANGED' && typeof data.page === 'string')
+        setActiveSubmenuPage(data.page);
+    });
     function run() {
       function tryInject(locId) {
         if (!locId || locId.length < 10) return;
         injectSidebarMenu(locId);
+        if (document.getElementById(CONTAINER_ID))
+          setActiveSubmenuPage(getActivePageFromParentUrl());
       }
       if (typeof window !== 'undefined' && window.AppUtils && window.AppUtils.Utilities && typeof window.AppUtils.Utilities.getCurrentLocation === 'function') {
         window.AppUtils.Utilities.getCurrentLocation()

@@ -84,16 +84,12 @@ export function DashboardHeader({
     }
   }, [isInIframe]);
 
-  /* Persist indash only when in iframe so expand button stays visible across navigation. Never show expand or use indash on full page. */
-  const [indashMode, setIndashMode] = useState(
-    () =>
-      typeof window !== 'undefined' &&
-      window.self !== window.top &&
-      window.sessionStorage?.getItem('cleanquote_indash') === 'true'
-  );
+  /* Expand button only when this load had indash=true in URL. Persist to sessionStorage only when URL has it so in-iframe nav keeps it; never restore from storage so we don't show expand everywhere. */
+  const [indashMode, setIndashMode] = useState(false);
   useEffect(() => {
     if (!isInIframe) {
       setIndashMode(false);
+      if (typeof window !== 'undefined') window.sessionStorage?.removeItem('cleanquote_indash');
       return;
     }
     const fromSearchParams = searchParams?.get('indash') === 'true';
@@ -101,12 +97,12 @@ export function DashboardHeader({
       typeof window !== 'undefined' &&
       typeof window.location?.search === 'string' &&
       new URLSearchParams(window.location.search).get('indash') === 'true';
-    const fromStorage =
-      typeof window !== 'undefined' && window.sessionStorage?.getItem('cleanquote_indash') === 'true';
-    const on = fromSearchParams || fromWindow || fromStorage;
-    setIndashMode(!!on);
-    if ((fromSearchParams || fromWindow) && typeof window !== 'undefined')
-      window.sessionStorage?.setItem('cleanquote_indash', 'true');
+    const fromUrlOnly = fromSearchParams || fromWindow;
+    setIndashMode(!!fromUrlOnly);
+    if (typeof window !== 'undefined') {
+      if (fromUrlOnly) window.sessionStorage?.setItem('cleanquote_indash', 'true');
+      else window.sessionStorage?.removeItem('cleanquote_indash');
+    }
   }, [searchParams, isInIframe]);
 
   const customPageLinkUrl =
