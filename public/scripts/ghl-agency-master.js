@@ -480,33 +480,30 @@
         } catch (e) { console.log('[CQ Sidebar Move]', entry); }
       }
       // #endregion
-      function check(el) {
-        if (!el || el.id === CONTAINER_ID || (el.closest && el.closest('#' + CONTAINER_ID))) return null;
+      /* Only the actual app menu link (custom-page-link). Exclude location switcher at bottom (e.g. "Through Cleaning Co... Santa Fe, NM"). */
+      function isAppMenuLink(el) {
+        if (!el || el.id === CONTAINER_ID || (el.closest && el.closest('#' + CONTAINER_ID))) return false;
         var href = (el.href || el.getAttribute('href') || '').trim().toLowerCase();
+        if (href.indexOf('custom-page-link') === -1) return false;
         var rawText = (el.textContent || '').replace(/\s+/g, ' ').trim();
         var text = normLower(rawText);
-        var isCleanQuote = text.indexOf('cleanquote') !== -1 || href.indexOf('cleanquote') !== -1 || href.indexOf('custom-page-link') !== -1 || (href.indexOf('custom-page-link') !== -1 && customPageId && href.indexOf(customPageId.toLowerCase()) !== -1);
-        if (!isCleanQuote) return null;
+        if (text.indexOf('through') !== -1 || /,\s*[a-z]{2}\s*$/.test(rawText)) return false;
+        return true;
+      }
+      function check(el) {
+        if (!isAppMenuLink(el)) return null;
         var row = getRow(el);
         return (row && row.id !== CONTAINER_ID) ? row : null;
       }
       var root = getLeftSidebarRoot();
       if (root) {
-        var candidates = root.querySelectorAll('a, [role="link"], button');
+        var candidates = root.querySelectorAll('a[href*="custom-page-link"]');
         for (var i = 0; i < candidates.length; i++) {
           var row = check(candidates[i]);
           if (row) {
             dbg({ hypothesisId: 'H2', foundIn: 'sidebar', candidateCount: candidates.length });
             return row;
           }
-        }
-      }
-      var allLinks = document.querySelectorAll('a[href*="custom-page-link"], a[href*="cleanquote"]');
-      for (var j = 0; j < allLinks.length; j++) {
-        var row = check(allLinks[j]);
-        if (row) {
-          dbg({ hypothesisId: 'H2', foundIn: 'allLinks', linkCount: allLinks.length });
-          return row;
         }
       }
       if (customPageId) {
@@ -517,6 +514,14 @@
             dbg({ hypothesisId: 'H2', foundIn: 'byHref', linkCount: byHref.length });
             return row;
           }
+        }
+      }
+      var allLinks = document.querySelectorAll('a[href*="custom-page-link"]');
+      for (var j = 0; j < allLinks.length; j++) {
+        var row = check(allLinks[j]);
+        if (row) {
+          dbg({ hypothesisId: 'H2', foundIn: 'allLinks', linkCount: allLinks.length });
+          return row;
         }
       }
       var byText = document.querySelectorAll('a, [role="link"], button');
@@ -556,9 +561,9 @@
       }
 
       var ourContainer = document.getElementById(CONTAINER_ID);
-      /* Insert CleanQuote at the top: before first nav item, or before first sidebar child if no label match. */
+      /* Insert CleanQuote before first nav item (Launchpad/Dashboard/Conversations/Leads) only. */
       var anchorRow = findFirstNavAnchorRow();
-      if (!anchorRow || anchorRow === cleanQuoteRow) anchorRow = findFirstSidebarInsertPoint();
+      if (anchorRow === cleanQuoteRow) anchorRow = null;
       if (anchorRow && anchorRow.parentNode && anchorRow !== cleanQuoteRow) {
         try {
           anchorRow.parentNode.insertBefore(cleanQuoteRow, anchorRow);
