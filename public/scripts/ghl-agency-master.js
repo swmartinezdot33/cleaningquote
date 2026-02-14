@@ -374,9 +374,10 @@
     function findCleanQuoteCustomLinkRow() {
       // #region agent log
       function dbg(payload) {
+        var entry = { location: 'ghl-agency-master.js:findCleanQuoteCustomLinkRow', message: 'move-debug', data: payload, timestamp: Date.now() };
         try {
-          fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ghl-agency-master.js:findCleanQuoteCustomLinkRow', message: 'move-debug', data: payload, timestamp: Date.now() }) }).catch(function () {});
-        } catch (e) {}
+          fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) }).catch(function () { console.log('[CQ Sidebar Move]', entry); });
+        } catch (e) { console.log('[CQ Sidebar Move]', entry); }
       }
       // #endregion
       function check(el) {
@@ -426,9 +427,10 @@
     function moveCleanQuoteToTopAndHideDashboard() {
       // #region agent log
       function dbg(payload) {
+        var entry = { location: 'ghl-agency-master.js:moveCleanQuoteToTopAndHideDashboard', message: 'move-attempt', data: payload, timestamp: Date.now() };
         try {
-          fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'ghl-agency-master.js:moveCleanQuoteToTopAndHideDashboard', message: 'move-attempt', data: payload, timestamp: Date.now() }) }).catch(function () {});
-        } catch (e) {}
+          fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) }).catch(function () { console.log('[CQ Sidebar Move]', entry); });
+        } catch (e) { console.log('[CQ Sidebar Move]', entry); }
       }
       // #endregion
       var root = getLeftSidebarRoot();
@@ -456,15 +458,17 @@
         dbg({ hypothesisId: 'H3', insertBeforeId: insertBefore ? (insertBefore.id || insertBefore.tagName) : null, hasParent: !!(insertBefore && insertBefore.parentNode), sameAsCleanQuote: cleanQuoteRow === insertBefore });
         return;
       }
-      if (cleanQuoteRow.nextElementSibling === insertBefore) {
+      var parent = insertBefore.parentNode;
+      if (cleanQuoteRow.parentNode !== parent || cleanQuoteRow.nextElementSibling !== insertBefore) {
+        try {
+          /* Prefer placing CleanQuote at the very start of the nav list so it stays above Inbox. */
+          parent.insertBefore(cleanQuoteRow, parent.firstChild);
+          dbg({ hypothesisId: 'H4_H5', didInsert: true, atFirstChild: true });
+        } catch (e) {
+          dbg({ hypothesisId: 'H5', didInsert: false, error: (e && e.message) || String(e) });
+        }
+      } else {
         dbg({ hypothesisId: 'H4', alreadyInPlace: true });
-        return;
-      }
-      try {
-        insertBefore.parentNode.insertBefore(cleanQuoteRow, insertBefore);
-        dbg({ hypothesisId: 'H4_H5', didInsert: true, insertBeforeId: insertBefore.id || insertBefore.tagName });
-      } catch (e) {
-        dbg({ hypothesisId: 'H5', didInsert: false, error: (e && e.message) || String(e) });
       }
     }
     function injectSidebarMenu(locationId) {
