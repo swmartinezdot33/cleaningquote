@@ -653,7 +653,7 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                                 className={isSynced ? 'bg-muted cursor-not-allowed' : ''}
                               />
                             </div>
-                            {!isSynced && !isCalculationLocked && (
+                            {!isSynced && (
                               <>
                                 <div className="mt-2 space-y-2">
                                   <Label className="text-xs">Option image (optional)</Label>

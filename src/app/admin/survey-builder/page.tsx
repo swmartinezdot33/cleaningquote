@@ -732,8 +732,7 @@ export default function SurveyBuilderPage() {
                                 placeholder="Label"
                               />
                             </div>
-                            {!isCalculationLocked && (
-                              <div className="space-y-2">
+                            <div className="space-y-2">
                                 <Label className="text-xs">Option image (optional)</Label>
                                 <p className="text-xs text-gray-500">Paste an image URL to show a picture for this option. Use &quot;Remove image&quot; to clear.</p>
                                 {(option as SurveyQuestionOption).imageUrl?.trim() ? (
@@ -809,7 +808,6 @@ export default function SurveyBuilderPage() {
                                   </label>
                                 )}
                               </div>
-                            )}
                             <div>
                               <Label className="text-xs">Skip to question (optional):</Label>
                               <Select
