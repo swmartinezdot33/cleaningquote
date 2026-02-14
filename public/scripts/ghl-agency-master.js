@@ -270,6 +270,10 @@
       } catch (e) {}
       return null;
     }
+    /** True when the CleanQuote custom page is already loaded (our iframe is in the main content). */
+    function isCurrentPageCustomPageLink() {
+      return !!findCleanQuoteIframe();
+    }
     function navigateToPage(locationId, pageKey) {
       var url = cleanquoteAppBase + '/v2/location/' + encodeURIComponent(locationId) + '/custom-page-link/' + encodeURIComponent(customPageId) + '?cleanquote-page=' + encodeURIComponent(pageKey);
       try {
@@ -277,6 +281,15 @@
       } catch (e) {
         window.location.href = url;
       }
+    }
+    /** Tell the iframe to switch page in-app (no parent refresh). */
+    function sendPageSwitchToIframe(pageKey) {
+      var iframe = findCleanQuoteIframe();
+      if (!iframe || !iframe.contentWindow) return;
+      try {
+        var origin = (iframe.src && iframe.src.indexOf('http') === 0) ? (function () { try { return new URL(iframe.src).origin; } catch (e) { return '*'; } })() : '*';
+        iframe.contentWindow.postMessage({ type: 'CLEANQUOTE_SWITCH_PAGE', page: pageKey }, origin);
+      } catch (e) {}
     }
     function findDashboardRow() {
       var root = getLeftSidebarRoot();
@@ -316,13 +329,17 @@
         link.style.cssText = itemStyle;
         link.addEventListener('mouseenter', function () { this.style.backgroundColor = hoverBg; });
         link.addEventListener('mouseleave', function () { this.style.backgroundColor = 'transparent'; });
-        link.addEventListener('click', (function (pk) {
+        link.addEventListener('click', (function (locId, pk) {
           return function (e) {
             e.preventDefault();
             e.stopPropagation();
-            navigateToPage(locationId, pk);
+            if (isCurrentPageCustomPageLink()) {
+              sendPageSwitchToIframe(pk);
+            } else {
+              navigateToPage(locId, pk);
+            }
           };
-        })(item.page));
+        })(locationId, item.page));
         li.appendChild(link);
         list.appendChild(li);
       }

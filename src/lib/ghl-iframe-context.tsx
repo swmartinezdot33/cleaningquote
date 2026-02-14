@@ -6,9 +6,23 @@
  */
 
 import { useEffect, useState, createContext, useContext, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import type { GHLIframeData } from './ghl-iframe-types';
 import { GHL_APP_VERSION_ID } from './ghl/oauth-utils';
 import { LoadingDots } from '@/components/ui/loading-dots';
+
+/** Page keys from GHL sidebar submenu → dashboard paths. Must match ghl-agency-master.js MENU_ITEMS and custom-page-link ALLOWED_PATHS. */
+const CLEANQUOTE_PAGE_KEY_TO_PATH: Record<string, string> = {
+  dashboard: '/dashboard',
+  inbox: '/dashboard/crm/inbox',
+  contacts: '/dashboard/crm/contacts',
+  leads: '/dashboard/crm',
+  quotes: '/dashboard/quotes',
+  tools: '/dashboard/tools',
+  'service-areas': '/dashboard/service-areas',
+  pricing: '/dashboard/pricing-structures',
+  settings: '/dashboard/settings',
+};
 
 export type { GHLIframeData };
 
@@ -106,6 +120,23 @@ export function GHLIframeProvider({ children }: { children: React.ReactNode }) {
   // LocationId: postMessage/session first; then URL-derived so first render in iframe has it when path contains /v2/location/XXX.
   const effectiveLocationId = isInIframe ? (locationIdFromPostMessage ?? ghlData?.locationId ?? urlDerivedLocationId ?? null) : null;
   const userContext: GHLUserContext | null = effectiveLocationId ? { locationId: effectiveLocationId } : null;
+  const router = useRouter();
+
+  // GHL sidebar: when parent already has our custom page open, it sends CLEANQUOTE_SWITCH_PAGE so we switch in-app (no full reload).
+  useEffect(() => {
+    if (!isInIframe || typeof window === 'undefined') return;
+    const handler = (event: MessageEvent) => {
+      if (event.source !== window.parent) return;
+      const data = event.data && typeof event.data === 'object' ? event.data : null;
+      if (data?.type !== 'CLEANQUOTE_SWITCH_PAGE' || typeof data.page !== 'string') return;
+      const path = CLEANQUOTE_PAGE_KEY_TO_PATH[data.page.trim().toLowerCase()];
+      if (!path) return;
+      const q = effectiveLocationId ? `?locationId=${encodeURIComponent(effectiveLocationId)}` : '';
+      router.push(path + q);
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, [isInIframe, effectiveLocationId, router]);
 
   // Security: dashboard must only load inside GHL iframe. If opened directly (no iframe), redirect to my.cleanquote.io.
   useEffect(() => {
