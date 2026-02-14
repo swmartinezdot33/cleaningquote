@@ -233,7 +233,9 @@ export default function CRMInboxPage() {
         .catch((e) => {
           if (!soft) {
             setError(e.message);
-            setNeedsConnect(!!effectiveLocationId);
+            // Only show "Connect" when the server explicitly returns needsConnect (no token in KV).
+            // Do not treat 401/network/empty as "needs connect."
+            setNeedsConnect(false);
             setConversations([]);
             setTotalCount(null);
           }

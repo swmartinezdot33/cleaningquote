@@ -85,7 +85,9 @@ export default function CRMContactsPage() {
       .catch((e) => {
         if (requestId !== searchRequestIdRef.current) return;
         setError(e.message);
-        setNeedsConnect(!!effectiveLocationId);
+        // Only show "Connect" when the server explicitly returns needsConnect (no token in KV).
+        // Do not treat 401/network/empty as "needs connect."
+        setNeedsConnect(false);
       })
       .finally(() => {
         if (requestId !== searchRequestIdRef.current) return;
