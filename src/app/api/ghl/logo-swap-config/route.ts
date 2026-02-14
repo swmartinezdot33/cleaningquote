@@ -28,6 +28,21 @@ function normalizeLogoUrl(raw: string | undefined | null): string | null {
   return url;
 }
 
+/**
+ * If the URL is a Google Sheet edit/view URL, return the CSV export URL so the allowlist fetch works.
+ * Pasting the link from the browser address bar (edit?gid=0) returns HTML; export?format=csv returns CSV.
+ */
+function normalizeAllowlistUrl(url: string): string {
+  const u = url.trim();
+  if (!u || !/^https?:\/\//i.test(u)) return u;
+  const match = u.match(/^(https?:\/\/[^/]+)\/spreadsheets\/d\/([a-zA-Z0-9_-]+)\/(edit|view)(\?[^#]*)?(#.*)?$/i);
+  if (!match) return u;
+  const [, origin, sheetId, , query = '', hash = ''] = match;
+  const gidMatch = (query + hash).match(/[?&#]gid=(\d+)/i);
+  const gid = gidMatch ? gidMatch[1] : '0';
+  return `${origin}/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+}
+
 function parseAllowlistCsv(text: string): Set<string> {
   const ids = new Set<string>();
   const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
@@ -52,13 +67,14 @@ export async function GET(request: Request) {
       );
     }
 
-    const allowlistUrl = process.env.GHL_LOGO_SWAP_ALLOWLIST_URL?.trim();
+    let allowlistUrl = process.env.GHL_LOGO_SWAP_ALLOWLIST_URL?.trim();
     if (!allowlistUrl) {
       return NextResponse.json(
         { applyLogoSwap: false },
         { status: 200, headers: { ...CORS_HEADERS, 'Cache-Control': 'public, max-age=60' } }
       );
     }
+    allowlistUrl = normalizeAllowlistUrl(allowlistUrl);
 
     const res = await fetch(allowlistUrl, {
       next: { revalidate: 300 },

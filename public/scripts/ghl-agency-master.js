@@ -51,6 +51,13 @@
       if (!href) return '';
       var m = href.match(/\/(?:v2\/)?(?:location|oauth)\/([a-zA-Z0-9\-]{16,50})(?:\/|$|\?)/);
       if (m && m[1]) return m[1];
+      var hash = typeof window !== 'undefined' && window.location && window.location.hash ? window.location.hash : '';
+      if (hash) {
+        m = hash.match(/\/v2\/location\/([a-zA-Z0-9\-]{16,50})(?:\/|$|\?)/);
+        if (m && m[1]) return m[1];
+        m = hash.match(/\/location\/([a-zA-Z0-9\-]{16,50})(?:\/|$|\?)/);
+        if (m && m[1]) return m[1];
+      }
       var qs = typeof window !== 'undefined' && window.location && window.location.search ? window.location.search : '';
       m = qs.match(/[?&]locationId=([a-zA-Z0-9\-]{16,50})(?:&|$)/);
       if (m && m[1]) return m[1];
@@ -365,6 +372,13 @@
         var path = (window.location && window.location.pathname) || '';
         mat = path.match(/\/location\/([a-zA-Z0-9\-]{16,50})(?:\/|$)/);
         if (mat && mat[1]) return mat[1];
+        var hash = (window.location && window.location.hash) || '';
+        if (hash) {
+          mat = hash.match(/\/v2\/location\/([a-zA-Z0-9\-]{16,50})(?:\/|$|\?)/);
+          if (mat && mat[1]) return mat[1];
+          mat = hash.match(/\/location\/([a-zA-Z0-9\-]{16,50})(?:\/|$|\?)/);
+          if (mat && mat[1]) return mat[1];
+        }
       } catch (e) {}
       return '';
     }
@@ -385,9 +399,14 @@
         })
         .catch(function () {});
     }
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(run, 300); });
-    else setTimeout(run, 300);
-    window.addEventListener('routeLoaded', function () { setTimeout(run, 400); });
-    window.addEventListener('routeChangeEvent', function () { setTimeout(run, 400); });
+    function scheduleRun() {
+      run();
+      setTimeout(run, 800);
+      setTimeout(run, 2000);
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(scheduleRun, 300); });
+    else setTimeout(scheduleRun, 300);
+    window.addEventListener('routeLoaded', function () { setTimeout(scheduleRun, 400); });
+    window.addEventListener('routeChangeEvent', function () { setTimeout(scheduleRun, 400); });
   })();
 })();
