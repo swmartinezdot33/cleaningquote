@@ -1,7 +1,7 @@
 /**
  * CleanQuote.io GHL Agency Master Script
- * One script: favicon, dashboard->custom page, Sub-Accounts move, HighLevel/SaaS groups,
- * and CleanQuote sidebar menu. (No dashboard URL redirect — dashboard stays as-is.)
+ * One script: favicon, Sub-Accounts move, HighLevel/SaaS groups, and CleanQuote sidebar menu.
+ * Native GHL dashboard/sidebar is left alone (no redirect, no reposition, no hijack).
  * Config: window.CLEANQUOTE_AGENCY_CONFIG (optional). Query params on script src override (e.g. ?customPageId=xxx&cleanquoteAppBase=...).
  * One-line install: <script src="https://www.cleanquote.io/api/script/ghl-agency-master.js?customPageId=6983df14aa911f4d3067493d"></script>
  */
@@ -102,53 +102,6 @@
       var iv = setInterval(function () { setIcon(); if (++runs > 6) clearInterval(iv); }, 500);
     })();
   }
-
-  (function () {
-    if (!/\/v2\/location\//i.test(window.location.pathname)) return;
-    var onCustomPage = window.location.href.indexOf(customPageId) !== -1;
-    function allSidebarClickable(root) {
-      return Array.from(root.querySelectorAll("a, button, [role='link']")).filter(function (el) { return norm(el.textContent).length; });
-    }
-    function isActive(el) {
-      if (!el) return false;
-      if (el.getAttribute('aria-current') && el.getAttribute('aria-current') !== 'false') return true;
-      if (/active|router-link-active|is-active|selected|current/i.test((el.className || '').toString())) return true;
-      return !!el.closest('.active, .router-link-active, .is-active, .selected, [aria-current]');
-    }
-    function forceNavigate(el, url) {
-      if (!el || el.dataset.cqForced === '1' || !url) return;
-      if (el.tagName && el.tagName.toLowerCase() === 'a') {
-        el.setAttribute('href', url);
-        el.setAttribute('target', '_self');
-        el.setAttribute('rel', 'noopener');
-      }
-      el.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); window.location.href = url; }, true);
-      el.dataset.cqForced = '1';
-    }
-    function apply() {
-      var root = getLeftSidebarRoot() || document.body;
-      var items = allSidebarClickable(root);
-      var dashboards = items.filter(function (el) { return normLower(el.textContent) === 'dashboard'; });
-      if (!dashboards.length) return;
-      var topDashboardEl = dashboards[0];
-      var customEl = onCustomPage ? (dashboards.find(isActive) || null) : null;
-      if (onCustomPage && !customEl) return;
-      var realDashEl = customEl ? (dashboards.find(function (el) { return el !== customEl; }) || null) : topDashboardEl;
-      var newUrl = buildCustomPageUrl(getLocationIdFromUrl());
-      if (realDashEl && newUrl) forceNavigate(realDashEl, newUrl);
-      if (onCustomPage && customEl && realDashEl) {
-        var customRow = getRow(customEl);
-        var realDashRow = getRow(realDashEl);
-        if (customRow && realDashRow && customRow.dataset.cqMoved !== '1') {
-          realDashRow.parentNode.insertBefore(customRow, realDashRow);
-          customRow.dataset.cqMoved = '1';
-        }
-      }
-    }
-    apply();
-    var mo = new MutationObserver(apply);
-    mo.observe(document.body, { childList: true, subtree: true });
-  })();
 
   (function () {
     if (/\/v2\/location\//i.test(window.location.pathname)) return;
@@ -284,7 +237,7 @@
       return null;
     }
     function navigateToPage(locationId, pageKey) {
-      var url = cleanquoteAppBase + '/v2/location/' + encodeURIComponent(locationId) + '?page=' + encodeURIComponent(pageKey);
+      var url = cleanquoteAppBase + '/v2/location/' + encodeURIComponent(locationId) + '/custom-page-link/' + encodeURIComponent(customPageId) + '?cleanquote-page=' + encodeURIComponent(pageKey);
       var iframe = findCleanQuoteIframe();
       if (iframe) iframe.src = url;
       else window.open(url, '_blank', 'noopener,noreferrer');
