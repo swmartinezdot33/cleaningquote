@@ -73,11 +73,23 @@ export function DashboardHeader({
   const searchParams = useSearchParams();
   const locationId = useEffectiveLocationId();
 
-  /* Persist indash so expand button stays visible across navigation. Once loaded with ?indash=true, keep showing expand until session ends. */
+  const [isInIframe, setIsInIframe] = useState(false);
+  useEffect(() => {
+    setIsInIframe(typeof window !== 'undefined' && window.self !== window.top);
+  }, []);
+
+  /* Persist indash only when in iframe so expand button stays visible across navigation. Never show expand or use indash on full page. */
   const [indashMode, setIndashMode] = useState(
-    () => typeof window !== 'undefined' && window.sessionStorage?.getItem('cleanquote_indash') === 'true'
+    () =>
+      typeof window !== 'undefined' &&
+      window.self !== window.top &&
+      window.sessionStorage?.getItem('cleanquote_indash') === 'true'
   );
   useEffect(() => {
+    if (!isInIframe) {
+      setIndashMode(false);
+      return;
+    }
     const fromSearchParams = searchParams?.get('indash') === 'true';
     const fromWindow =
       typeof window !== 'undefined' &&
@@ -89,16 +101,16 @@ export function DashboardHeader({
     setIndashMode(!!on);
     if ((fromSearchParams || fromWindow) && typeof window !== 'undefined')
       window.sessionStorage?.setItem('cleanquote_indash', 'true');
-  }, [searchParams]);
+  }, [searchParams, isInIframe]);
 
   const customPageLinkUrl =
-    indashMode && locationId
+    isInIframe && indashMode && locationId
       ? `${GHL_APP_BASE}/v2/location/${locationId}/custom-page-link/${CUSTOM_PAGE_LINK_ID}`
       : null;
 
-  /** When indash mode, preserve param in nav links so it stays through navigation. */
+  /** When in iframe with indash mode, preserve param in nav links so it stays through navigation. */
   const linkHref = (path: string) =>
-    indashMode ? `${path}${path.includes('?') ? '&' : '?'}indash=true` : path;
+    isInIframe && indashMode ? `${path}${path.includes('?') ? '&' : '?'}indash=true` : path;
 
   const navLinkClass = (href: string) => {
     const active = isNavActive(href, pathname);
