@@ -253,6 +253,13 @@
     var CONTAINER_ID = 'cleanquote-ghl-sidebar-menu';
     var activeBg = 'rgba(0,0,0,0.25)';
     var activeColor = 'rgba(255,255,255,0.95)';
+    (function injectActiveStyles() {
+      if (document.getElementById('cleanquote-ghl-sidebar-active-styles')) return;
+      var style = document.createElement('style');
+      style.id = 'cleanquote-ghl-sidebar-active-styles';
+      style.textContent = '#' + CONTAINER_ID + ' [data-cq-active="1"] { background-color: ' + activeBg + ' !important; color: ' + activeColor + ' !important; font-weight: 600 !important; }';
+      (document.head || document.documentElement).appendChild(style);
+    })();
     /* Submenu only: Inbox, Contacts, etc. The CleanQuote.io custom link (above this) is the dashboard. */
     var MENU_ITEMS = [
       { page: 'inbox', label: 'Inbox' },
@@ -340,7 +347,7 @@
         iframe.contentWindow.postMessage({ type: 'CLEANQUOTE_SWITCH_PAGE', page: pageKey }, origin);
       } catch (e) {}
     }
-    /** Update which submenu item is shown as active (iframe posts CLEANQUOTE_PAGE_CHANGED). */
+    /** Update which submenu item is shown as active (iframe posts CLEANQUOTE_PAGE_CHANGED). Use setProperty(..., 'important') so GHL sidebar CSS does not override. */
     function setActiveSubmenuPage(pageKey) {
       var container = document.getElementById(CONTAINER_ID);
       if (!container) return;
@@ -351,9 +358,15 @@
         var page = (btn.getAttribute('data-cq-page') || '').toLowerCase();
         var isActive = page === key;
         btn.setAttribute('data-cq-active', isActive ? '1' : '0');
-        btn.style.backgroundColor = isActive ? activeBg : 'transparent';
-        btn.style.color = isActive ? activeColor : '';
-        btn.style.fontWeight = isActive ? '600' : '';
+        if (isActive) {
+          btn.style.setProperty('background-color', activeBg, 'important');
+          btn.style.setProperty('color', activeColor, 'important');
+          btn.style.fontWeight = '600';
+        } else {
+          btn.style.removeProperty('background-color');
+          btn.style.removeProperty('color');
+          btn.style.fontWeight = '';
+        }
       }
     }
     function getActivePageFromParentUrl() {
@@ -500,14 +513,14 @@
       }
 
       var ourContainer = document.getElementById(CONTAINER_ID);
-      var realDashLink = findDashboardLink();
-      var realDashRow = realDashLink ? getRow(realDashLink) : null;
+      /* Insert before the first nav item (Launchpad) so CleanQuote.io is the top menu item above Launchpad. */
+      var firstNavRow = findFirstSidebarNavRow();
+      var targetRow = firstNavRow;
 
-      /* Working-script style: move CleanQuote row to before the native dashboard row (top slot), then hide native dashboard. */
-      if (realDashRow && realDashRow.parentNode && realDashRow !== cleanQuoteRow) {
+      if (targetRow && targetRow.parentNode && targetRow !== cleanQuoteRow) {
         try {
-          realDashRow.parentNode.insertBefore(cleanQuoteRow, realDashRow);
-          dbg({ hypothesisId: 'H_move_top', didInsertBeforeRealDash: true });
+          targetRow.parentNode.insertBefore(cleanQuoteRow, targetRow);
+          dbg({ hypothesisId: 'H_move_top', didInsertAboveFirst: true });
         } catch (e) {
           dbg({ hypothesisId: 'H5', didInsert: false, error: (e && e.message) || String(e) });
         }
@@ -548,8 +561,13 @@
         link.addEventListener('mouseenter', function () { this.style.backgroundColor = hoverBg; });
         link.addEventListener('mouseleave', function () {
           var isActive = this.getAttribute('data-cq-active') === '1';
-          this.style.backgroundColor = isActive ? activeBg : 'transparent';
-          this.style.color = isActive ? activeColor : '';
+          if (isActive) {
+            this.style.setProperty('background-color', activeBg, 'important');
+            this.style.setProperty('color', activeColor, 'important');
+          } else {
+            this.style.removeProperty('background-color');
+            this.style.removeProperty('color');
+          }
         });
         link.addEventListener('click', (function (locId, pk) {
           return function (e) {
