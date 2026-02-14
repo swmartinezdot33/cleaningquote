@@ -141,7 +141,6 @@
         var realDashRow = getRow(realDashEl);
         if (customRow && realDashRow && customRow.dataset.cqMoved !== '1') {
           realDashRow.parentNode.insertBefore(customRow, realDashRow);
-          realDashRow.style.display = 'none';
           customRow.dataset.cqMoved = '1';
         }
       }
