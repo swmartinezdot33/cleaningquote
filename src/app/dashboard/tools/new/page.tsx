@@ -74,7 +74,7 @@ export default function NewToolPage() {
   return (
     <div className="mx-auto max-w-lg">
       <div className="mb-6">
-        <Link href="/dashboard" className="text-sm font-medium text-primary hover:underline">
+        <Link href="/dashboard/tools" className="text-sm font-medium text-primary hover:underline">
           ← Back to tools
         </Link>
       </div>

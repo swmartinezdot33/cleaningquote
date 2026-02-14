@@ -39,14 +39,22 @@ export async function GET(request: NextRequest) {
     );
     if (!result.ok) {
       const status = result.error.type === 'auth' ? 401 : 502;
+      if (process.env.NODE_ENV !== 'test') {
+        console.warn('[CQ CRM opportunities] getOpportunities failed', { pipelineId, error: result.error.message });
+      }
       return NextResponse.json(
         { error: result.error.message, opportunities: [], retryable: result.error.retryable },
         { status }
       );
     }
+    const opportunities = result.data.opportunities ?? [];
+    const total = result.data.total ?? opportunities.length;
+    if (process.env.NODE_ENV !== 'test') {
+      console.info('[CQ CRM opportunities]', { pipelineId, count: opportunities.length, total });
+    }
     return NextResponse.json({
-      opportunities: result.data.opportunities,
-      total: result.data.total ?? result.data.opportunities.length,
+      opportunities,
+      total,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

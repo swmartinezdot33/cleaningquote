@@ -618,6 +618,30 @@ export default function ToolSurveyClient({ toolId }: { toolId: string }) {
                           )}
                         </div>
                       )}
+                      {editingQuestion.type === 'select' && Array.isArray(editingQuestion.options) && editingQuestion.options.length > 0 && (
+                        <div className="mb-3 flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              const newOptions = (editingQuestion.options ?? []).map((opt) => {
+                                const o = { ...opt } as SurveyQuestionOption & { image_url?: string };
+                                delete o.imageUrl;
+                                delete o.image_url;
+                                return o;
+                              });
+                              setEditingQuestion({ ...editingQuestion, options: newOptions });
+                              setMessage({ type: 'success', text: 'All option images removed from this question. Click "Save Question" to keep changes.' });
+                              setTimeout(() => setMessage(null), 4000);
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            Remove all images from this question
+                          </Button>
+                        </div>
+                      )}
                       <div className="space-y-2">
                         {(editingQuestion.id === 'squareFeet' && editingQuestion.syncOptionsWithPricingTable
                           ? (squareFeetSyncedTiers ?? editingQuestion.options ?? [])

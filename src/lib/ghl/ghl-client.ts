@@ -182,12 +182,17 @@ export async function getOpportunities(
   let metaTotal: number | undefined;
 
   while (all.length < OPPORTUNITIES_MAX_TOTAL) {
+    // GHL 2.0 Lead Connector API may expect locationId (camelCase); send both for compatibility
     const searchParams: Record<string, string> = {
+      locationId,
       location_id: locationId,
       limit: String(perPage),
       skip: String(skip),
     };
-    if (params.pipelineId) searchParams.pipeline_id = params.pipelineId;
+    if (params.pipelineId) {
+      searchParams.pipelineId = params.pipelineId;
+      searchParams.pipeline_id = params.pipelineId;
+    }
     if (params.status) searchParams.status = params.status;
 
     const result = await request<{

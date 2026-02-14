@@ -317,7 +317,7 @@ export function ToolDetailTabs({ tool, orgSlug = null }: { tool: Tool; orgSlug?:
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/dashboard" className="text-sm font-medium text-primary hover:underline">
+        <Link href="/dashboard/tools" className="text-sm font-medium text-primary hover:underline">
           ← Back to tools
         </Link>
       </div>

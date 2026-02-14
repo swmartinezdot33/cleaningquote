@@ -704,6 +704,28 @@ export default function SurveyBuilderPage() {
                           </p>
                         </div>
                       )}
+                      {Array.isArray(editingQuestion.options) && editingQuestion.options.length > 0 && (
+                        <div className="mb-3 flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              const newOptions = (editingQuestion.options ?? []).map((opt) => {
+                                const o = { ...opt } as SurveyQuestionOption & { image_url?: string };
+                                delete o.imageUrl;
+                                delete o.image_url;
+                                return o;
+                              });
+                              setEditingQuestion({ ...editingQuestion, options: newOptions });
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            Remove all images from this question
+                          </Button>
+                        </div>
+                      )}
                       <div className="space-y-2">
                         {(editingQuestion.options || []).map((option, idx) => {
                           const isCalculationLocked = CALCULATION_LOCKED_QUESTION_IDS.includes(editingQuestion.id ?? '');
