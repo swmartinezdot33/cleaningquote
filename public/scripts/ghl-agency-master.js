@@ -439,11 +439,7 @@
         return;
       }
 
-      var dashboardRow = findDashboardRow();
-      if (dashboardRow && dashboardRow.style) {
-        dashboardRow.style.display = 'none';
-        dashboardRow.setAttribute('data-cleanquote-hidden-dashboard', '1');
-      }
+      /* Do not hide the native GHL Dashboard row — getRow() can return a large container and hiding it removes the entire GHL sidebar. Only reorder the CleanQuote link. */
 
       var cleanQuoteRow = findCleanQuoteCustomLinkRow();
       if (!cleanQuoteRow || !cleanQuoteRow.parentNode) {
