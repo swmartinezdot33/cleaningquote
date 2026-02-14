@@ -5,13 +5,14 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { OrgSwitcher } from '@/components/OrgSwitcher';
-import { Menu, X, Plus, Settings, ExternalLink } from 'lucide-react';
+import { Menu, X, Plus, Settings, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEffectiveLocationId } from '@/lib/ghl-iframe-context';
 
 const CUSTOM_PAGE_LINK_ID = '6983df14aa911f4d3067493d';
 /** Base URL for "open in GHL" link — parent window navigates here to show CleanQuote sidebar item. */
 const GHL_APP_BASE = 'https://my.cleanquote.io';
+const INDASH_STORAGE_KEY = 'cq_indash';
 
 function isNavActive(href: string, pathname: string): boolean {
   const clean = pathname.replace(/\/$/, '') || '/';
@@ -54,10 +55,27 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  /** Persist indash so expand icon shows on every page for the session (URL param is lost on client nav). */
+  const [indashFromStorage, setIndashFromStorage] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setIndashFromStorage(sessionStorage.getItem(INDASH_STORAGE_KEY) === 'true');
+  }, []);
+
+  const searchParams = useSearchParams();
+  const locationId = useEffectiveLocationId();
+  const indashFromUrl = searchParams?.get('indash') === 'true';
+  useEffect(() => {
+    if (indashFromUrl && typeof window !== 'undefined') {
+      sessionStorage.setItem(INDASH_STORAGE_KEY, 'true');
+      setIndashFromStorage(true);
+    }
+  }, [indashFromUrl]);
 
   useEffect(() => {
     if (mobileMenuOpen) document.body.style.overflow = 'hidden';
@@ -70,9 +88,7 @@ export function DashboardHeader({
   const closeMobileMenu = () => setMobileMenuOpen(false);
   const pathname = usePathname() ?? '';
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const locationId = useEffectiveLocationId();
-  const indash = searchParams?.get('indash') === 'true';
+  const indash = indashFromUrl || indashFromStorage;
   const customPageLinkUrl =
     indash && locationId
       ? `${GHL_APP_BASE}/v2/location/${locationId}/custom-page-link/${CUSTOM_PAGE_LINK_ID}`
@@ -190,7 +206,7 @@ export function DashboardHeader({
               className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               aria-label="Open in GHL sidebar"
             >
-              <ExternalLink className="h-4 w-4" />
+              <Maximize2 className="h-4 w-4" />
             </a>
           )}
         </div>
@@ -320,7 +336,7 @@ export function DashboardHeader({
                       className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
                       aria-label="Open in GHL sidebar"
                     >
-                      <ExternalLink className="h-4 w-4" />
+                      <Maximize2 className="h-4 w-4" />
                     </a>
                   )}
                 </div>
