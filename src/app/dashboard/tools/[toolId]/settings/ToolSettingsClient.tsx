@@ -1633,7 +1633,7 @@ export default function ToolSettingsClient({ toolId, toolSlug }: { toolId: strin
                       />
                       <div className="min-w-0">
                         <Label htmlFor="internalToolOnlyFormBehavior" className="text-sm font-semibold cursor-pointer">Internal tool only</Label>
-                        <p className="text-xs text-muted-foreground mt-1">Collect contact info at the end of the survey instead of the beginning. On the quote summary, show a &quot;Save quote&quot; button instead of Book appointment / Schedule callback.</p>
+                        <p className="text-xs text-muted-foreground mt-1">Contact info is collected at the end (optional Save quote and create contact). Quote summary is streamlined: Book an appointment is available; Schedule a callback is hidden. Use for internal quoting (e.g. office staff).</p>
                       </div>
                     </div>
                   </div>

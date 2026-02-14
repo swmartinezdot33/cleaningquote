@@ -5,7 +5,7 @@
 
 import { isSupabaseConfigured } from '@/lib/supabase/server';
 import * as configStore from '@/lib/config/store';
-import { SurveyQuestion, DEFAULT_SURVEY_QUESTIONS, validateSurveyQuestion } from './schema';
+import { SurveyQuestion, SurveyQuestionOption, DEFAULT_SURVEY_QUESTIONS, validateSurveyQuestion } from './schema';
 import { validateFieldTypeCompatibility } from './field-type-validator';
 
 function requireSupabaseForSurvey(): void {
@@ -28,6 +28,23 @@ function restoreCoreFields(questions: SurveyQuestion[]): { questions: SurveyQues
     return q;
   });
   return { questions: restored, needsSave };
+}
+
+/** Normalize select options before persist: only store imageUrl (never image_url). Prevents stuck/duplicate image fields. */
+function normalizeOptionsForPersist(options: SurveyQuestion['options']): SurveyQuestionOption[] | undefined {
+  if (!options || !Array.isArray(options)) return options;
+  return options.map(opt => {
+    const o = opt as unknown as Record<string, unknown> & { image_url?: string };
+    const imageUrl = typeof o.imageUrl === 'string' ? o.imageUrl.trim() : typeof o.image_url === 'string' ? o.image_url.trim() : undefined;
+    const out: SurveyQuestionOption = {
+      value: String(o.value ?? ''),
+      label: String(o.label ?? o.value ?? ''),
+    };
+    if (o.skipToQuestionId != null) out.skipToQuestionId = String(o.skipToQuestionId);
+    if (imageUrl) out.imageUrl = imageUrl;
+    if (o.showLabel !== undefined) out.showLabel = Boolean(o.showLabel);
+    return out;
+  });
 }
 
 /**
@@ -80,11 +97,17 @@ export async function saveSurveyQuestions(questions: SurveyQuestion[], toolId?: 
 
   const sorted = [...questions].sort((a, b) => a.order - b.order);
   const coreFieldIds = ['firstName', 'lastName', 'email', 'phone', 'address', 'squareFeet'];
-  const questionsToSave = sorted.map(q => ({
-    ...q,
-    ghlFieldMapping: q.ghlFieldMapping,
-    isCoreField: q.isCoreField !== undefined ? q.isCoreField : coreFieldIds.includes(q.id),
-  }));
+  const questionsToSave = sorted.map(q => {
+    const base = {
+      ...q,
+      ghlFieldMapping: q.ghlFieldMapping,
+      isCoreField: q.isCoreField !== undefined ? q.isCoreField : coreFieldIds.includes(q.id),
+    };
+    if (q.type === 'select' && Array.isArray(q.options)) {
+      base.options = normalizeOptionsForPersist(q.options);
+    }
+    return base;
+  });
 
   requireSupabaseForSurvey();
   await configStore.setSurveyQuestionsInConfig(questionsToSave, toolId);

@@ -392,6 +392,42 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      // Fill missing price from Supabase (quote summary price); GHL may not return price_low/price_high or payload
+      const missingPriceQuoteIds = rawQuotes.filter(
+        (q: any) => q.quote_id && q.status !== 'disqualified' && (q.price_low == null && q.price_high == null)
+      ).map((q: any) => q.quote_id);
+      if (missingPriceQuoteIds.length > 0) {
+        try {
+          const supabase = createSupabaseServer();
+          const { data: priceRows } = await supabase
+            .from('quotes')
+            .select('quote_id, price_low, price_high, payload, service_type, frequency')
+            .in('quote_id', missingPriceQuoteIds);
+          if (priceRows?.length) {
+            const byQuoteId = new Map(
+              (priceRows as { quote_id: string; price_low: number | null; price_high: number | null; payload: unknown; service_type: string | null; frequency: string | null }[])
+                .map((r) => [r.quote_id, r])
+            );
+            rawQuotes.forEach((q: any) => {
+              if (!q.quote_id || (q.price_low != null && q.price_high != null)) return;
+              const row = byQuoteId.get(q.quote_id);
+              if (!row) return;
+              if (row.price_low != null || row.price_high != null) {
+                q.price_low = q.price_low ?? row.price_low ?? null;
+                q.price_high = q.price_high ?? row.price_high ?? null;
+              }
+              if (!q.payload && row.payload != null) {
+                q.payload = typeof row.payload === 'object' ? row.payload : (() => { try { return JSON.parse(String(row.payload)); } catch { return null; } })();
+              }
+              if (q.service_type == null && row.service_type != null) q.service_type = row.service_type;
+              if (q.frequency == null && row.frequency != null) q.frequency = row.frequency;
+            });
+          }
+        } catch {
+          // Non-fatal
+        }
+      }
+
       const withToolInfo = mapQuotesToResponse(rawQuotes, toolIdToName);
       const totalMs = Date.now() - startMs;
       if (process.env.NODE_ENV !== 'test') {

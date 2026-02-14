@@ -165,13 +165,18 @@ export async function GET(
       questions = [...DEFAULT_SURVEY_QUESTIONS];
     }
 
-    // Normalize select options so imageUrl/showLabel are always present for the quote flow (preserves condition images).
+    // Normalize select options for quote flow. Only pass imageUrl when set; never leak image_url from DB so cleared images stay gone.
     questions = (questions as Array<Record<string, unknown>>).map((q) => {
       if (q.type !== 'select' || !Array.isArray(q.options)) return q;
       const opts = (q.options as Array<Record<string, unknown>>).map((opt) => {
         const imageUrl = typeof opt.imageUrl === 'string' ? opt.imageUrl.trim() : typeof (opt as { image_url?: string }).image_url === 'string' ? String((opt as { image_url: string }).image_url).trim() : undefined;
         const showLabel = opt.showLabel !== false;
-        return { ...opt, value: opt.value, label: opt.label ?? opt.value, imageUrl: imageUrl || undefined, showLabel };
+        const value = opt.value;
+        const label = opt.label ?? opt.value;
+        const base: Record<string, unknown> = { value, label, showLabel };
+        if (imageUrl) base.imageUrl = imageUrl;
+        if (opt.skipToQuestionId != null) base.skipToQuestionId = opt.skipToQuestionId;
+        return base;
       });
       return { ...q, options: opts };
     });

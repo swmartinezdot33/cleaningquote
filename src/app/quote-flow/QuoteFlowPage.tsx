@@ -277,6 +277,7 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
   const [formSettings, setFormSettings] = useState<any>(useServerConfig ? (initialConfig?.formSettings ?? {}) : {});
   const [openSurveyInNewTab, setOpenSurveyInNewTab] = useState(useServerConfig ? !!(initialConfig?.formSettings as any)?.openSurveyInNewTab : false);
   const usePropertyLookupShortcut = formSettings?.usePropertyLookupShortcut !== false;
+  // Internal tool: contact collected at end (optional Save on summary); summary shows Book appointment only, no Schedule a callback.
   const internalToolOnly = !!(formSettings?.internalToolOnly === true || formSettings?.internalToolOnly === 'true');
   const visibleQuestions = useMemo(() => {
     const filtered = questions.filter((q) => q.visible !== false);
@@ -2499,6 +2500,159 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                           );
                         })()}
 
+                        {/* Internal tool: Save quote & contact — placed high so it's visible without scrolling */}
+                        {internalToolOnly && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 }}
+                            className="mt-6 pt-6 border-t border-gray-200"
+                          >
+                            <h4 className="font-semibold text-gray-900 mb-1">Save this quote (optional)</h4>
+                            <p className="text-gray-600 text-sm mb-4">Enter contact info to save this quote and contact together. You can also skip and close or start over.</p>
+                            {internalSaveContactSaved ? (
+                              <div className="rounded-xl border-2 border-green-200 bg-green-50 p-4 text-center">
+                                <div className="flex items-center justify-center gap-2 text-green-800 font-semibold mb-2">
+                                  <Check className="h-5 w-5" />
+                                  Quote saved to contact
+                                </div>
+                                <p className="text-gray-600 text-sm mb-3">You can start over or close this page.</p>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  style={{ borderColor: primaryColor, color: primaryColor }}
+                                  onClick={() => {
+                                    setQuoteResult(null);
+                                    setHouseDetails(null);
+                                    setInternalSaveContactSaved(false);
+                                    setInternalSaveContactForm({ firstName: '', lastName: '', email: '', phone: '' });
+                                    setInternalSaveContactError(null);
+                                    setCurrentStep(0);
+                                  }}
+                                >
+                                  Start over
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                                  <div className="space-y-1">
+                                    <Label htmlFor="internal-firstName-inline" className="text-xs">First name</Label>
+                                    <Input
+                                      id="internal-firstName-inline"
+                                      value={internalSaveContactForm.firstName}
+                                      onChange={(e) => setInternalSaveContactForm((f) => ({ ...f, firstName: e.target.value }))}
+                                      placeholder="First name"
+                                      className="h-9"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label htmlFor="internal-lastName-inline" className="text-xs">Last name</Label>
+                                    <Input
+                                      id="internal-lastName-inline"
+                                      value={internalSaveContactForm.lastName}
+                                      onChange={(e) => setInternalSaveContactForm((f) => ({ ...f, lastName: e.target.value }))}
+                                      placeholder="Last name"
+                                      className="h-9"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="space-y-1 mb-3">
+                                  <Label htmlFor="internal-email-inline" className="text-xs">Email</Label>
+                                  <Input
+                                    id="internal-email-inline"
+                                    type="email"
+                                    value={internalSaveContactForm.email}
+                                    onChange={(e) => setInternalSaveContactForm((f) => ({ ...f, email: e.target.value }))}
+                                    placeholder="Email"
+                                    className="h-9"
+                                  />
+                                </div>
+                                <div className="space-y-1 mb-4">
+                                  <Label htmlFor="internal-phone-inline" className="text-xs">Phone</Label>
+                                  <Input
+                                    id="internal-phone-inline"
+                                    type="tel"
+                                    value={internalSaveContactForm.phone}
+                                    onChange={(e) => setInternalSaveContactForm((f) => ({ ...f, phone: e.target.value }))}
+                                    placeholder="Phone"
+                                    className="h-9"
+                                  />
+                                </div>
+                                {internalSaveContactError && (
+                                  <p className="text-sm text-red-600 flex items-center gap-1 mb-2">
+                                    <AlertCircle className="h-4 w-4 shrink-0" />
+                                    {internalSaveContactError}
+                                  </p>
+                                )}
+                                <div className="flex flex-wrap gap-3">
+                                  <Button
+                                    size="sm"
+                                    className="font-semibold"
+                                    style={{
+                                      backgroundColor: primaryColor,
+                                      boxShadow: `0 4px 14px -4px ${hexToRgba(primaryColor, 0.4)}`,
+                                    }}
+                                    disabled={internalSaveContactLoading || !internalSaveContactForm.firstName.trim() || !internalSaveContactForm.lastName.trim() || !internalSaveContactForm.email.trim()}
+                                    onClick={async () => {
+                                      setInternalSaveContactError(null);
+                                      setInternalSaveContactLoading(true);
+                                      try {
+                                        const quoteId = quoteResult?.quoteId;
+                                        if (!quoteId) {
+                                          setInternalSaveContactError('Quote not found.');
+                                          return;
+                                        }
+                                        const res = await fetch(`/api/quote/${encodeURIComponent(quoteId)}/save-contact`, {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({
+                                            firstName: internalSaveContactForm.firstName.trim(),
+                                            lastName: internalSaveContactForm.lastName.trim(),
+                                            email: internalSaveContactForm.email.trim(),
+                                            phone: internalSaveContactForm.phone.trim() || undefined,
+                                          }),
+                                        });
+                                        const data = await res.json();
+                                        if (!res.ok) {
+                                          setInternalSaveContactError(data.error || 'Failed to save.');
+                                          return;
+                                        }
+                                        setInternalSaveContactSaved(true);
+                                      } catch {
+                                        setInternalSaveContactError('Something went wrong. Please try again.');
+                                      } finally {
+                                        setInternalSaveContactLoading(false);
+                                      }
+                                    }}
+                                  >
+                                    {internalSaveContactLoading ? <LoadingDots size="sm" className="text-current" /> : (
+                                      <span className="flex items-center gap-2">
+                                        <Check className="h-4 w-4" />
+                                        Save quote to contact
+                                      </span>
+                                    )}
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-gray-600"
+                                    onClick={() => {
+                                      setQuoteResult(null);
+                                      setHouseDetails(null);
+                                      setInternalSaveContactForm({ firstName: '', lastName: '', email: '', phone: '' });
+                                      setInternalSaveContactError(null);
+                                      setCurrentStep(0);
+                                    }}
+                                  >
+                                    Start over
+                                  </Button>
+                                </div>
+                              </>
+                            )}
+                          </motion.div>
+                        )}
+
                         {/* Calendar / confirmation inline under You Selected Service */}
                         {(showAppointmentForm || showCallForm || appointmentConfirmed || callConfirmed) && (
                           <motion.div
@@ -2731,173 +2885,22 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                             <p>This gets your home to our maintenance standards.</p>
                           </motion.div>
                         )}
-
-                        {/* Internal tool only: Save quote & contact — inside card so it's visible without scrolling */}
-                        {internalToolOnly && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.25 }}
-                            className="mt-8 pt-6 border-t border-gray-200"
-                          >
-                            <h4 className="font-semibold text-gray-900 mb-1">Save this quote (optional)</h4>
-                            <p className="text-gray-600 text-sm mb-4">Enter contact info to save this quote and contact together. You can also skip and close or start over.</p>
-                            {internalSaveContactSaved ? (
-                              <div className="rounded-xl border-2 border-green-200 bg-green-50 p-4 text-center">
-                                <div className="flex items-center justify-center gap-2 text-green-800 font-semibold mb-2">
-                                  <Check className="h-5 w-5" />
-                                  Quote saved to contact
-                                </div>
-                                <p className="text-gray-600 text-sm mb-3">You can start over or close this page.</p>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  style={{ borderColor: primaryColor, color: primaryColor }}
-                                  onClick={() => {
-                                    setQuoteResult(null);
-                                    setHouseDetails(null);
-                                    setInternalSaveContactSaved(false);
-                                    setInternalSaveContactForm({ firstName: '', lastName: '', email: '', phone: '' });
-                                    setInternalSaveContactError(null);
-                                    setCurrentStep(0);
-                                  }}
-                                >
-                                  Start over
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                                  <div className="space-y-1">
-                                    <Label htmlFor="internal-firstName-inline" className="text-xs">First name</Label>
-                                    <Input
-                                      id="internal-firstName-inline"
-                                      value={internalSaveContactForm.firstName}
-                                      onChange={(e) => setInternalSaveContactForm((f) => ({ ...f, firstName: e.target.value }))}
-                                      placeholder="First name"
-                                      className="h-9"
-                                    />
-                                  </div>
-                                  <div className="space-y-1">
-                                    <Label htmlFor="internal-lastName-inline" className="text-xs">Last name</Label>
-                                    <Input
-                                      id="internal-lastName-inline"
-                                      value={internalSaveContactForm.lastName}
-                                      onChange={(e) => setInternalSaveContactForm((f) => ({ ...f, lastName: e.target.value }))}
-                                      placeholder="Last name"
-                                      className="h-9"
-                                    />
-                                  </div>
-                                </div>
-                                <div className="space-y-1 mb-3">
-                                  <Label htmlFor="internal-email-inline" className="text-xs">Email</Label>
-                                  <Input
-                                    id="internal-email-inline"
-                                    type="email"
-                                    value={internalSaveContactForm.email}
-                                    onChange={(e) => setInternalSaveContactForm((f) => ({ ...f, email: e.target.value }))}
-                                    placeholder="Email"
-                                    className="h-9"
-                                  />
-                                </div>
-                                <div className="space-y-1 mb-4">
-                                  <Label htmlFor="internal-phone-inline" className="text-xs">Phone</Label>
-                                  <Input
-                                    id="internal-phone-inline"
-                                    type="tel"
-                                    value={internalSaveContactForm.phone}
-                                    onChange={(e) => setInternalSaveContactForm((f) => ({ ...f, phone: e.target.value }))}
-                                    placeholder="Phone"
-                                    className="h-9"
-                                  />
-                                </div>
-                                {internalSaveContactError && (
-                                  <p className="text-sm text-red-600 flex items-center gap-1 mb-2">
-                                    <AlertCircle className="h-4 w-4 shrink-0" />
-                                    {internalSaveContactError}
-                                  </p>
-                                )}
-                                <div className="flex flex-wrap gap-3">
-                                  <Button
-                                    size="sm"
-                                    className="font-semibold"
-                                    style={{
-                                      backgroundColor: primaryColor,
-                                      boxShadow: `0 4px 14px -4px ${hexToRgba(primaryColor, 0.4)}`,
-                                    }}
-                                    disabled={internalSaveContactLoading || !internalSaveContactForm.firstName.trim() || !internalSaveContactForm.lastName.trim() || !internalSaveContactForm.email.trim()}
-                                    onClick={async () => {
-                                      setInternalSaveContactError(null);
-                                      setInternalSaveContactLoading(true);
-                                      try {
-                                        const quoteId = quoteResult?.quoteId;
-                                        if (!quoteId) {
-                                          setInternalSaveContactError('Quote not found.');
-                                          return;
-                                        }
-                                        const res = await fetch(`/api/quote/${encodeURIComponent(quoteId)}/save-contact`, {
-                                          method: 'POST',
-                                          headers: { 'Content-Type': 'application/json' },
-                                          body: JSON.stringify({
-                                            firstName: internalSaveContactForm.firstName.trim(),
-                                            lastName: internalSaveContactForm.lastName.trim(),
-                                            email: internalSaveContactForm.email.trim(),
-                                            phone: internalSaveContactForm.phone.trim() || undefined,
-                                          }),
-                                        });
-                                        const data = await res.json();
-                                        if (!res.ok) {
-                                          setInternalSaveContactError(data.error || 'Failed to save.');
-                                          return;
-                                        }
-                                        setInternalSaveContactSaved(true);
-                                      } catch {
-                                        setInternalSaveContactError('Something went wrong. Please try again.');
-                                      } finally {
-                                        setInternalSaveContactLoading(false);
-                                      }
-                                    }}
-                                  >
-                                    {internalSaveContactLoading ? <LoadingDots size="sm" className="text-current" /> : (
-                                      <span className="flex items-center gap-2">
-                                        <Check className="h-4 w-4" />
-                                        Save quote to contact
-                                      </span>
-                                    )}
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-gray-600"
-                                    onClick={() => {
-                                      setQuoteResult(null);
-                                      setHouseDetails(null);
-                                      setInternalSaveContactForm({ firstName: '', lastName: '', email: '', phone: '' });
-                                      setInternalSaveContactError(null);
-                                      setCurrentStep(0);
-                                    }}
-                                  >
-                                    Start over
-                                  </Button>
-                                </div>
-                              </>
-                            )}
-                          </motion.div>
-                        )}
                       </div>
 
-                      {/* Decorative footer */}
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.5 }}
-                        className="mt-8 pt-6 border-t border-gray-200 text-center"
-                      >
-                        <p className="text-gray-500 text-sm">
-                          <span className="inline-block mr-2">🎯</span>
-                          Professional pricing • Customized for your needs
-                        </p>
-                      </motion.div>
+                      {/* Decorative footer — streamlined for internal (no marketing copy) */}
+                      {!internalToolOnly && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.5 }}
+                          className="mt-8 pt-6 border-t border-gray-200 text-center"
+                        >
+                          <p className="text-gray-500 text-sm">
+                            <span className="inline-block mr-2">🎯</span>
+                            Professional pricing • Customized for your needs
+                          </p>
+                        </motion.div>
+                      )}
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -2928,11 +2931,34 @@ export function Home(props: { slug?: string; toolId?: string; initialConfig?: To
                         </Button>
                       </div>
                     ) : internalToolOnly ? (
-                      /* Save form is inside the quote card; here just a secondary Start over link */
-                      <div className="flex justify-center">
+                      /* Internal: Book appointment + Start over only (no Schedule a callback) */
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                        <Button
+                          onClick={() => {
+                            const willShow = !showAppointmentForm;
+                            setShowAppointmentForm(willShow);
+                            if (willShow) setShowCallForm(false);
+                            if (willShow) {
+                              setTimeout(() => {
+                                calendarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+                                window.scrollBy({ top: -20, behavior: 'smooth' });
+                              }, 150);
+                            }
+                          }}
+                          className="w-full sm:w-auto min-w-[200px] h-14 text-lg font-bold shadow-lg hover:shadow-xl transition-all bg-gradient-to-br from-blue-600 via-blue-700 to-cyan-600 hover:from-blue-700 hover:via-blue-800 hover:to-cyan-700 border-4 border-white/30"
+                          style={{
+                            boxShadow: `0 12px 28px -8px ${hexToRgba(primaryColor, 0.4)}`,
+                          }}
+                        >
+                          <span className="flex items-center justify-center gap-2 text-white">
+                            <span className="text-2xl">📅</span>
+                            Book an Appointment
+                          </span>
+                        </Button>
                         <Button
                           variant="outline"
-                          size="sm"
+                          size="lg"
+                          className="shrink-0"
                           style={{ borderColor: primaryColor, color: primaryColor }}
                           onClick={() => {
                             setQuoteResult(null);

@@ -106,7 +106,7 @@ export default function GHLConfigHelpPage() {
       </p>
       <ul className="list-disc list-inside space-y-1 text-foreground mt-2">
         <li><strong className="text-foreground">Form is iframed (pre-fill from GHL):</strong> When the form is embedded in your CRM or site with a contact ID in the URL, CleanQuote fetches name, phone, email, and address from the CRM and lands the user on the address step. Use the iframe URL with <code className="bg-muted px-1 rounded">?contactId=&#123;&#123;Contact.Id&#125;&#125;</code> (or your CRM&apos;s contact ID placeholder).</li>
-        <li><strong id="internal-tool-only" className="text-foreground">Internal tool only:</strong> Collect contact info at the end of the survey instead of the beginning. On the quote summary, show a &quot;Save quote&quot; button instead of Book appointment / Schedule callback. Use this when the form is for internal quoting (e.g. office staff) rather than customer-facing booking.</li>
+        <li><strong id="internal-tool-only" className="text-foreground">Internal tool only:</strong> Contact info is collected at the end (optional Save quote and create contact). The quote summary is streamlined: Book an appointment remains available; Schedule a callback is not shown. Use for internal quoting (e.g. office staff) rather than customer-facing booking.</li>
       </ul>
 
       <h2 id="service-area-tags" className="text-lg font-semibold text-foreground mt-8">In-service tags and Out-of-service tags</h2>
