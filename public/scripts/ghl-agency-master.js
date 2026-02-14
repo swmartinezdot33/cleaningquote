@@ -406,6 +406,7 @@
       var ourContainer = document.getElementById(CONTAINER_ID);
       var insertBefore = ourContainer || findFirstSidebarNavRow();
       if (!insertBefore || !insertBefore.parentNode || cleanQuoteRow === insertBefore) return;
+      if (cleanQuoteRow.nextElementSibling === insertBefore) return;
       try {
         insertBefore.parentNode.insertBefore(cleanQuoteRow, insertBefore);
       } catch (e) {}
@@ -477,13 +478,9 @@
       setTimeout(run, 500);
     window.addEventListener('routeLoaded', function () { setTimeout(run, 300); });
     window.addEventListener('routeChangeEvent', function () { setTimeout(run, 300); });
-    /* Re-run move when DOM changes so we catch CleanQuote link when GHL adds it later. */
-    var moveRetries = [800, 1500, 3000, 5000];
+    /* Re-run move on a schedule so we catch CleanQuote link when GHL adds it later. No MutationObserver - it caused mutation loops and browser crashes. */
+    var moveRetries = [800, 1500, 3000, 5000, 7000, 10000];
     moveRetries.forEach(function (delay) { setTimeout(moveCleanQuoteToTopAndHideDashboard, delay); });
-    try {
-      var mo = new MutationObserver(function () { moveCleanQuoteToTopAndHideDashboard(); });
-      mo.observe(document.body, { childList: true, subtree: true });
-    } catch (e) {}
   })();
 
   /* Logo swap: only when location is on Google Sheet allowlist; logo from GHL business.logoUrl */
