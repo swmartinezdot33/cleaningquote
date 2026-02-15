@@ -182,6 +182,9 @@ div#membershipBuilder {
 #template-power-dialer button[aria-label="Toggle Power Dialer"] svg {
     color: var(--header-phone-button-color);
 }
+button.flex.h-8.w-8.cursor-pointer.items-center.justify-center.rounded-full.bg-success-600 {
+    background-color: white;
+}
 #canny_logs-toggle {
     background: var(--header-changelog-button-bg);
     color: var(--header-changelog-button-color);
