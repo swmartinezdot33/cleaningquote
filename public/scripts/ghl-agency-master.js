@@ -269,21 +269,4 @@
     setInterval(applyTitle, 2000);
   })();
 
-  /* --- Avatar fallback: our purple when no image --- */
-  (function () {
-    var ourPurple = '#7c3aed';
-    function styleAvatar() {
-      var avatarImg = document.querySelector('.avatar_img');
-      if (avatarImg && !avatarImg.getAttribute('src')) {
-        avatarImg.style.backgroundColor = ourPurple;
-      }
-    }
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', styleAvatar);
-    } else {
-      styleAvatar();
-    }
-    setTimeout(styleAvatar, 1500);
-  })();
-
 })();

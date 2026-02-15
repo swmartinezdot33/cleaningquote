@@ -35,6 +35,11 @@ body[data-theme="default-dark-v1"] .user-info-card .text-xs.truncate {
 .avatar > .avatar_img+h4 {
     font-size: inherit;
 }
+/* Avatar fallback: our purple when no image */
+.avatar_img:not([src]),
+.avatar_img[src=""] {
+    background-color: #7c3aed !important;
+}
 i.icon {
     border: none;
 }
