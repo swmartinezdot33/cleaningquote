@@ -544,7 +544,8 @@
         link.href = 'javascript:void(0)';
         link.setAttribute('data-cq-page', item.page);
         link.setAttribute('role', 'button');
-        link.className = 'cq-submenu-link w-full group px-3 flex items-center justify-start md:justify-center lg:justify-start xl:justify-start text-sm rounded-md cursor-pointer font-medium py-2';
+        /* justify-start = left when expanded; md:justify-center = icon centered in rail; flex-shrink-0 on icon = no drift */
+        link.className = 'cq-submenu-link w-full group px-3 flex items-center justify-start md:justify-center lg:justify-start xl:justify-start text-sm rounded-md cursor-pointer custom-link font-medium opacity-70 py-2';
         var iconHex = (item.icon || 'f111').toString().toLowerCase();
         var iconSpan = document.createElement('span');
         iconSpan.className = 'icon-wrapper h-5 w-5 flex items-center justify-center flex-shrink-0';
@@ -724,7 +725,11 @@
     var TITLE_SUFFIX = ' | CleanQuote.io';
     function applyTitle() {
       try {
-        var pageName = getPageNameFromUrl() || getActiveNavLabel();
+        var pageName = getPageNameFromUrl();
+        if (!pageName) {
+          var fallback = getActiveNavLabel();
+          if (fallback && fallback.toLowerCase() !== 'launchpad') pageName = fallback;
+        }
         if (pageName) {
           document.title = pageName.replace(/\s*\|\s*CleanQuote\.io\s*$/i, '') + TITLE_SUFFIX;
         } else {

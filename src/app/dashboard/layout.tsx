@@ -5,9 +5,9 @@ import { DashboardGHLWrapper } from '@/app/dashboard/DashboardGHLWrapper';
 /** Force dynamic rendering so dashboard pages are not statically prerendered (they use GHL context, searchParams, etc.). */
 export const dynamic = 'force-dynamic';
 
-/** Title bar shows "Page | LaunchPad" for all dashboard views. */
+/** Title bar shows "Page | CleanQuote.io" for all dashboard views. */
 export const metadata: Metadata = {
-  title: { template: '%s | LaunchPad', default: 'Dashboard | LaunchPad' },
+  title: { template: '%s | CleanQuote.io', default: 'Dashboard | CleanQuote.io' },
 };
 
 /**
