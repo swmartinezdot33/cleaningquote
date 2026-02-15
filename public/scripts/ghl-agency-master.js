@@ -31,8 +31,8 @@
   })();
   var customPageId = C.customPageId || '6983df14aa911f4d3067493d';
   var faviconUrl = C.faviconUrl || 'https://www.cleanquote.io/icon.svg';
-  var moveLabel = C.moveLabel || 'Sub-Accounts';
-  var targetLabel = C.targetLabel || 'SaaS';
+  var moveLabel = C.moveLabel || 'CleanQuote.io';
+  var targetLabel = C.targetLabel || 'Conversations';
   var cleanquoteAppBase = (C.cleanquoteAppBase || C.baseUrl || 'https://my.cleanquote.io').replace(/\/+$/, '');
   var groups = C.groups || [
     { parentLabel: 'HighLevel', labels: ['Add-Ons', 'Template Library', 'Partners', 'University', 'SaaS Education', 'GHL Swag', 'Ideas'] },
@@ -455,7 +455,24 @@
       while (first && first.id === CONTAINER_ID) first = first.nextElementSibling;
       return first || null;
     }
-    /** Not used for move; kept for any callers. First visible nav row in sidebar (DOM order). */
+    /** Find the sidebar row that contains a link with the given label (e.g. "Conversations"). */
+    function findRowByLabelInSidebar(label, excludeRow) {
+      var root = getLeftSidebarRoot();
+      if (!root) return null;
+      var wanted = normLower(label);
+      var candidates = root.querySelectorAll('a, [role="link"], button');
+      for (var i = 0; i < candidates.length; i++) {
+        var el = candidates[i];
+        if (el.id === CONTAINER_ID || (el.closest && el.closest('#' + CONTAINER_ID))) continue;
+        var row = getRow(el);
+        if (!row || (row.getAttribute && row.getAttribute('data-cleanquote-hidden-dashboard') === '1')) continue;
+        if (excludeRow && row === excludeRow) continue;
+        var text = normLower((el.textContent || '').split('\n')[0].trim());
+        if (text === wanted) return row;
+      }
+      return null;
+    }
+    /** First visible nav row in sidebar (DOM order). */
     function findFirstSidebarNavRow() {
       var root = getLeftSidebarRoot();
       if (!root) return null;
@@ -569,8 +586,8 @@
             dbg({ hypothesisId: 'H_prepend_parent', didPrepend: true });
           } catch (e) {}
         } else {
-          /* Fallback: insert before first nav item (Home, Launchpad, Dashboard, etc.). */
-          var anchorRow = findFirstNavAnchorRow(cleanQuoteRow);
+          /* Prefer: insert CleanQuote.io above Conversations; else before first nav (Home, Launchpad, Dashboard, etc.). */
+          var anchorRow = findRowByLabelInSidebar('Conversations', cleanQuoteRow) || findFirstNavAnchorRow(cleanQuoteRow);
           if (anchorRow && anchorRow.parentNode && anchorRow !== cleanQuoteRow) {
             try {
               anchorRow.parentNode.insertBefore(cleanQuoteRow, anchorRow);
@@ -586,6 +603,13 @@
             } catch (e) {}
           }
         }
+      }
+
+      /* Always keep submenu attached to CleanQuote.io: ensure container is immediately after the row (handles retries and other scripts moving the row). */
+      if (ourContainer && cleanQuoteRow.parentNode && cleanQuoteRow.nextElementSibling !== ourContainer) {
+        try {
+          cleanQuoteRow.parentNode.insertBefore(ourContainer, cleanQuoteRow.nextSibling);
+        } catch (e) {}
       }
 
       hideDashboardItem();
