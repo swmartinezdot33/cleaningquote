@@ -20,16 +20,12 @@
         if (q.get('faviconUrl')) C.faviconUrl = q.get('faviconUrl');
         if (q.get('cleanquoteAppBase')) C.cleanquoteAppBase = q.get('cleanquoteAppBase');
         if (q.get('baseUrl')) C.baseUrl = q.get('baseUrl');
-        if (q.get('moveLabel')) C.moveLabel = q.get('moveLabel');
-        if (q.get('targetLabel')) C.targetLabel = q.get('targetLabel');
       } catch (e) {}
     }
   })();
 
   var customPageId = C.customPageId || '6983df14aa911f4d3067493d';
   var faviconUrl = C.faviconUrl || 'https://www.cleanquote.io/icon.svg';
-  var moveLabel = C.moveLabel || 'CleanQuote.io';
-  var targetLabel = C.targetLabel || 'Conversations';
   var cleanquoteAppBase = (C.cleanquoteAppBase || C.baseUrl || 'https://my.cleanquote.io').replace(/\/+$/, '');
   var groups = C.groups || [
     { parentLabel: 'HighLevel', labels: ['Add-Ons', 'Template Library', 'Partners', 'University', 'SaaS Education', 'GHL Swag', 'Ideas'] },
@@ -140,19 +136,6 @@
   /* --- Sidebar / Submenu Logic --- */
   (function () {
     var CONTAINER_ID = 'cleanquote-ghl-sidebar-menu';
-    var activeBg = 'rgba(0,0,0,0.12)';
-    var activeColor = '#7c3aed';
-    var ourPurple = '#7c3aed';
-
-    function setElementStyles(el, styles) {
-      if (!el || !styles) return;
-      for (var k in styles) {
-        if (styles.hasOwnProperty(k)) {
-          var cssKey = k.replace(/([A-Z])/g, function (m) { return '-' + m.toLowerCase(); });
-          el.style.setProperty(cssKey, styles[k]);
-        }
-      }
-    }
 
     function findCleanQuoteCustomLinkRow() {
         var root = getLeftSidebarRoot();
@@ -168,37 +151,6 @@
             }
         }
         return null;
-    }
-
-    /** Hide only the native Dashboard *link*, never its row/parent — so we never accidentally hide a container and wipe the whole menu. */
-    function hideDashboardItem() {
-        var root = getLeftSidebarRoot();
-        if (!root) return;
-        var links = root.querySelectorAll('a, [role="link"]');
-        for (var i = 0; i < links.length; i++) {
-            var link = links[i];
-            if (link.id === CONTAINER_ID || (link.closest && link.closest('#' + CONTAINER_ID))) continue;
-            var text = normLower(link.textContent || '');
-            if (text === 'dashboard') link.style.display = 'none';
-        }
-    }
-
-    /** Move CleanQuote to top of its parent: parent.prepend(elementToMove) */
-    function moveCleanQuoteToTopAndHideDashboard() {
-      var ourContainer = document.getElementById(CONTAINER_ID);
-      var elementToMove = (ourContainer && ourContainer.previousElementSibling) ? ourContainer.previousElementSibling : findCleanQuoteCustomLinkRow();
-      var parentElement = elementToMove && elementToMove.parentElement;
-
-      if (elementToMove && parentElement) {
-        parentElement.prepend(elementToMove);
-        if (ourContainer && elementToMove.nextElementSibling !== ourContainer) {
-          parentElement.insertBefore(ourContainer, elementToMove.nextSibling);
-        }
-        elementToMove.setAttribute('data-cleanquote-primary', '1');
-        setElementStyles(elementToMove, { backgroundColor: ourPurple });
-      }
-
-      hideDashboardItem();
     }
 
     /* Submenu definition */
@@ -243,20 +195,13 @@
       if (cqRow && cqRow.parentNode) {
         cqRow.parentNode.insertBefore(container, cqRow.nextSibling);
       }
-      
-      moveCleanQuoteToTopAndHideDashboard();
     }
 
     // Initialization
     setTimeout(function() {
       var locId = getLocationIdFromUrl();
       if (locId) injectSidebarMenu(locId);
-      moveCleanQuoteToTopAndHideDashboard();
     }, 1000);
-
-    // Watch for DOM changes to keep it at the top
-    var observer = new MutationObserver(moveCleanQuoteToTopAndHideDashboard);
-    observer.observe(document.body, { childList: true, subtree: true });
   })();
 
   /* --- Title Management --- */
