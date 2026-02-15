@@ -1350,3 +1350,8 @@ div#cleanquote-ghl-sidebar-menu a.cq-submenu-link.is-active-submenu span.nav-tex
   text-overflow: ellipsis !important;
   flex-grow: 1 !important;
 }
+
+
+.w-full.group.px-3.flex.items-center.justify-start.lg\:justify-start.xl\:justify-start.text-sm.font-medium.rounded-md.text-gray-300.font-normal.cursor-text.divider.justify-center.md\:justify-center.lg\:justify-center.xl\:justify-center {
+    display: none;
+  }
