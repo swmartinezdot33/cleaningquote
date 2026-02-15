@@ -513,7 +513,8 @@
       }
       var root = getLeftSidebarRoot();
       if (root) {
-        var candidates = root.querySelectorAll('a, [role="link"], button');
+        var searchRoot = document.querySelector('.hl_navbar--nav-items') || root;
+        var candidates = searchRoot.querySelectorAll('a, [role="link"], button');
         for (var i = 0; i < candidates.length; i++) {
           var row = rowFrom(candidates[i]);
           if (row) return row;
@@ -577,6 +578,8 @@
         } catch (e) {}
       } else {
         var parent = cleanQuoteRow.parentNode;
+        var anchorRow = findRowByLabelInSidebar('Conversations', cleanQuoteRow) || findFirstNavAnchorRow(cleanQuoteRow);
+        var alreadyBeforeAnchor = anchorRow && (cleanQuoteRow.nextElementSibling === anchorRow || (ourContainer && cleanQuoteRow.nextElementSibling === ourContainer && ourContainer.nextElementSibling === anchorRow));
         if (parent && cleanQuoteRow.previousElementSibling) {
           try {
             parent.prepend(cleanQuoteRow);
@@ -585,16 +588,12 @@
             }
             dbg({ hypothesisId: 'H_prepend_parent', didPrepend: true });
           } catch (e) {}
-        } else {
-          /* Prefer: insert CleanQuote.io above Conversations; else before first nav (Home, Launchpad, Dashboard, etc.). */
-          var anchorRow = findRowByLabelInSidebar('Conversations', cleanQuoteRow) || findFirstNavAnchorRow(cleanQuoteRow);
-          if (anchorRow && anchorRow.parentNode && anchorRow !== cleanQuoteRow) {
-            try {
-              anchorRow.parentNode.insertBefore(cleanQuoteRow, anchorRow);
-              dbg({ hypothesisId: 'H_move_top', didInsertBeforeAnchor: true });
-            } catch (e) {
-              dbg({ hypothesisId: 'H5', didInsert: false, error: (e && e.message) || String(e) });
-            }
+        } else if (anchorRow && anchorRow.parentNode && anchorRow !== cleanQuoteRow && !alreadyBeforeAnchor) {
+          try {
+            anchorRow.parentNode.insertBefore(cleanQuoteRow, anchorRow);
+            dbg({ hypothesisId: 'H_move_top', didInsertBeforeAnchor: true });
+          } catch (e) {
+            dbg({ hypothesisId: 'H5', didInsert: false, error: (e && e.message) || String(e) });
           }
           if (ourContainer && cleanQuoteRow.parentNode && cleanQuoteRow.nextElementSibling !== ourContainer) {
             try {
@@ -610,6 +609,16 @@
         try {
           cleanQuoteRow.parentNode.insertBefore(ourContainer, cleanQuoteRow.nextSibling);
         } catch (e) {}
+      }
+
+      cleanQuoteRow.setAttribute('data-cleanquote-primary', '1');
+      var dupes = root.querySelectorAll('a[href*="custom-page-link"]');
+      for (var d = 0; d < dupes.length; d++) {
+        var r = getRow(dupes[d]);
+        if (r && r !== cleanQuoteRow && !r.querySelector('#' + CONTAINER_ID) && r.getAttribute('data-cleanquote-primary') !== '1') {
+          r.style.display = 'none';
+          r.setAttribute('data-cleanquote-hidden-duplicate', '1');
+        }
       }
 
       hideDashboardItem();
