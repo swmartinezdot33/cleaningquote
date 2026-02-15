@@ -1006,28 +1006,41 @@ div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link {
   }
 }
 
-/* Hover state for unselected submenu items */
+/* Hover state – native GHL-style subtle highlight (works in light and dark sidebar) */
 div#cleanquote-ghl-sidebar-menu ul li button:hover,
 div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link:hover {
-  background-color: rgba(0, 0, 0, 0.05) !important;
+  background-color: rgba(255, 255, 255, 0.05) !important;
   color: rgb(0, 0, 0) !important;
   opacity: 1 !important;
 }
+body[data-theme="default-dark-v1"] #cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link:hover,
+body[data-theme="default-dark-v1"] #cleanquote-ghl-sidebar-menu ul li button:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+}
 
-/* Active state for submenu items */
+/* Active state – CleanQuote purple highlight (synced via .is-active from URL / iframe) */
 div#cleanquote-ghl-sidebar-menu ul li button.is-active,
 div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link.is-active {
-  background-color: rgb(243, 244, 246) !important;
-  color: rgb(0, 0, 0) !important;
-  font-weight: 500 !important;
+  color: #7c3aed !important;
+  background-color: rgba(124, 58, 237, 0.1) !important;
+  font-weight: 700 !important;
   opacity: 1 !important;
 }
+div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link.is-active span.icon-wrapper i,
+div#cleanquote-ghl-sidebar-menu ul li button.is-active span.icon-wrapper i {
+  color: #7c3aed !important;
+}
 
-/* Hover state for active submenu items */
+/* Hover state for active submenu items – keep purple, slightly stronger background */
 div#cleanquote-ghl-sidebar-menu ul li button.is-active:hover,
 div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link.is-active:hover {
-  background-color: rgb(229, 231, 235) !important;
-  color: rgb(0, 0, 0) !important;
+  background-color: rgba(124, 58, 237, 0.18) !important;
+  color: #7c3aed !important;
+}
+div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link.is-active:hover span.icon-wrapper i,
+div#cleanquote-ghl-sidebar-menu ul li button.is-active:hover span.icon-wrapper i {
+  color: #7c3aed !important;
 }
 
 /* Icon styling (when icon wrapper is present) */
