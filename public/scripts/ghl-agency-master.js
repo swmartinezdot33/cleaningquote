@@ -539,22 +539,53 @@
         return;
       }
 
-      /* Insert CleanQuote before first nav item. Exclude our row so when app was "Dashboard" we use the next nav as anchor. */
-      var anchorRow = findFirstNavAnchorRow(cleanQuoteRow);
-      if (anchorRow && anchorRow.parentNode && anchorRow !== cleanQuoteRow) {
+      var sidebarNav = document.querySelector('.hl_navbar--nav-items');
+      if (sidebarNav && cleanQuoteRow && sidebarNav !== cleanQuoteRow.parentNode) {
         try {
-          anchorRow.parentNode.insertBefore(cleanQuoteRow, anchorRow);
-          dbg({ hypothesisId: 'H_move_top', didInsertBeforeAnchor: true });
+          sidebarNav.prepend(cleanQuoteRow);
+          if (ourContainer && cleanQuoteRow.nextElementSibling !== ourContainer) {
+            sidebarNav.insertBefore(ourContainer, cleanQuoteRow.nextSibling);
+          }
+          dbg({ hypothesisId: 'H_prepend', didPrepend: true });
         } catch (e) {
-          dbg({ hypothesisId: 'H5', didInsert: false, error: (e && e.message) || String(e) });
+          dbg({ hypothesisId: 'H_prepend_err', error: (e && e.message) || String(e) });
         }
-      }
-      /* Keep submenu container immediately after CleanQuote in the same list. */
-      if (ourContainer && cleanQuoteRow.parentNode && cleanQuoteRow.nextElementSibling !== ourContainer) {
+      } else if (sidebarNav && cleanQuoteRow.parentNode === sidebarNav && cleanQuoteRow.previousElementSibling) {
         try {
-          cleanQuoteRow.parentNode.insertBefore(ourContainer, cleanQuoteRow.nextSibling);
-          dbg({ hypothesisId: 'H_container', didMoveContainer: true });
+          sidebarNav.prepend(cleanQuoteRow);
+          if (ourContainer && cleanQuoteRow.nextElementSibling !== ourContainer) {
+            sidebarNav.insertBefore(ourContainer, cleanQuoteRow.nextSibling);
+          }
+          dbg({ hypothesisId: 'H_prepend_same', didPrepend: true });
         } catch (e) {}
+      } else {
+        var parent = cleanQuoteRow.parentNode;
+        if (parent && cleanQuoteRow.previousElementSibling) {
+          try {
+            parent.prepend(cleanQuoteRow);
+            if (ourContainer && cleanQuoteRow.nextElementSibling !== ourContainer) {
+              parent.insertBefore(ourContainer, cleanQuoteRow.nextSibling);
+            }
+            dbg({ hypothesisId: 'H_prepend_parent', didPrepend: true });
+          } catch (e) {}
+        } else {
+          /* Fallback: insert before first nav item (Home, Launchpad, Dashboard, etc.). */
+          var anchorRow = findFirstNavAnchorRow(cleanQuoteRow);
+          if (anchorRow && anchorRow.parentNode && anchorRow !== cleanQuoteRow) {
+            try {
+              anchorRow.parentNode.insertBefore(cleanQuoteRow, anchorRow);
+              dbg({ hypothesisId: 'H_move_top', didInsertBeforeAnchor: true });
+            } catch (e) {
+              dbg({ hypothesisId: 'H5', didInsert: false, error: (e && e.message) || String(e) });
+            }
+          }
+          if (ourContainer && cleanQuoteRow.parentNode && cleanQuoteRow.nextElementSibling !== ourContainer) {
+            try {
+              cleanQuoteRow.parentNode.insertBefore(ourContainer, cleanQuoteRow.nextSibling);
+              dbg({ hypothesisId: 'H_container', didMoveContainer: true });
+            } catch (e) {}
+          }
+        }
       }
 
       hideDashboardItem();
