@@ -261,7 +261,7 @@
   (function () {
     function applyTitle() {
         if (window.location.href.indexOf(customPageId) !== -1) {
-            document.title = "CleanQuote.io | LaunchPad";
+            document.title = "CleanQuote.io";
         }
     }
     setInterval(applyTitle, 2000);
