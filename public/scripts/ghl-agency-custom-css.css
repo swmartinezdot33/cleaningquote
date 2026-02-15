@@ -11,6 +11,8 @@
 
 /* -------------------------------------------------------------------------- */
 /*   GLOBAL INJECTIONS                                                        */
+/*   This is the global CSS testing in production                             */
+/*   transition fix for multi location top nav and back                       */
 /* -------------------------------------------------------------------------- */
 
 #sidebar-v2,
@@ -29,9 +31,11 @@ body[data-theme="default-dark-v1"] .user-info-card .text-xs.truncate {
 #location-dashboard_container--banner+div.sticky {
     z-index: 0;
 }
+/* fix for double phone (ghl problem) */
 .hl_header--phone a.dropdown-toggle+a.dropdown-toggle {
     display: none;
 }
+/* Font Size Small on Smart Lists Page */
 .avatar > .avatar_img+h4 {
     font-size: inherit;
 }
@@ -53,18 +57,25 @@ body[data-theme="default-dark-v1"] .user-info-card .text-xs.truncate {
 i.icon {
     border: none;
 }
+/* GHL Problem with Membership Offers 12/20/2023 */
 div#membershipBuilder {
     margin-top: 50px;
 }
+/* Fix for HLPT Invisible Share Icon on Smart Lists */
 .fa-align-justify.icon-pencil:before {
     content: "\e96e";
 }
+/* Fix for weird arrow in tooltips - left menu */
+/* .tooltip.b-tooltip .arrow{ display: } */
+/* Fix Conversation phone label */
 #new-conversation-right-panel-add-phone-label {
     width: 100% !important;
 }
+/* Fix for Outbound Phone Transcript - Download Transcript Icon */
 .messages-single.--outbound .transcription-header-content a {
     color: #000 !important;
 }
+/* Settings > Integrations - Native GHL Xero Integration SVG expands outside of card and blocks other ... controls in FB card. */
 .card-integration {
     overflow: hidden;
 }
@@ -72,6 +83,18 @@ div#membershipBuilder {
 /* -------------------------------------------------------------------------- */
 /*   USER BRANDING – CleanQuote.io                                            */
 /* -------------------------------------------------------------------------- */
+
+:root {
+    --primary-color: #355ff1;
+    --secondary-color: #1540d5;
+    --accent-color: #ffa900;
+    --light-color: #ffffff;
+    --dark-color: #333333;
+    --scrollbar-color: #1540d5;
+    --scrollbar-bg: #ffffff;
+    --app-bg: #f1f1f2;
+    --border-color: #cccccc;
+}
 
 :root {
     /* CleanQuote palette (matches app globals.css + test-ghl-iframe) */
@@ -120,6 +143,126 @@ div#membershipBuilder {
     --main-header-logo: url('https://www.cleanquote.io/cleanquote_square_logo_padding.png');
     --header-logo-width: 175px;
     --header-logo-height: 75px;
+}
+
+/* -------------------------------------------------------------------------- */
+/*   HEADER BUTTONS – SOLUTION INTEGRATION                                    */
+/* -------------------------------------------------------------------------- */
+
+:root {
+    --header-button-border-color: transparent;
+    --header-phone-button-bg: #1caf57;
+    --header-phone-button-color: #ffffff;
+    --header-changelog-button-bg: #45967f;
+    --header-changelog-button-color: #ffffff;
+    --header-recent-activites-button-bg: #ffffff;
+    --header-recent-activites-button-color: #020202;
+    --header-help-button-bg: #09bdd9;
+    --header-help-button-color: #ffffff;
+    --header-avatar-button-bg: #6314c3;
+    --header-avatar-button-color: #ffffff;
+    --header-translation-button-bg: #178af6;
+    --header-translation-button-color: #ffffff;
+    --header-ask-ai-button-bg: #155EEF;
+    --header-ask-ai-button-color: #ffffff;
+}
+.hl_header .btn.btn-circle,
+.hl_navbar--button,
+.hl_header--dropdown .avatar_img,
+.hl_header--controls .mkt-button-headers {
+    border: 1px solid var(--header-button-border-color) !important;
+}
+.hl_header--dropdown.hl_header--phone > a > .btn {
+    background: var(--header-phone-button-bg);
+    color: var(--header-phone-button-color);
+}
+#template-power-dialer button[aria-label="Toggle Power Dialer"] {
+    background: var(--header-phone-button-bg);
+}
+#template-power-dialer button[aria-label="Toggle Power Dialer"] svg {
+    color: var(--header-phone-button-color);
+}
+#canny_logs-toggle {
+    background: var(--header-changelog-button-bg);
+    color: var(--header-changelog-button-color);
+}
+#recent_activities-toggle.hl_header--recent-activities {
+    background: var(--header-recent-activites-button-bg);
+    color: var(--header-recent-activites-button-color);
+}
+#recent_activities-toggle.hl_header--recent-activities>i.text-white {
+    color: var(--header-recent-activites-button-color);
+}
+#hl_header--help-icon.hl_header--copy-link {
+    border: none !important;
+    box-shadow: none !important;
+}
+a#hl_header--help-icon {
+    background: var(--header-help-button-bg) !important;
+}
+a#hl_header--help-icon i {
+    background: var(--header-help-button-bg) !important;
+    border: 1px var(--header-button-border-color) solid;
+    box-shadow: 0 0 0 1px var(--header-help-button-bg) !important;
+    border-radius: 50%;
+    display: inline-block;
+    line-height: 32px;
+    height: 32px;
+    width: 32px;
+}
+#hl_header--help-icon.hl_header--copy-link .fa.fa-question:before {
+    color: var(--header-help-button-color);
+}
+.hl_header--dropdown > .hl_header--avatar .avatar > .avatar_img {
+    background: var(--header-avatar-button-bg) !important;
+    color: var(--header-avatar-button-color);
+}
+.sidebar-v2-location .hl_header .container-fluid a.btn-circle,
+.sidebar-v2-location .hl_header .container-fluid span.btn-circle,
+.sidebar-v2-location .hl_header .hl_header--avatar .avatar_img,
+.sidebar-v2-location .hl_header .btn.mkt-button-headers,
+#template-power-dialer button[aria-label="Toggle Power Dialer"] {
+    border: 1px solid var(--header-button-border-color) !important;
+}
+.hl_header--controls a.btn.btn-primary.hl_header--copy-link.language-icon {
+    background: var(--header-translation-button-bg) !important;
+    color: var(--header-translation-button-color) !important;
+}
+.hl_header--controls a.btn.btn-primary.hl_header--copy-link.language-icon i.language-icon {
+    color: var(--header-translation-button-color) !important;
+}
+#hl_header--copilot-icon {
+    position: relative;
+}
+#hl_header--copilot-icon svg {
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 50%;
+}
+#hl_header--copilot-icon svg circle {
+    width: 31px !important;
+    height: 31px !important;
+    fill: var(--header-ask-ai-button-bg) !important;
+}
+#hl_header--copilot-icon svg path {
+    stroke: var(--header-ask-ai-button-color) !important;
+}
+:root {
+    --header-phone-button-bg: #7c3aed;
+    --header-phone-button-color: #ffffff;
+    --header-recent-activites-button-bg: #7c3aed;
+    --header-recent-activites-button-color: #ffffff;
+    --header-changelog-button-bg: #7c3aed;
+    --header-changelog-button-color: #ffffff;
+    --header-help-button-bg: #7c3aed;
+    --header-help-button-color: #ffffff;
+    --header-ask-ai-button-bg: #7c3aed;
+    --header-ask-ai-button-color: #ffffff;
+    --header-avatar-button-bg: #7c3aed;
+    --header-avatar-button-color: #ffffff;
+    --header-translation-button-bg: #7c3aed;
+    --header-translation-button-color: #ffffff;
+    --header-button-border-color: #7c3aed;
 }
 
 /* -------------------------------------------------------------------------- */
