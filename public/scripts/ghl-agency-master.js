@@ -170,7 +170,7 @@
         return null;
     }
 
-    /** Hide only the native Dashboard link, never its parent — avoid hiding a nav container that holds the whole menu (e.g. admin layout). */
+    /** Hide only the native Dashboard *link*, never its row/parent — so we never accidentally hide a container and wipe the whole menu. */
     function hideDashboardItem() {
         var root = getLeftSidebarRoot();
         if (!root) return;
@@ -179,14 +179,7 @@
             var link = links[i];
             if (link.id === CONTAINER_ID || (link.closest && link.closest('#' + CONTAINER_ID))) continue;
             var text = normLower(link.textContent || '');
-            if (text !== 'dashboard') continue;
-            var row = getRow(link);
-            var numLinksInRow = row ? row.querySelectorAll('a, [role="link"]').length : 0;
-            if (numLinksInRow === 1) {
-                if (row) row.style.display = 'none';
-            } else {
-                link.style.display = 'none';
-            }
+            if (text === 'dashboard') link.style.display = 'none';
         }
     }
 
