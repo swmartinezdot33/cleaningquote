@@ -1095,13 +1095,17 @@ div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link span.icon-wrapper i {
 }
 
 /* GHL-style Font Awesome icon via --fa/--ff (unicode) */
-div#cleanquote-ghl-sidebar-menu .nav-fa-icon {
+/* Native GHL icon: --fa unicode, sm-button + nav-fa-icon for alignment/scale with platform sidebar */
+div#cleanquote-ghl-sidebar-menu .nav-fa-icon,
+div#cleanquote-ghl-sidebar-menu .sm-button.nav-fa-icon {
   font-family: var(--ff, 'Font Awesome 5 Free') !important;
   font-weight: 900 !important;
   font-style: normal !important;
   color: inherit !important;
+  display: inline-block !important;
 }
-div#cleanquote-ghl-sidebar-menu .nav-fa-icon::before {
+div#cleanquote-ghl-sidebar-menu .nav-fa-icon::before,
+div#cleanquote-ghl-sidebar-menu .sm-button.nav-fa-icon::before {
   content: var(--fa) !important;
 }
 
@@ -1114,9 +1118,15 @@ div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link span.nav-text {
   flex-grow: 1 !important;
 }
 
-/* Hide label in rail mode when GHL utility classes aren't available (fallback) */
-@media (max-width: 1023px) {
-  div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link span.nav-title {
+/* Labels visible by default so they show on most dashboard sizes */
+div#cleanquote-ghl-sidebar-menu .cq-nav-label,
+div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link span.nav-title {
+  display: inline-block !important;
+}
+/* Only hide labels in true rail/narrow sidebar (very narrow viewport) */
+@media (max-width: 768px) {
+  div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link span.nav-title,
+  div#cleanquote-ghl-sidebar-menu .cq-nav-label {
     display: none !important;
   }
 }

@@ -562,9 +562,10 @@
         var iconHex = (item.icon || 'f111').toString().toLowerCase();
         var iconSpan = document.createElement('span');
         iconSpan.className = 'icon-wrapper h-5 w-5 flex items-center justify-center flex-shrink-0';
-        iconSpan.innerHTML = '<i class="nav-fa-icon" style="--fa:\'\\' + iconHex + '\';--ff:\'Font Awesome 5 Free\';font-weight:900;font-size:1rem;" aria-hidden="true"></i>';
+        /* Native GHL: sm-button + nav-fa-icon, --fa unicode matches platform sidebar rendering */
+        iconSpan.innerHTML = '<i class="sm-button nav-fa-icon" style="--fa:\'\\' + iconHex + '\';--ff:\'Font Awesome 5 Free\';font-weight:900;font-size:1rem;" aria-hidden="true"></i>';
         var labelSpan = document.createElement('span');
-        labelSpan.className = 'nav-title nav-text hl_text-overflow sm:hidden md:hidden lg:inline-block ml-3';
+        labelSpan.className = 'nav-title nav-text cq-nav-label hl_text-overflow ml-3';
         labelSpan.textContent = item.label;
         link.appendChild(iconSpan);
         link.appendChild(labelSpan);
