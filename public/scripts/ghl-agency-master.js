@@ -428,12 +428,12 @@
       link.style.display = 'none';
       link.setAttribute('data-cleanquote-hidden-dashboard', '1');
     }
-    /** First nav row (Launchpad, Dashboard, Conversations, Leads). Pass excludeRow to skip it (e.g. when our app is labeled "Dashboard"). */
+    /** First nav row (Home, Launchpad, Dashboard, etc.). Pass excludeRow to skip our app row. */
     function findFirstNavAnchorRow(excludeRow) {
       var root = getLeftSidebarRoot();
       if (!root) return null;
       var candidates = root.querySelectorAll('a, [role="link"], button');
-      var firstNavLabels = ['launchpad', 'dashboard', 'conversations', 'leads'];
+      var firstNavLabels = ['home', 'launchpad', 'dashboard', 'conversations', 'leads'];
       for (var i = 0; i < candidates.length; i++) {
         var el = candidates[i];
         if (el.id === CONTAINER_ID || (el.closest && el.closest('#' + CONTAINER_ID))) continue;
