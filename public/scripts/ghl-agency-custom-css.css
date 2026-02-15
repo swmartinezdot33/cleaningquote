@@ -1063,6 +1063,31 @@ div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link span.icon-wrapper {
   }
 }
 
+/* Rail-mode tooltip: show label on hover when sidebar is collapsed (hidden when expanded) */
+div#cleanquote-ghl-sidebar-menu .cq-nav-link {
+  position: relative !important;
+}
+div#cleanquote-ghl-sidebar-menu .cq-nav-link:hover::after {
+  content: attr(data-label);
+  position: absolute;
+  left: 100%;
+  margin-left: 12px;
+  background: #111;
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 10000;
+  pointer-events: none;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+@media (min-width: 1024px) {
+  div#cleanquote-ghl-sidebar-menu .cq-nav-link:hover::after {
+    display: none !important;
+  }
+}
+
 div#cleanquote-ghl-sidebar-menu ul li button span.icon-wrapper i,
 div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link span.icon-wrapper i {
   font-size: 1rem !important;

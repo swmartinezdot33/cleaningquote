@@ -74,7 +74,10 @@
     if (!el) return null;
     return el.closest('li') || el.closest('[role="listitem"]') || el.closest('.nav-item') || el.closest('.menu-item') || el.closest('.sidebar-item') || el.closest('[role="treeitem"]') || el.closest('div[class*="nav"]') || el;
   }
+  /** Prefer GHL 2025/2026 sidebar (.hl_navbar--nav-items), then legacy aside/nav with dashboard/contacts. */
   function getLeftSidebarRoot() {
+    var hlNav = document.querySelector('.hl_navbar--nav-items');
+    if (hlNav) return hlNav;
     var asides = document.querySelectorAll('aside');
     for (var i = 0; i < asides.length; i++) {
       var links = asides[i].querySelectorAll('a, [role="link"], button');
@@ -425,16 +428,26 @@
       }
       return null;
     }
-    /** Find the GHL "CleanQuote.io" custom menu link row (by label or href). Search sidebar first, then whole document. */
+    /** Find the GHL "CleanQuote.io" custom menu link row. 2026: try GHL link ID and href first, then label/href search. */
     function findCleanQuoteCustomLinkRow() {
-      // #region agent log
-      function dbg(payload) {
-        var entry = { location: 'ghl-agency-master.js:findCleanQuoteCustomLinkRow', message: 'move-debug', data: payload, timestamp: Date.now() };
-        try {
-          fetch('http://127.0.0.1:7242/ingest/cfb75c6a-ee25-465d-8d86-66ea4eadf2d3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) }).catch(function () { console.log('[CQ Sidebar Move]', entry); });
-        } catch (e) { console.log('[CQ Sidebar Move]', entry); }
+      var byId = document.getElementById('6983957514ceb0bb033c8aa1');
+      if (byId) {
+        var row = getRow(byId);
+        if (row && row.id !== CONTAINER_ID && !row.querySelector('#' + CONTAINER_ID)) return row;
+        if (byId.id !== CONTAINER_ID && !byId.closest('#' + CONTAINER_ID)) return byId;
       }
-      // #endregion
+      var byHref = document.querySelector('a[href*="' + customPageId + '"]');
+      if (byHref) {
+        var row = getRow(byHref);
+        if (row && row.id !== CONTAINER_ID && !row.querySelector('#' + CONTAINER_ID)) return row;
+        if (!byHref.closest('#' + CONTAINER_ID)) return byHref;
+      }
+      byHref = document.querySelector('a[href*="custom-page-link"]');
+      if (byHref && (byHref.href || '').indexOf(customPageId) !== -1) {
+        var row = getRow(byHref);
+        if (row && row.id !== CONTAINER_ID && !row.querySelector('#' + CONTAINER_ID)) return row;
+        if (!byHref.closest('#' + CONTAINER_ID)) return byHref;
+      }
       function check(el) {
         if (!el || el.id === CONTAINER_ID || (el.closest && el.closest('#' + CONTAINER_ID))) return null;
         var href = (el.href || el.getAttribute('href') || '').trim().toLowerCase();
@@ -450,32 +463,22 @@
         var candidates = root.querySelectorAll('a, [role="link"], button');
         for (var i = 0; i < candidates.length; i++) {
           var row = check(candidates[i]);
-          if (row) {
-            dbg({ hypothesisId: 'H2', foundIn: 'sidebar', candidateCount: candidates.length });
-            return row;
-          }
+          if (row) return row;
         }
       }
       var allLinks = document.querySelectorAll('a[href*="custom-page-link"], a[href*="cleanquote"]');
       for (var j = 0; j < allLinks.length; j++) {
         var row = check(allLinks[j]);
-        if (row) {
-          dbg({ hypothesisId: 'H2', foundIn: 'allLinks', linkCount: allLinks.length });
-          return row;
-        }
+        if (row) return row;
       }
       var byText = document.querySelectorAll('a, [role="link"], button');
       for (var k = 0; k < byText.length; k++) {
         var t = normLower((byText[k].textContent || '').replace(/\s+/g, ' '));
         if (t.indexOf('cleanquote') !== -1) {
           var row = check(byText[k]);
-          if (row) {
-            dbg({ hypothesisId: 'H2', foundIn: 'byText' });
-            return row;
-          }
+          if (row) return row;
         }
       }
-      dbg({ hypothesisId: 'H1_H2', cleanQuoteRowFound: false, rootFound: !!root });
       return null;
     }
     /** Move CleanQuote.io to the top: same as working script — insert custom row before the native dashboard row, then hide native dashboard. Keeps our submenu container right after the CleanQuote row. */
@@ -522,12 +525,21 @@
         } catch (e) {}
       }
 
+      /* Force CleanQuote + submenu to the very top of the nav list (any sidebar root). */
+      if (ourContainer && cleanQuoteRow && root.contains(cleanQuoteRow) && root.firstChild !== cleanQuoteRow) {
+        try {
+          root.prepend(ourContainer);
+          root.prepend(cleanQuoteRow);
+        } catch (e) {}
+      }
+
       hideDashboardItem();
     }
     function injectSidebarMenu(locationId) {
       if (document.getElementById(CONTAINER_ID)) return;
       var leftSidebar = getLeftSidebarRoot();
-      if (!leftSidebar) return;
+      var cleanQuoteRow = findCleanQuoteCustomLinkRow();
+      if (!leftSidebar || !cleanQuoteRow) return;
       var container = document.createElement('div');
       container.id = CONTAINER_ID;
       container.setAttribute('data-cleanquote-sidebar', '1');
@@ -543,9 +555,10 @@
         var link = document.createElement('a');
         link.href = 'javascript:void(0)';
         link.setAttribute('data-cq-page', item.page);
+        link.setAttribute('data-label', item.label);
         link.setAttribute('role', 'button');
-        /* justify-start = left when expanded; md:justify-center = icon centered in rail; flex-shrink-0 on icon = no drift */
-        link.className = 'cq-submenu-link w-full group px-3 flex items-center justify-start md:justify-center lg:justify-start xl:justify-start text-sm rounded-md cursor-pointer custom-link font-medium opacity-70 py-2';
+        /* cq-nav-link = tooltip in rail mode; justify-start/md:justify-center = centering when collapsed */
+        link.className = 'cq-submenu-link cq-nav-link w-full group px-3 flex items-center justify-start md:justify-center lg:justify-start xl:justify-start text-sm rounded-md cursor-pointer custom-link font-medium opacity-70 py-2';
         var iconHex = (item.icon || 'f111').toString().toLowerCase();
         var iconSpan = document.createElement('span');
         iconSpan.className = 'icon-wrapper h-5 w-5 flex items-center justify-center flex-shrink-0';
@@ -570,19 +583,13 @@
         list.appendChild(li);
       }
       container.appendChild(list);
-      /* Insert our submenu right after the CleanQuote.io link so order is: native GHL items → CleanQuote.io → our submenu (Inbox, etc.). */
-      var cleanQuoteRow = findCleanQuoteCustomLinkRow();
-      if (cleanQuoteRow && cleanQuoteRow.parentNode) {
+      /* Insert our submenu right after the CleanQuote.io link (anchor found above). */
+      if (cleanQuoteRow.parentNode) {
         var next = cleanQuoteRow.nextSibling;
         if (next) cleanQuoteRow.parentNode.insertBefore(container, next);
         else cleanQuoteRow.parentNode.appendChild(container);
       } else {
-        var dashboardRow = findDashboardRow();
-        var beforeEl = dashboardRow || findFirstSidebarNavRow();
-        if (beforeEl && beforeEl.parentNode)
-          beforeEl.parentNode.insertBefore(container, beforeEl);
-        else
-          leftSidebar.appendChild(container);
+        leftSidebar.appendChild(container);
       }
       moveCleanQuoteToTopAndHideDashboard();
       setActiveSubmenuPage(getActivePageFromParentUrl());
@@ -614,9 +621,17 @@
       setTimeout(run, 500);
     window.addEventListener('routeLoaded', function () { setTimeout(run, 300); });
     window.addEventListener('routeChangeEvent', function () { setTimeout(run, 300); });
-    /* Re-run move on a schedule so we catch CleanQuote link when GHL adds it later. No MutationObserver - it caused mutation loops and browser crashes. */
-    var moveRetries = [800, 1500, 3000, 5000, 7000, 10000, 15000, 20000];
-    moveRetries.forEach(function (delay) { setTimeout(moveCleanQuoteToTopAndHideDashboard, delay); });
+    /* Re-run on a schedule so we catch CleanQuote link / 2026 .hl_navbar--nav-items when GHL adds it. No MutationObserver - caused loops. */
+    var moveRetries = [400, 800, 1200, 1500, 3000, 5000, 7000, 10000, 15000, 20000];
+    moveRetries.forEach(function (delay) {
+      setTimeout(function () {
+        moveCleanQuoteToTopAndHideDashboard();
+        if (document.getElementById(CONTAINER_ID)) setActiveSubmenuPage(getActivePageFromParentUrl());
+      }, delay);
+    });
+    /* Retry full run (inject + move) when GHL paints sidebar late (2026 layout). */
+    setTimeout(run, 1200);
+    setTimeout(run, 3000);
   })();
 
   /* Logo swap: only when location is on Google Sheet allowlist; logo from GHL business.logoUrl */
