@@ -252,25 +252,16 @@
   (function () {
     var CONTAINER_ID = 'cleanquote-ghl-sidebar-menu';
     /* Submenu only: Inbox, Contacts, etc. The CleanQuote.io custom link (above this) is the dashboard. Active/hover styled via CSS (is-active). */
+    /* icon = Font Awesome unicode (hex, no backslash) – GHL uses --fa CSS variable */
     var MENU_ITEMS = [
-      { page: 'inbox', label: 'Inbox' },
-      { page: 'contacts', label: 'Contacts' },
-      { page: 'leads', label: 'Leads' },
-      { page: 'quotes', label: 'Quotes' },
-      { page: 'tools', label: 'Tools' },
-      { page: 'service-areas', label: 'Service Areas' },
-      { page: 'pricing', label: 'Pricing' }
+      { page: 'inbox', label: 'Inbox', icon: 'f0e0' },
+      { page: 'contacts', label: 'Contacts', icon: 'f0c0' },
+      { page: 'leads', label: 'Leads', icon: 'f0d1' },
+      { page: 'quotes', label: 'Quotes', icon: 'f53a' },
+      { page: 'tools', label: 'Tools', icon: 'f7d9' },
+      { page: 'service-areas', label: 'Service Areas', icon: 'f3c5' },
+      { page: 'pricing', label: 'Pricing', icon: 'f155' }
     ];
-    /* Font Awesome icon class (fas fa-*) per page – matches native sidebar style */
-    var MENU_ICONS = {
-      inbox: 'fa-inbox',
-      contacts: 'fa-address-book',
-      leads: 'fa-user-plus',
-      quotes: 'fa-file-invoice-dollar',
-      tools: 'fa-wrench',
-      'service-areas': 'fa-map-marker-alt',
-      pricing: 'fa-tag'
-    };
     function findCleanQuoteIframe() {
       try {
         var iframes = document.querySelectorAll('iframe[src*="cleanquote"]');
@@ -544,27 +535,25 @@
       var list = document.createElement('ul');
       list.style.cssText = 'list-style:none;margin:0;padding:0;';
       list.setAttribute('role', 'list');
-      var itemStyle = 'margin:0;padding:0;border:none;font-size:14px;font-family:inherit;';
       for (var i = 0; i < MENU_ITEMS.length; i++) {
         var item = MENU_ITEMS[i];
         var li = document.createElement('li');
+        li.className = 'nav-item-container';
         li.style.cssText = 'margin:0;padding:0;';
-        var link = document.createElement('button');
-        link.type = 'button';
+        var link = document.createElement('a');
+        link.href = 'javascript:void(0)';
         link.setAttribute('data-cq-page', item.page);
-        link.style.cssText = itemStyle;
-        var iconClass = MENU_ICONS[item.page] || 'fa-circle';
-        var iconWrapper = document.createElement('span');
-        iconWrapper.className = 'icon-wrapper';
-        var icon = document.createElement('i');
-        icon.className = 'fas ' + iconClass;
-        icon.setAttribute('aria-hidden', 'true');
-        iconWrapper.appendChild(icon);
-        var navText = document.createElement('span');
-        navText.className = 'nav-text';
-        navText.textContent = item.label;
-        link.appendChild(iconWrapper);
-        link.appendChild(navText);
+        link.setAttribute('role', 'button');
+        link.className = 'cq-submenu-link w-full group px-3 flex items-center justify-start md:justify-center lg:justify-start xl:justify-start text-sm rounded-md cursor-pointer font-medium py-2';
+        var iconHex = (item.icon || 'f111').toString().toLowerCase();
+        var iconSpan = document.createElement('span');
+        iconSpan.className = 'icon-wrapper h-5 w-5 flex items-center justify-center flex-shrink-0';
+        iconSpan.innerHTML = '<i class="nav-fa-icon" style="--fa:\'\\' + iconHex + '\';--ff:\'Font Awesome 5 Free\';font-weight:900;font-size:1rem;" aria-hidden="true"></i>';
+        var labelSpan = document.createElement('span');
+        labelSpan.className = 'nav-title nav-text hl_text-overflow sm:hidden md:hidden lg:inline-block ml-3';
+        labelSpan.textContent = item.label;
+        link.appendChild(iconSpan);
+        link.appendChild(labelSpan);
         link.addEventListener('click', (function (locId, pk) {
           return function (e) {
             e.preventDefault();
@@ -697,22 +686,6 @@
       'service-areas': 'Service Areas',
       pricing: 'Pricing'
     };
-    function getLocationNameFromSidebar() {
-      var root = getLeftSidebarRoot();
-      if (!root) return '';
-      var buttons = root.querySelectorAll('button, [role="button"], a');
-      for (var i = 0; i < buttons.length; i++) {
-        var el = buttons[i];
-        if (el.id === 'cleanquote-ghl-sidebar-menu' || el.closest && el.closest('#cleanquote-ghl-sidebar-menu')) continue;
-        var text = (el.textContent || '').trim().replace(/\s+/g, ' ');
-        if (text.length > 2 && text.length < 120) {
-          var lower = text.toLowerCase();
-          if (lower.indexOf('dashboard') !== -1 || lower.indexOf('conversations') !== -1 || lower === 'contacts' || lower === 'leads' || lower === 'quotes') continue;
-          return text;
-        }
-      }
-      return '';
-    }
     var lastCleanQuotePage = '';
     function getPageNameFromUrl() {
       var qs = (window.location && window.location.search) || '';
@@ -752,14 +725,8 @@
     function applyTitle() {
       try {
         var pageName = getPageNameFromUrl() || getActiveNavLabel();
-        var locationName = getLocationNameFromSidebar();
-        var parts = [];
-        if (pageName) parts.push(pageName);
-        if (locationName) parts.push(locationName);
-        var base = parts.length ? parts.join(' | ') : '';
-        if (base) {
-          base = base.replace(/\s*\|\s*LaunchPad\s*$/i, '');
-          document.title = base + TITLE_SUFFIX;
+        if (pageName) {
+          document.title = pageName.replace(/\s*\|\s*LaunchPad\s*$/i, '') + TITLE_SUFFIX;
         } else {
           document.title = 'LaunchPad';
         }

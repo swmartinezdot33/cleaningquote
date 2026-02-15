@@ -968,17 +968,21 @@ html.cq-logo-swap-active .sidebar-v2-agency .agency-logo-container::after {
 
 /* -------------------------------------------------------------------------- */
 /*   CleanQuote sidebar submenu – match native GHL menu style                  */
+/*   Collapsible: labels use sm:hidden md:hidden lg:inline-block; link uses    */
+/*   justify-start md:justify-center lg:justify-start so icons stay centered   */
+/*   in rail mode.                                                             */
 /* -------------------------------------------------------------------------- */
 
-/* General styling for submenu items to mimic regular menu items */
-div#cleanquote-ghl-sidebar-menu ul li button {
-  /* Layout */
+/* General styling – button (legacy) and a.cq-submenu-link (collapsible) */
+div#cleanquote-ghl-sidebar-menu ul li button,
+div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link {
+  /* Layout – 30px left padding for nested look under CleanQuote.io */
   display: flex !important;
   align-items: center !important;
   justify-content: flex-start !important;
   width: 100% !important;
-  height: 36px !important;
-  padding: 8px 16px !important;
+  min-height: 36px !important;
+  padding: 8px 16px 8px 30px !important;
   gap: 8px;
 
   /* Visuals - Unselected state */
@@ -990,31 +994,48 @@ div#cleanquote-ghl-sidebar-menu ul li button {
   border: none !important;
   box-shadow: none !important;
   text-decoration: none !important;
+  opacity: 0.85 !important;
+}
+
+/* Collapsible rail: center icons when sidebar is collapsed (GHL uses md:justify-center) */
+@media (max-width: 1023px) {
+  div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link {
+    justify-content: center !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
 }
 
 /* Hover state for unselected submenu items */
-div#cleanquote-ghl-sidebar-menu ul li button:hover {
+div#cleanquote-ghl-sidebar-menu ul li button:hover,
+div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link:hover {
   background-color: rgba(0, 0, 0, 0.05) !important;
   color: rgb(0, 0, 0) !important;
+  opacity: 1 !important;
 }
 
 /* Active state for submenu items */
-div#cleanquote-ghl-sidebar-menu ul li button.is-active {
+div#cleanquote-ghl-sidebar-menu ul li button.is-active,
+div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link.is-active {
   background-color: rgb(243, 244, 246) !important;
   color: rgb(0, 0, 0) !important;
   font-weight: 500 !important;
+  opacity: 1 !important;
 }
 
 /* Hover state for active submenu items */
-div#cleanquote-ghl-sidebar-menu ul li button.is-active:hover {
+div#cleanquote-ghl-sidebar-menu ul li button.is-active:hover,
+div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link.is-active:hover {
   background-color: rgb(229, 231, 235) !important;
   color: rgb(0, 0, 0) !important;
 }
 
 /* Icon styling (when icon wrapper is present) */
-div#cleanquote-ghl-sidebar-menu ul li button span.icon-wrapper {
+div#cleanquote-ghl-sidebar-menu ul li button span.icon-wrapper,
+div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link span.icon-wrapper {
   height: 20px !important;
   width: 20px !important;
+  min-width: 20px !important;
   margin-right: 8px !important;
   flex-shrink: 0 !important;
   display: flex !important;
@@ -1022,21 +1043,49 @@ div#cleanquote-ghl-sidebar-menu ul li button span.icon-wrapper {
   justify-content: center !important;
 }
 
-div#cleanquote-ghl-sidebar-menu ul li button span.icon-wrapper i {
+/* Rail mode: no margin on icon when label is hidden */
+@media (max-width: 1023px) {
+  div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link span.icon-wrapper {
+    margin-right: 0 !important;
+  }
+}
+
+div#cleanquote-ghl-sidebar-menu ul li button span.icon-wrapper i,
+div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link span.icon-wrapper i {
   font-size: 1rem !important;
   color: inherit !important;
 }
 
-/* Text styling (when nav-text span is present) */
-div#cleanquote-ghl-sidebar-menu ul li button span.nav-text {
+/* GHL-style Font Awesome icon via --fa/--ff (unicode) */
+div#cleanquote-ghl-sidebar-menu .nav-fa-icon {
+  font-family: var(--ff, 'Font Awesome 5 Free') !important;
+  font-weight: 900 !important;
+  font-style: normal !important;
+  color: inherit !important;
+}
+div#cleanquote-ghl-sidebar-menu .nav-fa-icon::before {
+  content: var(--fa) !important;
+}
+
+/* Text styling (when nav-text span is present); nav-title has sm:hidden md:hidden lg:inline-block for collapse */
+div#cleanquote-ghl-sidebar-menu ul li button span.nav-text,
+div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link span.nav-text {
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   flex-grow: 1 !important;
 }
 
+/* Hide label in rail mode when GHL utility classes aren't available (fallback) */
+@media (max-width: 1023px) {
+  div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link span.nav-title {
+    display: none !important;
+  }
+}
+
 /* Style for the target button when it is active (e.g. expanded parent) */
-div#cleanquote-ghl-sidebar-menu button.is-active-submenu {
+div#cleanquote-ghl-sidebar-menu button.is-active-submenu,
+div#cleanquote-ghl-sidebar-menu a.cq-submenu-link.is-active-submenu {
   display: flex !important;
   align-items: center !important;
   justify-content: flex-start !important;
@@ -1055,12 +1104,14 @@ div#cleanquote-ghl-sidebar-menu button.is-active-submenu {
   text-decoration: none !important;
 }
 
-div#cleanquote-ghl-sidebar-menu button.is-active-submenu:hover {
+div#cleanquote-ghl-sidebar-menu button.is-active-submenu:hover,
+div#cleanquote-ghl-sidebar-menu a.cq-submenu-link.is-active-submenu:hover {
   background-color: rgb(229, 231, 235) !important;
   color: rgb(0, 0, 0) !important;
 }
 
-div#cleanquote-ghl-sidebar-menu button.is-active-submenu span.icon-wrapper {
+div#cleanquote-ghl-sidebar-menu button.is-active-submenu span.icon-wrapper,
+div#cleanquote-ghl-sidebar-menu a.cq-submenu-link.is-active-submenu span.icon-wrapper {
   height: 20px !important;
   width: 20px !important;
   margin-right: 8px !important;
@@ -1070,12 +1121,14 @@ div#cleanquote-ghl-sidebar-menu button.is-active-submenu span.icon-wrapper {
   justify-content: center !important;
 }
 
-div#cleanquote-ghl-sidebar-menu button.is-active-submenu span.icon-wrapper i {
+div#cleanquote-ghl-sidebar-menu button.is-active-submenu span.icon-wrapper i,
+div#cleanquote-ghl-sidebar-menu a.cq-submenu-link.is-active-submenu span.icon-wrapper i {
   font-size: 1rem !important;
   color: inherit !important;
 }
 
-div#cleanquote-ghl-sidebar-menu button.is-active-submenu span.nav-text {
+div#cleanquote-ghl-sidebar-menu button.is-active-submenu span.nav-text,
+div#cleanquote-ghl-sidebar-menu a.cq-submenu-link.is-active-submenu span.nav-text {
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
