@@ -817,9 +817,11 @@ img.w-3.h-3.opacity-100 {
     filter: invert(65%) sepia(64%) saturate(1633%) hue-rotate(246deg) brightness(91%) contrast(99%) !important;
 }
 
+/* Removed: was hiding a flex row that can contain the native Dashboard nav item
 .flex.mb-4.h-7.flex-row.md\:flex-col.lg\:flex-row.xl\:flex-row.items-start.justify-between.px-2 {
     display: none !important;
 }
+*/
 
 /* Tabulator row hover */
 .tabulator-row.tabulator-selectable:hover {

@@ -76,7 +76,8 @@
       var links = asides[i].querySelectorAll('a, [role="link"], button');
       for (var j = 0; j < links.length; j++) {
         var t = normLower(links[j].textContent || '');
-        if (t === 'dashboard' || t === 'contacts' || t === 'conversations') return asides[i];
+        var href = (links[j].href || '').toLowerCase();
+        if (t === 'dashboard' || t === 'contacts' || t === 'conversations' || href.indexOf('custom-page-link') !== -1) return asides[i];
       }
     }
     var navs = document.querySelectorAll('nav');
@@ -84,9 +85,12 @@
       var nl = navs[k].querySelectorAll('a, [role="link"], button');
       for (var m = 0; m < nl.length; m++) {
         var t2 = normLower(nl[m].textContent || '');
-        if (t2 === 'dashboard' || t2 === 'contacts' || t2 === 'conversations') return navs[k];
+        var href2 = (nl[m].href || '').toLowerCase();
+        if (t2 === 'dashboard' || t2 === 'contacts' || t2 === 'conversations' || href2.indexOf('custom-page-link') !== -1) return navs[k];
       }
     }
+    var sidebarEl = document.querySelector('#sidebar-v2') || document.querySelector('[class*="sidebar-v2"]');
+    if (sidebarEl) return sidebarEl;
     return document.querySelector('aside') || document.querySelector('nav') || null;
   }
 
@@ -153,6 +157,17 @@
         return null;
     }
 
+    function getLocationIdFromSidebar() {
+        var root = getLeftSidebarRoot();
+        if (!root) return null;
+        var links = root.querySelectorAll('a[href*="/location/"]');
+        for (var i = 0; i < links.length; i++) {
+            var m = (links[i].href || '').match(/\/location\/([a-zA-Z0-9\-]{16,50})(?:\/|$|\?)/);
+            if (m && m[1]) return m[1];
+        }
+        return null;
+    }
+
     /* Submenu definition */
     var MENU_ITEMS = [
       { page: 'inbox', label: 'Inbox' },
@@ -168,6 +183,8 @@
       if (document.getElementById(CONTAINER_ID)) return;
       var leftSidebar = getLeftSidebarRoot();
       if (!leftSidebar) return;
+      var locId = locationId || getLocationIdFromUrl() || getLocationIdFromSidebar();
+      if (!locId) return;
 
       var container = document.createElement('div');
       container.id = CONTAINER_ID;
@@ -183,7 +200,7 @@
         btn.style.cssText = 'display:block;width:100%;text-align:left;background:transparent;border:none;padding:8px 12px 8px 24px;font-size:14px;cursor:pointer;color:inherit;';
         
         btn.onclick = function() {
-            var url = cleanquoteAppBase + '/v2/location/' + locationId + '/custom-page-link/' + customPageId + '?cleanquote-page=' + item.page;
+            var url = cleanquoteAppBase + '/v2/location/' + locId + '/custom-page-link/' + customPageId + '?cleanquote-page=' + item.page;
             window.location.href = url;
         };
         li.appendChild(btn);
@@ -194,24 +211,46 @@
       var cqRow = findCleanQuoteCustomLinkRow();
       if (cqRow && cqRow.parentNode) {
         cqRow.parentNode.insertBefore(container, cqRow.nextSibling);
+      } else {
+        var navItems = leftSidebar.querySelector('.hl_navbar--nav-items');
+        var target = navItems || leftSidebar;
+        target.appendChild(container);
       }
     }
 
-    // Initialization
-    setTimeout(function() {
-      var locId = getLocationIdFromUrl();
+    function tryInject() {
+      var locId = getLocationIdFromUrl() || getLocationIdFromSidebar();
       if (locId) injectSidebarMenu(locId);
-    }, 1000);
+    }
+
+    // Initialization: retry so we catch late-rendered sidebar (GHL SPA)
+    [1000, 2500, 5000, 10000].forEach(function(ms) {
+      setTimeout(tryInject, ms);
+    });
+    if (document.readyState === 'complete') tryInject();
+    else window.addEventListener('load', tryInject);
   })();
 
   /* --- Title Management --- */
   (function () {
-    function applyTitle() {
-        if (window.location.href.indexOf(customPageId) !== -1) {
-            document.title = "CleanQuote.io";
-        }
+    function isCleanQuotePage() {
+      var href = (window.location.href || '').toLowerCase();
+      var hash = (window.location.hash || '').toLowerCase();
+      if (href.indexOf(customPageId.toLowerCase()) !== -1) return true;
+      if (hash.indexOf(customPageId.toLowerCase()) !== -1) return true;
+      if (href.indexOf('custom-page-link') !== -1 && href.indexOf('cleanquote') !== -1) return true;
+      if (hash.indexOf('custom-page-link') !== -1 && hash.indexOf('cleanquote') !== -1) return true;
+      return false;
     }
-    setInterval(applyTitle, 2000);
+    function applyTitle() {
+      if (isCleanQuotePage()) document.title = "CleanQuote.io";
+    }
+    applyTitle();
+    setInterval(applyTitle, 1500);
+    window.addEventListener('hashchange', applyTitle);
+    window.addEventListener('popstate', applyTitle);
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applyTitle);
+    window.addEventListener('load', applyTitle);
   })();
 
 })();
