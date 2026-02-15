@@ -827,6 +827,10 @@ img.w-3.h-3.opacity-100 {
     display: none;
 }
 
+.flex.mb-4.h-7.flex-row.md\:flex-col.lg\:flex-row.xl\:flex-row.items-start.justify-between.px-2 {
+    display: none;
+}
+
 a#\36 983957514ceb0bb033c8aa1 {
     order: -1;
 }
