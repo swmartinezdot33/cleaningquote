@@ -965,3 +965,119 @@ html.cq-logo-swap-active .sidebar-v2-agency .agency-logo-container::after {
     50% { opacity: 0.5; transform: scale(0.7) translateZ(-100px); }
     100% { opacity: 1; transform: scale(1) translateZ(0); }
 }
+
+/* -------------------------------------------------------------------------- */
+/*   CleanQuote sidebar submenu – match native GHL menu style                  */
+/* -------------------------------------------------------------------------- */
+
+/* General styling for submenu items to mimic regular menu items */
+div#cleanquote-ghl-sidebar-menu ul li button {
+  /* Layout */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  width: 100% !important;
+  height: 36px !important;
+  padding: 8px 16px !important;
+  gap: 8px;
+
+  /* Visuals - Unselected state */
+  color: rgb(107, 114, 128) !important;
+  background-color: transparent !important;
+  font-weight: 500 !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  border: none !important;
+  box-shadow: none !important;
+  text-decoration: none !important;
+}
+
+/* Hover state for unselected submenu items */
+div#cleanquote-ghl-sidebar-menu ul li button:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  color: rgb(0, 0, 0) !important;
+}
+
+/* Active state for submenu items */
+div#cleanquote-ghl-sidebar-menu ul li button.is-active {
+  background-color: rgb(243, 244, 246) !important;
+  color: rgb(0, 0, 0) !important;
+  font-weight: 500 !important;
+}
+
+/* Hover state for active submenu items */
+div#cleanquote-ghl-sidebar-menu ul li button.is-active:hover {
+  background-color: rgb(229, 231, 235) !important;
+  color: rgb(0, 0, 0) !important;
+}
+
+/* Icon styling (when icon wrapper is present) */
+div#cleanquote-ghl-sidebar-menu ul li button span.icon-wrapper {
+  height: 20px !important;
+  width: 20px !important;
+  margin-right: 8px !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+div#cleanquote-ghl-sidebar-menu ul li button span.icon-wrapper i {
+  font-size: 1rem !important;
+  color: inherit !important;
+}
+
+/* Text styling (when nav-text span is present) */
+div#cleanquote-ghl-sidebar-menu ul li button span.nav-text {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  flex-grow: 1 !important;
+}
+
+/* Style for the target button when it is active (e.g. expanded parent) */
+div#cleanquote-ghl-sidebar-menu button.is-active-submenu {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  width: 100% !important;
+  height: 36px !important;
+  padding: 8px 16px !important;
+  gap: 8px;
+
+  background-color: rgb(243, 244, 246) !important;
+  color: rgb(0, 0, 0) !important;
+  font-weight: 500 !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  border: none !important;
+  box-shadow: none !important;
+  text-decoration: none !important;
+}
+
+div#cleanquote-ghl-sidebar-menu button.is-active-submenu:hover {
+  background-color: rgb(229, 231, 235) !important;
+  color: rgb(0, 0, 0) !important;
+}
+
+div#cleanquote-ghl-sidebar-menu button.is-active-submenu span.icon-wrapper {
+  height: 20px !important;
+  width: 20px !important;
+  margin-right: 8px !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+div#cleanquote-ghl-sidebar-menu button.is-active-submenu span.icon-wrapper i {
+  font-size: 1rem !important;
+  color: inherit !important;
+}
+
+div#cleanquote-ghl-sidebar-menu button.is-active-submenu span.nav-text {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  flex-grow: 1 !important;
+}

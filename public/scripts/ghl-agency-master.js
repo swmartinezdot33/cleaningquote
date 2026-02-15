@@ -251,9 +251,7 @@
 
   (function () {
     var CONTAINER_ID = 'cleanquote-ghl-sidebar-menu';
-    var activeBg = 'rgba(0,0,0,0.25)';
-    var activeColor = 'rgba(255,255,255,0.95)';
-    /* Submenu only: Inbox, Contacts, etc. The CleanQuote.io custom link (above this) is the dashboard. */
+    /* Submenu only: Inbox, Contacts, etc. The CleanQuote.io custom link (above this) is the dashboard. Active/hover styled via CSS (is-active). */
     var MENU_ITEMS = [
       { page: 'inbox', label: 'Inbox' },
       { page: 'contacts', label: 'Contacts' },
@@ -263,6 +261,16 @@
       { page: 'service-areas', label: 'Service Areas' },
       { page: 'pricing', label: 'Pricing' }
     ];
+    /* Font Awesome icon class (fas fa-*) per page – matches native sidebar style */
+    var MENU_ICONS = {
+      inbox: 'fa-inbox',
+      contacts: 'fa-address-book',
+      leads: 'fa-user-plus',
+      quotes: 'fa-file-invoice-dollar',
+      tools: 'fa-wrench',
+      'service-areas': 'fa-map-marker-alt',
+      pricing: 'fa-tag'
+    };
     function findCleanQuoteIframe() {
       try {
         var iframes = document.querySelectorAll('iframe[src*="cleanquote"]');
@@ -340,7 +348,7 @@
         iframe.contentWindow.postMessage({ type: 'CLEANQUOTE_SWITCH_PAGE', page: pageKey }, origin);
       } catch (e) {}
     }
-    /** Update which submenu item is shown as active (iframe posts CLEANQUOTE_PAGE_CHANGED). */
+    /** Update which submenu item is shown as active (iframe posts CLEANQUOTE_PAGE_CHANGED). Uses class is-active so CSS matches native menu. */
     function setActiveSubmenuPage(pageKey) {
       var container = document.getElementById(CONTAINER_ID);
       if (!container) return;
@@ -351,9 +359,11 @@
         var page = (btn.getAttribute('data-cq-page') || '').toLowerCase();
         var isActive = page === key;
         btn.setAttribute('data-cq-active', isActive ? '1' : '0');
-        btn.style.backgroundColor = isActive ? activeBg : 'transparent';
-        btn.style.color = isActive ? activeColor : '';
-        btn.style.fontWeight = isActive ? '600' : '';
+        if (isActive) {
+          btn.classList.add('is-active');
+        } else {
+          btn.classList.remove('is-active');
+        }
       }
     }
     function getActivePageFromParentUrl() {
@@ -534,23 +544,27 @@
       var list = document.createElement('ul');
       list.style.cssText = 'list-style:none;margin:0;padding:0;';
       list.setAttribute('role', 'list');
-      var itemStyle = 'display:block;width:100%;text-align:left;background:transparent;border:none;cursor:pointer;padding:8px 12px;padding-left:24px;font-size:14px;color:inherit;font-family:inherit;';
-      var hoverBg = 'rgba(255,255,255,0.08)';
+      var itemStyle = 'margin:0;padding:0;border:none;font-size:14px;font-family:inherit;';
       for (var i = 0; i < MENU_ITEMS.length; i++) {
         var item = MENU_ITEMS[i];
         var li = document.createElement('li');
         li.style.cssText = 'margin:0;padding:0;';
         var link = document.createElement('button');
         link.type = 'button';
-        link.textContent = item.label;
         link.setAttribute('data-cq-page', item.page);
         link.style.cssText = itemStyle;
-        link.addEventListener('mouseenter', function () { this.style.backgroundColor = hoverBg; });
-        link.addEventListener('mouseleave', function () {
-          var isActive = this.getAttribute('data-cq-active') === '1';
-          this.style.backgroundColor = isActive ? activeBg : 'transparent';
-          this.style.color = isActive ? activeColor : '';
-        });
+        var iconClass = MENU_ICONS[item.page] || 'fa-circle';
+        var iconWrapper = document.createElement('span');
+        iconWrapper.className = 'icon-wrapper';
+        var icon = document.createElement('i');
+        icon.className = 'fas ' + iconClass;
+        icon.setAttribute('aria-hidden', 'true');
+        iconWrapper.appendChild(icon);
+        var navText = document.createElement('span');
+        navText.className = 'nav-text';
+        navText.textContent = item.label;
+        link.appendChild(iconWrapper);
+        link.appendChild(navText);
         link.addEventListener('click', (function (locId, pk) {
           return function (e) {
             e.preventDefault();
