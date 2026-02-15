@@ -157,6 +157,20 @@
         return null;
     }
 
+    /** Find CleanQuote link anywhere (e.g. horizontal nav bar), not just left sidebar. */
+    function findCleanQuoteLinkRowAnywhere() {
+        var candidates = document.querySelectorAll('a[href*="custom-page-link"]');
+        for (var i = 0; i < candidates.length; i++) {
+            var el = candidates[i];
+            var href = (el.href || '').toLowerCase();
+            var text = normLower(el.textContent || '');
+            if (href.indexOf(customPageId.toLowerCase()) !== -1 || text.indexOf('cleanquote') !== -1) {
+                return getRow(el);
+            }
+        }
+        return null;
+    }
+
     function getLocationIdFromSidebar() {
         var root = getLeftSidebarRoot();
         if (!root) return null;
@@ -170,7 +184,7 @@
 
     /** Move CleanQuote nav row to first position; keep submenu container right after it. */
     function moveCleanQuoteToFirst() {
-        var selectedElement = findCleanQuoteCustomLinkRow();
+        var selectedElement = findCleanQuoteCustomLinkRow() || findCleanQuoteLinkRowAnywhere();
         if (!selectedElement) return;
         var parentElement = selectedElement.parentElement;
         if (parentElement) {
@@ -195,23 +209,23 @@
 
     function injectSidebarMenu(locationId) {
       if (document.getElementById(CONTAINER_ID)) return;
-      var leftSidebar = getLeftSidebarRoot();
-      if (!leftSidebar) return;
       var locId = locationId || getLocationIdFromUrl() || getLocationIdFromSidebar();
       if (!locId) return;
 
       var container = document.createElement('div');
       container.id = CONTAINER_ID;
-      container.style.cssText = 'margin:0;padding:0;';
+      container.style.cssText = 'margin:0;padding:0;display:block;';
+      container.setAttribute('data-cleanquote-submenu', '1');
       var list = document.createElement('ul');
-      list.style.cssText = 'list-style:none;margin:0;padding:0;';
+      list.style.cssText = 'list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:0 0.5rem;align-items:center;';
       
       MENU_ITEMS.forEach(function(item) {
         var li = document.createElement('li');
+        li.style.cssText = 'display:inline-block;';
         var btn = document.createElement('button');
         btn.textContent = item.label;
         btn.setAttribute('data-cq-page', item.page);
-        btn.style.cssText = 'display:block;width:100%;text-align:left;background:transparent;border:none;padding:8px 12px 8px 24px;font-size:14px;cursor:pointer;color:inherit;';
+        btn.style.cssText = 'display:inline-block;text-align:center;background:transparent;border:none;padding:6px 10px;font-size:14px;cursor:pointer;color:inherit;';
         
         btn.onclick = function() {
             var url = cleanquoteAppBase + '/v2/location/' + locId + '/custom-page-link/' + customPageId + '?cleanquote-page=' + item.page;
@@ -222,13 +236,19 @@
       });
 
       container.appendChild(list);
-      var cqRow = findCleanQuoteCustomLinkRow();
+      var cqRow = findCleanQuoteCustomLinkRow() || findCleanQuoteLinkRowAnywhere();
       if (cqRow && cqRow.parentNode) {
         cqRow.parentNode.insertBefore(container, cqRow.nextSibling);
       } else {
-        var navItems = leftSidebar.querySelector('.hl_navbar--nav-items');
-        var target = navItems || leftSidebar;
-        target.appendChild(container);
+        var leftSidebar = getLeftSidebarRoot();
+        if (leftSidebar) {
+          var navItems = leftSidebar.querySelector('.hl_navbar--nav-items');
+          var target = navItems || leftSidebar;
+          target.appendChild(container);
+        } else {
+          var firstNav = document.querySelector('nav, [class*="nav"], [class*="navbar"]');
+          if (firstNav) firstNav.appendChild(container);
+        }
       }
       moveCleanQuoteToFirst();
     }
