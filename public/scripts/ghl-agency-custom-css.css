@@ -25,6 +25,27 @@
     transition: none !important;
     animation: none !important;
 }
+/* Fix for Sidebar Submenu Overlap (e.g. Service Areas obscured by Settings button) */
+#sidebar-v2 .hl_nav-header nav {
+    padding-bottom: 60px !important;
+}
+#sidebar-v2 .hl_nav-header {
+    display: flex;
+    flex-direction: column;
+    height: calc(100% - 80px);
+    overflow-y: auto;
+}
+/* Scrollable container for sub-menu items (when nested under CleanQuote.io parent) */
+#sidebar-v2 .hl_nav-header .sub-menu {
+    max-height: 400px;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+}
+/* Ensure the parent CleanQuote item stays visible */
+#sidebar-v2 .nav-item-container:has(.sub-menu) {
+    position: relative;
+    z-index: 10;
+}
 body[data-theme="default-dark-v1"] .user-info-card .text-xs.truncate {
     color: #000;
 }
