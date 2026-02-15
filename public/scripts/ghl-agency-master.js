@@ -525,11 +525,12 @@
         } catch (e) {}
       }
 
-      /* Force CleanQuote + submenu to the very top of the nav list (any sidebar root). */
-      if (ourContainer && cleanQuoteRow && root.contains(cleanQuoteRow) && root.firstChild !== cleanQuoteRow) {
+      /* Force CleanQuote + submenu to top of the LINK list only (.hl_navbar--nav-items), not the whole sidebar (keeps logo/switcher above). */
+      var navList = document.querySelector('.hl_navbar--nav-items');
+      if (navList && ourContainer && cleanQuoteRow && navList.contains(cleanQuoteRow) && navList.firstChild !== cleanQuoteRow) {
         try {
-          root.prepend(ourContainer);
-          root.prepend(cleanQuoteRow);
+          navList.prepend(ourContainer);
+          navList.prepend(cleanQuoteRow);
         } catch (e) {}
       }
 
@@ -561,11 +562,11 @@
         link.className = 'cq-submenu-link cq-nav-link w-full group px-3 flex items-center justify-start md:justify-center lg:justify-start xl:justify-start text-sm rounded-md cursor-pointer custom-link font-medium opacity-70 py-2';
         var iconHex = (item.icon || 'f111').toString().toLowerCase();
         var iconSpan = document.createElement('span');
-        iconSpan.className = 'icon-wrapper h-5 w-5 flex items-center justify-center flex-shrink-0';
-        /* Native GHL: sm-button + nav-fa-icon, --fa unicode matches platform sidebar rendering */
+        iconSpan.className = 'icon-wrapper cq-icon-wrapper h-5 w-5 flex items-center justify-center flex-shrink-0';
+        /* Native GHL: 20px icon box, sm-button + nav-fa-icon, --fa unicode */
         iconSpan.innerHTML = '<i class="sm-button nav-fa-icon" style="--fa:\'\\' + iconHex + '\';--ff:\'Font Awesome 5 Free\';font-weight:900;font-size:1rem;" aria-hidden="true"></i>';
         var labelSpan = document.createElement('span');
-        labelSpan.className = 'nav-title nav-text cq-nav-label hl_text-overflow ml-3';
+        labelSpan.className = 'nav-title nav-text cq-nav-label hl_text-overflow';
         labelSpan.textContent = item.label;
         link.appendChild(iconSpan);
         link.appendChild(labelSpan);

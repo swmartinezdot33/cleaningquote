@@ -976,25 +976,38 @@ html.cq-logo-swap-active .sidebar-v2-agency .agency-logo-container::after {
 /* General styling – button (legacy) and a.cq-submenu-link (collapsible) */
 div#cleanquote-ghl-sidebar-menu ul li button,
 div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link {
-  /* Layout – 30px left padding for nested look under CleanQuote.io */
   display: flex !important;
   align-items: center !important;
   justify-content: flex-start !important;
   width: 100% !important;
   min-height: 36px !important;
-  padding: 8px 16px 8px 30px !important;
-  gap: 8px;
+  padding: 8px 16px !important;
+  gap: 0 !important;
+
+  /* Native GHL font: Inter / system-ui stack, 14px, weight 500 */
+  font-family: "Inter", "system-ui", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
 
   /* Visuals - Unselected state */
   color: rgb(107, 114, 128) !important;
   background-color: transparent !important;
-  font-weight: 500 !important;
   border-radius: 6px !important;
   cursor: pointer !important;
   border: none !important;
   box-shadow: none !important;
   text-decoration: none !important;
   opacity: 0.85 !important;
+}
+
+/* Label text: same native font stack and size */
+div#cleanquote-ghl-sidebar-menu .nav-title,
+div#cleanquote-ghl-sidebar-menu .cq-nav-label {
+  font-family: inherit !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
 }
 
 /* Collapsible rail: center icons when sidebar is collapsed (GHL uses md:justify-center) */
@@ -1043,24 +1056,50 @@ div#cleanquote-ghl-sidebar-menu ul li button.is-active:hover span.icon-wrapper i
   color: #7c3aed !important;
 }
 
-/* Icon styling (when icon wrapper is present) */
+/* Exact native spacing: icon wrapper 20px, label gap 12px (0.75rem) */
 div#cleanquote-ghl-sidebar-menu ul li button span.icon-wrapper,
-div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link span.icon-wrapper {
-  height: 20px !important;
-  width: 20px !important;
-  min-width: 20px !important;
-  margin-right: 8px !important;
+div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link span.icon-wrapper,
+div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link .cq-icon-wrapper {
+  width: 1.25rem !important;
+  min-width: 1.25rem !important;
+  height: 1.25rem !important;
+  margin-right: 0 !important;
   flex-shrink: 0 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
 }
 
-/* Rail mode: no margin on icon when label is hidden */
+/* Native gap between icon and label = 12px */
+div#cleanquote-ghl-sidebar-menu .nav-title,
+div#cleanquote-ghl-sidebar-menu .cq-nav-label {
+  margin-left: 0.75rem !important;
+}
+
+/* Expanded view: indent submenu under CleanQuote.io */
+@media (min-width: 1024px) {
+  div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link {
+    padding-left: 2rem !important;
+  }
+}
+
+/* Rail mode: no margin on label when hidden */
 @media (max-width: 1023px) {
-  div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link span.icon-wrapper {
+  div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link span.icon-wrapper,
+  div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link .cq-icon-wrapper {
     margin-right: 0 !important;
   }
+}
+
+/* When GHL adds .sidebar-v2-collapsed, center icons and hide labels */
+.sidebar-v2-collapsed div#cleanquote-ghl-sidebar-menu ul li a.cq-submenu-link {
+  justify-content: center !important;
+  padding-left: 0.5rem !important;
+  padding-right: 0.5rem !important;
+}
+.sidebar-v2-collapsed div#cleanquote-ghl-sidebar-menu .nav-title,
+.sidebar-v2-collapsed div#cleanquote-ghl-sidebar-menu .cq-nav-label {
+  display: none !important;
 }
 
 /* Rail-mode tooltip: show label on hover when sidebar is collapsed (hidden when expanded) */
