@@ -262,8 +262,8 @@
       { page: 'leads', label: 'Leads', icon: 'f0d1' },
       { page: 'quotes', label: 'Quotes', icon: 'f53a' },
       { page: 'tools', label: 'Tools', icon: 'f7d9' },
-      { page: 'service-areas', label: 'Service Areas', icon: 'f3c5' },
-      { page: 'pricing', label: 'Pricing', icon: 'f155' }
+      { page: 'pricing', label: 'Pricing', icon: 'f155' },
+      { page: 'service-areas', label: 'Service Areas', icon: 'f3c5' }
     ];
     function findCleanQuoteIframe() {
       try {
