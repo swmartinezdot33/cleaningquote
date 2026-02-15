@@ -40,6 +40,16 @@ body[data-theme="default-dark-v1"] .user-info-card .text-xs.truncate {
 .avatar_img[src=""] {
     background-color: #7c3aed !important;
 }
+/* Avatar: our purple background + bold initials */
+.avatar .avatar_img {
+    background-color: #7c3aed !important;
+    font-weight: 700 !important;
+}
+/* Header/avatar SVG icons: our purple fill */
+.avatar svg,
+.hl_header svg {
+    fill: #7c3aed !important;
+}
 i.icon {
     border: none;
 }
