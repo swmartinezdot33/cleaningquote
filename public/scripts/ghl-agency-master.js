@@ -142,6 +142,17 @@
     var CONTAINER_ID = 'cleanquote-ghl-sidebar-menu';
     var activeBg = 'rgba(0,0,0,0.12)';
     var activeColor = '#7c3aed';
+    var ourPurple = '#7c3aed';
+
+    function setElementStyles(el, styles) {
+      if (!el || !styles) return;
+      for (var k in styles) {
+        if (styles.hasOwnProperty(k)) {
+          var cssKey = k.replace(/([A-Z])/g, function (m) { return '-' + m.toLowerCase(); });
+          el.style.setProperty(cssKey, styles[k]);
+        }
+      }
+    }
 
     function findCleanQuoteCustomLinkRow() {
         var root = getLeftSidebarRoot();
@@ -184,6 +195,7 @@
           parentElement.insertBefore(ourContainer, elementToMove.nextSibling);
         }
         elementToMove.setAttribute('data-cleanquote-primary', '1');
+        setElementStyles(elementToMove, { backgroundColor: ourPurple });
       }
 
       hideDashboardItem();
@@ -255,6 +267,23 @@
         }
     }
     setInterval(applyTitle, 2000);
+  })();
+
+  /* --- Avatar fallback: our purple when no image --- */
+  (function () {
+    var ourPurple = '#7c3aed';
+    function styleAvatar() {
+      var avatarImg = document.querySelector('.avatar_img');
+      if (avatarImg && !avatarImg.getAttribute('src')) {
+        avatarImg.style.backgroundColor = ourPurple;
+      }
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', styleAvatar);
+    } else {
+      styleAvatar();
+    }
+    setTimeout(styleAvatar, 1500);
   })();
 
 })();
