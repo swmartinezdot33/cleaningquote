@@ -721,14 +721,14 @@
       }
       return '';
     }
-    var TITLE_SUFFIX = ' | LaunchPad';
+    var TITLE_SUFFIX = ' | CleanQuote.io';
     function applyTitle() {
       try {
         var pageName = getPageNameFromUrl() || getActiveNavLabel();
         if (pageName) {
-          document.title = pageName.replace(/\s*\|\s*LaunchPad\s*$/i, '') + TITLE_SUFFIX;
+          document.title = pageName.replace(/\s*\|\s*CleanQuote\.io\s*$/i, '') + TITLE_SUFFIX;
         } else {
-          document.title = 'LaunchPad';
+          document.title = 'CleanQuote.io';
         }
       } catch (e) {}
     }
