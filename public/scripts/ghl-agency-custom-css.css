@@ -149,23 +149,6 @@ div#membershipBuilder {
 /*   HEADER BUTTONS – SOLUTION INTEGRATION                                    */
 /* -------------------------------------------------------------------------- */
 
-:root {
-    --header-button-border-color: transparent;
-    --header-phone-button-bg: #1caf57;
-    --header-phone-button-color: #ffffff;
-    --header-changelog-button-bg: #45967f;
-    --header-changelog-button-color: #ffffff;
-    --header-recent-activites-button-bg: #ffffff;
-    --header-recent-activites-button-color: #020202;
-    --header-help-button-bg: #09bdd9;
-    --header-help-button-color: #ffffff;
-    --header-avatar-button-bg: #6314c3;
-    --header-avatar-button-color: #ffffff;
-    --header-translation-button-bg: #178af6;
-    --header-translation-button-color: #ffffff;
-    --header-ask-ai-button-bg: #155EEF;
-    --header-ask-ai-button-color: #ffffff;
-}
 .hl_header .btn.btn-circle,
 .hl_navbar--button,
 .hl_header--dropdown .avatar_img,
@@ -251,7 +234,7 @@ a#hl_header--help-icon i {
     stroke: var(--header-ask-ai-button-color) !important;
 }
 :root {
-    --header-phone-button-bg: #7c3aed;
+    --header-phone-button-bg: #ffffff;
     --header-phone-button-color: #ffffff;
     --header-recent-activites-button-bg: #7c3aed;
     --header-recent-activites-button-color: #ffffff;
