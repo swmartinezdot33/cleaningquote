@@ -168,6 +168,20 @@
         return null;
     }
 
+    /** Move CleanQuote nav row to first position; keep submenu container right after it. */
+    function moveCleanQuoteToFirst() {
+        var selectedElement = findCleanQuoteCustomLinkRow();
+        if (!selectedElement) return;
+        var parentElement = selectedElement.parentElement;
+        if (parentElement) {
+            parentElement.prepend(selectedElement);
+        }
+        var container = document.getElementById(CONTAINER_ID);
+        if (container && parentElement && selectedElement.nextElementSibling !== container) {
+            parentElement.insertBefore(container, selectedElement.nextSibling);
+        }
+    }
+
     /* Submenu definition */
     var MENU_ITEMS = [
       { page: 'inbox', label: 'Inbox' },
@@ -216,11 +230,13 @@
         var target = navItems || leftSidebar;
         target.appendChild(container);
       }
+      moveCleanQuoteToFirst();
     }
 
     function tryInject() {
       var locId = getLocationIdFromUrl() || getLocationIdFromSidebar();
       if (locId) injectSidebarMenu(locId);
+      else moveCleanQuoteToFirst();
     }
 
     // Initialization: retry so we catch late-rendered sidebar (GHL SPA)
